@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QApplication,
+    QAbstractItemView,
     QSpinBox,
     QTableView,
     QTimeEdit,
@@ -157,8 +158,8 @@ class MainWindow(QMainWindow):
         self.historico_table = QTableView()
         self.historico_model = SolicitudesTableModel([])
         self.historico_table.setModel(self.historico_model)
-        self.historico_table.setSelectionBehavior(QTableView.SelectRows)
-        self.historico_table.setSelectionMode(QTableView.SingleSelection)
+        self.historico_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.historico_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.historico_table.selectionModel().selectionChanged.connect(
             self._on_historico_selection_changed
         )

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import logging
+import traceback
+from datetime import datetime
+from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
@@ -36,4 +39,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        log_path = Path(__file__).resolve().parent / "app_error.log"
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        error_details = traceback.format_exc()
+        with log_path.open("a", encoding="utf-8") as log_file:
+            log_file.write(f"[{timestamp}]\n{error_details}\n")
+        traceback.print_exc()
+        input("Error. Pulsa Enter para cerrar...")
