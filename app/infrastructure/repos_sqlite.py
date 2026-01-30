@@ -7,6 +7,10 @@ from app.domain.models import Persona, Solicitud
 from app.domain.ports import PersonaRepository, SolicitudRepository
 
 
+def _int_or_zero(value: int | None) -> int:
+    return 0 if value is None else int(value)
+
+
 class PersonaRepositorySQLite(PersonaRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
@@ -15,8 +19,15 @@ class PersonaRepositorySQLite(PersonaRepository):
         cursor = self._connection.cursor()
         cursor.execute(
             """
-            SELECT id, nombre, genero, horas_mes, horas_ano, horas_jornada_defecto,
-                   cuad_lun, cuad_mar, cuad_mie, cuad_jue, cuad_vie, cuad_sab, cuad_dom
+            SELECT id, nombre, genero,
+                   horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
+                   cuad_lun_man_min, cuad_lun_tar_min,
+                   cuad_mar_man_min, cuad_mar_tar_min,
+                   cuad_mie_man_min, cuad_mie_tar_min,
+                   cuad_jue_man_min, cuad_jue_tar_min,
+                   cuad_vie_man_min, cuad_vie_tar_min,
+                   cuad_sab_man_min, cuad_sab_tar_min,
+                   cuad_dom_man_min, cuad_dom_tar_min
             FROM personas
             ORDER BY nombre
             """
@@ -27,16 +38,23 @@ class PersonaRepositorySQLite(PersonaRepository):
                 id=row["id"],
                 nombre=row["nombre"],
                 genero=row["genero"],
-                horas_mes=row["horas_mes"],
-                horas_ano=row["horas_ano"],
-                horas_jornada_defecto=row["horas_jornada_defecto"],
-                cuad_lun=row["cuad_lun"],
-                cuad_mar=row["cuad_mar"],
-                cuad_mie=row["cuad_mie"],
-                cuad_jue=row["cuad_jue"],
-                cuad_vie=row["cuad_vie"],
-                cuad_sab=row["cuad_sab"],
-                cuad_dom=row["cuad_dom"],
+                horas_mes_min=_int_or_zero(row["horas_mes_min"]),
+                horas_ano_min=_int_or_zero(row["horas_ano_min"]),
+                horas_jornada_defecto_min=_int_or_zero(row["horas_jornada_defecto_min"]),
+                cuad_lun_man_min=_int_or_zero(row["cuad_lun_man_min"]),
+                cuad_lun_tar_min=_int_or_zero(row["cuad_lun_tar_min"]),
+                cuad_mar_man_min=_int_or_zero(row["cuad_mar_man_min"]),
+                cuad_mar_tar_min=_int_or_zero(row["cuad_mar_tar_min"]),
+                cuad_mie_man_min=_int_or_zero(row["cuad_mie_man_min"]),
+                cuad_mie_tar_min=_int_or_zero(row["cuad_mie_tar_min"]),
+                cuad_jue_man_min=_int_or_zero(row["cuad_jue_man_min"]),
+                cuad_jue_tar_min=_int_or_zero(row["cuad_jue_tar_min"]),
+                cuad_vie_man_min=_int_or_zero(row["cuad_vie_man_min"]),
+                cuad_vie_tar_min=_int_or_zero(row["cuad_vie_tar_min"]),
+                cuad_sab_man_min=_int_or_zero(row["cuad_sab_man_min"]),
+                cuad_sab_tar_min=_int_or_zero(row["cuad_sab_tar_min"]),
+                cuad_dom_man_min=_int_or_zero(row["cuad_dom_man_min"]),
+                cuad_dom_tar_min=_int_or_zero(row["cuad_dom_tar_min"]),
             )
             for row in rows
         ]
@@ -45,8 +63,15 @@ class PersonaRepositorySQLite(PersonaRepository):
         cursor = self._connection.cursor()
         cursor.execute(
             """
-            SELECT id, nombre, genero, horas_mes, horas_ano, horas_jornada_defecto,
-                   cuad_lun, cuad_mar, cuad_mie, cuad_jue, cuad_vie, cuad_sab, cuad_dom
+            SELECT id, nombre, genero,
+                   horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
+                   cuad_lun_man_min, cuad_lun_tar_min,
+                   cuad_mar_man_min, cuad_mar_tar_min,
+                   cuad_mie_man_min, cuad_mie_tar_min,
+                   cuad_jue_man_min, cuad_jue_tar_min,
+                   cuad_vie_man_min, cuad_vie_tar_min,
+                   cuad_sab_man_min, cuad_sab_tar_min,
+                   cuad_dom_man_min, cuad_dom_tar_min
             FROM personas
             WHERE id = ?
             """,
@@ -59,24 +84,38 @@ class PersonaRepositorySQLite(PersonaRepository):
             id=row["id"],
             nombre=row["nombre"],
             genero=row["genero"],
-            horas_mes=row["horas_mes"],
-            horas_ano=row["horas_ano"],
-            horas_jornada_defecto=row["horas_jornada_defecto"],
-            cuad_lun=row["cuad_lun"],
-            cuad_mar=row["cuad_mar"],
-            cuad_mie=row["cuad_mie"],
-            cuad_jue=row["cuad_jue"],
-            cuad_vie=row["cuad_vie"],
-            cuad_sab=row["cuad_sab"],
-            cuad_dom=row["cuad_dom"],
+            horas_mes_min=_int_or_zero(row["horas_mes_min"]),
+            horas_ano_min=_int_or_zero(row["horas_ano_min"]),
+            horas_jornada_defecto_min=_int_or_zero(row["horas_jornada_defecto_min"]),
+            cuad_lun_man_min=_int_or_zero(row["cuad_lun_man_min"]),
+            cuad_lun_tar_min=_int_or_zero(row["cuad_lun_tar_min"]),
+            cuad_mar_man_min=_int_or_zero(row["cuad_mar_man_min"]),
+            cuad_mar_tar_min=_int_or_zero(row["cuad_mar_tar_min"]),
+            cuad_mie_man_min=_int_or_zero(row["cuad_mie_man_min"]),
+            cuad_mie_tar_min=_int_or_zero(row["cuad_mie_tar_min"]),
+            cuad_jue_man_min=_int_or_zero(row["cuad_jue_man_min"]),
+            cuad_jue_tar_min=_int_or_zero(row["cuad_jue_tar_min"]),
+            cuad_vie_man_min=_int_or_zero(row["cuad_vie_man_min"]),
+            cuad_vie_tar_min=_int_or_zero(row["cuad_vie_tar_min"]),
+            cuad_sab_man_min=_int_or_zero(row["cuad_sab_man_min"]),
+            cuad_sab_tar_min=_int_or_zero(row["cuad_sab_tar_min"]),
+            cuad_dom_man_min=_int_or_zero(row["cuad_dom_man_min"]),
+            cuad_dom_tar_min=_int_or_zero(row["cuad_dom_tar_min"]),
         )
 
     def get_by_nombre(self, nombre: str) -> Persona | None:
         cursor = self._connection.cursor()
         cursor.execute(
             """
-            SELECT id, nombre, genero, horas_mes, horas_ano, horas_jornada_defecto,
-                   cuad_lun, cuad_mar, cuad_mie, cuad_jue, cuad_vie, cuad_sab, cuad_dom
+            SELECT id, nombre, genero,
+                   horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
+                   cuad_lun_man_min, cuad_lun_tar_min,
+                   cuad_mar_man_min, cuad_mar_tar_min,
+                   cuad_mie_man_min, cuad_mie_tar_min,
+                   cuad_jue_man_min, cuad_jue_tar_min,
+                   cuad_vie_man_min, cuad_vie_tar_min,
+                   cuad_sab_man_min, cuad_sab_tar_min,
+                   cuad_dom_man_min, cuad_dom_tar_min
             FROM personas
             WHERE nombre = ?
             """,
@@ -89,16 +128,23 @@ class PersonaRepositorySQLite(PersonaRepository):
             id=row["id"],
             nombre=row["nombre"],
             genero=row["genero"],
-            horas_mes=row["horas_mes"],
-            horas_ano=row["horas_ano"],
-            horas_jornada_defecto=row["horas_jornada_defecto"],
-            cuad_lun=row["cuad_lun"],
-            cuad_mar=row["cuad_mar"],
-            cuad_mie=row["cuad_mie"],
-            cuad_jue=row["cuad_jue"],
-            cuad_vie=row["cuad_vie"],
-            cuad_sab=row["cuad_sab"],
-            cuad_dom=row["cuad_dom"],
+            horas_mes_min=_int_or_zero(row["horas_mes_min"]),
+            horas_ano_min=_int_or_zero(row["horas_ano_min"]),
+            horas_jornada_defecto_min=_int_or_zero(row["horas_jornada_defecto_min"]),
+            cuad_lun_man_min=_int_or_zero(row["cuad_lun_man_min"]),
+            cuad_lun_tar_min=_int_or_zero(row["cuad_lun_tar_min"]),
+            cuad_mar_man_min=_int_or_zero(row["cuad_mar_man_min"]),
+            cuad_mar_tar_min=_int_or_zero(row["cuad_mar_tar_min"]),
+            cuad_mie_man_min=_int_or_zero(row["cuad_mie_man_min"]),
+            cuad_mie_tar_min=_int_or_zero(row["cuad_mie_tar_min"]),
+            cuad_jue_man_min=_int_or_zero(row["cuad_jue_man_min"]),
+            cuad_jue_tar_min=_int_or_zero(row["cuad_jue_tar_min"]),
+            cuad_vie_man_min=_int_or_zero(row["cuad_vie_man_min"]),
+            cuad_vie_tar_min=_int_or_zero(row["cuad_vie_tar_min"]),
+            cuad_sab_man_min=_int_or_zero(row["cuad_sab_man_min"]),
+            cuad_sab_tar_min=_int_or_zero(row["cuad_sab_tar_min"]),
+            cuad_dom_man_min=_int_or_zero(row["cuad_dom_man_min"]),
+            cuad_dom_tar_min=_int_or_zero(row["cuad_dom_tar_min"]),
         )
 
     def create(self, persona: Persona) -> Persona:
@@ -106,23 +152,33 @@ class PersonaRepositorySQLite(PersonaRepository):
         cursor.execute(
             """
             INSERT INTO personas (
-                nombre, genero, horas_mes, horas_ano, horas_jornada_defecto,
-                cuad_lun, cuad_mar, cuad_mie, cuad_jue, cuad_vie, cuad_sab, cuad_dom
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
+                cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
+                cuad_mie_man_min, cuad_mie_tar_min, cuad_jue_man_min, cuad_jue_tar_min,
+                cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
+                cuad_dom_man_min, cuad_dom_tar_min
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 persona.nombre,
                 persona.genero,
-                persona.horas_mes,
-                persona.horas_ano,
-                persona.horas_jornada_defecto,
-                persona.cuad_lun,
-                persona.cuad_mar,
-                persona.cuad_mie,
-                persona.cuad_jue,
-                persona.cuad_vie,
-                persona.cuad_sab,
-                persona.cuad_dom,
+                persona.horas_mes_min,
+                persona.horas_ano_min,
+                persona.horas_jornada_defecto_min,
+                persona.cuad_lun_man_min,
+                persona.cuad_lun_tar_min,
+                persona.cuad_mar_man_min,
+                persona.cuad_mar_tar_min,
+                persona.cuad_mie_man_min,
+                persona.cuad_mie_tar_min,
+                persona.cuad_jue_man_min,
+                persona.cuad_jue_tar_min,
+                persona.cuad_vie_man_min,
+                persona.cuad_vie_tar_min,
+                persona.cuad_sab_man_min,
+                persona.cuad_sab_tar_min,
+                persona.cuad_dom_man_min,
+                persona.cuad_dom_tar_min,
             ),
         )
         self._connection.commit()
@@ -130,16 +186,23 @@ class PersonaRepositorySQLite(PersonaRepository):
             id=cursor.lastrowid,
             nombre=persona.nombre,
             genero=persona.genero,
-            horas_mes=persona.horas_mes,
-            horas_ano=persona.horas_ano,
-            horas_jornada_defecto=persona.horas_jornada_defecto,
-            cuad_lun=persona.cuad_lun,
-            cuad_mar=persona.cuad_mar,
-            cuad_mie=persona.cuad_mie,
-            cuad_jue=persona.cuad_jue,
-            cuad_vie=persona.cuad_vie,
-            cuad_sab=persona.cuad_sab,
-            cuad_dom=persona.cuad_dom,
+            horas_mes_min=persona.horas_mes_min,
+            horas_ano_min=persona.horas_ano_min,
+            horas_jornada_defecto_min=persona.horas_jornada_defecto_min,
+            cuad_lun_man_min=persona.cuad_lun_man_min,
+            cuad_lun_tar_min=persona.cuad_lun_tar_min,
+            cuad_mar_man_min=persona.cuad_mar_man_min,
+            cuad_mar_tar_min=persona.cuad_mar_tar_min,
+            cuad_mie_man_min=persona.cuad_mie_man_min,
+            cuad_mie_tar_min=persona.cuad_mie_tar_min,
+            cuad_jue_man_min=persona.cuad_jue_man_min,
+            cuad_jue_tar_min=persona.cuad_jue_tar_min,
+            cuad_vie_man_min=persona.cuad_vie_man_min,
+            cuad_vie_tar_min=persona.cuad_vie_tar_min,
+            cuad_sab_man_min=persona.cuad_sab_man_min,
+            cuad_sab_tar_min=persona.cuad_sab_tar_min,
+            cuad_dom_man_min=persona.cuad_dom_man_min,
+            cuad_dom_tar_min=persona.cuad_dom_tar_min,
         )
 
     def update(self, persona: Persona) -> Persona:
@@ -147,24 +210,33 @@ class PersonaRepositorySQLite(PersonaRepository):
         cursor.execute(
             """
             UPDATE personas
-            SET nombre = ?, genero = ?, horas_mes = ?, horas_ano = ?, horas_jornada_defecto = ?,
-                cuad_lun = ?, cuad_mar = ?, cuad_mie = ?, cuad_jue = ?, cuad_vie = ?, cuad_sab = ?,
-                cuad_dom = ?
+            SET nombre = ?, genero = ?, horas_mes_min = ?, horas_ano_min = ?, horas_jornada_defecto_min = ?,
+                cuad_lun_man_min = ?, cuad_lun_tar_min = ?, cuad_mar_man_min = ?, cuad_mar_tar_min = ?,
+                cuad_mie_man_min = ?, cuad_mie_tar_min = ?, cuad_jue_man_min = ?, cuad_jue_tar_min = ?,
+                cuad_vie_man_min = ?, cuad_vie_tar_min = ?, cuad_sab_man_min = ?, cuad_sab_tar_min = ?,
+                cuad_dom_man_min = ?, cuad_dom_tar_min = ?
             WHERE id = ?
             """,
             (
                 persona.nombre,
                 persona.genero,
-                persona.horas_mes,
-                persona.horas_ano,
-                persona.horas_jornada_defecto,
-                persona.cuad_lun,
-                persona.cuad_mar,
-                persona.cuad_mie,
-                persona.cuad_jue,
-                persona.cuad_vie,
-                persona.cuad_sab,
-                persona.cuad_dom,
+                persona.horas_mes_min,
+                persona.horas_ano_min,
+                persona.horas_jornada_defecto_min,
+                persona.cuad_lun_man_min,
+                persona.cuad_lun_tar_min,
+                persona.cuad_mar_man_min,
+                persona.cuad_mar_tar_min,
+                persona.cuad_mie_man_min,
+                persona.cuad_mie_tar_min,
+                persona.cuad_jue_man_min,
+                persona.cuad_jue_tar_min,
+                persona.cuad_vie_man_min,
+                persona.cuad_vie_tar_min,
+                persona.cuad_sab_man_min,
+                persona.cuad_sab_tar_min,
+                persona.cuad_dom_man_min,
+                persona.cuad_dom_tar_min,
                 persona.id,
             ),
         )
@@ -180,8 +252,8 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor = self._connection.cursor()
         cursor.execute(
             """
-            SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde, hasta, completo,
-                   horas, observaciones, pdf_path, pdf_hash
+            SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                   horas_solicitadas_min, observaciones, pdf_path, pdf_hash
             FROM solicitudes
             WHERE persona_id = ?
             ORDER BY fecha_pedida DESC
@@ -195,10 +267,10 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 persona_id=row["persona_id"],
                 fecha_solicitud=row["fecha_solicitud"],
                 fecha_pedida=row["fecha_pedida"],
-                desde=row["desde"],
-                hasta=row["hasta"],
+                desde_min=row["desde_min"],
+                hasta_min=row["hasta_min"],
                 completo=bool(row["completo"]),
-                horas=row["horas"],
+                horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
                 observaciones=row["observaciones"],
                 pdf_path=row["pdf_path"],
                 pdf_hash=row["pdf_hash"],
@@ -213,8 +285,8 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         if month is None:
             cursor.execute(
                 """
-                SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde, hasta, completo,
-                       horas, observaciones, pdf_path, pdf_hash
+                SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                       horas_solicitadas_min, observaciones, pdf_path, pdf_hash
                 FROM solicitudes
                 WHERE persona_id = ?
                   AND strftime('%Y', fecha_pedida) = ?
@@ -225,8 +297,8 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         else:
             cursor.execute(
                 """
-                SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde, hasta, completo,
-                       horas, observaciones, pdf_path, pdf_hash
+                SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                       horas_solicitadas_min, observaciones, pdf_path, pdf_hash
                 FROM solicitudes
                 WHERE persona_id = ?
                   AND strftime('%Y', fecha_pedida) = ?
@@ -242,10 +314,10 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 persona_id=row["persona_id"],
                 fecha_solicitud=row["fecha_solicitud"],
                 fecha_pedida=row["fecha_pedida"],
-                desde=row["desde"],
-                hasta=row["hasta"],
+                desde_min=row["desde_min"],
+                hasta_min=row["hasta_min"],
                 completo=bool(row["completo"]),
-                horas=row["horas"],
+                horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
                 observaciones=row["observaciones"],
                 pdf_path=row["pdf_path"],
                 pdf_hash=row["pdf_hash"],
@@ -257,8 +329,8 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor = self._connection.cursor()
         cursor.execute(
             """
-            SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde, hasta, completo,
-                   horas, observaciones, pdf_path, pdf_hash
+            SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                   horas_solicitadas_min, observaciones, pdf_path, pdf_hash
             FROM solicitudes
             WHERE id = ?
             """,
@@ -272,10 +344,10 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             persona_id=row["persona_id"],
             fecha_solicitud=row["fecha_solicitud"],
             fecha_pedida=row["fecha_pedida"],
-            desde=row["desde"],
-            hasta=row["hasta"],
+            desde_min=row["desde_min"],
+            hasta_min=row["hasta_min"],
             completo=bool(row["completo"]),
-            horas=row["horas"],
+            horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
             observaciones=row["observaciones"],
             pdf_path=row["pdf_path"],
             pdf_hash=row["pdf_hash"],
@@ -285,8 +357,8 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         self,
         persona_id: int,
         fecha_pedida: str,
-        desde: str | None,
-        hasta: str | None,
+        desde_min: int | None,
+        hasta_min: int | None,
         completo: bool,
     ) -> bool:
         cursor = self._connection.cursor()
@@ -296,16 +368,16 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             "completo = ?",
         ]
         params: list[object] = [persona_id, fecha_pedida, int(completo)]
-        if desde is None:
-            clauses.append("desde IS NULL")
+        if desde_min is None:
+            clauses.append("desde_min IS NULL")
         else:
-            clauses.append("desde = ?")
-            params.append(desde)
-        if hasta is None:
-            clauses.append("hasta IS NULL")
+            clauses.append("desde_min = ?")
+            params.append(desde_min)
+        if hasta_min is None:
+            clauses.append("hasta_min IS NULL")
         else:
-            clauses.append("hasta = ?")
-            params.append(hasta)
+            clauses.append("hasta_min = ?")
+            params.append(hasta_min)
         cursor.execute(
             f"""
             SELECT 1
@@ -322,18 +394,18 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor.execute(
             """
             INSERT INTO solicitudes (
-                persona_id, fecha_solicitud, fecha_pedida, desde, hasta, completo,
-                horas, observaciones, pdf_path, pdf_hash
+                persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                horas_solicitadas_min, observaciones, pdf_path, pdf_hash
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 solicitud.persona_id,
                 solicitud.fecha_solicitud,
                 solicitud.fecha_pedida,
-                solicitud.desde,
-                solicitud.hasta,
+                solicitud.desde_min,
+                solicitud.hasta_min,
                 int(solicitud.completo),
-                solicitud.horas,
+                solicitud.horas_solicitadas_min,
                 solicitud.observaciones,
                 solicitud.pdf_path,
                 solicitud.pdf_hash,
@@ -345,10 +417,10 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             persona_id=solicitud.persona_id,
             fecha_solicitud=solicitud.fecha_solicitud,
             fecha_pedida=solicitud.fecha_pedida,
-            desde=solicitud.desde,
-            hasta=solicitud.hasta,
+            desde_min=solicitud.desde_min,
+            hasta_min=solicitud.hasta_min,
             completo=solicitud.completo,
-            horas=solicitud.horas,
+            horas_solicitadas_min=solicitud.horas_solicitadas_min,
             observaciones=solicitud.observaciones,
             pdf_path=solicitud.pdf_path,
             pdf_hash=solicitud.pdf_hash,
