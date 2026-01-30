@@ -27,7 +27,7 @@ def main() -> None:
     solicitud_repo = SolicitudRepositorySQLite(connection)
 
     persona_use_cases = PersonaUseCases(persona_repo)
-    SolicitudUseCases(solicitud_repo)
+    SolicitudUseCases(solicitud_repo, persona_repo)
 
     app = QApplication([])
     window = MainWindow(persona_use_cases)
