@@ -125,9 +125,11 @@ echo.
 set "APP_EXIT=%ERRORLEVEL%"
 
 echo.
-if exist "launcher_stderr.log" (
-  type "launcher_stderr.log"
-)
+echo ===== STDERR =====
+type "launcher_stderr.log"
+echo.
+echo ===== STDOUT =====
+type "launcher_stdout.log"
 echo.
 if "%APP_EXIT%"=="0" (
   echo [INFO] La aplicacion se cerro correctamente.
