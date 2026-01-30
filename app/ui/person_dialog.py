@@ -63,6 +63,12 @@ class PersonaDialog(QDialog):
             layout.addRow(QLabel(f"Cuadrante {dia[0]}"), spin)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        ok_button = buttons.button(QDialogButtonBox.Ok)
+        if ok_button:
+            ok_button.setProperty("variant", "primary")
+        cancel_button = buttons.button(QDialogButtonBox.Cancel)
+        if cancel_button:
+            cancel_button.setProperty("variant", "secondary")
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addRow(buttons)

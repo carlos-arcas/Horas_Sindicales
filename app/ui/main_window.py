@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QApplication,
     QSpinBox,
     QTableView,
     QTimeEdit,
@@ -29,6 +30,8 @@ from app.domain.services import BusinessRuleError, ValidacionError
 from app.pdf import service as pdf
 from app.ui.models_qt import SolicitudesTableModel
 from app.ui.person_dialog import PersonaDialog
+from app.ui.style import apply_theme
+from app.ui.widgets.header import HeaderWidget
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +39,9 @@ logger = logging.getLogger(__name__)
 class MainWindow(QMainWindow):
     def __init__(self, persona_use_cases: PersonaUseCases, solicitud_use_cases: SolicitudUseCases) -> None:
         super().__init__()
+        app = QApplication.instance()
+        if app:
+            apply_theme(app)
         self._persona_use_cases = persona_use_cases
         self._solicitud_use_cases = solicitud_use_cases
         self._personas: list[PersonaDTO] = []
@@ -47,6 +53,11 @@ class MainWindow(QMainWindow):
     def _build_ui(self) -> None:
         central = QWidget()
         layout = QVBoxLayout(central)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        header = HeaderWidget()
+        layout.addWidget(header)
 
         persona_row = QHBoxLayout()
         persona_row.addWidget(QLabel("Persona"))
@@ -55,10 +66,12 @@ class MainWindow(QMainWindow):
         persona_row.addWidget(self.persona_combo)
 
         self.edit_persona_button = QPushButton("Editar persona")
+        self.edit_persona_button.setProperty("variant", "secondary")
         self.edit_persona_button.clicked.connect(self._on_edit_persona)
         persona_row.addWidget(self.edit_persona_button)
 
         self.add_persona_button = QPushButton("Nueva persona")
+        self.add_persona_button.setProperty("variant", "secondary")
         self.add_persona_button.clicked.connect(self._on_add_persona)
         persona_row.addWidget(self.add_persona_button)
         persona_row.addStretch(1)
@@ -88,6 +101,7 @@ class MainWindow(QMainWindow):
         solicitud_layout.addRow("Horas", self.horas_input)
 
         self.agregar_button = QPushButton("Agregar")
+        self.agregar_button.setProperty("variant", "primary")
         self.agregar_button.clicked.connect(self._on_add_pendiente)
         solicitud_layout.addRow(self.agregar_button)
         layout.addWidget(solicitud_group)
@@ -97,10 +111,12 @@ class MainWindow(QMainWindow):
         self.pendientes_table = QTableView()
         self.pendientes_model = SolicitudesTableModel([])
         self.pendientes_table.setModel(self.pendientes_model)
+        self.pendientes_table.setAlternatingRowColors(True)
         pendientes_layout.addWidget(self.pendientes_table)
         layout.addWidget(pendientes_group)
 
         self.confirmar_button = QPushButton("Confirmar / Generar PDF")
+        self.confirmar_button.setProperty("variant", "primary")
         self.confirmar_button.clicked.connect(self._on_confirmar)
         layout.addWidget(self.confirmar_button)
 
@@ -146,9 +162,11 @@ class MainWindow(QMainWindow):
         self.historico_table.selectionModel().selectionChanged.connect(
             self._on_historico_selection_changed
         )
+        self.historico_table.setAlternatingRowColors(True)
         historico_layout.addWidget(self.historico_table)
 
         self.eliminar_button = QPushButton("Eliminar")
+        self.eliminar_button.setProperty("variant", "danger")
         self.eliminar_button.clicked.connect(self._on_eliminar)
         historico_layout.addWidget(self.eliminar_button)
         layout.addWidget(historico_group)
