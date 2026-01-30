@@ -34,3 +34,15 @@ class SolicitudDTO:
     observaciones: Optional[str]
     pdf_path: Optional[str]
     pdf_hash: Optional[str]
+
+
+@dataclass(frozen=True)
+class SaldosDTO:
+    consumidas_mes: float
+    restantes_mes: float
+    consumidas_ano: float
+    restantes_ano: float
+    exceso_mes: float
+    exceso_ano: float
+    excedido_mes: bool
+    excedido_ano: bool

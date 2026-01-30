@@ -7,6 +7,10 @@ class ValidacionError(ValueError):
     pass
 
 
+class BusinessRuleError(ValueError):
+    pass
+
+
 def validar_persona(persona: Persona) -> None:
     if not persona.nombre.strip():
         raise ValidacionError("El nombre es obligatorio.")
@@ -29,7 +33,7 @@ def validar_persona(persona: Persona) -> None:
 
 
 def validar_solicitud(solicitud: Solicitud) -> None:
-    if solicitud.horas < 0:
-        raise ValidacionError("Las horas no pueden ser negativas.")
+    if solicitud.horas <= 0:
+        raise ValidacionError("Las horas deben ser mayores a cero.")
     if not solicitud.fecha_solicitud or not solicitud.fecha_pedida:
         raise ValidacionError("Las fechas son obligatorias.")
