@@ -430,3 +430,15 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor = self._connection.cursor()
         cursor.execute("DELETE FROM solicitudes WHERE id = ?", (solicitud_id,))
         self._connection.commit()
+
+    def update_pdf_info(self, solicitud_id: int, pdf_path: str, pdf_hash: str | None) -> None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            UPDATE solicitudes
+            SET pdf_path = ?, pdf_hash = ?
+            WHERE id = ?
+            """,
+            (pdf_path, pdf_hash, solicitud_id),
+        )
+        self._connection.commit()

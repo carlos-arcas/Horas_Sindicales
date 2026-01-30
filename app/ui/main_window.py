@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from pathlib import Path
 
-from PySide6.QtCore import QDate, QTime
+from PySide6.QtCore import QDate, QTime, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDateEdit,
+    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -29,7 +32,6 @@ from app.application.dto import PeriodoFiltro, PersonaDTO, SolicitudDTO
 from app.application.use_cases import PersonaUseCases, SolicitudUseCases
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.time_utils import minutes_to_hhmm
-from app.pdf import service as pdf
 from app.ui.models_qt import SolicitudesTableModel
 from app.ui.person_dialog import PersonaDialog
 from app.ui.style import apply_theme
@@ -145,6 +147,9 @@ class MainWindow(QMainWindow):
         self.eliminar_pendiente_button.setProperty("variant", "danger")
         self.eliminar_pendiente_button.clicked.connect(self._on_remove_pendiente)
         pendientes_actions.addWidget(self.eliminar_pendiente_button)
+        self.abrir_pdf_check = QCheckBox("Abrir PDF al finalizar")
+        self.abrir_pdf_check.setChecked(True)
+        pendientes_actions.addWidget(self.abrir_pdf_check)
         pendientes_actions.addStretch(1)
 
         self.confirmar_button = QPushButton("Confirmar y Generar PDF")
@@ -381,22 +386,36 @@ class MainWindow(QMainWindow):
         persona = self._current_persona()
         if persona is None or not self._pending_solicitudes:
             return
-        creadas: list[SolicitudDTO] = []
-        pendientes_restantes: list[SolicitudDTO] = []
-        errores: list[str] = []
-        for solicitud in self._pending_solicitudes:
-            try:
-                creada, _ = self._solicitud_use_cases.agregar_solicitud(solicitud)
-                creadas.append(creada)
-            except (ValidacionError, BusinessRuleError) as exc:
-                errores.append(str(exc))
-                pendientes_restantes.append(solicitud)
-            except Exception as exc:  # pragma: no cover - fallback
-                logger.exception("Error creando solicitud")
-                errores.append(str(exc))
-                pendientes_restantes.append(solicitud)
-        if creadas:
-            pdf.generate(creadas)
+        try:
+            default_name = self._solicitud_use_cases.sugerir_nombre_pdf(self._pending_solicitudes)
+        except (ValidacionError, BusinessRuleError) as exc:
+            QMessageBox.warning(self, "Validación", str(exc))
+            return
+        except Exception as exc:  # pragma: no cover - fallback
+            logger.exception("Error preparando PDF")
+            QMessageBox.critical(self, "Error", str(exc))
+            return
+        default_path = str(Path.home() / default_name)
+        pdf_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Guardar PDF",
+            default_path,
+            "PDF (*.pdf)",
+        )
+        if not pdf_path:
+            return
+        try:
+            creadas, pendientes_restantes, errores, generado = (
+                self._solicitud_use_cases.confirmar_lote_y_generar_pdf(
+                    self._pending_solicitudes, Path(pdf_path)
+                )
+            )
+        except Exception as exc:  # pragma: no cover - fallback
+            logger.exception("Error confirmando solicitudes")
+            QMessageBox.critical(self, "Error", str(exc))
+            return
+        if generado and self.abrir_pdf_check.isChecked():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(generado)))
         if errores:
             QMessageBox.warning(self, "Errores", "\n".join(errores))
         self._pending_solicitudes = pendientes_restantes

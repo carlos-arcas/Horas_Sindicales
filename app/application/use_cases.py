@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import logging
+from dataclasses import replace
 from datetime import datetime
+from pathlib import Path
 from typing import Iterable
 
 from app.application.dto import (
@@ -13,8 +16,14 @@ from app.application.dto import (
 )
 from app.domain.models import Persona, Solicitud
 from app.domain.ports import PersonaRepository, SolicitudRepository
-from app.domain.services import BusinessRuleError, validar_persona, validar_solicitud
+from app.domain.services import (
+    BusinessRuleError,
+    ValidacionError,
+    validar_persona,
+    validar_solicitud,
+)
 from app.domain.time_utils import minutes_to_hhmm, parse_hhmm
+from app.pdf import pdf_builder
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +265,54 @@ class SolicitudUseCases:
             total += _calcular_minutos(solicitud, persona)
         return total
 
+    def sugerir_nombre_pdf(self, solicitudes: Iterable[SolicitudDTO]) -> str:
+        solicitudes_list = list(solicitudes)
+        if not solicitudes_list:
+            return "A_Coordinadora_Solicitud_Horas_Sindicales.pdf"
+        persona = self._persona_repo.get_by_id(solicitudes_list[0].persona_id)
+        if persona is None:
+            raise BusinessRuleError("Persona no encontrada.")
+        fechas = [solicitud.fecha_pedida for solicitud in solicitudes_list]
+        return pdf_builder.build_nombre_archivo(persona.nombre, fechas)
+
+    def confirmar_lote_y_generar_pdf(
+        self, solicitudes: Iterable[SolicitudDTO], destino: Path
+    ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:
+        solicitudes_list = list(solicitudes)
+        creadas: list[SolicitudDTO] = []
+        pendientes: list[SolicitudDTO] = []
+        errores: list[str] = []
+        for solicitud in solicitudes_list:
+            try:
+                creada, _ = self.agregar_solicitud(solicitud)
+                creadas.append(creada)
+            except (ValidacionError, BusinessRuleError) as exc:
+                errores.append(str(exc))
+                pendientes.append(solicitud)
+            except Exception as exc:  # pragma: no cover - fallback
+                logger.exception("Error creando solicitud")
+                errores.append(str(exc))
+                pendientes.append(solicitud)
+
+        pdf_path: Path | None = None
+        if creadas:
+            try:
+                persona = self._persona_repo.get_by_id(creadas[0].persona_id)
+                if persona is None:
+                    raise BusinessRuleError("Persona no encontrada.")
+                pdf_path = pdf_builder.construir_pdf_solicitudes(creadas, persona, destino)
+                pdf_hash = _hash_file(pdf_path)
+                creadas = [
+                    _actualizar_pdf_en_repo(self._repo, solicitud, pdf_path, pdf_hash)
+                    for solicitud in creadas
+                ]
+            except Exception as exc:  # pragma: no cover - fallback
+                logger.exception("Error generando PDF")
+                errores.append(f"No se pudo generar el PDF: {exc}")
+                pdf_path = None
+
+        return creadas, pendientes, errores, pdf_path
+
     def calcular_totales_globales(self, filtro: PeriodoFiltro) -> TotalesGlobalesDTO:
         personas = list(self._persona_repo.list_all())
         total_bolsa = 0
@@ -381,3 +438,17 @@ def _calcular_saldos(
         excedido_mes=exceso_mes > 0,
         excedido_ano=exceso_ano > 0,
     )
+
+
+def _hash_file(path: Path) -> str:
+    data = path.read_bytes()
+    return hashlib.sha256(data).hexdigest()
+
+
+def _actualizar_pdf_en_repo(
+    repo: SolicitudRepository, solicitud: SolicitudDTO, pdf_path: Path, pdf_hash: str | None
+) -> SolicitudDTO:
+    if solicitud.id is None:
+        return solicitud
+    repo.update_pdf_info(solicitud.id, str(pdf_path), pdf_hash)
+    return replace(solicitud, pdf_path=str(pdf_path), pdf_hash=pdf_hash)
