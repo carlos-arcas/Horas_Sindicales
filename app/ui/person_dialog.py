@@ -19,7 +19,7 @@ class PersonaDialog(QDialog):
     def __init__(self, parent: QWidget | None = None, persona: PersonaDTO | None = None) -> None:
         super().__init__(parent)
         self._persona = persona
-        self.setWindowTitle("Editar persona" if persona else "Nueva persona")
+        self.setWindowTitle("Editar delegado" if persona else "Nuevo delegado")
         self._build_ui()
         if persona:
             self._load_persona(persona)
