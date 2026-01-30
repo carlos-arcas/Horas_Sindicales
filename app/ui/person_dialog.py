@@ -89,7 +89,7 @@ class PersonaDialog(QDialog):
         self.cuad_inputs["cuad_dom"].setValue(persona.cuad_dom)
 
     def get_persona(self) -> PersonaDTO | None:
-        if self.exec() != QDialog.Accepted:
+        if self.exec() != QDialog.DialogCode.Accepted:
             return None
         nombre = self.nombre_input.text().strip()
         if not nombre:

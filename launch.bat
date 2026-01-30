@@ -3,141 +3,169 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 REM ==========================================================
 REM  launch.bat - Launcher Windows para app PySide6 (Horas Sindicales)
-REM  - Crea/usa .venv
-REM  - Instala dependencias desde requirements.txt
-REM  - Ejecuta main.py
-REM  - Mensajes en español + manejo de errores
-REM
-REM  Dependencias esperadas en requirements.txt (referencia):
-REM    PySide6
-REM    reportlab
-REM    openpyxl
-REM    gspread
-REM    google-api-python-client
-REM    python-dotenv
-REM
-REM  Recursos del proyecto:
-REM    - main.py
-REM    - requirements.txt
-REM    - logo.png  (logo usado también en UI / PDF)
-REM    - BD SQLite (horas.db o similar)
+REM  Modo blindado con logs persistentes.
 REM ==========================================================
+
+REM 0) Forzar consola persistente
+if /I not "%~1"=="__in_cmd__" (
+  start "" cmd /k ""%~f0" __in_cmd__"
+  exit /b 0
+)
 
 REM 1) Ir al directorio del launcher (raíz del proyecto)
 cd /d "%~dp0"
 
-echo.
-echo ============================================
-echo  Lanzador Horas Sindicales (PySide6)
-echo ============================================
-echo.
+REM 2) Preparar directorio de logs
+set "PROJECT_DIR=%CD%"
+set "LOG_DIR=%PROJECT_DIR%\logs"
+set "FALLBACK_LOG_DIR=%TEMP%\HorasSindicales\logs"
 
-REM 2) Comprobaciones básicas de archivos
+if not exist "%LOG_DIR%" (
+  mkdir "%LOG_DIR%" 2>nul
+)
+if not exist "%LOG_DIR%" (
+  set "LOG_DIR=%FALLBACK_LOG_DIR%"
+  if not exist "%LOG_DIR%" (
+    mkdir "%LOG_DIR%" 2>nul
+  )
+)
+
+if not exist "%LOG_DIR%" (
+  echo [ERROR] No se pudo crear directorio de logs en "%PROJECT_DIR%" ni en "%FALLBACK_LOG_DIR%".
+  echo [ERROR] Se usara el directorio actual como ultimo recurso.
+  set "LOG_DIR=%PROJECT_DIR%"
+)
+
+set "HORAS_LOG_DIR=%LOG_DIR%"
+set "LOG_DEBUG=%LOG_DIR%\launcher_debug.log"
+set "LOG_STDOUT=%LOG_DIR%\launcher_stdout.log"
+set "LOG_STDERR=%LOG_DIR%\launcher_stderr.log"
+
+call :log "============================================"
+call :log "Launcher Horas Sindicales iniciado"
+call :log "PROJECT_DIR=%PROJECT_DIR%"
+call :log "LOG_DIR=%LOG_DIR%"
+call :log "CMDLINE=%~f0 %*"
+
+REM 3) Sentinel de ejecucion
+set "SENTINEL=%LOG_DIR%\launcher_ran.txt"
+> "%SENTINEL%" (
+  echo [%DATE% %TIME%] Launcher ejecutado.
+  echo CD=%CD%
+)
+
+REM 4) Comprobaciones basicas
 if not exist "main.py" (
-  echo [ERROR] No se encuentra main.py en la carpeta actual:
-  echo         %CD%
-  echo         Asegurate de ejecutar este .bat desde la raiz del proyecto.
-  echo.
+  call :log "[ERROR] No se encuentra main.py en %CD%"
+  echo [ERROR] No se encuentra main.py en la carpeta actual: %CD%
+  echo Logs: %LOG_DIR%
   pause
-  exit /b 1
+  goto :end
 )
 
 if not exist "requirements.txt" (
-  echo [ERROR] No se encuentra requirements.txt en la carpeta actual:
-  echo         %CD%
-  echo.
+  call :log "[ERROR] No se encuentra requirements.txt en %CD%"
+  echo [ERROR] No se encuentra requirements.txt en la carpeta actual: %CD%
+  echo Logs: %LOG_DIR%
   pause
-  exit /b 1
+  goto :end
 )
 
-REM 3) Detectar Python
-where python >nul 2>nul
-if errorlevel 1 (
-  echo [ERROR] No se encuentra "python" en PATH.
-  echo         Instala Python 3.11+ y marca "Add Python to PATH".
-  echo         Alternativa: ejecuta desde un terminal donde python funcione.
-  echo.
-  pause
-  exit /b 1
-)
-
-REM 4) Crear venv si no existe
-if not exist ".venv" (
-  echo [INFO] No existe .venv. Creando entorno virtual...
-  python -m venv .venv
-  if errorlevel 1 (
-    echo [ERROR] Fallo creando el entorno virtual (.venv).
-    echo         Revisa permisos / instalacion de Python.
-    echo.
-    pause
-    exit /b 1
-  )
-) else (
-  echo [INFO] Entorno virtual encontrado: .venv
-)
-
-REM 5) Resolver ejecutable python del venv (sin activar)
+REM 5) Detectar Python del venv
 set "VENV_PY=%CD%\.venv\Scripts\python.exe"
 set "VENV_PIP=%CD%\.venv\Scripts\pip.exe"
 
-if not exist "%VENV_PY%" (
-  echo [ERROR] No se encuentra el Python del entorno virtual:
-  echo         %VENV_PY%
-  echo         Borra .venv y vuelve a ejecutar el launcher.
-  echo.
-  pause
-  exit /b 1
-)
-
-REM 6) Actualizar pip e instalar dependencias
-echo.
-echo [INFO] Actualizando pip...
-"%VENV_PY%" -m pip install --upgrade pip
-if errorlevel 1 (
-  echo [ERROR] No se pudo actualizar pip.
-  echo.
-  pause
-  exit /b 1
-)
-
-echo.
-echo [INFO] Instalando/Verificando dependencias desde requirements.txt...
-"%VENV_PY%" -m pip install -r requirements.txt
-if errorlevel 1 (
-  echo [ERROR] Fallo instalando dependencias.
-  echo         Posibles causas:
-  echo           - Falta de Internet
-  echo           - Proxy corporativo
-  echo           - Paquetes incompatibles
-  echo.
-  pause
-  exit /b 1
-)
-
-REM 7) Ejecutar app
-echo.
-echo [INFO] Lanzando aplicacion...
-echo.
-
-"%VENV_PY%" -X faulthandler main.py ^
-  1> launcher_stdout.log ^
-  2> launcher_stderr.log
-set "APP_EXIT=%ERRORLEVEL%"
-
-echo.
-echo ===== STDERR =====
-type "launcher_stderr.log"
-echo.
-echo ===== STDOUT =====
-type "launcher_stdout.log"
-echo.
-if "%APP_EXIT%"=="0" (
-  echo [INFO] La aplicacion se cerro correctamente.
+if exist "%VENV_PY%" (
+  call :log "[INFO] Python del venv encontrado: %VENV_PY%"
 ) else (
-  echo [WARN] La aplicacion termino con codigo: %APP_EXIT%
-  echo        Si hubo un error, copia el mensaje de consola para depuracion.
+  call :log "[INFO] No existe .venv. Se intentara crear."
+  where python >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+  if errorlevel 1 (
+    call :log "[ERROR] No se encuentra 'python' en PATH."
+    echo [ERROR] No se encuentra "python" en PATH.
+    echo Logs: %LOG_DIR%
+    pause
+    goto :end
+  )
+  python -m venv .venv >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+  if errorlevel 1 (
+    call :log "[ERROR] Fallo creando el entorno virtual (.venv)."
+    echo [ERROR] Fallo creando el entorno virtual (.venv).
+    echo Logs: %LOG_DIR%
+    pause
+    goto :end
+  )
 )
 
+if not exist "%VENV_PY%" (
+  call :log "[ERROR] No se encuentra el Python del entorno virtual: %VENV_PY%"
+  echo [ERROR] No se encuentra el Python del entorno virtual: %VENV_PY%
+  echo Logs: %LOG_DIR%
+  pause
+  goto :end
+)
+
+REM 6) Variables de entorno para Python
+set "PYTHONFAULTHANDLER=1"
+set "PYTHONUTF8=1"
+
+REM 7) Actualizar pip e instalar dependencias
+call :log "[INFO] Actualizando pip..."
+"%VENV_PY%" -m pip install --upgrade pip >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+if errorlevel 1 (
+  call :log "[ERROR] No se pudo actualizar pip."
+  echo [ERROR] No se pudo actualizar pip.
+  echo Logs: %LOG_DIR%
+  pause
+  goto :end
+)
+
+call :log "[INFO] Instalando/verificando dependencias..."
+"%VENV_PY%" -m pip install -r requirements.txt >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+if errorlevel 1 (
+  call :log "[ERROR] Fallo instalando dependencias."
+  echo [ERROR] Fallo instalando dependencias.
+  echo Logs: %LOG_DIR%
+  pause
+  goto :end
+)
+
+REM 8) Selfcheck previo
+call :log "[INFO] Ejecutando selfcheck..."
+"%VENV_PY%" -X faulthandler -u main.py --selfcheck >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+set "SELF_RC=%ERRORLEVEL%"
+if not "%SELF_RC%"=="0" (
+  call :log "[ERROR] Selfcheck fallo con codigo %SELF_RC%."
+  echo [ERROR] Selfcheck fallo. Revisa logs.
+  echo Logs: %LOG_DIR%
+  pause
+  goto :end
+)
+
+REM 9) Ejecutar app
+call :log "[INFO] Lanzando aplicacion..."
+"%VENV_PY%" -X faulthandler -u main.py >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+set "APP_EXIT=%ERRORLEVEL%"
+call :log "[INFO] Aplicacion finalizo con codigo %APP_EXIT%"
+
 echo.
+echo ============================================
+echo Logs guardados en:
+echo   %LOG_DIR%
+echo Sentinel:
+echo   %SENTINEL%
+echo ============================================
+echo.
+
 pause
-exit /b %APP_EXIT%
+
+goto :end
+
+:log
+set "MSG=%*"
+echo %MSG%
+>> "%LOG_DEBUG%" echo [%DATE% %TIME%] %MSG%
+exit /b 0
+
+:end
+endlocal
