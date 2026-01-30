@@ -119,9 +119,15 @@ echo.
 echo [INFO] Lanzando aplicacion...
 echo.
 
-"%VENV_PY%" main.py
+"%VENV_PY%" -X faulthandler main.py ^
+  1> launcher_stdout.log ^
+  2> launcher_stderr.log
 set "APP_EXIT=%ERRORLEVEL%"
 
+echo.
+if exist "launcher_stderr.log" (
+  type "launcher_stderr.log"
+)
 echo.
 if "%APP_EXIT%"=="0" (
   echo [INFO] La aplicacion se cerro correctamente.
