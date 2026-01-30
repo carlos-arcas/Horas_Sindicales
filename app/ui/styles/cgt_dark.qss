@@ -41,6 +41,7 @@ QGroupBox::title {
     left: 12px;
     padding: 0 6px;
     color: #b7bcc7;
+    font-weight: 600;
 }
 
 QFrame[card="true"] {
