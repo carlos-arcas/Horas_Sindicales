@@ -15,92 +15,97 @@ def seed_if_empty(connection: sqlite3.Connection) -> None:
     logger.info("Insertando datos de ejemplo")
     personas = [
         (
-            "Ana Pérez",
+            "Lorena Aznar Ramos",
             "F",
-            20.0,
-            240.0,
-            7.5,
-            7.5,
-            7.5,
-            7.5,
-            7.5,
-            0.0,
-            0.0,
-            0.0,
-        ),
-        (
-            "Carlos Ruiz",
-            "M",
-            18.0,
-            216.0,
-            8.0,
-            8.0,
-            8.0,
-            8.0,
-            8.0,
-            0.0,
-            0.0,
-            0.0,
-        ),
-        (
-            "Lucía Gómez",
-            "F",
-            22.0,
-            264.0,
-            6.5,
-            6.5,
-            6.5,
-            6.5,
-            6.5,
-            0.0,
-            0.0,
-            0.0,
-        ),
-    ]
-    cursor.executemany(
-        """
-        INSERT INTO personas (
-            nombre, genero, horas_mes, horas_ano, horas_jornada_defecto,
-            cuad_lun, cuad_mar, cuad_mie, cuad_jue, cuad_vie, cuad_sab, cuad_dom
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        personas,
-    )
-    cursor.execute("SELECT id FROM personas ORDER BY id LIMIT 2")
-    ids = [row[0] for row in cursor.fetchall()]
-    solicitudes = [
-        (
-            ids[0],
-            "2024-01-10",
-            "2024-01-15",
-            "09:00",
-            "13:00",
             0,
-            4.0,
-            "Asamblea sindical",
-            None,
-            None,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
         ),
         (
-            ids[1],
-            "2024-01-12",
-            "2024-01-20",
-            None,
-            None,
-            1,
-            8.0,
-            "Formación",
-            None,
-            None,
+            "Dora Inés Solano Franco",
+            "F",
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
         ),
     ]
-    cursor.executemany(
-        """
-        INSERT INTO solicitudes (
-            persona_id, fecha_solicitud, fecha_pedida, desde, hasta, completo,
-            horas, observaciones, pdf_path, pdf_hash
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        solicitudes,
-    )
+    if _column_exists(cursor, "personas", "horas_mes"):
+        cursor.executemany(
+            """
+            INSERT INTO personas (
+                nombre, genero,
+                horas_mes, horas_ano, horas_jornada_defecto,
+                cuad_lun, cuad_mar, cuad_mie, cuad_jue, cuad_vie, cuad_sab, cuad_dom,
+                horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
+                cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
+                cuad_mie_man_min, cuad_mie_tar_min, cuad_jue_man_min, cuad_jue_tar_min,
+                cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
+                cuad_dom_man_min, cuad_dom_tar_min
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    persona[0],
+                    persona[1],
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    *persona[2:],
+                )
+                for persona in personas
+            ],
+        )
+    else:
+        cursor.executemany(
+            """
+            INSERT INTO personas (
+                nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
+                cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
+                cuad_mie_man_min, cuad_mie_tar_min, cuad_jue_man_min, cuad_jue_tar_min,
+                cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
+                cuad_dom_man_min, cuad_dom_tar_min
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            personas,
+        )
     connection.commit()
+
+
+def _column_exists(cursor: sqlite3.Cursor, table: str, column: str) -> bool:
+    cursor.execute(f"PRAGMA table_info({table})")
+    return any(row[1] == column for row in cursor.fetchall())

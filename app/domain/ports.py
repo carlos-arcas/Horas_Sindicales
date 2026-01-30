@@ -38,8 +38,8 @@ class SolicitudRepository(Protocol):
         self,
         persona_id: int,
         fecha_pedida: str,
-        desde: str | None,
-        hasta: str | None,
+        desde_min: int | None,
+        hasta_min: int | None,
         completo: bool,
     ) -> bool:
         ...

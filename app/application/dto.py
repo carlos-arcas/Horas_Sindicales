@@ -38,11 +38,33 @@ class SolicitudDTO:
 
 @dataclass(frozen=True)
 class SaldosDTO:
-    consumidas_mes: float
-    restantes_mes: float
-    consumidas_ano: float
-    restantes_ano: float
-    exceso_mes: float
-    exceso_ano: float
+    consumidas_mes: int
+    restantes_mes: int
+    consumidas_ano: int
+    restantes_ano: int
+    exceso_mes: int
+    exceso_ano: int
     excedido_mes: bool
     excedido_ano: bool
+
+
+@dataclass(frozen=True)
+class PeriodoFiltro:
+    modo: str
+    year: int
+    month: Optional[int] = None
+
+    @classmethod
+    def anual(cls, year: int) -> PeriodoFiltro:
+        return cls(modo="ANUAL", year=year, month=None)
+
+    @classmethod
+    def mensual(cls, year: int, month: int) -> PeriodoFiltro:
+        return cls(modo="MENSUAL", year=year, month=month)
+
+
+@dataclass(frozen=True)
+class TotalesGlobalesDTO:
+    total_consumidas_min: int
+    total_bolsa_min: int
+    total_restantes_min: int

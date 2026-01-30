@@ -17,23 +17,30 @@ def validar_persona(persona: Persona) -> None:
     if persona.genero not in {"M", "F"}:
         raise ValidacionError("El género debe ser 'M' o 'F'.")
     for campo, valor in {
-        "horas_mes": persona.horas_mes,
-        "horas_ano": persona.horas_ano,
-        "horas_jornada_defecto": persona.horas_jornada_defecto,
-        "cuad_lun": persona.cuad_lun,
-        "cuad_mar": persona.cuad_mar,
-        "cuad_mie": persona.cuad_mie,
-        "cuad_jue": persona.cuad_jue,
-        "cuad_vie": persona.cuad_vie,
-        "cuad_sab": persona.cuad_sab,
-        "cuad_dom": persona.cuad_dom,
+        "horas_mes_min": persona.horas_mes_min,
+        "horas_ano_min": persona.horas_ano_min,
+        "horas_jornada_defecto_min": persona.horas_jornada_defecto_min,
+        "cuad_lun_man_min": persona.cuad_lun_man_min,
+        "cuad_lun_tar_min": persona.cuad_lun_tar_min,
+        "cuad_mar_man_min": persona.cuad_mar_man_min,
+        "cuad_mar_tar_min": persona.cuad_mar_tar_min,
+        "cuad_mie_man_min": persona.cuad_mie_man_min,
+        "cuad_mie_tar_min": persona.cuad_mie_tar_min,
+        "cuad_jue_man_min": persona.cuad_jue_man_min,
+        "cuad_jue_tar_min": persona.cuad_jue_tar_min,
+        "cuad_vie_man_min": persona.cuad_vie_man_min,
+        "cuad_vie_tar_min": persona.cuad_vie_tar_min,
+        "cuad_sab_man_min": persona.cuad_sab_man_min,
+        "cuad_sab_tar_min": persona.cuad_sab_tar_min,
+        "cuad_dom_man_min": persona.cuad_dom_man_min,
+        "cuad_dom_tar_min": persona.cuad_dom_tar_min,
     }.items():
         if valor < 0:
             raise ValidacionError(f"{campo} no puede ser negativo.")
 
 
 def validar_solicitud(solicitud: Solicitud) -> None:
-    if solicitud.horas <= 0:
+    if solicitud.horas_solicitadas_min <= 0:
         raise ValidacionError("Las horas deben ser mayores a cero.")
     if not solicitud.fecha_solicitud or not solicitud.fecha_pedida:
         raise ValidacionError("Las fechas son obligatorias.")
