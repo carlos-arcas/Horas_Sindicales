@@ -16,10 +16,13 @@ from app.application.dto import PersonaDTO
 
 
 class PersonaDialog(QDialog):
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, persona: PersonaDTO | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Nueva persona")
+        self._persona = persona
+        self.setWindowTitle("Editar persona" if persona else "Nueva persona")
         self._build_ui()
+        if persona:
+            self._load_persona(persona)
 
     def _build_ui(self) -> None:
         layout = QFormLayout(self)
@@ -37,6 +40,12 @@ class PersonaDialog(QDialog):
         self.horas_jornada_input.setRange(0, 24)
         self.horas_jornada_input.setDecimals(2)
 
+        layout.addRow("Nombre", self.nombre_input)
+        layout.addRow("Género", self.genero_input)
+        layout.addRow("Horas mes", self.horas_mes_input)
+        layout.addRow("Horas año", self.horas_ano_input)
+        layout.addRow("Horas jornada defecto", self.horas_jornada_input)
+
         self.cuad_inputs = {}
         for dia in [
             ("Lunes", "cuad_lun"),
@@ -53,16 +62,25 @@ class PersonaDialog(QDialog):
             self.cuad_inputs[dia[1]] = spin
             layout.addRow(QLabel(f"Cuadrante {dia[0]}"), spin)
 
-        layout.addRow("Nombre", self.nombre_input)
-        layout.addRow("Género", self.genero_input)
-        layout.addRow("Horas mes", self.horas_mes_input)
-        layout.addRow("Horas año", self.horas_ano_input)
-        layout.addRow("Horas jornada defecto", self.horas_jornada_input)
-
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addRow(buttons)
+
+    def _load_persona(self, persona: PersonaDTO) -> None:
+        self.nombre_input.setText(persona.nombre)
+        self.nombre_input.setReadOnly(True)
+        self.genero_input.setCurrentText(persona.genero)
+        self.horas_mes_input.setValue(persona.horas_mes)
+        self.horas_ano_input.setValue(persona.horas_ano)
+        self.horas_jornada_input.setValue(persona.horas_jornada_defecto)
+        self.cuad_inputs["cuad_lun"].setValue(persona.cuad_lun)
+        self.cuad_inputs["cuad_mar"].setValue(persona.cuad_mar)
+        self.cuad_inputs["cuad_mie"].setValue(persona.cuad_mie)
+        self.cuad_inputs["cuad_jue"].setValue(persona.cuad_jue)
+        self.cuad_inputs["cuad_vie"].setValue(persona.cuad_vie)
+        self.cuad_inputs["cuad_sab"].setValue(persona.cuad_sab)
+        self.cuad_inputs["cuad_dom"].setValue(persona.cuad_dom)
 
     def get_persona(self) -> PersonaDTO | None:
         if self.exec() != QDialog.Accepted:
@@ -72,7 +90,7 @@ class PersonaDialog(QDialog):
             QMessageBox.warning(self, "Validación", "El nombre es obligatorio.")
             return None
         return PersonaDTO(
-            id=None,
+            id=self._persona.id if self._persona else None,
             nombre=nombre,
             genero=self.genero_input.currentText(),
             horas_mes=self.horas_mes_input.value(),
