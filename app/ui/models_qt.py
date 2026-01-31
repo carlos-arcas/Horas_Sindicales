@@ -6,8 +6,7 @@ from app.application.dto import PersonaDTO, SolicitudDTO
 from app.domain.time_utils import minutes_to_hhmm
 
 
-def _format_hours(hours: float) -> str:
-    minutes = int(round(hours * 60))
+def _format_minutes(minutes: int) -> str:
     if minutes < 0:
         minutes = abs(minutes)
         return f"-{minutes_to_hhmm(minutes)}"
@@ -42,11 +41,11 @@ class PersonasTableModel(QAbstractTableModel):
         if column == 1:
             return persona.genero
         if column == 2:
-            return _format_hours(persona.horas_mes)
+            return _format_minutes(persona.horas_mes)
         if column == 3:
-            return _format_hours(persona.horas_ano)
+            return _format_minutes(persona.horas_ano)
         if column == 4:
-            return _format_hours(persona.horas_jornada_defecto)
+            return _format_minutes(persona.horas_jornada_defecto)
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
@@ -99,7 +98,7 @@ class SolicitudesTableModel(QAbstractTableModel):
         if column == 3:
             return "Sí" if solicitud.completo else "No"
         if column == 4:
-            return _format_hours(solicitud.horas)
+            return _format_minutes(int(round(solicitud.horas * 60)))
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):

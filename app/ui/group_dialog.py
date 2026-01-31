@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QPlainTextEdit,
-    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -21,6 +20,7 @@ from PySide6.QtWidgets import (
 from app.application.dto import GrupoConfigDTO
 from app.application.use_cases import GrupoConfigUseCases
 from app.domain.services import BusinessRuleError
+from app.ui.widgets.time_edit import TimeEditHM
 
 logger = logging.getLogger(__name__)
 
@@ -48,16 +48,9 @@ class GrupoConfigDialog(QDialog):
         hours_layout.setContentsMargins(0, 0, 0, 0)
         hours_layout.setSpacing(8)
 
-        self.group_hours_input = QSpinBox()
-        self.group_hours_input.setRange(0, 9999)
-        self.group_hours_input.setSuffix(" h")
-        hours_layout.addWidget(self.group_hours_input)
-
-        self.group_minutes_input = QSpinBox()
-        self.group_minutes_input.setRange(0, 59)
-        self.group_minutes_input.setSuffix(" min")
-        hours_layout.addWidget(self.group_minutes_input)
-        hours_layout.addStretch(1)
+        self.group_time_input = TimeEditHM()
+        self.group_time_input.set_hour_range(0, 9999)
+        hours_layout.addWidget(self.group_time_input)
 
         form_layout.addRow("Horas anuales del grupo", hours_container)
 
@@ -114,8 +107,7 @@ class GrupoConfigDialog(QDialog):
 
         if self._config:
             total_min = self._config.bolsa_anual_grupo_min
-            self.group_hours_input.setValue(total_min // 60)
-            self.group_minutes_input.setValue(total_min % 60)
+            self.group_time_input.set_minutes(total_min)
             self.logo_path_input.setText(self._config.pdf_logo_path or "")
             self.pdf_intro_input.setPlainText(self._config.pdf_intro_text or "")
             self._include_hours = self._config.pdf_include_hours_in_horario
@@ -131,7 +123,7 @@ class GrupoConfigDialog(QDialog):
             self.logo_path_input.setText(path)
 
     def _on_save(self) -> None:
-        total_minutes = self.group_hours_input.value() * 60 + self.group_minutes_input.value()
+        total_minutes = self.group_time_input.minutes()
         dto = GrupoConfigDTO(
             id=self._config.id if self._config else 1,
             nombre_grupo=self._config.nombre_grupo if self._config else None,
