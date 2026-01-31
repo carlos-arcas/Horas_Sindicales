@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QSpinBox, QWidget
 
 from app.domain.time_utils import hm_to_minutes, minutes_to_hm
@@ -10,12 +10,19 @@ class MinuteSpinBox(QSpinBox):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setRange(0, 59)
+        self.setAlignment(Qt.AlignCenter)
+        self.setAccelerated(True)
+        self.setKeyboardTracking(False)
 
     def textFromValue(self, value: int) -> str:
         return f"{value:02d}"
 
     def valueFromText(self, text: str) -> int:
-        return int(text.strip() or 0)
+        cleaned = "".join(ch for ch in text if ch.isdigit())
+        if not cleaned:
+            return 0
+        value = int(cleaned)
+        return max(0, min(59, value))
 
 
 class TimeEditHM(QWidget):

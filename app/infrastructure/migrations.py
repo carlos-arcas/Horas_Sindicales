@@ -19,6 +19,7 @@ def run_migrations(connection: sqlite3.Connection) -> None:
             horas_mes_min INTEGER,
             horas_ano_min INTEGER,
             horas_jornada_defecto_min INTEGER,
+            is_active INTEGER DEFAULT 1,
             cuad_lun_man_min INTEGER,
             cuad_lun_tar_min INTEGER,
             cuad_mar_man_min INTEGER,
@@ -85,6 +86,7 @@ def _ensure_personas_columns(cursor: sqlite3.Cursor) -> None:
         ("horas_mes_min", "INTEGER"),
         ("horas_ano_min", "INTEGER"),
         ("horas_jornada_defecto_min", "INTEGER"),
+        ("is_active", "INTEGER DEFAULT 1"),
         ("cuad_lun_man_min", "INTEGER"),
         ("cuad_lun_tar_min", "INTEGER"),
         ("cuad_mar_man_min", "INTEGER"),
@@ -124,6 +126,15 @@ def _ensure_personas_columns(cursor: sqlite3.Cursor) -> None:
             UPDATE personas
             SET horas_jornada_defecto_min = ROUND(horas_jornada_defecto * 60)
             WHERE horas_jornada_defecto_min IS NULL
+            """
+        )
+
+    if _column_exists(cursor, "personas", "is_active"):
+        cursor.execute(
+            """
+            UPDATE personas
+            SET is_active = 1
+            WHERE is_active IS NULL
             """
         )
 

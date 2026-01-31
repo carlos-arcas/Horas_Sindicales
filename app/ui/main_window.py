@@ -114,6 +114,11 @@ class MainWindow(QMainWindow):
         self.add_persona_button.clicked.connect(self._on_add_persona)
         persona_layout.addWidget(self.add_persona_button)
 
+        self.delete_persona_button = QPushButton("Eliminar delegado")
+        self.delete_persona_button.setProperty("variant", "danger")
+        self.delete_persona_button.clicked.connect(self._on_delete_persona)
+        persona_layout.addWidget(self.delete_persona_button)
+
         self.edit_grupo_button = QPushButton("Editar grupo")
         self.edit_grupo_button.setProperty("variant", "secondary")
         self.edit_grupo_button.clicked.connect(self._on_edit_grupo)
@@ -173,6 +178,11 @@ class MainWindow(QMainWindow):
         self.total_preview_label = QLabel("Total: 00:00")
         self.total_preview_label.setProperty("role", "secondary")
         solicitud_row.addWidget(self.total_preview_label)
+
+        self.cuadrante_warning_label = QLabel("")
+        self.cuadrante_warning_label.setProperty("role", "secondary")
+        self.cuadrante_warning_label.setVisible(False)
+        solicitud_row.addWidget(self.cuadrante_warning_label)
 
         self.agregar_button = QPushButton("Agregar")
         self.agregar_button.setProperty("variant", "primary")
@@ -258,7 +268,8 @@ class MainWindow(QMainWindow):
         self.saldo_grupo_consumidas = self._build_saldo_field()
         self.saldo_grupo_restantes = self._build_saldo_field()
 
-        saldos_grid.addWidget(QLabel("Periodo"), 1, 0)
+        self.saldo_periodo_label = QLabel("Mensual")
+        saldos_grid.addWidget(self.saldo_periodo_label, 1, 0)
         saldos_grid.addWidget(self.saldo_periodo_consumidas, 1, 1)
         saldos_grid.addWidget(self.saldo_periodo_restantes, 1, 2)
 
@@ -448,29 +459,35 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             self._refresh_saldos()
 
-    def _calculate_preview_minutes(self) -> int:
+    def _calculate_preview_minutes(self) -> tuple[int, bool]:
         if self.completo_check.isChecked():
             persona = self._current_persona()
             if persona is None:
-                return 0
+                return 0, False
             fecha_pedida = self.fecha_input.date().toString("yyyy-MM-dd")
             try:
-                return self._solicitud_use_cases.sugerir_completo_min(persona.id or 0, fecha_pedida)
+                minutos = self._solicitud_use_cases.sugerir_completo_min(
+                    persona.id or 0, fecha_pedida
+                )
+                return minutos, minutos == 0
             except BusinessRuleError:
-                return 0
+                return 0, False
         minutos = self.desde_input.time().secsTo(self.hasta_input.time()) // 60
-        return max(0, minutos)
+        return max(0, minutos), False
 
     def _update_solicitud_preview(self) -> None:
-        minutos = self._calculate_preview_minutes()
+        minutos, warning = self._calculate_preview_minutes()
         etiqueta = "Completo" if self.completo_check.isChecked() else "Total"
         self.total_preview_label.setText(f"{etiqueta}: {self._format_minutes(minutos)}")
+        self.cuadrante_warning_label.setVisible(warning)
+        self.cuadrante_warning_label.setText("Cuadrante no configurado" if warning else "")
 
     def _update_action_state(self) -> None:
         persona_selected = self._current_persona() is not None
         self.agregar_button.setEnabled(persona_selected)
         self.confirmar_button.setEnabled(persona_selected and bool(self._pending_solicitudes))
         self.edit_persona_button.setEnabled(persona_selected)
+        self.delete_persona_button.setEnabled(persona_selected)
         self.edit_grupo_button.setEnabled(True)
         self.eliminar_button.setEnabled(persona_selected and self._selected_historico() is not None)
         self.eliminar_pendiente_button.setEnabled(persona_selected and bool(self._pending_solicitudes))
@@ -521,6 +538,28 @@ class MainWindow(QMainWindow):
             return
         self._load_personas(select_id=actualizada.id)
 
+    def _on_delete_persona(self) -> None:
+        persona = self._current_persona()
+        if persona is None:
+            return
+        respuesta = QMessageBox.question(
+            self,
+            "Eliminar delegado",
+            f"¿Deseas deshabilitar a {persona.nombre}? El histórico se conservará.",
+        )
+        if respuesta != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self._persona_use_cases.desactivar_persona(persona.id or 0)
+        except (ValidacionError, BusinessRuleError) as exc:
+            QMessageBox.warning(self, "Validación", str(exc))
+            return
+        except Exception as exc:  # pragma: no cover - fallback
+            logger.exception("Error deshabilitando delegado")
+            QMessageBox.critical(self, "Error", str(exc))
+            return
+        self._load_personas()
+
     def _on_add_pendiente(self) -> None:
         persona = self._current_persona()
         if persona is None:
@@ -529,7 +568,7 @@ class MainWindow(QMainWindow):
         completo = self.completo_check.isChecked()
         desde = None if completo else self.desde_input.time().toString("HH:mm")
         hasta = None if completo else self.hasta_input.time().toString("HH:mm")
-        minutos = self._calculate_preview_minutes()
+        minutos, _warning = self._calculate_preview_minutes()
         notas_text = self.notas_input.toPlainText().strip()
         notas = notas_text or None
         solicitud = SolicitudDTO(
@@ -743,12 +782,13 @@ class MainWindow(QMainWindow):
         self._update_action_state()
 
     def _refresh_saldos(self) -> None:
+        filtro = self._current_periodo_filtro()
+        self._update_periodo_label(filtro)
         persona = self._current_persona()
         if persona is None:
             self._set_saldos_labels(None)
             return
         try:
-            filtro = self._current_periodo_filtro()
             resumen = self._solicitud_use_cases.calcular_resumen_saldos(persona.id or 0, filtro)
             pendientes_periodo = self._pending_minutes_for_period(filtro)
             pendientes_ano = self._pending_minutes_for_period(PeriodoFiltro.anual(filtro.year))
@@ -757,6 +797,12 @@ class MainWindow(QMainWindow):
             self._set_saldos_labels(None)
             return
         self._set_saldos_labels(resumen, pendientes_periodo, pendientes_ano)
+
+    def _update_periodo_label(self, filtro: PeriodoFiltro) -> None:
+        if filtro.modo == "MENSUAL":
+            self.saldo_periodo_label.setText("Mensual")
+        else:
+            self.saldo_periodo_label.setText("Anual (año completo)")
 
     def _set_saldos_labels(
         self,

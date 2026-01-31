@@ -21,6 +21,7 @@ from app.application.dto import GrupoConfigDTO
 from app.application.use_cases import GrupoConfigUseCases
 from app.domain.services import BusinessRuleError
 from app.ui.widgets.time_edit import TimeEditHM
+from app.pdf import pdf_builder
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +74,11 @@ class GrupoConfigDialog(QDialog):
         logo_row.addWidget(self.logo_button)
         pdf_group.addLayout(logo_row)
 
+        intro_label = QLabel("Texto introductorio del PDF (se imprimirá en el documento)")
+        pdf_group.addWidget(intro_label)
+
         self.pdf_intro_input = QPlainTextEdit()
-        self.pdf_intro_input.setPlaceholderText("Texto introductorio para los PDFs")
+        self.pdf_intro_input.setPlaceholderText(pdf_builder.INTRO_TEXT)
         self.pdf_intro_input.setFixedHeight(120)
         pdf_group.addWidget(self.pdf_intro_input)
 
@@ -124,12 +128,13 @@ class GrupoConfigDialog(QDialog):
 
     def _on_save(self) -> None:
         total_minutes = self.group_time_input.minutes()
+        intro_text = self.pdf_intro_input.toPlainText().strip() or pdf_builder.INTRO_TEXT
         dto = GrupoConfigDTO(
             id=self._config.id if self._config else 1,
             nombre_grupo=self._config.nombre_grupo if self._config else None,
             bolsa_anual_grupo_min=total_minutes,
             pdf_logo_path=self.logo_path_input.text().strip(),
-            pdf_intro_text=self.pdf_intro_input.toPlainText().strip(),
+            pdf_intro_text=intro_text,
             pdf_include_hours_in_horario=self._include_hours,
         )
         try:

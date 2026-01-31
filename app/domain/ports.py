@@ -6,7 +6,7 @@ from app.domain.models import GrupoConfig, Persona, Solicitud
 
 
 class PersonaRepository(Protocol):
-    def list_all(self) -> Iterable[Persona]:
+    def list_all(self, include_inactive: bool = False) -> Iterable[Persona]:
         ...
 
     def get_by_id(self, persona_id: int) -> Persona | None:

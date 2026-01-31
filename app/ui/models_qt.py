@@ -22,7 +22,6 @@ class PersonasTableModel(QAbstractTableModel):
             "Género",
             "Horas mes",
             "Horas año",
-            "Horas jornada",
         ]
 
     def rowCount(self, parent: QModelIndex | None = None) -> int:
@@ -44,8 +43,6 @@ class PersonasTableModel(QAbstractTableModel):
             return _format_minutes(persona.horas_mes)
         if column == 3:
             return _format_minutes(persona.horas_ano)
-        if column == 4:
-            return _format_minutes(persona.horas_jornada_defecto)
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):

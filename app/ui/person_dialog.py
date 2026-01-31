@@ -36,14 +36,11 @@ class PersonaDialog(QDialog):
         self.horas_mes_input.set_hour_range(0, 9999)
         self.horas_ano_input = TimeEditHM()
         self.horas_ano_input.set_hour_range(0, 99999)
-        self.horas_jornada_input = TimeEditHM()
-        self.horas_jornada_input.set_hour_range(0, 24)
 
         layout.addRow("Nombre", self.nombre_input)
         layout.addRow("Género", self.genero_input)
         layout.addRow("Horas mes", self.horas_mes_input)
         layout.addRow("Horas año", self.horas_ano_input)
-        layout.addRow("Horas jornada defecto", self.horas_jornada_input)
 
         self.cuad_inputs = {}
         self.cuad_totals = {}
@@ -104,7 +101,6 @@ class PersonaDialog(QDialog):
         self.genero_input.setCurrentText(persona.genero)
         self.horas_mes_input.set_minutes(persona.horas_mes)
         self.horas_ano_input.set_minutes(persona.horas_ano)
-        self.horas_jornada_input.set_minutes(persona.horas_jornada_defecto)
         self.cuad_inputs["cuad_lun"]["man"].set_minutes(persona.cuad_lun_man_min)
         self.cuad_inputs["cuad_lun"]["tar"].set_minutes(persona.cuad_lun_tar_min)
         self.cuad_inputs["cuad_mar"]["man"].set_minutes(persona.cuad_mar_man_min)
@@ -139,7 +135,7 @@ class PersonaDialog(QDialog):
             genero=self.genero_input.currentText(),
             horas_mes=self.horas_mes_input.minutes(),
             horas_ano=self.horas_ano_input.minutes(),
-            horas_jornada_defecto=self.horas_jornada_input.minutes(),
+            is_active=self._persona.is_active if self._persona else True,
             cuad_lun_man_min=self.cuad_inputs["cuad_lun"]["man"].minutes(),
             cuad_lun_tar_min=self.cuad_inputs["cuad_lun"]["tar"].minutes(),
             cuad_mar_man_min=self.cuad_inputs["cuad_mar"]["man"].minutes(),
