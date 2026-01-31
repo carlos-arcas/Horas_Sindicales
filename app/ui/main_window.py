@@ -577,7 +577,7 @@ class MainWindow(QMainWindow):
             return
         try:
             creadas, pendientes_restantes, errores, generado = (
-                self._solicitud_use_cases.confirmar_lote_y_generar_pdf(
+                self._solicitud_use_cases.confirmar_y_generar_pdf(
                     self._pending_solicitudes, Path(pdf_path)
                 )
             )
@@ -599,12 +599,12 @@ class MainWindow(QMainWindow):
         persona = self._current_persona()
         if persona is None:
             return
-        solicitudes = self.historico_model.solicitudes()
-        if not solicitudes:
+        filtro = self._current_periodo_filtro()
+        if self.historico_model.rowCount() == 0:
             QMessageBox.information(self, "Histórico", "No hay solicitudes para exportar.")
             return
         try:
-            default_name = self._solicitud_use_cases.sugerir_nombre_pdf(solicitudes)
+            default_name = self._solicitud_use_cases.sugerir_nombre_pdf_historico(filtro)
         except (ValidacionError, BusinessRuleError) as exc:
             QMessageBox.warning(self, "Validación", str(exc))
             return
@@ -622,8 +622,8 @@ class MainWindow(QMainWindow):
         if not pdf_path:
             return
         try:
-            generado = self._solicitud_use_cases.generar_pdf_historico(
-                solicitudes, Path(pdf_path)
+            generado = self._solicitud_use_cases.exportar_historico_pdf(
+                persona.id or 0, filtro, Path(pdf_path)
             )
         except (ValidacionError, BusinessRuleError) as exc:
             QMessageBox.warning(self, "Validación", str(exc))

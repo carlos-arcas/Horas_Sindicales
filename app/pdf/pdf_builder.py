@@ -50,6 +50,7 @@ class PdfRow:
     nombre: str
     fecha: str
     horario: str
+    horas: str
 
 
 def construir_pdf_solicitudes(
@@ -87,12 +88,12 @@ def construir_pdf_solicitudes(
         )
     )
 
-    include_hours = True if include_hours_in_horario is None else include_hours_in_horario
-    rows = _build_rows(solicitudes_list, persona, include_hours)
-    data = [["Nombre", "Fecha", "Horario"]]
-    data.extend([[row.nombre, row.fecha, row.horario] for row in rows])
+    _ = include_hours_in_horario
+    rows = _build_rows(solicitudes_list, persona)
+    data = [["Nombre", "Fecha", "Horario", "Horas"]]
+    data.extend([[row.nombre, row.fecha, row.horario, row.horas] for row in rows])
 
-    table = Table(data, repeatRows=1, colWidths=[7 * cm, 4 * cm, 5 * cm])
+    table = Table(data, repeatRows=1, colWidths=[6.5 * cm, 3.5 * cm, 5 * cm, 3 * cm])
     table.setStyle(
         TableStyle(
             [
@@ -116,6 +117,23 @@ def construir_pdf_solicitudes(
     return destino
 
 
+def construir_pdf_historico(
+    solicitudes: Iterable[SolicitudDTO],
+    persona: Persona,
+    destino: Path,
+    intro_text: str | None = None,
+    logo_path: str | None = None,
+) -> Path:
+    return construir_pdf_solicitudes(
+        solicitudes,
+        persona,
+        destino,
+        intro_text=intro_text,
+        logo_path=logo_path,
+        include_hours_in_horario=False,
+    )
+
+
 def build_nombre_archivo(nombre_solicitante: str, fechas: Iterable[str]) -> str:
     fechas_list = sorted({datetime.strptime(fecha, "%Y-%m-%d") for fecha in fechas})
     dias_texto = _format_dias_seleccionados(fechas_list)
@@ -127,14 +145,15 @@ def build_nombre_archivo(nombre_solicitante: str, fechas: Iterable[str]) -> str:
 
 
 def _build_rows(
-    solicitudes: list[SolicitudDTO], persona: Persona, include_hours_in_horario: bool
+    solicitudes: list[SolicitudDTO], persona: Persona
 ) -> list[PdfRow]:
     nombre = _format_nombre(persona)
     rows: list[PdfRow] = []
     for solicitud in sorted(solicitudes, key=lambda item: item.fecha_pedida):
         fecha = _format_fecha_tabla(solicitud.fecha_pedida)
-        horario = _format_horario(solicitud, include_hours_in_horario)
-        rows.append(PdfRow(nombre=nombre, fecha=fecha, horario=horario))
+        horario = _format_horario(solicitud)
+        horas = _format_horas(solicitud)
+        rows.append(PdfRow(nombre=nombre, fecha=fecha, horario=horario, horas=horas))
     return rows
 
 
@@ -144,21 +163,22 @@ def _format_nombre(persona: Persona) -> str:
 
 
 def _format_fecha_tabla(fecha: str) -> str:
-    return datetime.strptime(fecha, "%Y-%m-%d").strftime("%d/%m/%Y")
+    return datetime.strptime(fecha, "%Y-%m-%d").strftime("%d/%m/%y")
 
 
-def _format_horario(solicitud: SolicitudDTO, include_hours_in_horario: bool) -> str:
-    minutos = int(round(solicitud.horas * 60))
+def _format_horario(solicitud: SolicitudDTO) -> str:
     if solicitud.completo:
-        if include_hours_in_horario and minutos > 0:
-            return f"COMPLETO ({minutes_to_hhmm(minutos)})"
         return "COMPLETO"
     desde = solicitud.desde or "--:--"
     hasta = solicitud.hasta or "--:--"
-    detalle = (
-        f" ({minutes_to_hhmm(minutos)})" if include_hours_in_horario and minutos > 0 else ""
-    )
-    return f"{desde} - {hasta}{detalle}"
+    return f"{desde} - {hasta}"
+
+
+def _format_horas(solicitud: SolicitudDTO) -> str:
+    minutos = int(round(solicitud.horas * 60))
+    if minutos <= 0:
+        minutos = 0
+    return minutes_to_hhmm(minutos)
 
 
 def _format_dias_seleccionados(fechas: list[datetime]) -> str:
@@ -221,6 +241,7 @@ def _resolve_logo_path(logo_path: str | None) -> Path:
     if logo_path:
         path = Path(logo_path)
         if not path.is_absolute():
-            return Path(__file__).resolve().parents[2] / logo_path
-        return path
+            path = Path(__file__).resolve().parents[2] / logo_path
+        if path.exists():
+            return path
     return Path(__file__).resolve().parents[2] / "logo.png"

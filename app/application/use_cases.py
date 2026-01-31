@@ -33,6 +33,21 @@ from app.pdf import pdf_builder
 
 logger = logging.getLogger(__name__)
 
+MONTH_NAMES = {
+    1: "ENERO",
+    2: "FEBRERO",
+    3: "MARZO",
+    4: "ABRIL",
+    5: "MAYO",
+    6: "JUNIO",
+    7: "JULIO",
+    8: "AGOSTO",
+    9: "SEPTIEMBRE",
+    10: "OCTUBRE",
+    11: "NOVIEMBRE",
+    12: "DICIEMBRE",
+}
+
 
 def _minutes_to_hours(minutos: int) -> float:
     return minutos / 60.0
@@ -405,6 +420,11 @@ class SolicitudUseCases:
 
         return creadas, pendientes, errores, pdf_path
 
+    def confirmar_y_generar_pdf(
+        self, solicitudes: Iterable[SolicitudDTO], destino: Path
+    ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:
+        return self.confirmar_lote_y_generar_pdf(solicitudes, destino)
+
     def generar_pdf_historico(
         self, solicitudes: Iterable[SolicitudDTO], destino: Path
     ) -> Path:
@@ -415,16 +435,42 @@ class SolicitudUseCases:
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
         pdf_options = self._config_repo.get() if self._config_repo else None
-        return pdf_builder.construir_pdf_solicitudes(
+        return pdf_builder.construir_pdf_historico(
             solicitudes_list,
             persona,
             destino,
             intro_text=pdf_options.pdf_intro_text if pdf_options else None,
             logo_path=pdf_options.pdf_logo_path if pdf_options else None,
-            include_hours_in_horario=(
-                pdf_options.pdf_include_hours_in_horario if pdf_options else None
-            ),
         )
+
+    def exportar_historico_pdf(
+        self, persona_id: int, filtro: PeriodoFiltro, destino: Path
+    ) -> Path:
+        persona = self._persona_repo.get_by_id(persona_id)
+        if persona is None:
+            raise BusinessRuleError("Persona no encontrada.")
+        solicitudes = self._repo.list_by_persona_and_period(
+            persona_id,
+            filtro.year,
+            filtro.month if filtro.modo == "MENSUAL" else None,
+        )
+        solicitudes_list = [_solicitud_to_dto(s) for s in solicitudes]
+        if not solicitudes_list:
+            raise BusinessRuleError("No hay solicitudes para generar el PDF.")
+        pdf_options = self._config_repo.get() if self._config_repo else None
+        return pdf_builder.construir_pdf_historico(
+            solicitudes_list,
+            persona,
+            destino,
+            intro_text=pdf_options.pdf_intro_text if pdf_options else None,
+            logo_path=pdf_options.pdf_logo_path if pdf_options else None,
+        )
+
+    def sugerir_nombre_pdf_historico(self, filtro: PeriodoFiltro) -> str:
+        if filtro.modo == "ANUAL":
+            return f"Historico_Horas_Sindicales_(AÑO {filtro.year}).pdf"
+        month_name = MONTH_NAMES.get(filtro.month or 0, "")
+        return f"Historico_Horas_Sindicales_({month_name} {filtro.year}).pdf"
 
     def calcular_totales_globales(self, filtro: PeriodoFiltro) -> TotalesGlobalesDTO:
         personas = list(self._persona_repo.list_all())
