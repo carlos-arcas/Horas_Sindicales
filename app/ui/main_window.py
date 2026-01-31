@@ -94,36 +94,44 @@ class MainWindow(QMainWindow):
 
         persona_card = QFrame()
         persona_card.setProperty("card", True)
-        persona_layout = QHBoxLayout(persona_card)
-        persona_layout.setContentsMargins(12, 10, 12, 10)
+        persona_layout = QVBoxLayout(persona_card)
+        persona_layout.setContentsMargins(16, 14, 16, 14)
         persona_layout.setSpacing(10)
-        persona_label = QLabel("Delegado")
-        persona_label.setProperty("role", "sectionTitle")
-        persona_layout.addWidget(persona_label)
-        self.persona_combo = QComboBox()
-        self.persona_combo.currentIndexChanged.connect(self._on_persona_changed)
-        persona_layout.addWidget(self.persona_combo, 1)
+
+        persona_actions = QHBoxLayout()
+        self.add_persona_button = QPushButton("Nuevo delegado")
+        self.add_persona_button.setProperty("variant", "secondary")
+        self.add_persona_button.clicked.connect(self._on_add_persona)
+        persona_actions.addWidget(self.add_persona_button)
 
         self.edit_persona_button = QPushButton("Editar delegado")
         self.edit_persona_button.setProperty("variant", "secondary")
         self.edit_persona_button.clicked.connect(self._on_edit_persona)
-        persona_layout.addWidget(self.edit_persona_button)
-
-        self.add_persona_button = QPushButton("Nuevo delegado")
-        self.add_persona_button.setProperty("variant", "secondary")
-        self.add_persona_button.clicked.connect(self._on_add_persona)
-        persona_layout.addWidget(self.add_persona_button)
-
-        self.delete_persona_button = QPushButton("Eliminar delegado")
-        self.delete_persona_button.setProperty("variant", "danger")
-        self.delete_persona_button.clicked.connect(self._on_delete_persona)
-        persona_layout.addWidget(self.delete_persona_button)
+        persona_actions.addWidget(self.edit_persona_button)
 
         self.edit_grupo_button = QPushButton("Editar grupo")
         self.edit_grupo_button.setProperty("variant", "secondary")
         self.edit_grupo_button.clicked.connect(self._on_edit_grupo)
-        persona_layout.addWidget(self.edit_grupo_button)
-        persona_layout.addStretch(1)
+        persona_actions.addWidget(self.edit_grupo_button)
+        persona_actions.addStretch(1)
+        persona_layout.addLayout(persona_actions)
+
+        persona_selector = QHBoxLayout()
+        persona_label = QLabel("Delegado")
+        persona_label.setProperty("role", "sectionTitle")
+        persona_selector.addWidget(persona_label)
+        self.persona_combo = QComboBox()
+        self.persona_combo.currentIndexChanged.connect(self._on_persona_changed)
+        persona_selector.addWidget(self.persona_combo, 1)
+        persona_layout.addLayout(persona_selector)
+
+        persona_delete = QHBoxLayout()
+        self.delete_persona_button = QPushButton("Eliminar delegado")
+        self.delete_persona_button.setProperty("variant", "danger")
+        self.delete_persona_button.clicked.connect(self._on_delete_persona)
+        persona_delete.addWidget(self.delete_persona_button)
+        persona_delete.addStretch(1)
+        persona_layout.addLayout(persona_delete)
         left_column.addWidget(persona_card)
 
         solicitud_group = QGroupBox("Alta de solicitud")
@@ -204,6 +212,7 @@ class MainWindow(QMainWindow):
         pendientes_group = QGroupBox("Pendientes de confirmar")
         pendientes_group.setProperty("card", True)
         pendientes_group.setProperty("accent", True)
+        pendientes_group.setProperty("variant", "key")
         pendientes_layout = QVBoxLayout(pendientes_group)
         self.pendientes_table = QTableView()
         self.pendientes_model = SolicitudesTableModel([])
@@ -224,10 +233,16 @@ class MainWindow(QMainWindow):
         self.eliminar_pendiente_button.setProperty("variant", "danger")
         self.eliminar_pendiente_button.clicked.connect(self._on_remove_pendiente)
         pendientes_actions.addWidget(self.eliminar_pendiente_button)
+
+        self.editar_pdf_button = QPushButton("Editar PDF")
+        self.editar_pdf_button.setProperty("variant", "secondary")
+        self.editar_pdf_button.clicked.connect(self._on_edit_pdf)
+        pendientes_actions.addWidget(self.editar_pdf_button)
+
+        pendientes_actions.addStretch(1)
         self.abrir_pdf_check = QCheckBox("Abrir PDF al finalizar")
         self.abrir_pdf_check.setChecked(True)
         pendientes_actions.addWidget(self.abrir_pdf_check)
-        pendientes_actions.addStretch(1)
 
         self.confirmar_button = QPushButton("Confirmar y Generar PDF")
         self.confirmar_button.setProperty("variant", "primary")
@@ -263,8 +278,6 @@ class MainWindow(QMainWindow):
         self.saldo_periodo_restantes = self._build_saldo_field()
         self.saldo_anual_consumidas = self._build_saldo_field()
         self.saldo_anual_restantes = self._build_saldo_field()
-        self.saldo_global_consumidas = self._build_saldo_field()
-        self.saldo_global_restantes = self._build_saldo_field()
         self.saldo_grupo_consumidas = self._build_saldo_field()
         self.saldo_grupo_restantes = self._build_saldo_field()
 
@@ -277,20 +290,19 @@ class MainWindow(QMainWindow):
         saldos_grid.addWidget(self.saldo_anual_consumidas, 2, 1)
         saldos_grid.addWidget(self.saldo_anual_restantes, 2, 2)
 
-        saldos_grid.addWidget(QLabel("Anual glob."), 3, 0)
-        saldos_grid.addWidget(self.saldo_global_consumidas, 3, 1)
-        saldos_grid.addWidget(self.saldo_global_restantes, 3, 2)
-
-        saldos_grid.addWidget(QLabel("Anual grupo"), 4, 0)
-        saldos_grid.addWidget(self.saldo_grupo_consumidas, 4, 1)
-        saldos_grid.addWidget(self.saldo_grupo_restantes, 4, 2)
+        saldos_grid.addWidget(QLabel("Anual grupo"), 3, 0)
+        saldos_grid.addWidget(self.saldo_grupo_consumidas, 3, 1)
+        saldos_grid.addWidget(self.saldo_grupo_restantes, 3, 2)
 
         saldos_layout.addLayout(saldos_grid)
 
+        self.bolsa_mensual_label = QLabel("Bolsa mensual delegada: 00:00")
+        self.bolsa_mensual_label.setProperty("role", "secondary")
         self.bolsa_delegada_label = QLabel("Bolsa anual delegada: 00:00")
         self.bolsa_delegada_label.setProperty("role", "secondary")
         self.bolsa_grupo_label = QLabel("Bolsa anual grupo: 00:00")
         self.bolsa_grupo_label.setProperty("role", "secondary")
+        saldos_layout.addWidget(self.bolsa_mensual_label)
         saldos_layout.addWidget(self.bolsa_delegada_label)
         saldos_layout.addWidget(self.bolsa_grupo_label)
         right_column.addWidget(saldos_group)
@@ -340,14 +352,6 @@ class MainWindow(QMainWindow):
         filtros_layout.addStretch(1)
         historico_layout.addLayout(filtros_layout)
 
-        historico_actions = QHBoxLayout()
-        self.generar_pdf_button = QPushButton("Generar PDF histórico")
-        self.generar_pdf_button.setProperty("variant", "secondary")
-        self.generar_pdf_button.clicked.connect(self._on_generar_pdf_historico)
-        historico_actions.addWidget(self.generar_pdf_button)
-        historico_actions.addStretch(1)
-        historico_layout.addLayout(historico_actions)
-
         self.historico_table = QTableView()
         self.historico_model = SolicitudesTableModel([])
         self.historico_table.setModel(self.historico_model)
@@ -365,10 +369,18 @@ class MainWindow(QMainWindow):
         self.historico_table.setMinimumHeight(260)
         historico_layout.addWidget(self.historico_table, 1)
 
+        historico_actions = QHBoxLayout()
         self.eliminar_button = QPushButton("Eliminar")
         self.eliminar_button.setProperty("variant", "danger")
         self.eliminar_button.clicked.connect(self._on_eliminar)
-        historico_layout.addWidget(self.eliminar_button)
+        historico_actions.addWidget(self.eliminar_button)
+        historico_actions.addStretch(1)
+
+        self.generar_pdf_button = QPushButton("Generar PDF histórico")
+        self.generar_pdf_button.setProperty("variant", "secondary")
+        self.generar_pdf_button.clicked.connect(self._on_generar_pdf_historico)
+        historico_actions.addWidget(self.generar_pdf_button)
+        historico_layout.addLayout(historico_actions)
         right_column.addWidget(historico_group, 1)
 
         self.setCentralWidget(content)
@@ -418,9 +430,7 @@ class MainWindow(QMainWindow):
         self._update_solicitud_preview()
 
     def _on_period_changed(self) -> None:
-        self._clear_pendientes()
         self._refresh_historico()
-        self._refresh_saldos()
 
     def _on_period_mode_changed(self) -> None:
         modo = self.periodo_modo_combo.currentData()
@@ -459,6 +469,9 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             self._refresh_saldos()
 
+    def _on_edit_pdf(self) -> None:
+        self._on_edit_grupo()
+
     def _calculate_preview_minutes(self) -> tuple[int, bool]:
         if self.completo_check.isChecked():
             persona = self._current_persona()
@@ -489,6 +502,7 @@ class MainWindow(QMainWindow):
         self.edit_persona_button.setEnabled(persona_selected)
         self.delete_persona_button.setEnabled(persona_selected)
         self.edit_grupo_button.setEnabled(True)
+        self.editar_pdf_button.setEnabled(True)
         self.eliminar_button.setEnabled(persona_selected and self._selected_historico() is not None)
         self.eliminar_pendiente_button.setEnabled(persona_selected and bool(self._pending_solicitudes))
         self.generar_pdf_button.setEnabled(
@@ -526,6 +540,13 @@ class MainWindow(QMainWindow):
         persona_dto = dialog.get_persona()
         if persona_dto is None:
             logger.info("Edición de persona cancelada")
+            return
+        confirm = QMessageBox.question(
+            self,
+            "Confirmar cambios",
+            "¿Confirmas los cambios? Esto afectará a cálculos futuros.",
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
             return
         try:
             actualizada = self._persona_use_cases.editar_persona(persona_dto)
@@ -782,8 +803,8 @@ class MainWindow(QMainWindow):
         self._update_action_state()
 
     def _refresh_saldos(self) -> None:
-        filtro = self._current_periodo_filtro()
-        self._update_periodo_label(filtro)
+        filtro = self._current_saldo_filtro()
+        self._update_periodo_label()
         persona = self._current_persona()
         if persona is None:
             self._set_saldos_labels(None)
@@ -798,11 +819,8 @@ class MainWindow(QMainWindow):
             return
         self._set_saldos_labels(resumen, pendientes_periodo, pendientes_ano)
 
-    def _update_periodo_label(self, filtro: PeriodoFiltro) -> None:
-        if filtro.modo == "MENSUAL":
-            self.saldo_periodo_label.setText("Mensual")
-        else:
-            self.saldo_periodo_label.setText("Anual (año completo)")
+    def _update_periodo_label(self) -> None:
+        self.saldo_periodo_label.setText("Mensual")
 
     def _set_saldos_labels(
         self,
@@ -813,9 +831,8 @@ class MainWindow(QMainWindow):
         if resumen is None:
             self._set_saldo_line(self.saldo_periodo_consumidas, self.saldo_periodo_restantes, 0, 0)
             self._set_saldo_line(self.saldo_anual_consumidas, self.saldo_anual_restantes, 0, 0)
-            self._set_saldo_line(self.saldo_global_consumidas, self.saldo_global_restantes, 0, 0)
             self._set_saldo_line(self.saldo_grupo_consumidas, self.saldo_grupo_restantes, 0, 0)
-            self._set_bolsa_labels(0, 0)
+            self._set_bolsa_labels(0, 0, 0)
             return
         consumidas_periodo = resumen.individual.consumidas_periodo_min + pendientes_periodo
         bolsa_periodo = resumen.individual.bolsa_periodo_min
@@ -824,10 +841,6 @@ class MainWindow(QMainWindow):
         consumidas_anual = resumen.individual.consumidas_anual_min + pendientes_ano
         bolsa_anual = resumen.individual.bolsa_anual_min
         restantes_anual = bolsa_anual - consumidas_anual
-
-        consumidas_global = resumen.global_anual.consumidas_anual_min + pendientes_ano
-        bolsa_global = resumen.global_anual.bolsa_anual_min
-        restantes_global = bolsa_global - consumidas_global
 
         consumidas_grupo = resumen.grupo_anual.consumidas_anual_min + pendientes_ano
         bolsa_grupo = resumen.grupo_anual.bolsa_anual_grupo_min
@@ -846,18 +859,12 @@ class MainWindow(QMainWindow):
             restantes_anual,
         )
         self._set_saldo_line(
-            self.saldo_global_consumidas,
-            self.saldo_global_restantes,
-            consumidas_global,
-            restantes_global,
-        )
-        self._set_saldo_line(
             self.saldo_grupo_consumidas,
             self.saldo_grupo_restantes,
             consumidas_grupo,
             restantes_grupo,
         )
-        self._set_bolsa_labels(bolsa_anual, bolsa_grupo)
+        self._set_bolsa_labels(bolsa_periodo, bolsa_anual, bolsa_grupo)
 
     def _on_historico_selection_changed(self) -> None:
         self._update_action_state()
@@ -868,6 +875,10 @@ class MainWindow(QMainWindow):
         if modo == "ANUAL":
             return PeriodoFiltro.anual(year)
         return PeriodoFiltro.mensual(year, self.month_combo.currentData())
+
+    def _current_saldo_filtro(self) -> PeriodoFiltro:
+        current = QDate.currentDate()
+        return PeriodoFiltro.mensual(current.year(), current.month())
 
     def _pending_minutes_for_period(self, filtro: PeriodoFiltro) -> int:
         persona = self._current_persona()
@@ -913,7 +924,12 @@ class MainWindow(QMainWindow):
         field.style().polish(field)
         field.update()
 
-    def _set_bolsa_labels(self, bolsa_delegada: int, bolsa_grupo: int) -> None:
+    def _set_bolsa_labels(
+        self, bolsa_mensual: int, bolsa_delegada: int, bolsa_grupo: int
+    ) -> None:
+        self.bolsa_mensual_label.setText(
+            f"Bolsa mensual delegada: {self._format_minutes(bolsa_mensual)}"
+        )
         self.bolsa_delegada_label.setText(
             f"Bolsa anual delegada: {self._format_minutes(bolsa_delegada)}"
         )

@@ -8,11 +8,11 @@ from PySide6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
 
-BASE_BG = "#121212"
+BASE_BG = "#141414"
 BASE_PANEL = "#1e1e1e"
 BASE_BORDER = "#2a2a2a"
-TEXT_PRIMARY = "#e6e6e6"
-TEXT_SECONDARY = "#b0b0b0"
+TEXT_PRIMARY = "#e4e4e4"
+TEXT_SECONDARY = "#b8b8b8"
 ACCENT_RED = "#b00000"
 
 
@@ -20,7 +20,7 @@ def _build_palette() -> QPalette:
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(BASE_BG))
     palette.setColor(QPalette.Base, QColor(BASE_PANEL))
-    palette.setColor(QPalette.AlternateBase, QColor("#1a1a1a"))
+    palette.setColor(QPalette.AlternateBase, QColor("#202020"))
     palette.setColor(QPalette.Text, QColor(TEXT_PRIMARY))
     palette.setColor(QPalette.WindowText, QColor(TEXT_PRIMARY))
     palette.setColor(QPalette.Button, QColor(BASE_PANEL))
