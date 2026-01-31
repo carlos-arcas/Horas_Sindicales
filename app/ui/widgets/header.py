@@ -22,12 +22,12 @@ class HeaderWidget(QWidget):
 
     def _build_ui(self) -> None:
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(16)
 
         self.logo_label = QLabel()
         self.logo_label.setObjectName("headerLogo")
-        self.logo_label.setFixedHeight(80)
+        self.logo_label.setFixedHeight(110)
         self.logo_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.logo_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         self._set_logo_pixmap()
@@ -57,8 +57,8 @@ class HeaderWidget(QWidget):
                     logger.warning("Logo encontrado pero no se pudo cargar: %s", candidate)
                     continue
                 scaled = pixmap.scaled(
-                    200,
-                    80,
+                    260,
+                    110,
                     Qt.KeepAspectRatio,
                     Qt.SmoothTransformation,
                 )
