@@ -405,6 +405,27 @@ class SolicitudUseCases:
 
         return creadas, pendientes, errores, pdf_path
 
+    def generar_pdf_historico(
+        self, solicitudes: Iterable[SolicitudDTO], destino: Path
+    ) -> Path:
+        solicitudes_list = list(solicitudes)
+        if not solicitudes_list:
+            raise BusinessRuleError("No hay solicitudes para generar el PDF.")
+        persona = self._persona_repo.get_by_id(solicitudes_list[0].persona_id)
+        if persona is None:
+            raise BusinessRuleError("Persona no encontrada.")
+        pdf_options = self._config_repo.get() if self._config_repo else None
+        return pdf_builder.construir_pdf_solicitudes(
+            solicitudes_list,
+            persona,
+            destino,
+            intro_text=pdf_options.pdf_intro_text if pdf_options else None,
+            logo_path=pdf_options.pdf_logo_path if pdf_options else None,
+            include_hours_in_horario=(
+                pdf_options.pdf_include_hours_in_horario if pdf_options else None
+            ),
+        )
+
     def calcular_totales_globales(self, filtro: PeriodoFiltro) -> TotalesGlobalesDTO:
         personas = list(self._persona_repo.list_all())
         total_bolsa = 0
