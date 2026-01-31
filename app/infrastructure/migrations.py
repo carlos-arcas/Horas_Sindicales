@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 def run_migrations(connection: sqlite3.Connection) -> None:
     logger.info("Ejecutando migraciones")
     cursor = connection.cursor()
+    _ensure_grupo_config(cursor)
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS personas (
@@ -47,6 +48,7 @@ def run_migrations(connection: sqlite3.Connection) -> None:
             completo INTEGER NOT NULL,
             horas_solicitadas_min INTEGER,
             observaciones TEXT NULL,
+            notas TEXT NULL,
             pdf_path TEXT NULL,
             pdf_hash TEXT NULL,
             FOREIGN KEY(persona_id) REFERENCES personas(id)
@@ -143,6 +145,7 @@ def _ensure_solicitudes_columns(cursor: sqlite3.Cursor) -> None:
         ("desde_min", "INTEGER"),
         ("hasta_min", "INTEGER"),
         ("horas_solicitadas_min", "INTEGER"),
+        ("notas", "TEXT NULL"),
     ]:
         _add_column_if_missing(cursor, "solicitudes", column, column_type)
 
@@ -177,3 +180,38 @@ def _ensure_solicitudes_columns(cursor: sqlite3.Cursor) -> None:
             WHERE hasta_min IS NULL AND hasta IS NOT NULL
             """
         )
+
+    if _column_exists(cursor, "solicitudes", "observaciones"):
+        cursor.execute(
+            """
+            UPDATE solicitudes
+            SET notas = observaciones
+            WHERE notas IS NULL AND observaciones IS NOT NULL
+            """
+        )
+
+
+def _ensure_grupo_config(cursor: sqlite3.Cursor) -> None:
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS grupo_config (
+            id INTEGER PRIMARY KEY CHECK(id = 1),
+            nombre_grupo TEXT NULL,
+            bolsa_anual_grupo_min INTEGER DEFAULT 0,
+            pdf_logo_path TEXT DEFAULT 'logo.png',
+            pdf_intro_text TEXT DEFAULT 'Conforme a lo dispuesto en el art.68 e) del Estatuto de los Trabajadores, aprobado por el Real Decreto Legislativo 1/1995 de 24 de marzo, dispense la ausencia al trabajo de los/as trabajadores/as que a continuación se relacionan, los cuales han de resolver asuntos relativos al ejercicio de sus funciones, representando al personal de su empresa.',
+            pdf_include_hours_in_horario INTEGER NULL
+        )
+        """
+    )
+    cursor.execute(
+        """
+        INSERT OR IGNORE INTO grupo_config (
+            id, nombre_grupo, bolsa_anual_grupo_min, pdf_logo_path, pdf_intro_text, pdf_include_hours_in_horario
+        ) VALUES (
+            1, NULL, 0, 'logo.png',
+            'Conforme a lo dispuesto en el art.68 e) del Estatuto de los Trabajadores, aprobado por el Real Decreto Legislativo 1/1995 de 24 de marzo, dispense la ausencia al trabajo de los/as trabajadores/as que a continuación se relacionan, los cuales han de resolver asuntos relativos al ejercicio de sus funciones, representando al personal de su empresa.',
+            NULL
+        )
+        """
+    )

@@ -3,12 +3,18 @@ from __future__ import annotations
 import sqlite3
 from typing import Iterable
 
-from app.domain.models import Persona, Solicitud
-from app.domain.ports import PersonaRepository, SolicitudRepository
+from app.domain.models import GrupoConfig, Persona, Solicitud
+from app.domain.ports import GrupoConfigRepository, PersonaRepository, SolicitudRepository
 
 
 def _int_or_zero(value: int | None) -> int:
     return 0 if value is None else int(value)
+
+
+def _bool_from_db(value: int | None) -> bool | None:
+    if value is None:
+        return None
+    return bool(value)
 
 
 class PersonaRepositorySQLite(PersonaRepository):
@@ -253,7 +259,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor.execute(
             """
             SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                   horas_solicitadas_min, observaciones, pdf_path, pdf_hash
+                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
             FROM solicitudes
             WHERE persona_id = ?
             ORDER BY fecha_pedida DESC
@@ -272,6 +278,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 completo=bool(row["completo"]),
                 horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
                 observaciones=row["observaciones"],
+                notas=row["notas"],
                 pdf_path=row["pdf_path"],
                 pdf_hash=row["pdf_hash"],
             )
@@ -286,7 +293,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             cursor.execute(
                 """
                 SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                       horas_solicitadas_min, observaciones, pdf_path, pdf_hash
+                       horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
                 FROM solicitudes
                 WHERE persona_id = ?
                   AND strftime('%Y', fecha_pedida) = ?
@@ -298,7 +305,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             cursor.execute(
                 """
                 SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                       horas_solicitadas_min, observaciones, pdf_path, pdf_hash
+                       horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
                 FROM solicitudes
                 WHERE persona_id = ?
                   AND strftime('%Y', fecha_pedida) = ?
@@ -319,6 +326,41 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 completo=bool(row["completo"]),
                 horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
                 observaciones=row["observaciones"],
+                notas=row["notas"],
+                pdf_path=row["pdf_path"],
+                pdf_hash=row["pdf_hash"],
+            )
+            for row in rows
+        ]
+
+    def list_by_persona_and_fecha(
+        self, persona_id: int, fecha_pedida: str
+    ) -> Iterable[Solicitud]:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
+            FROM solicitudes
+            WHERE persona_id = ?
+              AND fecha_pedida = ?
+            ORDER BY fecha_pedida DESC
+            """,
+            (persona_id, fecha_pedida),
+        )
+        rows = cursor.fetchall()
+        return [
+            Solicitud(
+                id=row["id"],
+                persona_id=row["persona_id"],
+                fecha_solicitud=row["fecha_solicitud"],
+                fecha_pedida=row["fecha_pedida"],
+                desde_min=row["desde_min"],
+                hasta_min=row["hasta_min"],
+                completo=bool(row["completo"]),
+                horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
+                observaciones=row["observaciones"],
+                notas=row["notas"],
                 pdf_path=row["pdf_path"],
                 pdf_hash=row["pdf_hash"],
             )
@@ -330,7 +372,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor.execute(
             """
             SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                   horas_solicitadas_min, observaciones, pdf_path, pdf_hash
+                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
             FROM solicitudes
             WHERE id = ?
             """,
@@ -349,6 +391,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             completo=bool(row["completo"]),
             horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
             observaciones=row["observaciones"],
+            notas=row["notas"],
             pdf_path=row["pdf_path"],
             pdf_hash=row["pdf_hash"],
         )
@@ -395,8 +438,8 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             """
             INSERT INTO solicitudes (
                 persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                horas_solicitadas_min, observaciones, pdf_path, pdf_hash
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 solicitud.persona_id,
@@ -407,6 +450,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 int(solicitud.completo),
                 solicitud.horas_solicitadas_min,
                 solicitud.observaciones,
+                solicitud.notas,
                 solicitud.pdf_path,
                 solicitud.pdf_hash,
             ),
@@ -422,6 +466,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             completo=solicitud.completo,
             horas_solicitadas_min=solicitud.horas_solicitadas_min,
             observaciones=solicitud.observaciones,
+            notas=solicitud.notas,
             pdf_path=solicitud.pdf_path,
             pdf_hash=solicitud.pdf_hash,
         )
@@ -429,6 +474,18 @@ class SolicitudRepositorySQLite(SolicitudRepository):
     def delete(self, solicitud_id: int) -> None:
         cursor = self._connection.cursor()
         cursor.execute("DELETE FROM solicitudes WHERE id = ?", (solicitud_id,))
+        self._connection.commit()
+
+    def delete_by_ids(self, solicitud_ids: Iterable[int]) -> None:
+        ids = list(solicitud_ids)
+        if not ids:
+            return
+        cursor = self._connection.cursor()
+        placeholders = ",".join("?" for _ in ids)
+        cursor.execute(
+            f"DELETE FROM solicitudes WHERE id IN ({placeholders})",
+            ids,
+        )
         self._connection.commit()
 
     def update_pdf_info(self, solicitud_id: int, pdf_path: str, pdf_hash: str | None) -> None:
@@ -442,3 +499,65 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             (pdf_path, pdf_hash, solicitud_id),
         )
         self._connection.commit()
+
+
+class GrupoConfigRepositorySQLite(GrupoConfigRepository):
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def get(self) -> GrupoConfig | None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, nombre_grupo, bolsa_anual_grupo_min, pdf_logo_path,
+                   pdf_intro_text, pdf_include_hours_in_horario
+            FROM grupo_config
+            WHERE id = 1
+            """
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return GrupoConfig(
+            id=row["id"],
+            nombre_grupo=row["nombre_grupo"],
+            bolsa_anual_grupo_min=_int_or_zero(row["bolsa_anual_grupo_min"]),
+            pdf_logo_path=row["pdf_logo_path"],
+            pdf_intro_text=row["pdf_intro_text"],
+            pdf_include_hours_in_horario=_bool_from_db(row["pdf_include_hours_in_horario"]),
+        )
+
+    def upsert(self, config: GrupoConfig) -> GrupoConfig:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            INSERT INTO grupo_config (
+                id, nombre_grupo, bolsa_anual_grupo_min, pdf_logo_path,
+                pdf_intro_text, pdf_include_hours_in_horario
+            ) VALUES (1, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                nombre_grupo = excluded.nombre_grupo,
+                bolsa_anual_grupo_min = excluded.bolsa_anual_grupo_min,
+                pdf_logo_path = excluded.pdf_logo_path,
+                pdf_intro_text = excluded.pdf_intro_text,
+                pdf_include_hours_in_horario = excluded.pdf_include_hours_in_horario
+            """,
+            (
+                config.nombre_grupo,
+                config.bolsa_anual_grupo_min,
+                config.pdf_logo_path,
+                config.pdf_intro_text,
+                None
+                if config.pdf_include_hours_in_horario is None
+                else int(config.pdf_include_hours_in_horario),
+            ),
+        )
+        self._connection.commit()
+        return GrupoConfig(
+            id=1,
+            nombre_grupo=config.nombre_grupo,
+            bolsa_anual_grupo_min=config.bolsa_anual_grupo_min,
+            pdf_logo_path=config.pdf_logo_path,
+            pdf_intro_text=config.pdf_intro_text,
+            pdf_include_hours_in_horario=config.pdf_include_hours_in_horario,
+        )

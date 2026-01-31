@@ -23,8 +23,10 @@ from app.domain.models import Persona
 from app.domain.time_utils import minutes_to_hhmm
 
 INTRO_TEXT = (
-    "Mediante el presente escrito se solicita autorización para la ausencia del puesto de trabajo "
-    "con motivo del desempeño de cargos sindicales, de acuerdo con la normativa vigente."
+    "Conforme a lo dispuesto en el art.68 e) del Estatuto de los Trabajadores, aprobado por el "
+    "Real Decreto Legislativo 1/1995 de 24 de marzo, dispense la ausencia al trabajo de los/as "
+    "trabajadores/as que a continuación se relacionan, los cuales han de resolver asuntos relativos "
+    "al ejercicio de sus funciones, representando al personal de su empresa."
 )
 
 MONTH_ABBR = {
@@ -51,7 +53,12 @@ class PdfRow:
 
 
 def construir_pdf_solicitudes(
-    solicitudes: Iterable[SolicitudDTO], persona: Persona, destino: Path
+    solicitudes: Iterable[SolicitudDTO],
+    persona: Persona,
+    destino: Path,
+    intro_text: str | None = None,
+    logo_path: str | None = None,
+    include_hours_in_horario: bool | None = None,
 ) -> Path:
     solicitudes_list = list(solicitudes)
     if not solicitudes_list:
@@ -80,7 +87,8 @@ def construir_pdf_solicitudes(
         )
     )
 
-    rows = _build_rows(solicitudes_list, persona)
+    include_hours = True if include_hours_in_horario is None else include_hours_in_horario
+    rows = _build_rows(solicitudes_list, persona, include_hours)
     data = [["Nombre", "Fecha", "Horario"]]
     data.extend([[row.nombre, row.fecha, row.horario] for row in rows])
 
@@ -98,10 +106,11 @@ def construir_pdf_solicitudes(
         )
     )
 
-    story = [Paragraph(INTRO_TEXT, styles["Body"]), Spacer(1, 0.4 * cm), table]
+    intro = intro_text if intro_text is not None else INTRO_TEXT
+    story = [Paragraph(intro, styles["Body"]), Spacer(1, 0.4 * cm), table]
 
     def on_page(canvas, _doc):
-        _draw_header(canvas, _doc, header_height)
+        _draw_header(canvas, _doc, header_height, logo_path)
 
     doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
     return destino
@@ -117,12 +126,14 @@ def build_nombre_archivo(nombre_solicitante: str, fechas: Iterable[str]) -> str:
     )
 
 
-def _build_rows(solicitudes: list[SolicitudDTO], persona: Persona) -> list[PdfRow]:
+def _build_rows(
+    solicitudes: list[SolicitudDTO], persona: Persona, include_hours_in_horario: bool
+) -> list[PdfRow]:
     nombre = _format_nombre(persona)
     rows: list[PdfRow] = []
     for solicitud in sorted(solicitudes, key=lambda item: item.fecha_pedida):
         fecha = _format_fecha_tabla(solicitud.fecha_pedida)
-        horario = _format_horario(solicitud)
+        horario = _format_horario(solicitud, include_hours_in_horario)
         rows.append(PdfRow(nombre=nombre, fecha=fecha, horario=horario))
     return rows
 
@@ -136,14 +147,18 @@ def _format_fecha_tabla(fecha: str) -> str:
     return datetime.strptime(fecha, "%Y-%m-%d").strftime("%d/%m/%Y")
 
 
-def _format_horario(solicitud: SolicitudDTO) -> str:
+def _format_horario(solicitud: SolicitudDTO, include_hours_in_horario: bool) -> str:
     minutos = int(round(solicitud.horas * 60))
     if solicitud.completo:
-        detalle = f" ({minutes_to_hhmm(minutos)})" if minutos > 0 else ""
-        return f"COMPLETO{detalle}"
+        if include_hours_in_horario and minutos > 0:
+            return f"COMPLETO ({minutes_to_hhmm(minutos)})"
+        return "COMPLETO"
     desde = solicitud.desde or "--:--"
     hasta = solicitud.hasta or "--:--"
-    return f"{desde} - {hasta}"
+    detalle = (
+        f" ({minutes_to_hhmm(minutos)})" if include_hours_in_horario and minutos > 0 else ""
+    )
+    return f"{desde} - {hasta}{detalle}"
 
 
 def _format_dias_seleccionados(fechas: list[datetime]) -> str:
@@ -181,9 +196,9 @@ def _ensure_pdf_extension(path: Path) -> Path:
     return path
 
 
-def _draw_header(canvas, doc, header_height: float) -> None:
+def _draw_header(canvas, doc, header_height: float, logo_path: str | None) -> None:
     width, height = A4
-    logo_path = Path(__file__).resolve().parents[2] / "logo.png"
+    logo_path = _resolve_logo_path(logo_path)
     max_width = width - doc.leftMargin - doc.rightMargin
     logo_y = height - doc.topMargin + (doc.topMargin - header_height) / 2
     if logo_path.exists():
@@ -200,3 +215,12 @@ def _draw_header(canvas, doc, header_height: float) -> None:
         title_y = height - doc.topMargin + 0.2 * cm
     canvas.setFont("Helvetica-Bold", 14)
     canvas.drawCentredString(width / 2, title_y, "AUSENCIA DE CARGOS SINDICALES")
+
+
+def _resolve_logo_path(logo_path: str | None) -> Path:
+    if logo_path:
+        path = Path(logo_path)
+        if not path.is_absolute():
+            return Path(__file__).resolve().parents[2] / logo_path
+        return path
+    return Path(__file__).resolve().parents[2] / "logo.png"
