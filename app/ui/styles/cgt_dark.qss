@@ -20,6 +20,11 @@ QLabel[role="secondary"] {
     color: #b7bcc7;
 }
 
+QLabel[role="warning"] {
+    color: #e0b165;
+    font-weight: 600;
+}
+
 QLabel[role="badge"] {
     color: #d0001a;
     border: 1px solid #d0001a;
@@ -29,8 +34,8 @@ QLabel[role="badge"] {
 }
 
 QGroupBox {
-    background-color: #171a21;
-    border: 1px solid #2a2f3a;
+    background-color: #2a0f14;
+    border: 1px solid #3a2226;
     border-radius: 10px;
     margin-top: 12px;
     padding: 12px;
@@ -45,8 +50,8 @@ QGroupBox::title {
 }
 
 QFrame[card="true"] {
-    background-color: #171a21;
-    border: 1px solid #2a2f3a;
+    background-color: #2a0f14;
+    border: 1px solid #3a2226;
     border-radius: 10px;
 }
 

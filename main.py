@@ -117,10 +117,14 @@ def _run_app() -> int:
 
     from PySide6.QtWidgets import QApplication
 
-    from app.application.use_cases import PersonaUseCases, SolicitudUseCases
+    from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
     from app.infrastructure.db import get_connection
     from app.infrastructure.migrations import run_migrations
-    from app.infrastructure.repos_sqlite import PersonaRepositorySQLite, SolicitudRepositorySQLite
+    from app.infrastructure.repos_sqlite import (
+        GrupoConfigRepositorySQLite,
+        PersonaRepositorySQLite,
+        SolicitudRepositorySQLite,
+    )
     from app.infrastructure.seed import seed_if_empty
     from app.ui.main_window import MainWindow
 
@@ -130,13 +134,15 @@ def _run_app() -> int:
 
     persona_repo = PersonaRepositorySQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
+    grupo_repo = GrupoConfigRepositorySQLite(connection)
 
     persona_use_cases = PersonaUseCases(persona_repo)
-    solicitud_use_cases = SolicitudUseCases(solicitud_repo, persona_repo)
+    solicitud_use_cases = SolicitudUseCases(solicitud_repo, persona_repo, grupo_repo)
+    grupo_use_cases = GrupoConfigUseCases(grupo_repo)
 
     app = QApplication([])
     try:
-        window = MainWindow(persona_use_cases, solicitud_use_cases)
+        window = MainWindow(persona_use_cases, solicitud_use_cases, grupo_use_cases)
     except Exception:
         logger.exception("Error construyendo MainWindow")
         raise

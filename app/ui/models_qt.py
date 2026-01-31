@@ -125,6 +125,9 @@ class SolicitudesTableModel(QAbstractTableModel):
         self._solicitudes.append(solicitud)
         self.endInsertRows()
 
+    def solicitudes(self) -> list[SolicitudDTO]:
+        return list(self._solicitudes)
+
     def clear(self) -> None:
         self.beginResetModel()
         self._solicitudes = []
