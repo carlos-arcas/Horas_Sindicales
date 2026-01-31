@@ -11,7 +11,7 @@ class Persona:
     genero: str
     horas_mes_min: int
     horas_ano_min: int
-    horas_jornada_defecto_min: int
+    is_active: bool
     cuad_lun_man_min: int
     cuad_lun_tar_min: int
     cuad_mar_man_min: int

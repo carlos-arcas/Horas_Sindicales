@@ -70,7 +70,7 @@ def _persona_to_dto(persona: Persona) -> PersonaDTO:
         genero=persona.genero,
         horas_mes=persona.horas_mes_min,
         horas_ano=persona.horas_ano_min,
-        horas_jornada_defecto=persona.horas_jornada_defecto_min,
+        is_active=persona.is_active,
         cuad_lun_man_min=persona.cuad_lun_man_min,
         cuad_lun_tar_min=persona.cuad_lun_tar_min,
         cuad_mar_man_min=persona.cuad_mar_man_min,
@@ -95,7 +95,7 @@ def _dto_to_persona(dto: PersonaDTO) -> Persona:
         genero=dto.genero,
         horas_mes_min=dto.horas_mes,
         horas_ano_min=dto.horas_ano,
-        horas_jornada_defecto_min=dto.horas_jornada_defecto,
+        is_active=dto.is_active,
         cuad_lun_man_min=dto.cuad_lun_man_min,
         cuad_lun_tar_min=dto.cuad_lun_tar_min,
         cuad_mar_man_min=dto.cuad_mar_man_min,
@@ -175,6 +175,13 @@ def _dto_to_grupo_config(dto: GrupoConfigDTO) -> GrupoConfig:
     )
 
 
+def _pdf_intro_text(config: GrupoConfig | None) -> str | None:
+    if config is None:
+        return None
+    intro = (config.pdf_intro_text or "").strip()
+    return intro or pdf_builder.INTRO_TEXT
+
+
 class PersonaUseCases:
     def __init__(self, repo: PersonaRepository) -> None:
         self._repo = repo
@@ -203,6 +210,20 @@ class PersonaUseCases:
         persona = _dto_to_persona(dto)
         validar_persona(persona)
         actualizada = self._repo.update(persona)
+        return _persona_to_dto(actualizada)
+
+    def desactivar_persona(self, persona_id: int) -> PersonaDTO:
+        persona = self._repo.get_by_id(persona_id)
+        if persona is None:
+            raise BusinessRuleError("Persona no encontrada.")
+        if not persona.is_active:
+            return _persona_to_dto(persona)
+        personas = list(self._repo.list_all(include_inactive=True))
+        activas = [p for p in personas if p.is_active]
+        if len(activas) <= 1:
+            raise BusinessRuleError("Debe existir al menos un delegado activo.")
+        persona_actualizada = replace(persona, is_active=False)
+        actualizada = self._repo.update(persona_actualizada)
         return _persona_to_dto(actualizada)
 
     def obtener_persona(self, persona_id: int) -> PersonaDTO:
@@ -358,7 +379,7 @@ class SolicitudUseCases:
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
         total_dia = _total_cuadrante_por_fecha(persona, fecha)
-        return total_dia if total_dia > 0 else persona.horas_jornada_defecto_min
+        return total_dia if total_dia > 0 else 0
 
     def sumar_pendientes_min(self, persona_id: int, solicitudes: Iterable[SolicitudDTO]) -> int:
         persona = self._persona_repo.get_by_id(persona_id)
@@ -409,7 +430,7 @@ class SolicitudUseCases:
                     creadas,
                     persona,
                     destino,
-                    intro_text=pdf_options.pdf_intro_text if pdf_options else None,
+                    intro_text=_pdf_intro_text(pdf_options),
                     logo_path=pdf_options.pdf_logo_path if pdf_options else None,
                     include_hours_in_horario=(
                         pdf_options.pdf_include_hours_in_horario if pdf_options else None
@@ -446,7 +467,7 @@ class SolicitudUseCases:
             solicitudes_list,
             persona,
             destino,
-            intro_text=pdf_options.pdf_intro_text if pdf_options else None,
+            intro_text=_pdf_intro_text(pdf_options),
             logo_path=pdf_options.pdf_logo_path if pdf_options else None,
         )
 
@@ -469,7 +490,7 @@ class SolicitudUseCases:
             solicitudes_list,
             persona,
             destino,
-            intro_text=pdf_options.pdf_intro_text if pdf_options else None,
+            intro_text=_pdf_intro_text(pdf_options),
             logo_path=pdf_options.pdf_logo_path if pdf_options else None,
         )
 
@@ -574,7 +595,7 @@ class PersonaFactory:
         genero: str,
         horas_mes: int,
         horas_ano: int,
-        horas_jornada_defecto: int,
+        is_active: bool,
         cuad_lun_man_min: int,
         cuad_lun_tar_min: int,
         cuad_mar_man_min: int,
@@ -596,7 +617,7 @@ class PersonaFactory:
             genero=genero,
             horas_mes=horas_mes,
             horas_ano=horas_ano,
-            horas_jornada_defecto=horas_jornada_defecto,
+            is_active=is_active,
             cuad_lun_man_min=cuad_lun_man_min,
             cuad_lun_tar_min=cuad_lun_tar_min,
             cuad_mar_man_min=cuad_mar_man_min,
@@ -647,9 +668,10 @@ def _calcular_minutos(dto: SolicitudDTO, persona: Persona | None) -> int:
         total_dia = _total_cuadrante_por_fecha(persona, dto.fecha_pedida)
         minutos = _hours_to_minutes(dto.horas) if dto.horas > 0 else total_dia
         if minutos <= 0:
-            minutos = persona.horas_jornada_defecto_min
-        if minutos <= 0:
-            raise BusinessRuleError("Las horas deben ser mayores a cero.")
+            raise BusinessRuleError(
+                "Las horas deben ser mayores a cero. "
+                "Configura el cuadrante o introduce las horas."
+            )
         return minutos
 
     if not dto.desde or not dto.hasta:

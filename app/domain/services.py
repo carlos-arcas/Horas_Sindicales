@@ -19,7 +19,6 @@ def validar_persona(persona: Persona) -> None:
     for campo, valor in {
         "horas_mes_min": persona.horas_mes_min,
         "horas_ano_min": persona.horas_ano_min,
-        "horas_jornada_defecto_min": persona.horas_jornada_defecto_min,
         "cuad_lun_man_min": persona.cuad_lun_man_min,
         "cuad_lun_tar_min": persona.cuad_lun_tar_min,
         "cuad_mar_man_min": persona.cuad_mar_man_min,

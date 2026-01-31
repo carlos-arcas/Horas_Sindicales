@@ -21,12 +21,12 @@ class PersonaRepositorySQLite(PersonaRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
 
-    def list_all(self) -> Iterable[Persona]:
+    def list_all(self, include_inactive: bool = False) -> Iterable[Persona]:
         cursor = self._connection.cursor()
-        cursor.execute(
-            """
+        sql = """
             SELECT id, nombre, genero,
                    horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
+                   is_active,
                    cuad_lun_man_min, cuad_lun_tar_min,
                    cuad_mar_man_min, cuad_mar_tar_min,
                    cuad_mie_man_min, cuad_mie_tar_min,
@@ -35,9 +35,11 @@ class PersonaRepositorySQLite(PersonaRepository):
                    cuad_sab_man_min, cuad_sab_tar_min,
                    cuad_dom_man_min, cuad_dom_tar_min
             FROM personas
-            ORDER BY nombre
-            """
-        )
+        """
+        if not include_inactive:
+            sql += " WHERE is_active = 1"
+        sql += " ORDER BY nombre"
+        cursor.execute(sql)
         rows = cursor.fetchall()
         return [
             Persona(
@@ -46,7 +48,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                 genero=row["genero"],
                 horas_mes_min=_int_or_zero(row["horas_mes_min"]),
                 horas_ano_min=_int_or_zero(row["horas_ano_min"]),
-                horas_jornada_defecto_min=_int_or_zero(row["horas_jornada_defecto_min"]),
+                is_active=_bool_from_db(row["is_active"]) if "is_active" in row.keys() else True,
                 cuad_lun_man_min=_int_or_zero(row["cuad_lun_man_min"]),
                 cuad_lun_tar_min=_int_or_zero(row["cuad_lun_tar_min"]),
                 cuad_mar_man_min=_int_or_zero(row["cuad_mar_man_min"]),
@@ -71,6 +73,7 @@ class PersonaRepositorySQLite(PersonaRepository):
             """
             SELECT id, nombre, genero,
                    horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
+                   is_active,
                    cuad_lun_man_min, cuad_lun_tar_min,
                    cuad_mar_man_min, cuad_mar_tar_min,
                    cuad_mie_man_min, cuad_mie_tar_min,
@@ -92,7 +95,7 @@ class PersonaRepositorySQLite(PersonaRepository):
             genero=row["genero"],
             horas_mes_min=_int_or_zero(row["horas_mes_min"]),
             horas_ano_min=_int_or_zero(row["horas_ano_min"]),
-            horas_jornada_defecto_min=_int_or_zero(row["horas_jornada_defecto_min"]),
+            is_active=_bool_from_db(row["is_active"]) if "is_active" in row.keys() else True,
             cuad_lun_man_min=_int_or_zero(row["cuad_lun_man_min"]),
             cuad_lun_tar_min=_int_or_zero(row["cuad_lun_tar_min"]),
             cuad_mar_man_min=_int_or_zero(row["cuad_mar_man_min"]),
@@ -115,6 +118,7 @@ class PersonaRepositorySQLite(PersonaRepository):
             """
             SELECT id, nombre, genero,
                    horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
+                   is_active,
                    cuad_lun_man_min, cuad_lun_tar_min,
                    cuad_mar_man_min, cuad_mar_tar_min,
                    cuad_mie_man_min, cuad_mie_tar_min,
@@ -136,7 +140,7 @@ class PersonaRepositorySQLite(PersonaRepository):
             genero=row["genero"],
             horas_mes_min=_int_or_zero(row["horas_mes_min"]),
             horas_ano_min=_int_or_zero(row["horas_ano_min"]),
-            horas_jornada_defecto_min=_int_or_zero(row["horas_jornada_defecto_min"]),
+            is_active=_bool_from_db(row["is_active"]) if "is_active" in row.keys() else True,
             cuad_lun_man_min=_int_or_zero(row["cuad_lun_man_min"]),
             cuad_lun_tar_min=_int_or_zero(row["cuad_lun_tar_min"]),
             cuad_mar_man_min=_int_or_zero(row["cuad_mar_man_min"]),
@@ -158,19 +162,20 @@ class PersonaRepositorySQLite(PersonaRepository):
         cursor.execute(
             """
             INSERT INTO personas (
-                nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
+                nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min, is_active,
                 cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
                 cuad_mie_man_min, cuad_mie_tar_min, cuad_jue_man_min, cuad_jue_tar_min,
                 cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
                 cuad_dom_man_min, cuad_dom_tar_min
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 persona.nombre,
                 persona.genero,
                 persona.horas_mes_min,
                 persona.horas_ano_min,
-                persona.horas_jornada_defecto_min,
+                0,
+                1 if persona.is_active else 0,
                 persona.cuad_lun_man_min,
                 persona.cuad_lun_tar_min,
                 persona.cuad_mar_man_min,
@@ -194,7 +199,7 @@ class PersonaRepositorySQLite(PersonaRepository):
             genero=persona.genero,
             horas_mes_min=persona.horas_mes_min,
             horas_ano_min=persona.horas_ano_min,
-            horas_jornada_defecto_min=persona.horas_jornada_defecto_min,
+            is_active=persona.is_active,
             cuad_lun_man_min=persona.cuad_lun_man_min,
             cuad_lun_tar_min=persona.cuad_lun_tar_min,
             cuad_mar_man_min=persona.cuad_mar_man_min,
@@ -217,6 +222,7 @@ class PersonaRepositorySQLite(PersonaRepository):
             """
             UPDATE personas
             SET nombre = ?, genero = ?, horas_mes_min = ?, horas_ano_min = ?, horas_jornada_defecto_min = ?,
+                is_active = ?,
                 cuad_lun_man_min = ?, cuad_lun_tar_min = ?, cuad_mar_man_min = ?, cuad_mar_tar_min = ?,
                 cuad_mie_man_min = ?, cuad_mie_tar_min = ?, cuad_jue_man_min = ?, cuad_jue_tar_min = ?,
                 cuad_vie_man_min = ?, cuad_vie_tar_min = ?, cuad_sab_man_min = ?, cuad_sab_tar_min = ?,
@@ -228,7 +234,8 @@ class PersonaRepositorySQLite(PersonaRepository):
                 persona.genero,
                 persona.horas_mes_min,
                 persona.horas_ano_min,
-                persona.horas_jornada_defecto_min,
+                0,
+                1 if persona.is_active else 0,
                 persona.cuad_lun_man_min,
                 persona.cuad_lun_tar_min,
                 persona.cuad_mar_man_min,
