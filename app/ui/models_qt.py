@@ -76,6 +76,7 @@ class SolicitudesTableModel(QAbstractTableModel):
             "Hasta",
             "Completo",
             "Horas",
+            "Notas",
         ]
 
     def rowCount(self, parent: QModelIndex | None = None) -> int:
@@ -85,10 +86,14 @@ class SolicitudesTableModel(QAbstractTableModel):
         return len(self._headers)
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
-        if not index.isValid() or role != Qt.DisplayRole:
+        if not index.isValid():
             return None
         solicitud = self._solicitudes[index.row()]
         column = index.column()
+        if role == Qt.ToolTipRole and column == 5:
+            return solicitud.notas or ""
+        if role != Qt.DisplayRole:
+            return None
         if column == 0:
             return solicitud.fecha_pedida
         if column == 1:
@@ -99,6 +104,8 @@ class SolicitudesTableModel(QAbstractTableModel):
             return "Sí" if solicitud.completo else "No"
         if column == 4:
             return _format_minutes(int(round(solicitud.horas * 60)))
+        if column == 5:
+            return solicitud.notas or ""
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):

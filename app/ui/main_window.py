@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QGridLayout,
     QFrame,
+    QHeaderView,
     QSizePolicy,
     QSpinBox,
     QTableView,
@@ -202,6 +203,8 @@ class MainWindow(QMainWindow):
         self.pendientes_table.setShowGrid(False)
         self.pendientes_table.setAlternatingRowColors(True)
         self.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.pendientes_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.pendientes_table.horizontalHeader().setStretchLastSection(True)
 
         self.pendientes_table.setMinimumHeight(220)
         pendientes_layout.addWidget(self.pendientes_table, 1)
@@ -345,6 +348,8 @@ class MainWindow(QMainWindow):
         self.historico_table.setShowGrid(False)
         self.historico_table.setAlternatingRowColors(True)
         self.historico_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.historico_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.historico_table.horizontalHeader().setStretchLastSection(True)
 
         self.historico_table.setMinimumHeight(260)
         historico_layout.addWidget(self.historico_table, 1)
