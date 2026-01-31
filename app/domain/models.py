@@ -39,5 +39,16 @@ class Solicitud:
     completo: bool
     horas_solicitadas_min: int
     observaciones: Optional[str]
-    pdf_path: Optional[str]
-    pdf_hash: Optional[str]
+    notas: Optional[str] = None
+    pdf_path: Optional[str] = None
+    pdf_hash: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class GrupoConfig:
+    id: Optional[int]
+    nombre_grupo: Optional[str]
+    bolsa_anual_grupo_min: int
+    pdf_logo_path: str
+    pdf_intro_text: str
+    pdf_include_hours_in_horario: Optional[bool] = None

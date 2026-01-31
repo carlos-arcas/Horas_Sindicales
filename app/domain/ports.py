@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, Iterable
 
-from app.domain.models import Persona, Solicitud
+from app.domain.models import GrupoConfig, Persona, Solicitud
 
 
 class PersonaRepository(Protocol):
@@ -31,6 +31,9 @@ class SolicitudRepository(Protocol):
     ) -> Iterable[Solicitud]:
         ...
 
+    def list_by_persona_and_fecha(self, persona_id: int, fecha_pedida: str) -> Iterable[Solicitud]:
+        ...
+
     def get_by_id(self, solicitud_id: int) -> Solicitud | None:
         ...
 
@@ -51,4 +54,15 @@ class SolicitudRepository(Protocol):
         ...
 
     def delete(self, solicitud_id: int) -> None:
+        ...
+
+    def delete_by_ids(self, solicitud_ids: Iterable[int]) -> None:
+        ...
+
+
+class GrupoConfigRepository(Protocol):
+    def get(self) -> GrupoConfig | None:
+        ...
+
+    def upsert(self, config: GrupoConfig) -> GrupoConfig:
         ...

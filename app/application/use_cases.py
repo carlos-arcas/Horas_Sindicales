@@ -8,14 +8,20 @@ from pathlib import Path
 from typing import Iterable
 
 from app.application.dto import (
+    ConflictoDiaDTO,
     PeriodoFiltro,
     PersonaDTO,
+    ResumenGlobalAnualDTO,
+    ResumenGrupoAnualDTO,
+    ResumenIndividualDTO,
+    ResumenSaldosDTO,
     SaldosDTO,
     SolicitudDTO,
     TotalesGlobalesDTO,
+    GrupoConfigDTO,
 )
-from app.domain.models import Persona, Solicitud
-from app.domain.ports import PersonaRepository, SolicitudRepository
+from app.domain.models import GrupoConfig, Persona, Solicitud
+from app.domain.ports import GrupoConfigRepository, PersonaRepository, SolicitudRepository
 from app.domain.services import (
     BusinessRuleError,
     ValidacionError,
@@ -88,6 +94,7 @@ def _dto_to_persona(dto: PersonaDTO) -> Persona:
 def _solicitud_to_dto(solicitud: Solicitud) -> SolicitudDTO:
     desde = minutes_to_hhmm(solicitud.desde_min) if solicitud.desde_min is not None else None
     hasta = minutes_to_hhmm(solicitud.hasta_min) if solicitud.hasta_min is not None else None
+    notas = solicitud.notas if solicitud.notas is not None else solicitud.observaciones
     return SolicitudDTO(
         id=solicitud.id,
         persona_id=solicitud.persona_id,
@@ -100,12 +107,14 @@ def _solicitud_to_dto(solicitud: Solicitud) -> SolicitudDTO:
         observaciones=solicitud.observaciones,
         pdf_path=solicitud.pdf_path,
         pdf_hash=solicitud.pdf_hash,
+        notas=notas,
     )
 
 
 def _dto_to_solicitud(dto: SolicitudDTO) -> Solicitud:
     desde_min = parse_hhmm(dto.desde) if dto.desde else None
     hasta_min = parse_hhmm(dto.hasta) if dto.hasta else None
+    notas = dto.notas if dto.notas is not None else dto.observaciones
     return Solicitud(
         id=dto.id,
         persona_id=dto.persona_id,
@@ -116,8 +125,31 @@ def _dto_to_solicitud(dto: SolicitudDTO) -> Solicitud:
         completo=dto.completo,
         horas_solicitadas_min=_hours_to_minutes(dto.horas),
         observaciones=dto.observaciones,
+        notas=notas,
         pdf_path=dto.pdf_path,
         pdf_hash=dto.pdf_hash,
+    )
+
+
+def _grupo_config_to_dto(config: GrupoConfig) -> GrupoConfigDTO:
+    return GrupoConfigDTO(
+        id=config.id,
+        nombre_grupo=config.nombre_grupo,
+        bolsa_anual_grupo_min=config.bolsa_anual_grupo_min,
+        pdf_logo_path=config.pdf_logo_path,
+        pdf_intro_text=config.pdf_intro_text,
+        pdf_include_hours_in_horario=config.pdf_include_hours_in_horario,
+    )
+
+
+def _dto_to_grupo_config(dto: GrupoConfigDTO) -> GrupoConfig:
+    return GrupoConfig(
+        id=dto.id,
+        nombre_grupo=dto.nombre_grupo,
+        bolsa_anual_grupo_min=dto.bolsa_anual_grupo_min,
+        pdf_logo_path=dto.pdf_logo_path,
+        pdf_intro_text=dto.pdf_intro_text,
+        pdf_include_hours_in_horario=dto.pdf_include_hours_in_horario,
     )
 
 
@@ -160,10 +192,14 @@ class PersonaUseCases:
 
 class SolicitudUseCases:
     def __init__(
-        self, repo: SolicitudRepository, persona_repo: PersonaRepository
+        self,
+        repo: SolicitudRepository,
+        persona_repo: PersonaRepository,
+        config_repo: GrupoConfigRepository | None = None,
     ) -> None:
         self._repo = repo
         self._persona_repo = persona_repo
+        self._config_repo = config_repo
 
     def listar_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
         return self.listar_solicitudes_por_persona_y_periodo(persona_id, None, None)
@@ -178,6 +214,13 @@ class SolicitudUseCases:
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
 
+        conflicto = self.validar_conflicto_dia(dto.persona_id, dto.fecha_pedida, dto.completo)
+        if not conflicto.ok:
+            raise BusinessRuleError(
+                "Conflicto completo/parcial en la misma fecha. "
+                f"Acción sugerida: {conflicto.accion_sugerida}."
+            )
+
         desde_min = parse_hhmm(dto.desde) if dto.desde else None
         hasta_min = parse_hhmm(dto.hasta) if dto.hasta else None
         if self._repo.exists_duplicate(
@@ -186,6 +229,7 @@ class SolicitudUseCases:
             raise BusinessRuleError("Duplicado")
 
         minutos = _calcular_minutos(dto, persona)
+        notas = dto.notas if dto.notas is not None else dto.observaciones
         solicitud = Solicitud(
             id=None,
             persona_id=dto.persona_id,
@@ -196,6 +240,7 @@ class SolicitudUseCases:
             completo=dto.completo,
             horas_solicitadas_min=minutos,
             observaciones=dto.observaciones,
+            notas=notas,
             pdf_path=dto.pdf_path,
             pdf_hash=dto.pdf_hash,
         )
@@ -249,6 +294,43 @@ class SolicitudUseCases:
         year, month = _parse_year_month(solicitud.fecha_pedida)
         return self.calcular_saldos(solicitud.persona_id, year, month)
 
+    def validar_conflicto_dia(
+        self, persona_id: int, fecha_pedida: str, tipo_nuevo: bool
+    ) -> ConflictoDiaDTO:
+        existentes = list(self._repo.list_by_persona_and_fecha(persona_id, fecha_pedida))
+        if tipo_nuevo:
+            conflictos = [s for s in existentes if not s.completo]
+        else:
+            conflictos = [s for s in existentes if s.completo]
+        ids = [s.id for s in conflictos if s.id is not None]
+        if not ids:
+            return ConflictoDiaDTO(ok=True, ids_existentes=[], accion_sugerida=None)
+        return ConflictoDiaDTO(
+            ok=False,
+            ids_existentes=ids,
+            accion_sugerida="sustituir",
+        )
+
+    def sustituir_por_completo(
+        self, persona_id: int, fecha_pedida: str, nueva_solicitud: SolicitudDTO
+    ) -> tuple[SolicitudDTO, SaldosDTO]:
+        if not nueva_solicitud.completo:
+            raise BusinessRuleError("La solicitud debe ser completa para esta sustitución.")
+        existentes = list(self._repo.list_by_persona_and_fecha(persona_id, fecha_pedida))
+        ids = [s.id for s in existentes if s.id is not None and not s.completo]
+        self._repo.delete_by_ids(ids)
+        return self.agregar_solicitud(nueva_solicitud)
+
+    def sustituir_por_parcial(
+        self, persona_id: int, fecha_pedida: str, nueva_solicitud: SolicitudDTO
+    ) -> tuple[SolicitudDTO, SaldosDTO]:
+        if nueva_solicitud.completo:
+            raise BusinessRuleError("La solicitud debe ser parcial para esta sustitución.")
+        existentes = list(self._repo.list_by_persona_and_fecha(persona_id, fecha_pedida))
+        ids = [s.id for s in existentes if s.id is not None and s.completo]
+        self._repo.delete_by_ids(ids)
+        return self.agregar_solicitud(nueva_solicitud)
+
     def sugerir_completo_min(self, persona_id: int, fecha: str) -> int:
         persona = self._persona_repo.get_by_id(persona_id)
         if persona is None:
@@ -300,7 +382,17 @@ class SolicitudUseCases:
                 persona = self._persona_repo.get_by_id(creadas[0].persona_id)
                 if persona is None:
                     raise BusinessRuleError("Persona no encontrada.")
-                pdf_path = pdf_builder.construir_pdf_solicitudes(creadas, persona, destino)
+                pdf_options = self._config_repo.get() if self._config_repo else None
+                pdf_path = pdf_builder.construir_pdf_solicitudes(
+                    creadas,
+                    persona,
+                    destino,
+                    intro_text=pdf_options.pdf_intro_text if pdf_options else None,
+                    logo_path=pdf_options.pdf_logo_path if pdf_options else None,
+                    include_hours_in_horario=(
+                        pdf_options.pdf_include_hours_in_horario if pdf_options else None
+                    ),
+                )
                 pdf_hash = _hash_file(pdf_path)
                 creadas = [
                     _actualizar_pdf_en_repo(self._repo, solicitud, pdf_path, pdf_hash)
@@ -331,6 +423,74 @@ class SolicitudUseCases:
             total_bolsa_min=total_bolsa,
             total_restantes_min=total_restantes,
         )
+
+    def calcular_resumen_saldos(
+        self, persona_id: int, filtro: PeriodoFiltro
+    ) -> ResumenSaldosDTO:
+        persona = self._persona_repo.get_by_id(persona_id)
+        if persona is None:
+            raise BusinessRuleError("Persona no encontrada.")
+        solicitudes_periodo = self._repo.list_by_persona_and_period(
+            persona_id, filtro.year, filtro.month if filtro.modo == "MENSUAL" else None
+        )
+        solicitudes_ano = self._repo.list_by_persona_and_period(
+            persona_id, filtro.year, None
+        )
+        consumidas_periodo = sum(s.horas_solicitadas_min for s in solicitudes_periodo)
+        consumidas_anual = sum(s.horas_solicitadas_min for s in solicitudes_ano)
+        bolsa_periodo = (
+            persona.horas_mes_min if filtro.modo == "MENSUAL" else persona.horas_ano_min
+        )
+        bolsa_anual = persona.horas_ano_min
+        individuales = ResumenIndividualDTO(
+            consumidas_periodo_min=consumidas_periodo,
+            bolsa_periodo_min=bolsa_periodo,
+            restantes_periodo_min=bolsa_periodo - consumidas_periodo,
+            consumidas_anual_min=consumidas_anual,
+            bolsa_anual_min=bolsa_anual,
+            restantes_anual_min=bolsa_anual - consumidas_anual,
+        )
+
+        personas = list(self._persona_repo.list_all())
+        total_bolsa_anual = sum(p.horas_ano_min for p in personas)
+        total_consumidas_anual = 0
+        for persona_item in personas:
+            solicitudes_persona = self._repo.list_by_persona_and_period(
+                persona_item.id or 0, filtro.year, None
+            )
+            total_consumidas_anual += sum(s.horas_solicitadas_min for s in solicitudes_persona)
+        global_anual = ResumenGlobalAnualDTO(
+            consumidas_anual_min=total_consumidas_anual,
+            bolsa_anual_min=total_bolsa_anual,
+            restantes_anual_min=total_bolsa_anual - total_consumidas_anual,
+        )
+
+        config = self._config_repo.get() if self._config_repo else None
+        bolsa_grupo = config.bolsa_anual_grupo_min if config else 0
+        grupo_anual = ResumenGrupoAnualDTO(
+            consumidas_anual_min=total_consumidas_anual,
+            bolsa_anual_grupo_min=bolsa_grupo,
+            restantes_anual_grupo_min=bolsa_grupo - total_consumidas_anual,
+        )
+        return ResumenSaldosDTO(
+            individual=individuales, global_anual=global_anual, grupo_anual=grupo_anual
+        )
+
+
+class GrupoConfigUseCases:
+    def __init__(self, repo: GrupoConfigRepository) -> None:
+        self._repo = repo
+
+    def get_grupo_config(self) -> GrupoConfigDTO:
+        config = self._repo.get()
+        if config is None:
+            raise BusinessRuleError("Configuración de grupo no encontrada.")
+        return _grupo_config_to_dto(config)
+
+    def update_grupo_config(self, dto: GrupoConfigDTO) -> GrupoConfigDTO:
+        config = _dto_to_grupo_config(dto)
+        updated = self._repo.upsert(config)
+        return _grupo_config_to_dto(updated)
 
 
 class PersonaFactory:
