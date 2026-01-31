@@ -30,12 +30,12 @@ class TimeEditHM(QWidget):
         self._hours_spin = QSpinBox()
         self._hours_spin.setRange(0, 9999)
         self._hours_spin.setSuffix(" h")
-        self._hours_spin.setFixedWidth(70)
+        self._hours_spin.setFixedWidth(75)
         layout.addWidget(self._hours_spin)
 
         self._minutes_spin = MinuteSpinBox()
         self._minutes_spin.setSuffix(" m")
-        self._minutes_spin.setFixedWidth(60)
+        self._minutes_spin.setFixedWidth(70)
         layout.addWidget(self._minutes_spin)
 
         layout.addStretch(1)
@@ -56,4 +56,3 @@ class TimeEditHM(QWidget):
 
     def set_hour_range(self, minimum: int, maximum: int) -> None:
         self._hours_spin.setRange(minimum, maximum)
-

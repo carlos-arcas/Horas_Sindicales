@@ -49,8 +49,8 @@ QLabel[role="badge"] {
 
 QGroupBox[card="true"],
 QFrame[card="true"] {
-    background-color: #1e1e1e;
-    border: 1px solid #2a2a2a;
+    background-color: #242424;
+    border: 1px solid #303030;
     border-radius: 10px;
 }
 
@@ -185,25 +185,56 @@ QComboBox::down-arrow {
 
 QTableView,
 QTableWidget {
-    background-color: #181818;
-    border: 1px solid #2a2a2a;
-    gridline-color: transparent;
-    alternate-background-color: #1f1f1f;
-    selection-background-color: #222222;
-    selection-color: #e6e6e6;
+    background-color: #1a1a1a;
+    border: 1px solid #2b2b2b;
+    gridline-color: #242424;
+    alternate-background-color: #212121;
+    selection-background-color: #2a2a2a;
+    selection-color: #f0f0f0;
 }
 
 QTableView::item:selected,
 QTableWidget::item:selected {
-    background-color: #222222;
-    border-left: 3px solid #b00000;
+    background-color: #2a2a2a;
+    border: 1px solid #b85a00;
+    border-left: 3px solid #b85a00;
 }
 
 QHeaderView::section {
-    background-color: #1c1c1c;
-    color: #b0b0b0;
-    border: 1px solid #2a2a2a;
-    padding: 6px;
+    background-color: #262626;
+    color: #e2e2e2;
+    border: 0px;
+    border-bottom: 1px solid #2f2f2f;
+    border-right: 1px solid #2f2f2f;
+    padding: 6px 8px;
+    font-weight: 600;
+}
+
+QTableView::item:hover,
+QTableWidget::item:hover {
+    background-color: #232323;
+}
+
+QCheckBox {
+    spacing: 6px;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid #3a3a3a;
+    background-color: #1a1a1a;
+}
+
+QCheckBox::indicator:checked {
+    border: 1px solid #b00000;
+    background-color: #242424;
+}
+
+QCheckBox::indicator:focus,
+QCheckBox::indicator:pressed {
+    border: 1px solid #b00000;
 }
 
 QCalendarWidget QWidget {
@@ -228,23 +259,6 @@ QCalendarWidget QAbstractItemView:enabled {
 
 QCalendarWidget QAbstractItemView:enabled:selected {
     border: 1px solid #b00000;
-}
-
-QCheckBox {
-    spacing: 8px;
-}
-
-QCheckBox::indicator {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    border: 1px solid #2a2a2a;
-    background: #181818;
-}
-
-QCheckBox::indicator:checked {
-    background: #b00000;
-    border-color: #b00000;
 }
 
 QMessageBox {
