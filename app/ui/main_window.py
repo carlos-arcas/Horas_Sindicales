@@ -4,24 +4,25 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QDate, QTime, QUrl
+from PySide6.QtCore import QDate, QTime, QUrl, Qt
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDateEdit,
     QFileDialog,
-    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
     QApplication,
     QAbstractItemView,
-    QScrollArea,
     QPlainTextEdit,
+    QGridLayout,
+    QFrame,
     QSizePolicy,
     QSpinBox,
     QTableView,
@@ -64,76 +65,64 @@ class MainWindow(QMainWindow):
         self._load_personas()
 
     def _build_ui(self) -> None:
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
         content = QWidget()
-        scroll_area.setWidget(content)
-
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
 
-        top_row = QHBoxLayout()
-        top_row.setSpacing(16)
-        layout.addLayout(top_row)
-
-        left_top = QVBoxLayout()
-        left_top.setSpacing(10)
-        top_row.addLayout(left_top, 3)
-
-        right_top = QVBoxLayout()
-        right_top.setSpacing(10)
-        top_row.addLayout(right_top, 2)
-
+        header_frame = QFrame()
+        header_frame.setProperty("role", "header")
+        header_layout = QVBoxLayout(header_frame)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(8)
         header = HeaderWidget()
-        left_top.addWidget(header)
+        header_layout.addWidget(header)
+        header_separator = QFrame()
+        header_separator.setObjectName("headerSeparator")
+        header_separator.setFixedHeight(3)
+        header_layout.addWidget(header_separator)
+        layout.addWidget(header_frame)
 
-        persona_row = QHBoxLayout()
-        persona_row.addWidget(QLabel("Delegado"))
+        content_row = QHBoxLayout()
+        content_row.setSpacing(16)
+        layout.addLayout(content_row, 1)
+
+        left_column = QVBoxLayout()
+        left_column.setSpacing(12)
+        content_row.addLayout(left_column, 3)
+
+        persona_card = QFrame()
+        persona_card.setProperty("card", True)
+        persona_layout = QHBoxLayout(persona_card)
+        persona_layout.setContentsMargins(12, 10, 12, 10)
+        persona_layout.setSpacing(10)
+        persona_label = QLabel("Delegado")
+        persona_label.setProperty("role", "sectionTitle")
+        persona_layout.addWidget(persona_label)
         self.persona_combo = QComboBox()
         self.persona_combo.currentIndexChanged.connect(self._on_persona_changed)
-        persona_row.addWidget(self.persona_combo)
+        persona_layout.addWidget(self.persona_combo, 1)
 
         self.edit_persona_button = QPushButton("Editar delegado")
         self.edit_persona_button.setProperty("variant", "secondary")
         self.edit_persona_button.clicked.connect(self._on_edit_persona)
-        persona_row.addWidget(self.edit_persona_button)
+        persona_layout.addWidget(self.edit_persona_button)
 
         self.add_persona_button = QPushButton("Nuevo delegado")
         self.add_persona_button.setProperty("variant", "secondary")
         self.add_persona_button.clicked.connect(self._on_add_persona)
-        persona_row.addWidget(self.add_persona_button)
+        persona_layout.addWidget(self.add_persona_button)
 
         self.edit_grupo_button = QPushButton("Editar grupo")
         self.edit_grupo_button.setProperty("variant", "secondary")
         self.edit_grupo_button.clicked.connect(self._on_edit_grupo)
-        persona_row.addWidget(self.edit_grupo_button)
-
-        persona_row.addStretch(1)
-        left_top.addLayout(persona_row)
-
-        saldos_group = QGroupBox("Resumen de saldos")
-        saldos_layout = QFormLayout(saldos_group)
-        self.saldo_periodo_label = QLabel("00:00")
-        self.saldo_anual_label = QLabel("00:00")
-        self.saldo_global_label = QLabel("00:00")
-        self.saldo_grupo_label = QLabel("00:00")
-        saldos_layout.addRow("Periodo", self.saldo_periodo_label)
-        saldos_layout.addRow("Anual delegado", self.saldo_anual_label)
-        saldos_layout.addRow("Anual global", self.saldo_global_label)
-        saldos_layout.addRow("Anual grupo", self.saldo_grupo_label)
-        right_top.addWidget(saldos_group)
-        right_top.addStretch(1)
-
-        bottom_row = QHBoxLayout()
-        bottom_row.setSpacing(16)
-        layout.addLayout(bottom_row, 1)
-
-        left_bottom = QVBoxLayout()
-        left_bottom.setSpacing(12)
-        bottom_row.addLayout(left_bottom, 3)
+        persona_layout.addWidget(self.edit_grupo_button)
+        persona_layout.addStretch(1)
+        left_column.addWidget(persona_card)
 
         solicitud_group = QGroupBox("Alta de solicitud")
+        solicitud_group.setProperty("card", True)
+        solicitud_group.setProperty("accent", True)
         solicitud_layout = QVBoxLayout(solicitud_group)
         solicitud_layout.setSpacing(8)
 
@@ -199,15 +188,18 @@ class MainWindow(QMainWindow):
         notas_row.addWidget(self.notas_input, 1)
         solicitud_layout.addLayout(notas_row)
 
-        left_bottom.addWidget(solicitud_group)
+        left_column.addWidget(solicitud_group)
 
         pendientes_group = QGroupBox("Pendientes de confirmar")
+        pendientes_group.setProperty("card", True)
+        pendientes_group.setProperty("accent", True)
         pendientes_layout = QVBoxLayout(pendientes_group)
         self.pendientes_table = QTableView()
         self.pendientes_model = SolicitudesTableModel([])
         self.pendientes_table.setModel(self.pendientes_model)
         self.pendientes_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.pendientes_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.pendientes_table.setShowGrid(False)
         self.pendientes_table.setAlternatingRowColors(True)
         self.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -229,13 +221,69 @@ class MainWindow(QMainWindow):
         self.confirmar_button.clicked.connect(self._on_confirmar)
         pendientes_actions.addWidget(self.confirmar_button)
         pendientes_layout.addLayout(pendientes_actions)
-        left_bottom.addWidget(pendientes_group, 1)
+        left_column.addWidget(pendientes_group, 1)
 
-        right_bottom = QVBoxLayout()
-        right_bottom.setSpacing(12)
-        bottom_row.addLayout(right_bottom, 2)
+        right_column = QVBoxLayout()
+        right_column.setSpacing(12)
+        content_row.addLayout(right_column, 2)
+
+        saldos_group = QGroupBox("Resumen de saldos")
+        saldos_group.setProperty("card", True)
+        saldos_group.setProperty("accent", True)
+        saldos_layout = QVBoxLayout(saldos_group)
+        saldos_layout.setSpacing(10)
+
+        saldos_grid = QGridLayout()
+        saldos_grid.setHorizontalSpacing(10)
+        saldos_grid.setVerticalSpacing(8)
+
+        header_periodo = QLabel("")
+        header_consumidas = QLabel("Consumidas")
+        header_consumidas.setProperty("role", "secondary")
+        header_restantes = QLabel("Restantes")
+        header_restantes.setProperty("role", "secondary")
+        saldos_grid.addWidget(header_periodo, 0, 0)
+        saldos_grid.addWidget(header_consumidas, 0, 1)
+        saldos_grid.addWidget(header_restantes, 0, 2)
+
+        self.saldo_periodo_consumidas = self._build_saldo_field()
+        self.saldo_periodo_restantes = self._build_saldo_field()
+        self.saldo_anual_consumidas = self._build_saldo_field()
+        self.saldo_anual_restantes = self._build_saldo_field()
+        self.saldo_global_consumidas = self._build_saldo_field()
+        self.saldo_global_restantes = self._build_saldo_field()
+        self.saldo_grupo_consumidas = self._build_saldo_field()
+        self.saldo_grupo_restantes = self._build_saldo_field()
+
+        saldos_grid.addWidget(QLabel("Periodo"), 1, 0)
+        saldos_grid.addWidget(self.saldo_periodo_consumidas, 1, 1)
+        saldos_grid.addWidget(self.saldo_periodo_restantes, 1, 2)
+
+        saldos_grid.addWidget(QLabel("Anual del."), 2, 0)
+        saldos_grid.addWidget(self.saldo_anual_consumidas, 2, 1)
+        saldos_grid.addWidget(self.saldo_anual_restantes, 2, 2)
+
+        saldos_grid.addWidget(QLabel("Anual glob."), 3, 0)
+        saldos_grid.addWidget(self.saldo_global_consumidas, 3, 1)
+        saldos_grid.addWidget(self.saldo_global_restantes, 3, 2)
+
+        saldos_grid.addWidget(QLabel("Anual grupo"), 4, 0)
+        saldos_grid.addWidget(self.saldo_grupo_consumidas, 4, 1)
+        saldos_grid.addWidget(self.saldo_grupo_restantes, 4, 2)
+
+        saldos_layout.addLayout(saldos_grid)
+
+        self.bolsa_delegada_label = QLabel("Bolsa anual delegada: 00:00")
+        self.bolsa_delegada_label.setProperty("role", "secondary")
+        self.bolsa_grupo_label = QLabel("Bolsa anual grupo: 00:00")
+        self.bolsa_grupo_label.setProperty("role", "secondary")
+        saldos_layout.addWidget(self.bolsa_delegada_label)
+        saldos_layout.addWidget(self.bolsa_grupo_label)
+        right_column.addWidget(saldos_group)
 
         historico_group = QGroupBox("Histórico")
+        historico_group.setProperty("card", True)
+        historico_group.setProperty("variant", "sidebar")
         historico_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         historico_layout = QVBoxLayout(historico_group)
 
@@ -294,6 +342,7 @@ class MainWindow(QMainWindow):
         self.historico_table.selectionModel().selectionChanged.connect(
             self._on_historico_selection_changed
         )
+        self.historico_table.setShowGrid(False)
         self.historico_table.setAlternatingRowColors(True)
         self.historico_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -304,13 +353,21 @@ class MainWindow(QMainWindow):
         self.eliminar_button.setProperty("variant", "danger")
         self.eliminar_button.clicked.connect(self._on_eliminar)
         historico_layout.addWidget(self.eliminar_button)
-        right_bottom.addWidget(historico_group, 1)
+        right_column.addWidget(historico_group, 1)
 
-        self.setCentralWidget(scroll_area)
+        self.setCentralWidget(content)
         self._configure_time_placeholders()
         self._on_period_mode_changed()
         self._update_solicitud_preview()
         self._update_action_state()
+
+    def _build_saldo_field(self) -> QLineEdit:
+        field = QLineEdit("00:00")
+        field.setReadOnly(True)
+        field.setFocusPolicy(Qt.NoFocus)
+        field.setAlignment(Qt.AlignCenter)
+        field.setProperty("role", "saldo")
+        return field
 
     def _load_personas(self, select_id: int | None = None) -> None:
         self.persona_combo.blockSignals(True)
@@ -703,11 +760,11 @@ class MainWindow(QMainWindow):
         pendientes_ano: int = 0,
     ) -> None:
         if resumen is None:
-            texto = "Consumidas 00:00 / Bolsa 00:00 / Restantes 00:00"
-            self._set_resumen_label(self.saldo_periodo_label, texto, False)
-            self._set_resumen_label(self.saldo_anual_label, texto, False)
-            self._set_resumen_label(self.saldo_global_label, texto, False)
-            self._set_resumen_label(self.saldo_grupo_label, texto, False)
+            self._set_saldo_line(self.saldo_periodo_consumidas, self.saldo_periodo_restantes, 0, 0)
+            self._set_saldo_line(self.saldo_anual_consumidas, self.saldo_anual_restantes, 0, 0)
+            self._set_saldo_line(self.saldo_global_consumidas, self.saldo_global_restantes, 0, 0)
+            self._set_saldo_line(self.saldo_grupo_consumidas, self.saldo_grupo_restantes, 0, 0)
+            self._set_bolsa_labels(0, 0)
             return
         consumidas_periodo = resumen.individual.consumidas_periodo_min + pendientes_periodo
         bolsa_periodo = resumen.individual.bolsa_periodo_min
@@ -725,18 +782,31 @@ class MainWindow(QMainWindow):
         bolsa_grupo = resumen.grupo_anual.bolsa_anual_grupo_min
         restantes_grupo = bolsa_grupo - consumidas_grupo
 
-        self._set_resumen_line(
-            self.saldo_periodo_label, consumidas_periodo, bolsa_periodo, restantes_periodo
+        self._set_saldo_line(
+            self.saldo_periodo_consumidas,
+            self.saldo_periodo_restantes,
+            consumidas_periodo,
+            restantes_periodo,
         )
-        self._set_resumen_line(
-            self.saldo_anual_label, consumidas_anual, bolsa_anual, restantes_anual
+        self._set_saldo_line(
+            self.saldo_anual_consumidas,
+            self.saldo_anual_restantes,
+            consumidas_anual,
+            restantes_anual,
         )
-        self._set_resumen_line(
-            self.saldo_global_label, consumidas_global, bolsa_global, restantes_global
+        self._set_saldo_line(
+            self.saldo_global_consumidas,
+            self.saldo_global_restantes,
+            consumidas_global,
+            restantes_global,
         )
-        self._set_resumen_line(
-            self.saldo_grupo_label, consumidas_grupo, bolsa_grupo, restantes_grupo
+        self._set_saldo_line(
+            self.saldo_grupo_consumidas,
+            self.saldo_grupo_restantes,
+            consumidas_grupo,
+            restantes_grupo,
         )
+        self._set_bolsa_labels(bolsa_anual, bolsa_grupo)
 
     def _on_historico_selection_changed(self) -> None:
         self._update_action_state()
@@ -774,28 +844,36 @@ class MainWindow(QMainWindow):
         self.pendientes_model.clear()
         self._update_action_state()
 
-    def _set_resumen_line(
-        self, label: QLabel, consumidas: int, bolsa: int, restantes: int
+    def _set_saldo_line(
+        self,
+        consumidas_field: QLineEdit,
+        restantes_field: QLineEdit,
+        consumidas: int,
+        restantes: int,
     ) -> None:
+        consumidas_field.setText(self._format_minutes(consumidas))
         restantes_text, warning = self._format_restantes(restantes)
-        texto = (
-            f"Consumidas {self._format_minutes(consumidas)} / "
-            f"Bolsa {self._format_minutes(bolsa)} / "
-            f"{restantes_text}"
-        )
-        self._set_resumen_label(label, texto, warning)
+        restantes_field.setText(restantes_text)
+        self._set_warning_state(restantes_field, warning)
 
-    def _set_resumen_label(self, label: QLabel, texto: str, warning: bool) -> None:
-        label.setText(texto)
-        label.setProperty("role", "warning" if warning else "secondary")
-        label.style().unpolish(label)
-        label.style().polish(label)
-        label.update()
+    def _set_warning_state(self, field: QLineEdit, warning: bool) -> None:
+        field.setProperty("status", "warning" if warning else None)
+        field.style().unpolish(field)
+        field.style().polish(field)
+        field.update()
+
+    def _set_bolsa_labels(self, bolsa_delegada: int, bolsa_grupo: int) -> None:
+        self.bolsa_delegada_label.setText(
+            f"Bolsa anual delegada: {self._format_minutes(bolsa_delegada)}"
+        )
+        self.bolsa_grupo_label.setText(
+            f"Bolsa anual grupo: {self._format_minutes(bolsa_grupo)}"
+        )
 
     def _format_restantes(self, minutos: int) -> tuple[str, bool]:
         if minutos < 0:
-            return f"Exceso: {minutes_to_hhmm(abs(minutos))}", True
-        return f"Restantes {self._format_minutes(minutos)}", False
+            return f"Exceso {minutes_to_hhmm(abs(minutos))}", True
+        return self._format_minutes(minutos), False
 
     def _confirm_conflicto(self, mensaje: str) -> bool:
         return (
