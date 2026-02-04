@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QSizePolicy,
     QSpinBox,
+    QScrollArea,
     QTableView,
     QTimeEdit,
     QVBoxLayout,
@@ -67,6 +68,7 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self) -> None:
         content = QWidget()
+        content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         layout = QVBoxLayout(content)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(16)
@@ -94,6 +96,7 @@ class MainWindow(QMainWindow):
 
         persona_card = QFrame()
         persona_card.setProperty("card", True)
+        persona_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         persona_layout = QVBoxLayout(persona_card)
         persona_layout.setContentsMargins(16, 14, 16, 14)
         persona_layout.setSpacing(10)
@@ -101,16 +104,19 @@ class MainWindow(QMainWindow):
         persona_actions = QHBoxLayout()
         self.add_persona_button = QPushButton("Nuevo delegado")
         self.add_persona_button.setProperty("variant", "secondary")
+        self.add_persona_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.add_persona_button.clicked.connect(self._on_add_persona)
         persona_actions.addWidget(self.add_persona_button)
 
         self.edit_persona_button = QPushButton("Editar delegado")
         self.edit_persona_button.setProperty("variant", "secondary")
+        self.edit_persona_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.edit_persona_button.clicked.connect(self._on_edit_persona)
         persona_actions.addWidget(self.edit_persona_button)
 
         self.edit_grupo_button = QPushButton("Editar grupo")
         self.edit_grupo_button.setProperty("variant", "secondary")
+        self.edit_grupo_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.edit_grupo_button.clicked.connect(self._on_edit_grupo)
         persona_actions.addWidget(self.edit_grupo_button)
         persona_actions.addStretch(1)
@@ -128,6 +134,7 @@ class MainWindow(QMainWindow):
         persona_delete = QHBoxLayout()
         self.delete_persona_button = QPushButton("Eliminar delegado")
         self.delete_persona_button.setProperty("variant", "danger")
+        self.delete_persona_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.delete_persona_button.clicked.connect(self._on_delete_persona)
         persona_delete.addWidget(self.delete_persona_button)
         persona_delete.addStretch(1)
@@ -137,6 +144,7 @@ class MainWindow(QMainWindow):
         solicitud_group = QGroupBox("Alta de solicitud")
         solicitud_group.setProperty("card", True)
         solicitud_group.setProperty("accent", True)
+        solicitud_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         solicitud_layout = QVBoxLayout(solicitud_group)
         solicitud_layout.setSpacing(8)
 
@@ -194,6 +202,7 @@ class MainWindow(QMainWindow):
 
         self.agregar_button = QPushButton("Agregar")
         self.agregar_button.setProperty("variant", "primary")
+        self.agregar_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.agregar_button.clicked.connect(self._on_add_pendiente)
         solicitud_row.addWidget(self.agregar_button)
         solicitud_row.addStretch(1)
@@ -203,7 +212,8 @@ class MainWindow(QMainWindow):
         notas_row.addWidget(QLabel("Notas"))
         self.notas_input = QPlainTextEdit()
         self.notas_input.setPlaceholderText("Notas para la solicitud")
-        self.notas_input.setFixedHeight(70)
+        self.notas_input.setMinimumHeight(70)
+        self.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         notas_row.addWidget(self.notas_input, 1)
         solicitud_layout.addLayout(notas_row)
 
@@ -213,6 +223,7 @@ class MainWindow(QMainWindow):
         pendientes_group.setProperty("card", True)
         pendientes_group.setProperty("accent", True)
         pendientes_group.setProperty("variant", "key")
+        pendientes_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         pendientes_layout = QVBoxLayout(pendientes_group)
         self.pendientes_table = QTableView()
         self.pendientes_model = SolicitudesTableModel([])
@@ -231,11 +242,13 @@ class MainWindow(QMainWindow):
         pendientes_actions = QHBoxLayout()
         self.eliminar_pendiente_button = QPushButton("Eliminar seleccionado")
         self.eliminar_pendiente_button.setProperty("variant", "danger")
+        self.eliminar_pendiente_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.eliminar_pendiente_button.clicked.connect(self._on_remove_pendiente)
         pendientes_actions.addWidget(self.eliminar_pendiente_button)
 
         self.editar_pdf_button = QPushButton("Editar PDF")
         self.editar_pdf_button.setProperty("variant", "secondary")
+        self.editar_pdf_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.editar_pdf_button.clicked.connect(self._on_edit_pdf)
         pendientes_actions.addWidget(self.editar_pdf_button)
 
@@ -246,10 +259,12 @@ class MainWindow(QMainWindow):
 
         self.confirmar_button = QPushButton("Confirmar y Generar PDF")
         self.confirmar_button.setProperty("variant", "primary")
+        self.confirmar_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.confirmar_button.clicked.connect(self._on_confirmar)
         pendientes_actions.addWidget(self.confirmar_button)
         pendientes_layout.addLayout(pendientes_actions)
         left_column.addWidget(pendientes_group, 1)
+        left_column.addStretch(1)
 
         right_column = QVBoxLayout()
         right_column.setSpacing(12)
@@ -258,6 +273,7 @@ class MainWindow(QMainWindow):
         saldos_group = QGroupBox("Resumen de saldos")
         saldos_group.setProperty("card", True)
         saldos_group.setProperty("accent", True)
+        saldos_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         saldos_layout = QVBoxLayout(saldos_group)
         saldos_layout.setSpacing(10)
 
@@ -310,7 +326,7 @@ class MainWindow(QMainWindow):
         historico_group = QGroupBox("Histórico")
         historico_group.setProperty("card", True)
         historico_group.setProperty("variant", "sidebar")
-        historico_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        historico_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         historico_layout = QVBoxLayout(historico_group)
 
         filtros_layout = QHBoxLayout()
@@ -372,18 +388,26 @@ class MainWindow(QMainWindow):
         historico_actions = QHBoxLayout()
         self.eliminar_button = QPushButton("Eliminar")
         self.eliminar_button.setProperty("variant", "danger")
+        self.eliminar_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.eliminar_button.clicked.connect(self._on_eliminar)
         historico_actions.addWidget(self.eliminar_button)
         historico_actions.addStretch(1)
 
         self.generar_pdf_button = QPushButton("Generar PDF histórico")
         self.generar_pdf_button.setProperty("variant", "secondary")
+        self.generar_pdf_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.generar_pdf_button.clicked.connect(self._on_generar_pdf_historico)
         historico_actions.addWidget(self.generar_pdf_button)
         historico_layout.addLayout(historico_actions)
         right_column.addWidget(historico_group, 1)
+        right_column.addStretch(1)
 
-        self.setCentralWidget(content)
+        layout.addStretch(1)
+
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(content)
+        self.setCentralWidget(scroll_area)
         self._configure_time_placeholders()
         self._on_period_mode_changed()
         self._update_solicitud_preview()
