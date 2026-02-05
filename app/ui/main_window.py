@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QDate, QTime, QUrl, Qt
+from PySide6.QtCore import QDate, QTime, QUrl, Qt, QTimer
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QBoxLayout,
@@ -45,6 +45,53 @@ from app.ui.style import apply_theme
 from app.ui.widgets.header import HeaderWidget
 
 logger = logging.getLogger(__name__)
+
+
+def adjust_table_card_height(
+    table: QAbstractItemView,
+    card_widget: QWidget,
+    max_ratio: float,
+) -> None:
+    model = table.model()
+    row_count = model.rowCount() if model is not None else 0
+
+    header = table.horizontalHeader()
+    header_height = header.height() if header is not None and header.isVisible() else 0
+
+    visible_rows_height = 0
+    if model is not None:
+        for row in range(row_count):
+            if table.isRowHidden(row):
+                continue
+            visible_rows_height += table.verticalHeader().sectionSize(row)
+
+    frame_height = table.frameWidth() * 2
+    viewport_margins = table.viewportMargins()
+    viewport_height = viewport_margins.top() + viewport_margins.bottom()
+    table_required_height = header_height + visible_rows_height + frame_height + viewport_height
+
+    card_layout = card_widget.layout()
+    extra_card_height = 0
+    if card_layout is not None:
+        extra_card_height = card_layout.sizeHint().height() - table.sizeHint().height()
+        margins = card_layout.contentsMargins()
+        extra_card_height += margins.top() + margins.bottom()
+    extra_card_height = max(0, extra_card_height)
+
+    available_height = card_widget.parentWidget().height() if card_widget.parentWidget() else card_widget.height()
+    max_card_height = max(120, int(max(0.0, min(1.0, max_ratio)) * available_height))
+
+    required_card_height = table_required_height + extra_card_height
+    target_card_height = min(required_card_height, max_card_height)
+    target_table_height = max(0, target_card_height - extra_card_height)
+
+    table.setVerticalScrollBarPolicy(
+        Qt.ScrollBarAsNeeded if required_card_height > max_card_height else Qt.ScrollBarAlwaysOff
+    )
+    table.setMinimumHeight(target_table_height)
+    table.setMaximumHeight(target_table_height)
+    card_widget.setMinimumHeight(target_card_height)
+    card_widget.setMaximumHeight(target_card_height)
 
 
 class MainWindow(QMainWindow):
@@ -232,6 +279,7 @@ class MainWindow(QMainWindow):
         pendientes_group.setProperty("variant", "key")
         pendientes_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         pendientes_layout = QVBoxLayout(pendientes_group)
+        self._pendientes_group = pendientes_group
         self.pendientes_table = QTableView()
         self.pendientes_model = SolicitudesTableModel([])
         self.pendientes_table.setModel(self.pendientes_model)
@@ -239,7 +287,7 @@ class MainWindow(QMainWindow):
         self.pendientes_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.pendientes_table.setShowGrid(False)
         self.pendientes_table.setAlternatingRowColors(True)
-        self.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.pendientes_table.setMinimumHeight(0)
         self._configure_solicitudes_table(self.pendientes_table)
         pendientes_layout.addWidget(self.pendientes_table, 1)
@@ -333,6 +381,7 @@ class MainWindow(QMainWindow):
         historico_group.setProperty("variant", "sidebar")
         historico_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         historico_layout = QVBoxLayout(historico_group)
+        self._historico_group = historico_group
 
         filtros_layout = QHBoxLayout()
         self.periodo_modo_combo = QComboBox()
@@ -383,7 +432,7 @@ class MainWindow(QMainWindow):
         )
         self.historico_table.setShowGrid(False)
         self.historico_table.setAlternatingRowColors(True)
-        self.historico_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.historico_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.historico_table.setMinimumHeight(0)
         self._configure_solicitudes_table(self.historico_table)
         historico_layout.addWidget(self.historico_table, 1)
@@ -413,6 +462,7 @@ class MainWindow(QMainWindow):
         self._configure_time_placeholders()
         self._on_period_mode_changed()
         self._update_solicitud_preview()
+        self._setup_table_card_auto_height()
         self._update_action_state()
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
@@ -429,6 +479,29 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
         self._update_responsive_columns()
+        self._adjust_cards_table_heights()
+
+    def _setup_table_card_auto_height(self) -> None:
+        tables = (self.pendientes_table, self.historico_table)
+        for table in tables:
+            model = table.model()
+            if model is not None:
+                model.rowsInserted.connect(self._schedule_adjust_cards_table_heights)
+                model.rowsRemoved.connect(self._schedule_adjust_cards_table_heights)
+                model.modelReset.connect(self._schedule_adjust_cards_table_heights)
+                model.layoutChanged.connect(self._schedule_adjust_cards_table_heights)
+            table.verticalHeader().sectionResized.connect(self._schedule_adjust_cards_table_heights)
+            table.horizontalHeader().sectionResized.connect(self._schedule_adjust_cards_table_heights)
+        self._schedule_adjust_cards_table_heights()
+
+    def _schedule_adjust_cards_table_heights(self) -> None:
+        QTimer.singleShot(0, self._adjust_cards_table_heights)
+
+    def _adjust_cards_table_heights(self) -> None:
+        if not hasattr(self, "_pendientes_group") or not hasattr(self, "_historico_group"):
+            return
+        adjust_table_card_height(self.pendientes_table, self._pendientes_group, max_ratio=0.55)
+        adjust_table_card_height(self.historico_table, self._historico_group, max_ratio=0.55)
 
     def _update_responsive_columns(self) -> None:
         if not hasattr(self, "_content_row"):
