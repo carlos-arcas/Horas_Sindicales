@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QDate, QTime, QUrl, Qt, QTimer
+from PySide6.QtCore import QDate, QTime, QUrl, Qt
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QBoxLayout,
@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
     QFileDialog,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -47,53 +46,6 @@ from app.ui.widgets.header import HeaderWidget
 logger = logging.getLogger(__name__)
 
 
-def adjust_table_card_height(
-    table: QAbstractItemView,
-    card_widget: QWidget,
-    max_ratio: float,
-) -> None:
-    model = table.model()
-    row_count = model.rowCount() if model is not None else 0
-
-    header = table.horizontalHeader()
-    header_height = header.height() if header is not None and header.isVisible() else 0
-
-    visible_rows_height = 0
-    if model is not None:
-        for row in range(row_count):
-            if table.isRowHidden(row):
-                continue
-            visible_rows_height += table.verticalHeader().sectionSize(row)
-
-    frame_height = table.frameWidth() * 2
-    viewport_margins = table.viewportMargins()
-    viewport_height = viewport_margins.top() + viewport_margins.bottom()
-    table_required_height = header_height + visible_rows_height + frame_height + viewport_height
-
-    card_layout = card_widget.layout()
-    extra_card_height = 0
-    if card_layout is not None:
-        extra_card_height = card_layout.sizeHint().height() - table.sizeHint().height()
-        margins = card_layout.contentsMargins()
-        extra_card_height += margins.top() + margins.bottom()
-    extra_card_height = max(0, extra_card_height)
-
-    available_height = card_widget.parentWidget().height() if card_widget.parentWidget() else card_widget.height()
-    max_card_height = max(120, int(max(0.0, min(1.0, max_ratio)) * available_height))
-
-    required_card_height = table_required_height + extra_card_height
-    target_card_height = min(required_card_height, max_card_height)
-    target_table_height = max(0, target_card_height - extra_card_height)
-
-    table.setVerticalScrollBarPolicy(
-        Qt.ScrollBarAsNeeded if required_card_height > max_card_height else Qt.ScrollBarAlwaysOff
-    )
-    table.setMinimumHeight(target_table_height)
-    table.setMaximumHeight(target_table_height)
-    card_widget.setMinimumHeight(target_card_height)
-    card_widget.setMaximumHeight(target_card_height)
-
-
 class MainWindow(QMainWindow):
     def __init__(
         self,
@@ -114,6 +66,25 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._load_personas()
 
+    def _create_card(self, title: str) -> tuple[QFrame, QVBoxLayout]:
+        card = QFrame()
+        card.setProperty("card", True)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(14, 14, 14, 14)
+        card_layout.setSpacing(10)
+
+        title_label = QLabel(title)
+        title_label.setProperty("role", "cardTitle")
+        card_layout.addWidget(title_label)
+
+        separator = QFrame()
+        separator.setProperty("role", "cardSeparator")
+        separator.setFixedHeight(1)
+        card_layout.addWidget(separator)
+        return card, card_layout
+
     def _build_ui(self) -> None:
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(True)
@@ -124,7 +95,7 @@ class MainWindow(QMainWindow):
         content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         layout = QVBoxLayout(content)
         layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
+        layout.setSpacing(14)
 
         header_frame = QFrame()
         header_frame.setProperty("role", "header")
@@ -139,44 +110,36 @@ class MainWindow(QMainWindow):
         header_layout.addWidget(header_separator)
         layout.addWidget(header_frame)
 
-        # QBoxLayout permite alternar horizontal/vertical según el ancho disponible.
         self._content_row = QBoxLayout(QBoxLayout.LeftToRight)
-        self._content_row.setSpacing(16)
+        self._content_row.setSpacing(14)
         layout.addLayout(self._content_row, 1)
 
         left_column = QVBoxLayout()
-        left_column.setSpacing(12)
+        left_column.setSpacing(14)
         self._content_row.addLayout(left_column, 3)
 
-        persona_card = QFrame()
-        persona_card.setProperty("card", True)
-        persona_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        persona_layout = QVBoxLayout(persona_card)
-        persona_layout.setContentsMargins(16, 14, 16, 14)
-        persona_layout.setSpacing(10)
+        persona_card, persona_layout = self._create_card("Delegado")
 
         persona_actions = QHBoxLayout()
+        persona_actions.setSpacing(8)
         self.add_persona_button = QPushButton("Nuevo delegado")
         self.add_persona_button.setProperty("variant", "secondary")
-        self.add_persona_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.add_persona_button.clicked.connect(self._on_add_persona)
         persona_actions.addWidget(self.add_persona_button)
 
         self.edit_persona_button = QPushButton("Editar delegado")
         self.edit_persona_button.setProperty("variant", "secondary")
-        self.edit_persona_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.edit_persona_button.clicked.connect(self._on_edit_persona)
         persona_actions.addWidget(self.edit_persona_button)
 
         self.edit_grupo_button = QPushButton("Editar grupo")
         self.edit_grupo_button.setProperty("variant", "secondary")
-        self.edit_grupo_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.edit_grupo_button.clicked.connect(self._on_edit_grupo)
         persona_actions.addWidget(self.edit_grupo_button)
-        persona_actions.addStretch(1)
         persona_layout.addLayout(persona_actions)
 
         persona_selector = QHBoxLayout()
+        persona_selector.setSpacing(8)
         persona_label = QLabel("Delegado")
         persona_label.setProperty("role", "sectionTitle")
         persona_selector.addWidget(persona_label)
@@ -188,23 +151,16 @@ class MainWindow(QMainWindow):
         persona_delete = QHBoxLayout()
         self.delete_persona_button = QPushButton("Eliminar delegado")
         self.delete_persona_button.setProperty("variant", "danger")
-        self.delete_persona_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.delete_persona_button.clicked.connect(self._on_delete_persona)
         persona_delete.addWidget(self.delete_persona_button)
         persona_delete.addStretch(1)
         persona_layout.addLayout(persona_delete)
         left_column.addWidget(persona_card)
 
-        solicitud_group = QGroupBox("Alta de solicitud")
-        solicitud_group.setProperty("card", True)
-        solicitud_group.setProperty("accent", True)
-        solicitud_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        solicitud_layout = QVBoxLayout(solicitud_group)
-        solicitud_layout.setSpacing(8)
+        solicitud_card, solicitud_layout = self._create_card("Alta de solicitud")
 
         solicitud_row = QHBoxLayout()
         solicitud_row.setSpacing(10)
-
         solicitud_row.addWidget(QLabel("Fecha"))
         self.fecha_input = QDateEdit(QDate.currentDate())
         self.fecha_input.setCalendarPopup(True)
@@ -256,30 +212,24 @@ class MainWindow(QMainWindow):
 
         self.agregar_button = QPushButton("Agregar")
         self.agregar_button.setProperty("variant", "primary")
-        self.agregar_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.agregar_button.clicked.connect(self._on_add_pendiente)
         solicitud_row.addWidget(self.agregar_button)
         solicitud_row.addStretch(1)
         solicitud_layout.addLayout(solicitud_row)
 
         notas_row = QHBoxLayout()
+        notas_row.setSpacing(8)
         notas_row.addWidget(QLabel("Notas"))
         self.notas_input = QPlainTextEdit()
         self.notas_input.setPlaceholderText("Notas para la solicitud")
-        self.notas_input.setMinimumHeight(0)
-        self.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        self.notas_input.setMinimumHeight(74)
+        self.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         notas_row.addWidget(self.notas_input, 1)
         solicitud_layout.addLayout(notas_row)
+        left_column.addWidget(solicitud_card)
 
-        left_column.addWidget(solicitud_group)
-
-        pendientes_group = QGroupBox("Pendientes de confirmar")
-        pendientes_group.setProperty("card", True)
-        pendientes_group.setProperty("accent", True)
-        pendientes_group.setProperty("variant", "key")
-        pendientes_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        pendientes_layout = QVBoxLayout(pendientes_group)
-        self._pendientes_group = pendientes_group
+        pendientes_card, pendientes_layout = self._create_card("Pendientes de confirmar")
+        self._pendientes_group = pendientes_card
         self.pendientes_table = QTableView()
         self.pendientes_model = SolicitudesTableModel([])
         self.pendientes_table.setModel(self.pendientes_model)
@@ -287,61 +237,57 @@ class MainWindow(QMainWindow):
         self.pendientes_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.pendientes_table.setShowGrid(False)
         self.pendientes_table.setAlternatingRowColors(True)
-        self.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.pendientes_table.setMinimumHeight(0)
+        self.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.pendientes_table.setMinimumHeight(240)
         self._configure_solicitudes_table(self.pendientes_table)
         pendientes_layout.addWidget(self.pendientes_table, 1)
 
-        pendientes_actions = QHBoxLayout()
+        footer_separator = QFrame()
+        footer_separator.setProperty("role", "subtleSeparator")
+        footer_separator.setFixedHeight(1)
+        pendientes_layout.addWidget(footer_separator)
+
+        pendientes_footer = QHBoxLayout()
+        pendientes_footer.setSpacing(10)
         self.eliminar_pendiente_button = QPushButton("Eliminar seleccionado")
         self.eliminar_pendiente_button.setProperty("variant", "danger")
-        self.eliminar_pendiente_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.eliminar_pendiente_button.clicked.connect(self._on_remove_pendiente)
-        pendientes_actions.addWidget(self.eliminar_pendiente_button)
+        pendientes_footer.addWidget(self.eliminar_pendiente_button)
 
         self.editar_pdf_button = QPushButton("Editar PDF")
         self.editar_pdf_button.setProperty("variant", "secondary")
-        self.editar_pdf_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.editar_pdf_button.clicked.connect(self._on_edit_pdf)
-        pendientes_actions.addWidget(self.editar_pdf_button)
+        pendientes_footer.addWidget(self.editar_pdf_button)
 
-        pendientes_actions.addStretch(1)
+        pendientes_footer.addStretch(1)
         self.abrir_pdf_check = QCheckBox("Abrir PDF al finalizar")
         self.abrir_pdf_check.setChecked(True)
-        pendientes_actions.addWidget(self.abrir_pdf_check)
+        pendientes_footer.addWidget(self.abrir_pdf_check)
+        pendientes_footer.addStretch(1)
 
         self.confirmar_button = QPushButton("Confirmar y Generar PDF")
         self.confirmar_button.setProperty("variant", "primary")
-        self.confirmar_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.confirmar_button.clicked.connect(self._on_confirmar)
-        pendientes_actions.addWidget(self.confirmar_button)
-        pendientes_layout.addLayout(pendientes_actions)
-        left_column.addWidget(pendientes_group, 1)
-        left_column.addStretch(1)
+        pendientes_footer.addWidget(self.confirmar_button)
+        pendientes_layout.addLayout(pendientes_footer)
+        left_column.addWidget(pendientes_card, 1)
 
         right_column = QVBoxLayout()
-        right_column.setSpacing(12)
+        right_column.setSpacing(14)
         self._content_row.addLayout(right_column, 2)
 
-        saldos_group = QGroupBox("Resumen de saldos")
-        saldos_group.setProperty("card", True)
-        saldos_group.setProperty("accent", True)
-        saldos_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        saldos_layout = QVBoxLayout(saldos_group)
-        saldos_layout.setSpacing(10)
-
+        saldos_card, saldos_layout = self._create_card("Resumen de saldos")
         saldos_grid = QGridLayout()
         saldos_grid.setHorizontalSpacing(10)
         saldos_grid.setVerticalSpacing(8)
 
-        header_periodo = QLabel("")
-        header_consumidas = QLabel("Consumidas")
-        header_consumidas.setProperty("role", "secondary")
-        header_restantes = QLabel("Restantes")
-        header_restantes.setProperty("role", "secondary")
-        saldos_grid.addWidget(header_periodo, 0, 0)
-        saldos_grid.addWidget(header_consumidas, 0, 1)
-        saldos_grid.addWidget(header_restantes, 0, 2)
+        saldos_grid.addWidget(QLabel(""), 0, 0)
+        consumidas_header = QLabel("Consumidas")
+        consumidas_header.setProperty("role", "secondary")
+        saldos_grid.addWidget(consumidas_header, 0, 1)
+        restantes_header = QLabel("Restantes")
+        restantes_header.setProperty("role", "secondary")
+        saldos_grid.addWidget(restantes_header, 0, 2)
 
         self.saldo_periodo_consumidas = self._build_saldo_field()
         self.saldo_periodo_restantes = self._build_saldo_field()
@@ -355,35 +301,52 @@ class MainWindow(QMainWindow):
         saldos_grid.addWidget(self.saldo_periodo_consumidas, 1, 1)
         saldos_grid.addWidget(self.saldo_periodo_restantes, 1, 2)
 
-        saldos_grid.addWidget(QLabel("Anual del."), 2, 0)
+        saldos_grid.addWidget(QLabel("Anual delegada"), 2, 0)
         saldos_grid.addWidget(self.saldo_anual_consumidas, 2, 1)
         saldos_grid.addWidget(self.saldo_anual_restantes, 2, 2)
 
         saldos_grid.addWidget(QLabel("Anual grupo"), 3, 0)
         saldos_grid.addWidget(self.saldo_grupo_consumidas, 3, 1)
         saldos_grid.addWidget(self.saldo_grupo_restantes, 3, 2)
-
         saldos_layout.addLayout(saldos_grid)
 
-        self.bolsa_mensual_label = QLabel("Bolsa mensual delegada: 00:00")
-        self.bolsa_mensual_label.setProperty("role", "secondary")
-        self.bolsa_delegada_label = QLabel("Bolsa anual delegada: 00:00")
-        self.bolsa_delegada_label.setProperty("role", "secondary")
-        self.bolsa_grupo_label = QLabel("Bolsa anual grupo: 00:00")
-        self.bolsa_grupo_label.setProperty("role", "secondary")
-        saldos_layout.addWidget(self.bolsa_mensual_label)
-        saldos_layout.addWidget(self.bolsa_delegada_label)
-        saldos_layout.addWidget(self.bolsa_grupo_label)
-        right_column.addWidget(saldos_group)
+        self.exceso_badge = QLabel("")
+        self.exceso_badge.setProperty("role", "badge")
+        self.exceso_badge.setVisible(False)
+        exceso_row = QHBoxLayout()
+        exceso_row.addStretch(1)
+        exceso_row.addWidget(self.exceso_badge)
+        saldos_layout.addLayout(exceso_row)
 
-        historico_group = QGroupBox("Histórico")
-        historico_group.setProperty("card", True)
-        historico_group.setProperty("variant", "sidebar")
-        historico_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        historico_layout = QVBoxLayout(historico_group)
-        self._historico_group = historico_group
+        bolsas_separator = QFrame()
+        bolsas_separator.setProperty("role", "subtleSeparator")
+        bolsas_separator.setFixedHeight(1)
+        saldos_layout.addWidget(bolsas_separator)
+
+        bolsas_grid = QGridLayout()
+        bolsas_grid.setHorizontalSpacing(8)
+        bolsas_grid.setVerticalSpacing(6)
+        bolsas_grid.addWidget(QLabel("Bolsa mensual delegada"), 0, 0)
+        self.bolsa_mensual_label = QLabel("00:00")
+        self.bolsa_mensual_label.setProperty("role", "secondary")
+        bolsas_grid.addWidget(self.bolsa_mensual_label, 0, 1)
+        bolsas_grid.addWidget(QLabel("Bolsa anual delegada"), 1, 0)
+        self.bolsa_delegada_label = QLabel("00:00")
+        self.bolsa_delegada_label.setProperty("role", "secondary")
+        bolsas_grid.addWidget(self.bolsa_delegada_label, 1, 1)
+        bolsas_grid.addWidget(QLabel("Bolsa anual grupo"), 2, 0)
+        self.bolsa_grupo_label = QLabel("00:00")
+        self.bolsa_grupo_label.setProperty("role", "secondary")
+        bolsas_grid.addWidget(self.bolsa_grupo_label, 2, 1)
+        saldos_layout.addLayout(bolsas_grid)
+        right_column.addWidget(saldos_card)
+
+        historico_card, historico_layout = self._create_card("Histórico")
+        self._historico_group = historico_card
+        historico_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         filtros_layout = QHBoxLayout()
+        filtros_layout.setSpacing(10)
         self.periodo_modo_combo = QComboBox()
         self.periodo_modo_combo.addItem("Año completo", "ANUAL")
         self.periodo_modo_combo.addItem("Año + mes", "MENSUAL")
@@ -427,81 +390,79 @@ class MainWindow(QMainWindow):
         self.historico_table.setModel(self.historico_model)
         self.historico_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.historico_table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.historico_table.selectionModel().selectionChanged.connect(
-            self._on_historico_selection_changed
-        )
+        self.historico_table.selectionModel().selectionChanged.connect(self._on_historico_selection_changed)
         self.historico_table.setShowGrid(False)
         self.historico_table.setAlternatingRowColors(True)
-        self.historico_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.historico_table.setMinimumHeight(0)
+        self.historico_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.historico_table.setMinimumHeight(260)
         self._configure_solicitudes_table(self.historico_table)
         historico_layout.addWidget(self.historico_table, 1)
 
         historico_actions = QHBoxLayout()
+        historico_actions.setSpacing(10)
+        historico_actions.addStretch(1)
         self.eliminar_button = QPushButton("Eliminar")
         self.eliminar_button.setProperty("variant", "danger")
-        self.eliminar_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.eliminar_button.clicked.connect(self._on_eliminar)
         historico_actions.addWidget(self.eliminar_button)
-        historico_actions.addStretch(1)
 
         self.generar_pdf_button = QPushButton("Generar PDF histórico")
         self.generar_pdf_button.setProperty("variant", "secondary")
-        self.generar_pdf_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.generar_pdf_button.clicked.connect(self._on_generar_pdf_historico)
         historico_actions.addWidget(self.generar_pdf_button)
         historico_layout.addLayout(historico_actions)
-        right_column.addWidget(historico_group, 1)
-        right_column.addStretch(1)
 
-        layout.addStretch(1)
+        right_column.addWidget(historico_card, 1)
 
         self._scroll_area.setWidget(content)
         self.setCentralWidget(self._scroll_area)
+
+        self._normalize_input_heights()
         self._update_responsive_columns()
         self._configure_time_placeholders()
         self._on_period_mode_changed()
         self._update_solicitud_preview()
-        self._setup_table_card_auto_height()
         self._update_action_state()
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
         header = table.horizontalHeader()
-        header.setMinimumSectionSize(70)
-        # La columna de notas absorbe el espacio; el resto se ajusta al contenido.
+        header.setMinimumSectionSize(78)
         for column in range(5):
             header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(5, QHeaderView.Stretch)
         header.setStretchLastSection(False)
+        table.setColumnWidth(5, 240)
+        table.verticalHeader().setDefaultSectionSize(30)
+        table.verticalHeader().setVisible(False)
         table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
 
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
         self._update_responsive_columns()
-        self._adjust_cards_table_heights()
 
-    def _setup_table_card_auto_height(self) -> None:
-        tables = (self.pendientes_table, self.historico_table)
-        for table in tables:
-            model = table.model()
-            if model is not None:
-                model.rowsInserted.connect(self._schedule_adjust_cards_table_heights)
-                model.rowsRemoved.connect(self._schedule_adjust_cards_table_heights)
-                model.modelReset.connect(self._schedule_adjust_cards_table_heights)
-                model.layoutChanged.connect(self._schedule_adjust_cards_table_heights)
-            table.verticalHeader().sectionResized.connect(self._schedule_adjust_cards_table_heights)
-            table.horizontalHeader().sectionResized.connect(self._schedule_adjust_cards_table_heights)
-        self._schedule_adjust_cards_table_heights()
-
-    def _schedule_adjust_cards_table_heights(self) -> None:
-        QTimer.singleShot(0, self._adjust_cards_table_heights)
-
-    def _adjust_cards_table_heights(self) -> None:
-        if not hasattr(self, "_pendientes_group") or not hasattr(self, "_historico_group"):
-            return
-        adjust_table_card_height(self.pendientes_table, self._pendientes_group, max_ratio=0.55)
-        adjust_table_card_height(self.historico_table, self._historico_group, max_ratio=0.55)
+    def _normalize_input_heights(self) -> None:
+        controls = [
+            self.persona_combo,
+            self.fecha_input,
+            self.desde_input,
+            self.hasta_input,
+            self.periodo_modo_combo,
+            self.year_input,
+            self.month_combo,
+            self.add_persona_button,
+            self.edit_persona_button,
+            self.edit_grupo_button,
+            self.delete_persona_button,
+            self.agregar_button,
+            self.eliminar_pendiente_button,
+            self.editar_pdf_button,
+            self.confirmar_button,
+            self.eliminar_button,
+            self.generar_pdf_button,
+        ]
+        for control in controls:
+            control.setMinimumHeight(34)
 
     def _update_responsive_columns(self) -> None:
         if not hasattr(self, "_content_row"):
@@ -521,7 +482,7 @@ class MainWindow(QMainWindow):
         field = QLineEdit("00:00")
         field.setReadOnly(True)
         field.setFocusPolicy(Qt.NoFocus)
-        field.setAlignment(Qt.AlignCenter)
+        field.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         field.setProperty("role", "saldo")
         return field
 
@@ -961,6 +922,7 @@ class MainWindow(QMainWindow):
             self._set_saldo_line(self.saldo_anual_consumidas, self.saldo_anual_restantes, 0, 0)
             self._set_saldo_line(self.saldo_grupo_consumidas, self.saldo_grupo_restantes, 0, 0)
             self._set_bolsa_labels(0, 0, 0)
+            self.exceso_badge.setVisible(False)
             return
         consumidas_periodo = resumen.individual.consumidas_periodo_min + pendientes_periodo
         bolsa_periodo = resumen.individual.bolsa_periodo_min
@@ -994,6 +956,13 @@ class MainWindow(QMainWindow):
         )
         self._set_bolsa_labels(bolsa_periodo, bolsa_anual, bolsa_grupo)
 
+        exceso = min(restantes_periodo, restantes_anual, restantes_grupo)
+        if exceso < 0:
+            self.exceso_badge.setText(f"Exceso {self._format_minutes(abs(exceso))}")
+            self.exceso_badge.setVisible(True)
+        else:
+            self.exceso_badge.setVisible(False)
+
     def _on_historico_selection_changed(self) -> None:
         self._update_action_state()
 
@@ -1005,8 +974,8 @@ class MainWindow(QMainWindow):
         return PeriodoFiltro.mensual(year, self.month_combo.currentData())
 
     def _current_saldo_filtro(self) -> PeriodoFiltro:
-        current = QDate.currentDate()
-        return PeriodoFiltro.mensual(current.year(), current.month())
+        periodo_base = self.fecha_input.date() if hasattr(self, "fecha_input") else QDate.currentDate()
+        return PeriodoFiltro.mensual(periodo_base.year(), periodo_base.month())
 
     def _pending_minutes_for_period(self, filtro: PeriodoFiltro) -> int:
         persona = self._current_persona()
@@ -1055,15 +1024,9 @@ class MainWindow(QMainWindow):
     def _set_bolsa_labels(
         self, bolsa_mensual: int, bolsa_delegada: int, bolsa_grupo: int
     ) -> None:
-        self.bolsa_mensual_label.setText(
-            f"Bolsa mensual delegada: {self._format_minutes(bolsa_mensual)}"
-        )
-        self.bolsa_delegada_label.setText(
-            f"Bolsa anual delegada: {self._format_minutes(bolsa_delegada)}"
-        )
-        self.bolsa_grupo_label.setText(
-            f"Bolsa anual grupo: {self._format_minutes(bolsa_grupo)}"
-        )
+        self.bolsa_mensual_label.setText(self._format_minutes(bolsa_mensual))
+        self.bolsa_delegada_label.setText(self._format_minutes(bolsa_delegada))
+        self.bolsa_grupo_label.setText(self._format_minutes(bolsa_grupo))
 
     def _format_restantes(self, minutos: int) -> tuple[str, bool]:
         if minutos < 0:
