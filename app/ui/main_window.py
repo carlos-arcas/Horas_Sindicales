@@ -7,6 +7,7 @@ from pathlib import Path
 from PySide6.QtCore import QDate, QTime, QUrl, Qt
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
+    QBoxLayout,
     QCheckBox,
     QComboBox,
     QDateEdit,
@@ -67,6 +68,11 @@ class MainWindow(QMainWindow):
         self._load_personas()
 
     def _build_ui(self) -> None:
+        self._scroll_area = QScrollArea()
+        self._scroll_area.setWidgetResizable(True)
+        self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+
         content = QWidget()
         content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         layout = QVBoxLayout(content)
@@ -86,13 +92,14 @@ class MainWindow(QMainWindow):
         header_layout.addWidget(header_separator)
         layout.addWidget(header_frame)
 
-        content_row = QHBoxLayout()
-        content_row.setSpacing(16)
-        layout.addLayout(content_row, 1)
+        # QBoxLayout permite alternar horizontal/vertical según el ancho disponible.
+        self._content_row = QBoxLayout(QBoxLayout.LeftToRight)
+        self._content_row.setSpacing(16)
+        layout.addLayout(self._content_row, 1)
 
         left_column = QVBoxLayout()
         left_column.setSpacing(12)
-        content_row.addLayout(left_column, 3)
+        self._content_row.addLayout(left_column, 3)
 
         persona_card = QFrame()
         persona_card.setProperty("card", True)
@@ -212,8 +219,8 @@ class MainWindow(QMainWindow):
         notas_row.addWidget(QLabel("Notas"))
         self.notas_input = QPlainTextEdit()
         self.notas_input.setPlaceholderText("Notas para la solicitud")
-        self.notas_input.setMinimumHeight(70)
-        self.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.notas_input.setMinimumHeight(0)
+        self.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         notas_row.addWidget(self.notas_input, 1)
         solicitud_layout.addLayout(notas_row)
 
@@ -233,10 +240,8 @@ class MainWindow(QMainWindow):
         self.pendientes_table.setShowGrid(False)
         self.pendientes_table.setAlternatingRowColors(True)
         self.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.pendientes_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.pendientes_table.horizontalHeader().setStretchLastSection(True)
-
-        self.pendientes_table.setMinimumHeight(220)
+        self.pendientes_table.setMinimumHeight(0)
+        self._configure_solicitudes_table(self.pendientes_table)
         pendientes_layout.addWidget(self.pendientes_table, 1)
 
         pendientes_actions = QHBoxLayout()
@@ -268,7 +273,7 @@ class MainWindow(QMainWindow):
 
         right_column = QVBoxLayout()
         right_column.setSpacing(12)
-        content_row.addLayout(right_column, 2)
+        self._content_row.addLayout(right_column, 2)
 
         saldos_group = QGroupBox("Resumen de saldos")
         saldos_group.setProperty("card", True)
@@ -379,10 +384,8 @@ class MainWindow(QMainWindow):
         self.historico_table.setShowGrid(False)
         self.historico_table.setAlternatingRowColors(True)
         self.historico_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.historico_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.historico_table.horizontalHeader().setStretchLastSection(True)
-
-        self.historico_table.setMinimumHeight(260)
+        self.historico_table.setMinimumHeight(0)
+        self._configure_solicitudes_table(self.historico_table)
         historico_layout.addWidget(self.historico_table, 1)
 
         historico_actions = QHBoxLayout()
@@ -404,14 +407,42 @@ class MainWindow(QMainWindow):
 
         layout.addStretch(1)
 
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(content)
-        self.setCentralWidget(scroll_area)
+        self._scroll_area.setWidget(content)
+        self.setCentralWidget(self._scroll_area)
+        self._update_responsive_columns()
         self._configure_time_placeholders()
         self._on_period_mode_changed()
         self._update_solicitud_preview()
         self._update_action_state()
+
+    def _configure_solicitudes_table(self, table: QTableView) -> None:
+        header = table.horizontalHeader()
+        header.setMinimumSectionSize(70)
+        # La columna de notas absorbe el espacio; el resto se ajusta al contenido.
+        for column in range(5):
+            header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.Stretch)
+        header.setStretchLastSection(False)
+        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._update_responsive_columns()
+
+    def _update_responsive_columns(self) -> None:
+        if not hasattr(self, "_content_row"):
+            return
+        available_width = self._scroll_area.viewport().width() if hasattr(self, "_scroll_area") else self.width()
+        # En ventanas estrechas apilamos columnas para evitar recortes horizontales.
+        if available_width < 1200:
+            self._content_row.setDirection(QBoxLayout.TopToBottom)
+            self._content_row.setStretch(0, 0)
+            self._content_row.setStretch(1, 0)
+        else:
+            self._content_row.setDirection(QBoxLayout.LeftToRight)
+            self._content_row.setStretch(0, 3)
+            self._content_row.setStretch(1, 2)
 
     def _build_saldo_field(self) -> QLineEdit:
         field = QLineEdit("00:00")
