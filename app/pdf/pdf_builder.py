@@ -87,6 +87,15 @@ def construir_pdf_solicitudes(
             spaceAfter=12,
         )
     )
+    styles.add(
+        ParagraphStyle(
+            name="PdfTitle",
+            parent=styles["Title"],
+            alignment=1,
+            fontName="Helvetica-Bold",
+            fontSize=14,
+        )
+    )
 
     _ = include_hours_in_horario
     rows = _build_rows(solicitudes_list, persona)
@@ -108,7 +117,14 @@ def construir_pdf_solicitudes(
     )
 
     intro = intro_text if intro_text is not None else INTRO_TEXT
-    story = [Paragraph(intro, styles["Body"]), Spacer(1, 0.4 * cm), table]
+    story = [
+        Spacer(1, 1.7 * cm),
+        Paragraph("AUSENCIA DE CARGOS SINDICALES", styles["PdfTitle"]),
+        Spacer(1, 1.1 * cm),
+        Paragraph(intro, styles["Body"]),
+        Spacer(1, 1.7 * cm),
+        table,
+    ]
 
     def on_page(canvas, _doc):
         _draw_header(canvas, _doc, header_height, logo_path)
@@ -220,7 +236,6 @@ def _draw_header(canvas, doc, header_height: float, logo_path: str | None) -> No
     width, height = A4
     logo_path = _resolve_logo_path(logo_path)
     max_width = width - doc.leftMargin - doc.rightMargin
-    logo_y = height - doc.topMargin + (doc.topMargin - header_height) / 2
     if logo_path.exists():
         logo = ImageReader(str(logo_path))
         logo_width, logo_height = logo.getSize()
@@ -230,11 +245,6 @@ def _draw_header(canvas, doc, header_height: float, logo_path: str | None) -> No
         x = doc.leftMargin + (max_width - draw_width) / 2
         logo_y = height - doc.topMargin + (doc.topMargin - draw_height) / 2
         canvas.drawImage(logo, x, logo_y, width=draw_width, height=draw_height, mask="auto")
-        title_y = logo_y - 0.4 * cm
-    else:
-        title_y = height - doc.topMargin + 0.2 * cm
-    canvas.setFont("Helvetica-Bold", 14)
-    canvas.drawCentredString(width / 2, title_y, "AUSENCIA DE CARGOS SINDICALES")
 
 
 def _resolve_logo_path(logo_path: str | None) -> Path:
