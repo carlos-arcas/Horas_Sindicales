@@ -34,10 +34,12 @@ from PySide6.QtWidgets import (
 )
 
 from app.application.dto import PeriodoFiltro, PersonaDTO, SolicitudDTO
+from app.application.sheets_service import SheetsService
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.time_utils import minutes_to_hhmm
 from app.ui.models_qt import SolicitudesTableModel
+from app.ui.dialog_opciones import OpcionesDialog
 from app.ui.group_dialog import GrupoConfigDialog
 from app.ui.person_dialog import PersonaDialog
 from app.ui.style import apply_theme
@@ -52,6 +54,7 @@ class MainWindow(QMainWindow):
         persona_use_cases: PersonaUseCases,
         solicitud_use_cases: SolicitudUseCases,
         grupo_use_cases: GrupoConfigUseCases,
+        sheets_service: SheetsService,
     ) -> None:
         super().__init__()
         app = QApplication.instance()
@@ -60,6 +63,7 @@ class MainWindow(QMainWindow):
         self._persona_use_cases = persona_use_cases
         self._solicitud_use_cases = solicitud_use_cases
         self._grupo_use_cases = grupo_use_cases
+        self._sheets_service = sheets_service
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
         self.setWindowTitle("Horas Sindicales")
@@ -136,6 +140,11 @@ class MainWindow(QMainWindow):
         self.edit_grupo_button.setProperty("variant", "secondary")
         self.edit_grupo_button.clicked.connect(self._on_edit_grupo)
         persona_actions.addWidget(self.edit_grupo_button)
+
+        self.opciones_button = QPushButton("Opciones")
+        self.opciones_button.setProperty("variant", "secondary")
+        self.opciones_button.clicked.connect(self._on_open_opciones)
+        persona_actions.addWidget(self.opciones_button)
         persona_layout.addLayout(persona_actions)
 
         persona_selector = QHBoxLayout()
@@ -557,6 +566,10 @@ class MainWindow(QMainWindow):
         dialog = GrupoConfigDialog(self._grupo_use_cases, self)
         if dialog.exec():
             self._refresh_saldos()
+
+    def _on_open_opciones(self) -> None:
+        dialog = OpcionesDialog(self._sheets_service, self)
+        dialog.exec()
 
     def _on_edit_pdf(self) -> None:
         self._on_edit_grupo()
