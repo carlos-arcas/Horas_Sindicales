@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QDate, QTime, QUrl, Qt
+from PySide6.QtCore import QDate, QTime, QUrl, Qt, QObject, Signal, Slot, QThread
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QBoxLayout,
@@ -38,6 +38,7 @@ from app.application.sheets_service import SheetsService
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.time_utils import minutes_to_hhmm
+from app.infrastructure.sheets_sync_service import SheetsSyncService, SyncSummary
 from app.ui.models_qt import SolicitudesTableModel
 from app.ui.dialog_opciones import OpcionesDialog
 from app.ui.group_dialog import GrupoConfigDialog
@@ -48,6 +49,25 @@ from app.ui.widgets.header import HeaderWidget
 logger = logging.getLogger(__name__)
 
 
+class SyncWorker(QObject):
+    finished = Signal(SyncSummary)
+    failed = Signal(str)
+
+    def __init__(self, sync_service: SheetsSyncService) -> None:
+        super().__init__()
+        self._sync_service = sync_service
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            summary = self._sync_service.sync()
+        except Exception as exc:
+            logger.exception("Error durante la sincronización")
+            self.failed.emit(str(exc))
+            return
+        self.finished.emit(summary)
+
+
 class MainWindow(QMainWindow):
     def __init__(
         self,
@@ -55,6 +75,7 @@ class MainWindow(QMainWindow):
         solicitud_use_cases: SolicitudUseCases,
         grupo_use_cases: GrupoConfigUseCases,
         sheets_service: SheetsService,
+        sync_service: SheetsSyncService,
     ) -> None:
         super().__init__()
         app = QApplication.instance()
@@ -64,11 +85,13 @@ class MainWindow(QMainWindow):
         self._solicitud_use_cases = solicitud_use_cases
         self._grupo_use_cases = grupo_use_cases
         self._sheets_service = sheets_service
+        self._sync_service = sync_service
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
         self.setWindowTitle("Horas Sindicales")
         self._build_ui()
         self._load_personas()
+        self._refresh_last_sync_label()
 
     def _create_card(self, title: str) -> tuple[QFrame, QVBoxLayout]:
         card = QFrame()
@@ -121,6 +144,26 @@ class MainWindow(QMainWindow):
         left_column = QVBoxLayout()
         left_column.setSpacing(14)
         self._content_row.addLayout(left_column, 3)
+
+        sync_card, sync_layout = self._create_card("Sincronización")
+        sync_actions = QHBoxLayout()
+        sync_actions.setSpacing(8)
+        self.sync_button = QPushButton("Sincronizar")
+        self.sync_button.setProperty("variant", "primary")
+        self.sync_button.clicked.connect(self._on_sync)
+        sync_actions.addWidget(self.sync_button)
+
+        self.review_conflicts_button = QPushButton("Revisar discrepancias")
+        self.review_conflicts_button.setProperty("variant", "secondary")
+        self.review_conflicts_button.setEnabled(False)
+        self.review_conflicts_button.clicked.connect(self._on_review_conflicts)
+        sync_actions.addWidget(self.review_conflicts_button)
+        sync_layout.addLayout(sync_actions)
+
+        self.last_sync_label = QLabel("Última sync: --")
+        self.last_sync_label.setProperty("role", "secondary")
+        sync_layout.addWidget(self.last_sync_label)
+        left_column.addWidget(sync_card)
 
         persona_card, persona_layout = self._create_card("Delegado")
 
@@ -566,6 +609,42 @@ class MainWindow(QMainWindow):
         dialog = GrupoConfigDialog(self._grupo_use_cases, self)
         if dialog.exec():
             self._refresh_saldos()
+
+    def _on_sync(self) -> None:
+        self.sync_button.setEnabled(False)
+        self.review_conflicts_button.setEnabled(False)
+        self._sync_thread = QThread()
+        self._sync_worker = SyncWorker(self._sync_service)
+        self._sync_worker.moveToThread(self._sync_thread)
+        self._sync_thread.started.connect(self._sync_worker.run)
+        self._sync_worker.finished.connect(self._on_sync_finished)
+        self._sync_worker.failed.connect(self._on_sync_failed)
+        self._sync_worker.finished.connect(self._sync_thread.quit)
+        self._sync_worker.finished.connect(self._sync_worker.deleteLater)
+        self._sync_thread.finished.connect(self._sync_thread.deleteLater)
+        self._sync_thread.start()
+
+    def _on_sync_finished(self, summary: SyncSummary) -> None:
+        self.sync_button.setEnabled(True)
+        if summary.conflicts > 0:
+            self.review_conflicts_button.setEnabled(True)
+        self._refresh_last_sync_label()
+        QMessageBox.information(
+            self,
+            "Sincronización completa",
+            f"Bajados: {summary.downloaded}\nSubidos: {summary.uploaded}\nConflictos: {summary.conflicts}",
+        )
+
+    def _on_sync_failed(self, error_message: str) -> None:
+        self.sync_button.setEnabled(True)
+        QMessageBox.critical(self, "Error de sincronización", error_message)
+
+    def _on_review_conflicts(self) -> None:
+        QMessageBox.information(
+            self,
+            "Revisar discrepancias",
+            "Las discrepancias se almacenaron en la base de datos. Se habilitará un flujo de revisión en el próximo paso.",
+        )
 
     def _on_open_opciones(self) -> None:
         dialog = OpcionesDialog(self._sheets_service, self)
@@ -1051,6 +1130,22 @@ class MainWindow(QMainWindow):
             QMessageBox.question(self, "Conflicto", mensaje, QMessageBox.Yes | QMessageBox.No)
             == QMessageBox.Yes
         )
+
+    def _refresh_last_sync_label(self) -> None:
+        last_sync = self._sync_service.get_last_sync_at()
+        if not last_sync:
+            self.last_sync_label.setText("Última sync: Nunca")
+            return
+        formatted = self._format_timestamp(last_sync)
+        self.last_sync_label.setText(f"Última sync: {formatted}")
+
+    @staticmethod
+    def _format_timestamp(value: str) -> str:
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return value
+        return parsed.strftime("%Y-%m-%d %H:%M")
 
     def _format_minutes(self, minutos: int) -> str:
         if minutos < 0:

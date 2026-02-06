@@ -129,6 +129,7 @@ def _run_app() -> int:
     )
     from app.infrastructure.sheets_client import SheetsClient
     from app.infrastructure.sheets_repository import SheetsRepository
+    from app.infrastructure.sheets_sync_service import SheetsSyncService
     from app.infrastructure.seed import seed_if_empty
     from app.ui.main_window import MainWindow
 
@@ -143,11 +144,19 @@ def _run_app() -> int:
     persona_use_cases = PersonaUseCases(persona_repo)
     solicitud_use_cases = SolicitudUseCases(solicitud_repo, persona_repo, grupo_repo)
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)
-    sheets_service = SheetsService(SheetsConfigStore(), SheetsClient(), SheetsRepository())
+    config_store = SheetsConfigStore()
+    sheets_service = SheetsService(config_store, SheetsClient(), SheetsRepository())
+    sync_service = SheetsSyncService(connection, config_store, SheetsClient(), SheetsRepository())
 
     app = QApplication([])
     try:
-        window = MainWindow(persona_use_cases, solicitud_use_cases, grupo_use_cases, sheets_service)
+        window = MainWindow(
+            persona_use_cases,
+            solicitud_use_cases,
+            grupo_use_cases,
+            sheets_service,
+            sync_service,
+        )
     except Exception:
         logger.exception("Error construyendo MainWindow")
         raise

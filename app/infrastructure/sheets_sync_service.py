@@ -1,0 +1,881 @@
+from __future__ import annotations
+
+import json
+import logging
+import sqlite3
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+import gspread
+
+from app.application.sheets_service import SHEETS_SCHEMA
+from app.infrastructure.local_config import SheetsConfigStore
+from app.infrastructure.sheets_client import SheetsClient
+from app.infrastructure.sheets_repository import SheetsRepository
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SyncSummary:
+    downloaded: int
+    uploaded: int
+    conflicts: int
+
+
+class SheetsSyncService:
+    def __init__(
+        self,
+        connection: sqlite3.Connection,
+        config_store: SheetsConfigStore,
+        client: SheetsClient,
+        repository: SheetsRepository,
+    ) -> None:
+        self._connection = connection
+        self._config_store = config_store
+        self._client = client
+        self._repository = repository
+
+    def pull(self) -> SyncSummary:
+        spreadsheet = self._open_spreadsheet()
+        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+        last_sync_at = self._get_last_sync_at()
+        downloaded = 0
+        conflicts = 0
+        downloaded_count, conflict_count = self._pull_delegadas(spreadsheet, last_sync_at)
+        downloaded += downloaded_count
+        conflicts += conflict_count
+        downloaded_count, conflict_count = self._pull_solicitudes(spreadsheet, last_sync_at)
+        downloaded += downloaded_count
+        conflicts += conflict_count
+        downloaded_count, conflict_count = self._pull_cuadrantes(spreadsheet, last_sync_at)
+        downloaded += downloaded_count
+        conflicts += conflict_count
+        downloaded += self._pull_pdf_log(spreadsheet)
+        downloaded += self._pull_config(spreadsheet)
+        return SyncSummary(downloaded=downloaded, uploaded=0, conflicts=conflicts)
+
+    def push(self) -> SyncSummary:
+        spreadsheet = self._open_spreadsheet()
+        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+        last_sync_at = self._get_last_sync_at()
+        uploaded = 0
+        conflicts = 0
+        self._sync_local_cuadrantes_from_personas()
+        uploaded_count, conflict_count = self._push_delegadas(spreadsheet, last_sync_at)
+        uploaded += uploaded_count
+        conflicts += conflict_count
+        uploaded_count, conflict_count = self._push_solicitudes(spreadsheet, last_sync_at)
+        uploaded += uploaded_count
+        conflicts += conflict_count
+        uploaded_count, conflict_count = self._push_cuadrantes(spreadsheet, last_sync_at)
+        uploaded += uploaded_count
+        conflicts += conflict_count
+        self._set_last_sync_at(self._now_iso())
+        return SyncSummary(downloaded=0, uploaded=uploaded, conflicts=conflicts)
+
+    def sync(self) -> SyncSummary:
+        pull_summary = self.pull()
+        push_summary = self.push()
+        return SyncSummary(
+            downloaded=pull_summary.downloaded,
+            uploaded=push_summary.uploaded,
+            conflicts=pull_summary.conflicts + push_summary.conflicts,
+        )
+
+    def get_last_sync_at(self) -> str | None:
+        return self._get_last_sync_at()
+
+    def _open_spreadsheet(self) -> gspread.Spreadsheet:
+        config = self._config_store.load()
+        if not config:
+            raise RuntimeError("No hay configuración de Google Sheets.")
+        credentials_path = Path(config.credentials_path)
+        spreadsheet = self._client.open_spreadsheet(credentials_path, config.spreadsheet_id)
+        return spreadsheet
+
+    def _get_last_sync_at(self) -> str | None:
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT last_sync_at FROM sync_state WHERE id = 1")
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return row["last_sync_at"]
+
+    def _set_last_sync_at(self, timestamp: str) -> None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            "UPDATE sync_state SET last_sync_at = ? WHERE id = 1",
+            (timestamp,),
+        )
+        self._connection.commit()
+
+    def _pull_delegadas(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> tuple[int, int]:
+        worksheet = spreadsheet.worksheet("delegadas")
+        _, rows = self._rows_with_index(worksheet)
+        downloaded = 0
+        conflicts = 0
+        for _, row in rows:
+            uuid_value = str(row.get("uuid", "")).strip()
+            if not uuid_value:
+                continue
+            remote_updated_at = self._parse_iso(row.get("updated_at"))
+            local_row = self._fetch_persona(uuid_value)
+            if local_row is None:
+                self._insert_persona_from_remote(uuid_value, row)
+                downloaded += 1
+                continue
+            if self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at):
+                self._store_conflict("delegadas", uuid_value, dict(local_row), row)
+                conflicts += 1
+                continue
+            if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
+                self._update_persona_from_remote(local_row["id"], row)
+                downloaded += 1
+        return downloaded, conflicts
+
+    def _pull_solicitudes(
+        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
+    ) -> tuple[int, int]:
+        worksheet = spreadsheet.worksheet("solicitudes")
+        _, rows = self._rows_with_index(worksheet)
+        downloaded = 0
+        conflicts = 0
+        for _, row in rows:
+            uuid_value = str(row.get("uuid", "")).strip()
+            if not uuid_value:
+                continue
+            remote_updated_at = self._parse_iso(row.get("updated_at"))
+            local_row = self._fetch_solicitud(uuid_value)
+            if local_row is None:
+                self._insert_solicitud_from_remote(uuid_value, row)
+                downloaded += 1
+                continue
+            if self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at):
+                self._store_conflict("solicitudes", uuid_value, dict(local_row), row)
+                conflicts += 1
+                continue
+            if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
+                self._update_solicitud_from_remote(local_row["id"], row)
+                downloaded += 1
+        return downloaded, conflicts
+
+    def _pull_cuadrantes(
+        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
+    ) -> tuple[int, int]:
+        worksheet = spreadsheet.worksheet("cuadrantes")
+        _, rows = self._rows_with_index(worksheet)
+        downloaded = 0
+        conflicts = 0
+        for _, row in rows:
+            uuid_value = str(row.get("uuid", "")).strip()
+            if not uuid_value:
+                continue
+            remote_updated_at = self._parse_iso(row.get("updated_at"))
+            local_row = self._fetch_cuadrante(uuid_value)
+            if local_row is None:
+                self._insert_cuadrante_from_remote(uuid_value, row)
+                downloaded += 1
+                continue
+            if self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at):
+                self._store_conflict("cuadrantes", uuid_value, dict(local_row), row)
+                conflicts += 1
+                continue
+            if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
+                self._update_cuadrante_from_remote(local_row["id"], row)
+                downloaded += 1
+        return downloaded, conflicts
+
+    def _pull_pdf_log(self, spreadsheet: gspread.Spreadsheet) -> int:
+        worksheet = spreadsheet.worksheet("pdf_log")
+        _, rows = self._rows_with_index(worksheet)
+        downloaded = 0
+        cursor = self._connection.cursor()
+        for _, row in rows:
+            pdf_id = str(row.get("pdf_id", "")).strip()
+            if not pdf_id:
+                continue
+            cursor.execute(
+                "SELECT updated_at FROM pdf_log WHERE pdf_id = ?",
+                (pdf_id,),
+            )
+            existing = cursor.fetchone()
+            if existing is None:
+                cursor.execute(
+                    """
+                    INSERT INTO pdf_log (pdf_id, delegada_uuid, rango_fechas, fecha_generacion, hash, updated_at, source_device)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        pdf_id,
+                        row.get("delegada_uuid"),
+                        row.get("rango_fechas"),
+                        row.get("fecha_generacion"),
+                        row.get("hash"),
+                        row.get("updated_at"),
+                        row.get("source_device"),
+                    ),
+                )
+                downloaded += 1
+            elif self._is_remote_newer(existing["updated_at"], self._parse_iso(row.get("updated_at"))):
+                cursor.execute(
+                    """
+                    UPDATE pdf_log
+                    SET delegada_uuid = ?, rango_fechas = ?, fecha_generacion = ?, hash = ?, updated_at = ?, source_device = ?
+                    WHERE pdf_id = ?
+                    """,
+                    (
+                        row.get("delegada_uuid"),
+                        row.get("rango_fechas"),
+                        row.get("fecha_generacion"),
+                        row.get("hash"),
+                        row.get("updated_at"),
+                        row.get("source_device"),
+                        pdf_id,
+                    ),
+                )
+                downloaded += 1
+        self._connection.commit()
+        return downloaded
+
+    def _pull_config(self, spreadsheet: gspread.Spreadsheet) -> int:
+        worksheet = spreadsheet.worksheet("config")
+        _, rows = self._rows_with_index(worksheet)
+        downloaded = 0
+        cursor = self._connection.cursor()
+        for _, row in rows:
+            key = str(row.get("key", "")).strip()
+            if not key:
+                continue
+            cursor.execute("SELECT updated_at FROM sync_config WHERE key = ?", (key,))
+            existing = cursor.fetchone()
+            if existing is None:
+                cursor.execute(
+                    """
+                    INSERT INTO sync_config (key, value, updated_at, source_device)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (key, row.get("value"), row.get("updated_at"), row.get("source_device")),
+                )
+                downloaded += 1
+            elif self._is_remote_newer(existing["updated_at"], self._parse_iso(row.get("updated_at"))):
+                cursor.execute(
+                    """
+                    UPDATE sync_config
+                    SET value = ?, updated_at = ?, source_device = ?
+                    WHERE key = ?
+                    """,
+                    (row.get("value"), row.get("updated_at"), row.get("source_device"), key),
+                )
+                downloaded += 1
+        self._connection.commit()
+        return downloaded
+
+    def _push_delegadas(
+        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
+    ) -> tuple[int, int]:
+        worksheet = spreadsheet.worksheet("delegadas")
+        headers, rows = self._rows_with_index(worksheet)
+        header_map = self._header_map(headers, SHEETS_SCHEMA["delegadas"])
+        remote_index = self._uuid_index(rows)
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, uuid, nombre, genero, is_active, horas_mes_min, horas_ano_min,
+                   updated_at, source_device, deleted
+            FROM personas
+            WHERE updated_at IS NOT NULL
+            """
+        )
+        uploaded = 0
+        conflicts = 0
+        for row in cursor.fetchall():
+            if not self._is_after_last_sync(row["updated_at"], last_sync_at):
+                continue
+            uuid_value = row["uuid"]
+            remote_row = remote_index.get(uuid_value)
+            remote_updated_at = self._parse_iso(remote_row.get("updated_at") if remote_row else None)
+            if self._is_conflict(row["updated_at"], remote_updated_at, last_sync_at):
+                self._store_conflict("delegadas", uuid_value, dict(row), remote_row or {})
+                conflicts += 1
+                continue
+            payload = {
+                "uuid": uuid_value,
+                "nombre": row["nombre"],
+                "genero": row["genero"],
+                "activa": 1 if row["is_active"] else 0,
+                "bolsa_mes_min": row["horas_mes_min"] or 0,
+                "bolsa_anual_min": row["horas_ano_min"] or 0,
+                "updated_at": row["updated_at"],
+                "source_device": row["source_device"] or self._device_id(),
+                "deleted": row["deleted"] or 0,
+            }
+            if remote_row:
+                row_number = remote_row["__row_number__"]
+                self._update_row(worksheet, row_number, header_map, payload)
+            else:
+                self._append_row(worksheet, header_map, payload)
+            uploaded += 1
+        return uploaded, conflicts
+
+    def _push_solicitudes(
+        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
+    ) -> tuple[int, int]:
+        worksheet = spreadsheet.worksheet("solicitudes")
+        headers, rows = self._rows_with_index(worksheet)
+        header_map = self._header_map(headers, SHEETS_SCHEMA["solicitudes"])
+        remote_index = self._uuid_index(rows)
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT s.id, s.uuid, s.persona_id, s.fecha_pedida, s.desde_min, s.hasta_min,
+                   s.completo, s.horas_solicitadas_min, s.notas, s.created_at, s.updated_at,
+                   s.source_device, s.deleted, s.pdf_hash,
+                   p.uuid AS delegada_uuid
+            FROM solicitudes s
+            JOIN personas p ON p.id = s.persona_id
+            WHERE s.updated_at IS NOT NULL
+            """
+        )
+        uploaded = 0
+        conflicts = 0
+        for row in cursor.fetchall():
+            if not self._is_after_last_sync(row["updated_at"], last_sync_at):
+                continue
+            uuid_value = row["uuid"]
+            remote_row = remote_index.get(uuid_value)
+            remote_updated_at = self._parse_iso(remote_row.get("updated_at") if remote_row else None)
+            if self._is_conflict(row["updated_at"], remote_updated_at, last_sync_at):
+                self._store_conflict("solicitudes", uuid_value, dict(row), remote_row or {})
+                conflicts += 1
+                continue
+            desde_h, desde_m = self._split_minutes(row["desde_min"])
+            hasta_h, hasta_m = self._split_minutes(row["hasta_min"])
+            payload = {
+                "uuid": uuid_value,
+                "delegada_uuid": row["delegada_uuid"],
+                "fecha": row["fecha_pedida"],
+                "desde_h": desde_h,
+                "desde_m": desde_m,
+                "hasta_h": hasta_h,
+                "hasta_m": hasta_m,
+                "completo": 1 if row["completo"] else 0,
+                "minutos_total": row["horas_solicitadas_min"] or 0,
+                "notas": row["notas"] or "",
+                "estado": "",
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+                "source_device": row["source_device"] or self._device_id(),
+                "deleted": row["deleted"] or 0,
+                "pdf_id": row["pdf_hash"] or "",
+            }
+            if remote_row:
+                row_number = remote_row["__row_number__"]
+                self._update_row(worksheet, row_number, header_map, payload)
+            else:
+                self._append_row(worksheet, header_map, payload)
+            uploaded += 1
+        return uploaded, conflicts
+
+    def _push_cuadrantes(
+        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
+    ) -> tuple[int, int]:
+        worksheet = spreadsheet.worksheet("cuadrantes")
+        headers, rows = self._rows_with_index(worksheet)
+        header_map = self._header_map(headers, SHEETS_SCHEMA["cuadrantes"])
+        remote_index = self._uuid_index(rows)
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, uuid, delegada_uuid, dia_semana, man_min, tar_min, updated_at, source_device, deleted
+            FROM cuadrantes
+            WHERE updated_at IS NOT NULL
+            """
+        )
+        uploaded = 0
+        conflicts = 0
+        for row in cursor.fetchall():
+            if not self._is_after_last_sync(row["updated_at"], last_sync_at):
+                continue
+            uuid_value = row["uuid"]
+            remote_row = remote_index.get(uuid_value)
+            remote_updated_at = self._parse_iso(remote_row.get("updated_at") if remote_row else None)
+            if self._is_conflict(row["updated_at"], remote_updated_at, last_sync_at):
+                self._store_conflict("cuadrantes", uuid_value, dict(row), remote_row or {})
+                conflicts += 1
+                continue
+            man_h, man_m = self._split_minutes(row["man_min"])
+            tar_h, tar_m = self._split_minutes(row["tar_min"])
+            payload = {
+                "uuid": uuid_value,
+                "delegada_uuid": row["delegada_uuid"],
+                "dia_semana": row["dia_semana"],
+                "man_h": man_h,
+                "man_m": man_m,
+                "tar_h": tar_h,
+                "tar_m": tar_m,
+                "updated_at": row["updated_at"],
+                "source_device": row["source_device"] or self._device_id(),
+                "deleted": row["deleted"] or 0,
+            }
+            if remote_row:
+                row_number = remote_row["__row_number__"]
+                self._update_row(worksheet, row_number, header_map, payload)
+            else:
+                self._append_row(worksheet, header_map, payload)
+            uploaded += 1
+        return uploaded, conflicts
+
+    def _fetch_persona(self, uuid_value: str) -> sqlite3.Row | None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, uuid, nombre, genero, is_active, horas_mes_min, horas_ano_min,
+                   updated_at, source_device, deleted,
+                   cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
+                   cuad_mie_man_min, cuad_mie_tar_min, cuad_jue_man_min, cuad_jue_tar_min,
+                   cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
+                   cuad_dom_man_min, cuad_dom_tar_min
+            FROM personas
+            WHERE uuid = ?
+            """,
+            (uuid_value,),
+        )
+        return cursor.fetchone()
+
+    def _fetch_solicitud(self, uuid_value: str) -> sqlite3.Row | None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, uuid, persona_id, fecha_pedida, desde_min, hasta_min, completo,
+                   horas_solicitadas_min, notas, created_at, updated_at, source_device, deleted, pdf_hash
+            FROM solicitudes
+            WHERE uuid = ?
+            """,
+            (uuid_value,),
+        )
+        return cursor.fetchone()
+
+    def _fetch_cuadrante(self, uuid_value: str) -> sqlite3.Row | None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, uuid, delegada_uuid, dia_semana, man_min, tar_min, updated_at, source_device, deleted
+            FROM cuadrantes
+            WHERE uuid = ?
+            """,
+            (uuid_value,),
+        )
+        return cursor.fetchone()
+
+    def _insert_persona_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            INSERT INTO personas (
+                uuid, nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min, is_active,
+                cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
+                cuad_mie_man_min, cuad_mie_tar_min, cuad_jue_man_min, cuad_jue_tar_min,
+                cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
+                cuad_dom_man_min, cuad_dom_tar_min,
+                updated_at, source_device, deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                uuid_value,
+                row.get("nombre"),
+                row.get("genero"),
+                self._int_or_zero(row.get("bolsa_mes_min")),
+                self._int_or_zero(row.get("bolsa_anual_min")),
+                0,
+                1 if self._int_or_zero(row.get("activa")) else 0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                row.get("updated_at") or self._now_iso(),
+                row.get("source_device"),
+                self._int_or_zero(row.get("deleted")),
+            ),
+        )
+        self._connection.commit()
+
+    def _update_persona_from_remote(self, persona_id: int, row: dict[str, Any]) -> None:
+        cursor = self._connection.cursor()
+        deleted = self._int_or_zero(row.get("deleted"))
+        cursor.execute(
+            """
+            UPDATE personas
+            SET nombre = ?, genero = ?, horas_mes_min = ?, horas_ano_min = ?, is_active = ?,
+                updated_at = ?, source_device = ?, deleted = ?
+            WHERE id = ?
+            """,
+            (
+                row.get("nombre"),
+                row.get("genero"),
+                self._int_or_zero(row.get("bolsa_mes_min")),
+                self._int_or_zero(row.get("bolsa_anual_min")),
+                0 if deleted else (1 if self._int_or_zero(row.get("activa")) else 0),
+                row.get("updated_at") or self._now_iso(),
+                row.get("source_device"),
+                deleted,
+                persona_id,
+            ),
+        )
+        self._connection.commit()
+
+    def _insert_solicitud_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:
+        cursor = self._connection.cursor()
+        persona_id = self._persona_id_from_uuid(row.get("delegada_uuid"))
+        if persona_id is None:
+            logger.warning("Delegada %s no encontrada al importar solicitud %s", row.get("delegada_uuid"), uuid_value)
+            return
+        desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
+        hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
+        cursor.execute(
+            """
+            INSERT INTO solicitudes (
+                uuid, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash,
+                created_at, updated_at, source_device, deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                uuid_value,
+                persona_id,
+                row.get("created_at") or row.get("fecha"),
+                row.get("fecha"),
+                desde_min,
+                hasta_min,
+                1 if self._int_or_zero(row.get("completo")) else 0,
+                self._int_or_zero(row.get("minutos_total")),
+                None,
+                row.get("notas"),
+                None,
+                row.get("pdf_id"),
+                row.get("created_at") or row.get("fecha"),
+                row.get("updated_at") or self._now_iso(),
+                row.get("source_device"),
+                self._int_or_zero(row.get("deleted")),
+            ),
+        )
+        self._connection.commit()
+
+    def _update_solicitud_from_remote(self, solicitud_id: int, row: dict[str, Any]) -> None:
+        cursor = self._connection.cursor()
+        persona_id = self._persona_id_from_uuid(row.get("delegada_uuid"))
+        if persona_id is None:
+            logger.warning("Delegada %s no encontrada al actualizar solicitud %s", row.get("delegada_uuid"), row)
+            return
+        desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
+        hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
+        cursor.execute(
+            """
+            UPDATE solicitudes
+            SET persona_id = ?, fecha_pedida = ?, desde_min = ?, hasta_min = ?, completo = ?,
+                horas_solicitadas_min = ?, notas = ?, pdf_hash = ?, created_at = ?, updated_at = ?,
+                source_device = ?, deleted = ?
+            WHERE id = ?
+            """,
+            (
+                persona_id,
+                row.get("fecha"),
+                desde_min,
+                hasta_min,
+                1 if self._int_or_zero(row.get("completo")) else 0,
+                self._int_or_zero(row.get("minutos_total")),
+                row.get("notas"),
+                row.get("pdf_id"),
+                row.get("created_at") or row.get("fecha"),
+                row.get("updated_at") or self._now_iso(),
+                row.get("source_device"),
+                self._int_or_zero(row.get("deleted")),
+                solicitud_id,
+            ),
+        )
+        self._connection.commit()
+
+    def _insert_cuadrante_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            INSERT INTO cuadrantes (
+                uuid, delegada_uuid, dia_semana, man_min, tar_min, updated_at, source_device, deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                uuid_value,
+                row.get("delegada_uuid"),
+                row.get("dia_semana"),
+                self._join_minutes(row.get("man_h"), row.get("man_m")),
+                self._join_minutes(row.get("tar_h"), row.get("tar_m")),
+                row.get("updated_at") or self._now_iso(),
+                row.get("source_device"),
+                self._int_or_zero(row.get("deleted")),
+            ),
+        )
+        self._connection.commit()
+        self._apply_cuadrante_to_persona(row)
+
+    def _update_cuadrante_from_remote(self, cuadrante_id: int, row: dict[str, Any]) -> None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            UPDATE cuadrantes
+            SET delegada_uuid = ?, dia_semana = ?, man_min = ?, tar_min = ?, updated_at = ?, source_device = ?, deleted = ?
+            WHERE id = ?
+            """,
+            (
+                row.get("delegada_uuid"),
+                row.get("dia_semana"),
+                self._join_minutes(row.get("man_h"), row.get("man_m")),
+                self._join_minutes(row.get("tar_h"), row.get("tar_m")),
+                row.get("updated_at") or self._now_iso(),
+                row.get("source_device"),
+                self._int_or_zero(row.get("deleted")),
+                cuadrante_id,
+            ),
+        )
+        self._connection.commit()
+        self._apply_cuadrante_to_persona(row)
+
+    def _apply_cuadrante_to_persona(self, row: dict[str, Any]) -> None:
+        delegada_uuid = row.get("delegada_uuid")
+        dia = self._normalize_dia(str(row.get("dia_semana", "")))
+        if not delegada_uuid or not dia:
+            return
+        persona_id = self._persona_id_from_uuid(delegada_uuid)
+        if persona_id is None:
+            return
+        man_min = self._join_minutes(row.get("man_h"), row.get("man_m"))
+        tar_min = self._join_minutes(row.get("tar_h"), row.get("tar_m"))
+        cursor = self._connection.cursor()
+        cursor.execute(
+            f"""
+            UPDATE personas
+            SET cuad_{dia}_man_min = ?, cuad_{dia}_tar_min = ?
+            WHERE id = ?
+            """,
+            (man_min, tar_min, persona_id),
+        )
+        self._connection.commit()
+
+    def _sync_local_cuadrantes_from_personas(self) -> None:
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT uuid, id FROM personas")
+        personas = cursor.fetchall()
+        for persona in personas:
+            cursor.execute(
+                """
+                SELECT uuid, dia_semana, man_min, tar_min, updated_at FROM cuadrantes WHERE delegada_uuid = ?
+                """,
+                (persona["uuid"],),
+            )
+            existing = {row["dia_semana"]: row for row in cursor.fetchall()}
+            for dia in ["lun", "mar", "mie", "jue", "vie", "sab", "dom"]:
+                man_min = self._get_persona_minutes(persona["id"], dia, "man")
+                tar_min = self._get_persona_minutes(persona["id"], dia, "tar")
+                existing_row = existing.get(dia)
+                if existing_row:
+                    if (
+                        existing_row["man_min"] == man_min
+                        and existing_row["tar_min"] == tar_min
+                        and existing_row["updated_at"]
+                    ):
+                        continue
+                    cursor.execute(
+                        """
+                        UPDATE cuadrantes
+                        SET man_min = ?, tar_min = ?, updated_at = ?
+                        WHERE uuid = ?
+                        """,
+                        (man_min, tar_min, self._now_iso(), existing_row["uuid"]),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO cuadrantes (uuid, delegada_uuid, dia_semana, man_min, tar_min, updated_at, deleted)
+                        VALUES (?, ?, ?, ?, ?, ?, 0)
+                        """,
+                        (self._generate_uuid(), persona["uuid"], dia, man_min, tar_min, self._now_iso()),
+                    )
+        self._connection.commit()
+
+    def _get_persona_minutes(self, persona_id: int, dia: str, segmento: str) -> int:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            f"SELECT cuad_{dia}_{segmento}_min AS value FROM personas WHERE id = ?",
+            (persona_id,),
+        )
+        row = cursor.fetchone()
+        return row["value"] if row and row["value"] is not None else 0
+
+    def _persona_id_from_uuid(self, delegada_uuid: str | None) -> int | None:
+        if not delegada_uuid:
+            return None
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT id FROM personas WHERE uuid = ?", (delegada_uuid,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return row["id"]
+
+    def _store_conflict(
+        self, entity_type: str, uuid_value: str, local_snapshot: dict[str, Any], remote_snapshot: dict[str, Any]
+    ) -> None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            INSERT INTO conflicts (uuid, entity_type, local_snapshot_json, remote_snapshot_json, detected_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                uuid_value,
+                entity_type,
+                json.dumps(local_snapshot, ensure_ascii=False),
+                json.dumps(remote_snapshot, ensure_ascii=False),
+                self._now_iso(),
+            ),
+        )
+        self._connection.commit()
+
+    def _rows_with_index(self, worksheet: gspread.Worksheet) -> tuple[list[str], list[tuple[int, dict[str, Any]]]]:
+        values = worksheet.get_all_values()
+        if not values:
+            return [], []
+        headers = values[0]
+        rows: list[tuple[int, dict[str, Any]]] = []
+        for row_number, row in enumerate(values[1:], start=2):
+            if not any(str(cell).strip() for cell in row):
+                continue
+            payload = {headers[i]: row[i] if i < len(row) else "" for i in range(len(headers))}
+            payload["__row_number__"] = row_number
+            rows.append((row_number, payload))
+        return headers, rows
+
+    def _header_map(self, headers: list[str], expected: list[str]) -> list[str]:
+        if not headers:
+            return expected
+        missing = [col for col in expected if col not in headers]
+        return headers + missing
+
+    def _uuid_index(self, rows: list[tuple[int, dict[str, Any]]]) -> dict[str, dict[str, Any]]:
+        index: dict[str, dict[str, Any]] = {}
+        for _, row in rows:
+            uuid_value = str(row.get("uuid", "")).strip()
+            if uuid_value:
+                index[uuid_value] = row
+        return index
+
+    def _update_row(self, worksheet: gspread.Worksheet, row_number: int, headers: list[str], payload: dict[str, Any]) -> None:
+        row_values = [payload.get(header, "") for header in headers]
+        worksheet.update(f"A{row_number}:{gspread.utils.rowcol_to_a1(row_number, len(headers))}", [row_values])
+
+    def _append_row(self, worksheet: gspread.Worksheet, headers: list[str], payload: dict[str, Any]) -> None:
+        row_values = [payload.get(header, "") for header in headers]
+        worksheet.append_row(row_values, value_input_option="USER_ENTERED")
+
+    def _is_after_last_sync(self, updated_at: str | None, last_sync_at: str | None) -> bool:
+        if not updated_at:
+            return False
+        if not last_sync_at:
+            return True
+        parsed_updated = self._parse_iso(updated_at)
+        parsed_last = self._parse_iso(last_sync_at)
+        if not parsed_updated or not parsed_last:
+            return False
+        return parsed_updated > parsed_last
+
+    def _is_conflict(
+        self, local_updated_at: str | None, remote_updated_at: datetime | None, last_sync_at: str | None
+    ) -> bool:
+        if not local_updated_at or not remote_updated_at or not last_sync_at:
+            return False
+        parsed_local = self._parse_iso(local_updated_at)
+        parsed_last = self._parse_iso(last_sync_at)
+        if not parsed_local or not parsed_last:
+            return False
+        return parsed_local > parsed_last and remote_updated_at > parsed_last
+
+    def _is_remote_newer(self, local_updated_at: str | None, remote_updated_at: datetime | None) -> bool:
+        if not remote_updated_at:
+            return False
+        if not local_updated_at:
+            return True
+        parsed_local = self._parse_iso(local_updated_at)
+        if not parsed_local:
+            return True
+        return remote_updated_at > parsed_local
+
+    @staticmethod
+    def _normalize_dia(dia: str) -> str | None:
+        value = dia.strip().lower()
+        mapping = {
+            "lunes": "lun",
+            "martes": "mar",
+            "miercoles": "mie",
+            "miércoles": "mie",
+            "jueves": "jue",
+            "viernes": "vie",
+            "sabado": "sab",
+            "sábado": "sab",
+            "domingo": "dom",
+        }
+        if value in mapping:
+            return mapping[value]
+        if value in {"lun", "mar", "mie", "jue", "vie", "sab", "dom"}:
+            return value
+        return None
+
+    @staticmethod
+    def _int_or_zero(value: Any) -> int:
+        try:
+            if value is None or value == "":
+                return 0
+            return int(float(value))
+        except (TypeError, ValueError):
+            return 0
+
+    def _split_minutes(self, value: Any) -> tuple[int, int]:
+        minutes = self._int_or_zero(value)
+        return minutes // 60, minutes % 60
+
+    def _join_minutes(self, hours: Any, minutes: Any) -> int | None:
+        if hours is None and minutes is None:
+            return None
+        return self._int_or_zero(hours) * 60 + self._int_or_zero(minutes)
+
+    @staticmethod
+    def _parse_iso(value: Any) -> datetime | None:
+        if not value:
+            return None
+        try:
+            text = str(value).replace("Z", "+00:00")
+            return datetime.fromisoformat(text)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _now_iso() -> str:
+        return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    def _device_id(self) -> str:
+        config = self._config_store.load()
+        return config.device_id if config else ""
+
+    @staticmethod
+    def _generate_uuid() -> str:
+        return str(uuid.uuid4())

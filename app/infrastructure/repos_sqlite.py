@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+import uuid
+from datetime import datetime, timezone
 from typing import Iterable
 
 from app.domain.models import GrupoConfig, Persona, Solicitud
@@ -15,6 +17,10 @@ def _bool_from_db(value: int | None) -> bool | None:
     if value is None:
         return None
     return bool(value)
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class PersonaRepositorySQLite(PersonaRepository):
@@ -37,7 +43,9 @@ class PersonaRepositorySQLite(PersonaRepository):
             FROM personas
         """
         if not include_inactive:
-            sql += " WHERE is_active = 1"
+            sql += " WHERE is_active = 1 AND (deleted = 0 OR deleted IS NULL)"
+        else:
+            sql += " WHERE deleted = 0 OR deleted IS NULL"
         sql += " ORDER BY nombre"
         cursor.execute(sql)
         rows = cursor.fetchall()
@@ -82,7 +90,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                    cuad_sab_man_min, cuad_sab_tar_min,
                    cuad_dom_man_min, cuad_dom_tar_min
             FROM personas
-            WHERE id = ?
+            WHERE id = ? AND (deleted = 0 OR deleted IS NULL)
             """,
             (persona_id,),
         )
@@ -127,7 +135,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                    cuad_sab_man_min, cuad_sab_tar_min,
                    cuad_dom_man_min, cuad_dom_tar_min
             FROM personas
-            WHERE nombre = ?
+            WHERE nombre = ? AND (deleted = 0 OR deleted IS NULL)
             """,
             (nombre,),
         )
@@ -159,17 +167,21 @@ class PersonaRepositorySQLite(PersonaRepository):
 
     def create(self, persona: Persona) -> Persona:
         cursor = self._connection.cursor()
+        persona_uuid = str(uuid.uuid4())
+        updated_at = _now_iso()
         cursor.execute(
             """
             INSERT INTO personas (
-                nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min, is_active,
+                uuid, nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min, is_active,
                 cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
                 cuad_mie_man_min, cuad_mie_tar_min, cuad_jue_man_min, cuad_jue_tar_min,
                 cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
-                cuad_dom_man_min, cuad_dom_tar_min
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                cuad_dom_man_min, cuad_dom_tar_min,
+                updated_at, deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                persona_uuid,
                 persona.nombre,
                 persona.genero,
                 persona.horas_mes_min,
@@ -190,6 +202,8 @@ class PersonaRepositorySQLite(PersonaRepository):
                 persona.cuad_sab_tar_min,
                 persona.cuad_dom_man_min,
                 persona.cuad_dom_tar_min,
+                updated_at,
+                0,
             ),
         )
         self._connection.commit()
@@ -218,6 +232,7 @@ class PersonaRepositorySQLite(PersonaRepository):
 
     def update(self, persona: Persona) -> Persona:
         cursor = self._connection.cursor()
+        updated_at = _now_iso()
         cursor.execute(
             """
             UPDATE personas
@@ -226,7 +241,8 @@ class PersonaRepositorySQLite(PersonaRepository):
                 cuad_lun_man_min = ?, cuad_lun_tar_min = ?, cuad_mar_man_min = ?, cuad_mar_tar_min = ?,
                 cuad_mie_man_min = ?, cuad_mie_tar_min = ?, cuad_jue_man_min = ?, cuad_jue_tar_min = ?,
                 cuad_vie_man_min = ?, cuad_vie_tar_min = ?, cuad_sab_man_min = ?, cuad_sab_tar_min = ?,
-                cuad_dom_man_min = ?, cuad_dom_tar_min = ?
+                cuad_dom_man_min = ?, cuad_dom_tar_min = ?,
+                updated_at = ?
             WHERE id = ?
             """,
             (
@@ -250,6 +266,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                 persona.cuad_sab_tar_min,
                 persona.cuad_dom_man_min,
                 persona.cuad_dom_tar_min,
+                updated_at,
                 persona.id,
             ),
         )
@@ -269,6 +286,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                    horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
             FROM solicitudes
             WHERE persona_id = ?
+              AND (deleted = 0 OR deleted IS NULL)
             ORDER BY fecha_pedida DESC
             """,
             (persona_id,),
@@ -304,6 +322,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 FROM solicitudes
                 WHERE persona_id = ?
                   AND strftime('%Y', fecha_pedida) = ?
+                  AND (deleted = 0 OR deleted IS NULL)
                 ORDER BY fecha_pedida DESC
                 """,
                 (persona_id, f"{year:04d}"),
@@ -317,6 +336,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 WHERE persona_id = ?
                   AND strftime('%Y', fecha_pedida) = ?
                   AND strftime('%m', fecha_pedida) = ?
+                  AND (deleted = 0 OR deleted IS NULL)
                 ORDER BY fecha_pedida DESC
                 """,
                 (persona_id, f"{year:04d}", f"{month:02d}"),
@@ -351,6 +371,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             FROM solicitudes
             WHERE persona_id = ?
               AND fecha_pedida = ?
+              AND (deleted = 0 OR deleted IS NULL)
             ORDER BY fecha_pedida DESC
             """,
             (persona_id, fecha_pedida),
@@ -381,7 +402,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
                    horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
             FROM solicitudes
-            WHERE id = ?
+            WHERE id = ? AND (deleted = 0 OR deleted IS NULL)
             """,
             (solicitud_id,),
         )
@@ -441,14 +462,17 @@ class SolicitudRepositorySQLite(SolicitudRepository):
 
     def create(self, solicitud: Solicitud) -> Solicitud:
         cursor = self._connection.cursor()
+        solicitud_uuid = str(uuid.uuid4())
+        created_at = _now_iso()
         cursor.execute(
             """
             INSERT INTO solicitudes (
-                persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                uuid, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, created_at, updated_at, deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                solicitud_uuid,
                 solicitud.persona_id,
                 solicitud.fecha_solicitud,
                 solicitud.fecha_pedida,
@@ -460,6 +484,9 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 solicitud.notas,
                 solicitud.pdf_path,
                 solicitud.pdf_hash,
+                created_at,
+                created_at,
+                0,
             ),
         )
         self._connection.commit()
@@ -480,7 +507,15 @@ class SolicitudRepositorySQLite(SolicitudRepository):
 
     def delete(self, solicitud_id: int) -> None:
         cursor = self._connection.cursor()
-        cursor.execute("DELETE FROM solicitudes WHERE id = ?", (solicitud_id,))
+        updated_at = _now_iso()
+        cursor.execute(
+            """
+            UPDATE solicitudes
+            SET deleted = 1, updated_at = ?
+            WHERE id = ?
+            """,
+            (updated_at, solicitud_id),
+        )
         self._connection.commit()
 
     def delete_by_ids(self, solicitud_ids: Iterable[int]) -> None:
@@ -490,20 +525,21 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor = self._connection.cursor()
         placeholders = ",".join("?" for _ in ids)
         cursor.execute(
-            f"DELETE FROM solicitudes WHERE id IN ({placeholders})",
-            ids,
+            f"UPDATE solicitudes SET deleted = 1, updated_at = ? WHERE id IN ({placeholders})",
+            [_now_iso(), *ids],
         )
         self._connection.commit()
 
     def update_pdf_info(self, solicitud_id: int, pdf_path: str, pdf_hash: str | None) -> None:
         cursor = self._connection.cursor()
+        updated_at = _now_iso()
         cursor.execute(
             """
             UPDATE solicitudes
-            SET pdf_path = ?, pdf_hash = ?
+            SET pdf_path = ?, pdf_hash = ?, updated_at = ?
             WHERE id = ?
             """,
-            (pdf_path, pdf_hash, solicitud_id),
+            (pdf_path, pdf_hash, updated_at, solicitud_id),
         )
         self._connection.commit()
 
