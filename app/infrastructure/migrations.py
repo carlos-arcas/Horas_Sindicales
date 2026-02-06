@@ -78,6 +78,16 @@ def _column_exists(cursor: sqlite3.Cursor, table: str, column: str) -> bool:
     return any(row["name"] == column for row in cursor.fetchall())
 
 
+def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: tuple[object, ...], context: str) -> None:
+    expected = sql.count("?")
+    actual = len(params)
+    if expected != actual:
+        raise ValueError(
+            f"SQL param mismatch for {context}: expected {expected} placeholders, got {actual} parameters."
+        )
+    cursor.execute(sql, params)
+
+
 def _add_column_if_missing(
     cursor: sqlite3.Cursor, table: str, column: str, column_type: str
 ) -> None:
@@ -344,13 +354,15 @@ def _seed_sync_metadata(cursor: sqlite3.Cursor) -> None:
         persona_uuid = row["uuid"] or str(uuid.uuid4())
         updated_at = row["updated_at"] or now_iso
         deleted = row["deleted"] if row["deleted"] is not None else 0
-        cursor.execute(
+        _execute_with_validation(
+            cursor,
             """
             UPDATE personas
             SET uuid = ?, updated_at = ?, deleted = ?
             WHERE id = ?
             """,
             (persona_uuid, updated_at, deleted, row["id"]),
+            "personas.seed_sync_metadata",
         )
     cursor.execute("SELECT id, uuid, updated_at, deleted, created_at, fecha_solicitud FROM solicitudes")
     for row in cursor.fetchall():
@@ -358,13 +370,15 @@ def _seed_sync_metadata(cursor: sqlite3.Cursor) -> None:
         created_at = row["created_at"] or row["fecha_solicitud"] or now_iso
         updated_at = row["updated_at"] or created_at or now_iso
         deleted = row["deleted"] if row["deleted"] is not None else 0
-        cursor.execute(
+        _execute_with_validation(
+            cursor,
             """
             UPDATE solicitudes
             SET uuid = ?, created_at = ?, updated_at = ?, deleted = ?
             WHERE id = ?
             """,
             (solicitud_uuid, created_at, updated_at, deleted, row["id"]),
+            "solicitudes.seed_sync_metadata",
         )
 
 def _ensure_grupo_config(cursor: sqlite3.Cursor) -> None:
