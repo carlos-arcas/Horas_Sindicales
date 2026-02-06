@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Protocol, Iterable
 
-from app.domain.models import GrupoConfig, Persona, Solicitud
+from app.domain.models import GrupoConfig, Persona, SheetsConfig, Solicitud
 
 
 class PersonaRepository(Protocol):
@@ -65,4 +66,15 @@ class GrupoConfigRepository(Protocol):
         ...
 
     def upsert(self, config: GrupoConfig) -> GrupoConfig:
+        ...
+
+
+class SheetsConfigRepository(Protocol):
+    def load(self) -> SheetsConfig | None:
+        ...
+
+    def save(self, config: SheetsConfig) -> SheetsConfig:
+        ...
+
+    def credentials_path(self) -> Path:
         ...

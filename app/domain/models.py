@@ -52,3 +52,10 @@ class GrupoConfig:
     pdf_logo_path: str
     pdf_intro_text: str
     pdf_include_hours_in_horario: Optional[bool] = None
+
+
+@dataclass(frozen=True)
+class SheetsConfig:
+    spreadsheet_id: str
+    credentials_path: str
+    device_id: str

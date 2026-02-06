@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.domain.models import Persona, Solicitud
+from app.domain.models import Persona, SheetsConfig, Solicitud
 
 
 class ValidacionError(ValueError):
@@ -43,3 +43,10 @@ def validar_solicitud(solicitud: Solicitud) -> None:
         raise ValidacionError("Las horas deben ser mayores a cero.")
     if not solicitud.fecha_solicitud or not solicitud.fecha_pedida:
         raise ValidacionError("Las fechas son obligatorias.")
+
+
+def validar_sheets_config(config: SheetsConfig) -> None:
+    if not config.spreadsheet_id.strip():
+        raise ValidacionError("La URL o ID de la spreadsheet es obligatoria.")
+    if not config.credentials_path.strip():
+        raise ValidacionError("Debe seleccionar un archivo de credenciales JSON.")
