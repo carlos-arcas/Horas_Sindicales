@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+import uuid
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,9 @@ def run_migrations(connection: sqlite3.Connection) -> None:
     connection.commit()
     _ensure_personas_columns(cursor)
     _ensure_solicitudes_columns(cursor)
+    _ensure_sync_tables(cursor)
+    _ensure_sync_columns(cursor)
+    _seed_sync_metadata(cursor)
     connection.commit()
 
 
@@ -201,6 +206,121 @@ def _ensure_solicitudes_columns(cursor: sqlite3.Cursor) -> None:
             """
         )
 
+
+def _ensure_sync_tables(cursor: sqlite3.Cursor) -> None:
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sync_state (
+            id INTEGER PRIMARY KEY CHECK(id = 1),
+            last_sync_at TEXT NULL
+        )
+        """
+    )
+    cursor.execute(
+        """
+        INSERT OR IGNORE INTO sync_state (id, last_sync_at)
+        VALUES (1, NULL)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS conflicts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            local_snapshot_json TEXT NOT NULL,
+            remote_snapshot_json TEXT NOT NULL,
+            detected_at TEXT NOT NULL
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS cuadrantes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT UNIQUE,
+            delegada_uuid TEXT NOT NULL,
+            dia_semana TEXT NOT NULL,
+            man_min INTEGER,
+            tar_min INTEGER,
+            updated_at TEXT,
+            source_device TEXT,
+            deleted INTEGER DEFAULT 0
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS pdf_log (
+            pdf_id TEXT PRIMARY KEY,
+            delegada_uuid TEXT,
+            rango_fechas TEXT,
+            fecha_generacion TEXT,
+            hash TEXT,
+            updated_at TEXT,
+            source_device TEXT
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sync_config (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at TEXT,
+            source_device TEXT
+        )
+        """
+    )
+
+
+def _ensure_sync_columns(cursor: sqlite3.Cursor) -> None:
+    for column, column_type in [
+        ("uuid", "TEXT UNIQUE"),
+        ("updated_at", "TEXT"),
+        ("source_device", "TEXT"),
+        ("deleted", "INTEGER DEFAULT 0"),
+    ]:
+        _add_column_if_missing(cursor, "personas", column, column_type)
+    for column, column_type in [
+        ("uuid", "TEXT UNIQUE"),
+        ("updated_at", "TEXT"),
+        ("source_device", "TEXT"),
+        ("deleted", "INTEGER DEFAULT 0"),
+        ("created_at", "TEXT"),
+    ]:
+        _add_column_if_missing(cursor, "solicitudes", column, column_type)
+
+
+def _seed_sync_metadata(cursor: sqlite3.Cursor) -> None:
+    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    cursor.execute("SELECT id, uuid, updated_at, deleted FROM personas")
+    for row in cursor.fetchall():
+        persona_uuid = row["uuid"] or str(uuid.uuid4())
+        updated_at = row["updated_at"] or now_iso
+        deleted = row["deleted"] if row["deleted"] is not None else 0
+        cursor.execute(
+            """
+            UPDATE personas
+            SET uuid = ?, updated_at = ?, deleted = ?
+            WHERE id = ?
+            """,
+            (persona_uuid, updated_at, deleted, row["id"]),
+        )
+    cursor.execute("SELECT id, uuid, updated_at, deleted, created_at, fecha_solicitud FROM solicitudes")
+    for row in cursor.fetchall():
+        solicitud_uuid = row["uuid"] or str(uuid.uuid4())
+        created_at = row["created_at"] or row["fecha_solicitud"] or now_iso
+        updated_at = row["updated_at"] or created_at or now_iso
+        deleted = row["deleted"] if row["deleted"] is not None else 0
+        cursor.execute(
+            """
+            UPDATE solicitudes
+            SET uuid = ?, created_at = ?, updated_at = ?, deleted = ?
+            WHERE id = ?
+            """,
+            (solicitud_uuid, created_at, updated_at, deleted, row["id"]),
+        )
 
 def _ensure_grupo_config(cursor: sqlite3.Cursor) -> None:
     cursor.execute(
