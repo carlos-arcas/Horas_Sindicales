@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import json
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDateEdit,
+    QDialog,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -25,6 +27,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QFrame,
     QHeaderView,
+    QProgressBar,
     QSizePolicy,
     QSpinBox,
     QScrollArea,
@@ -91,7 +94,12 @@ class SyncWorker(QObject):
             summary = sync_service.sync()
         except Exception as exc:
             logger.exception("Error durante la sincronización")
-            self.failed.emit(exc)
+            self.failed.emit(
+                {
+                    "error": exc,
+                    "details": traceback.format_exc(),
+                }
+            )
             return
         finally:
             connection.close()
@@ -126,7 +134,12 @@ class PushWorker(QObject):
             summary = sync_service.push()
         except Exception as exc:
             logger.exception("Error durante la subida")
-            self.failed.emit(exc)
+            self.failed.emit(
+                {
+                    "error": exc,
+                    "details": traceback.format_exc(),
+                }
+            )
             return
         finally:
             connection.close()
@@ -161,6 +174,7 @@ class MainWindow(QMainWindow):
         self._conflicts_service = conflicts_service
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
+        self._sync_in_progress = False
         self.setWindowTitle("Horas Sindicales")
         self._build_ui()
         self._load_personas()
@@ -258,6 +272,19 @@ class MainWindow(QMainWindow):
         self.last_sync_label = QLabel("Última sync: --")
         self.last_sync_label.setProperty("role", "secondary")
         sync_layout.addWidget(self.last_sync_label)
+
+        self.sync_status_label = QLabel("Sincronizando con Google Sheets…")
+        self.sync_status_label.setProperty("role", "secondary")
+        self.sync_status_label.setVisible(False)
+        self.sync_progress = QProgressBar()
+        self.sync_progress.setRange(0, 0)
+        self.sync_progress.setTextVisible(False)
+        self.sync_progress.setVisible(False)
+        sync_status_row = QHBoxLayout()
+        sync_status_row.setSpacing(8)
+        sync_status_row.addWidget(self.sync_status_label)
+        sync_status_row.addWidget(self.sync_progress, 1)
+        sync_layout.addLayout(sync_status_row)
         persona_card, persona_layout = self._create_card("Delegado")
 
         persona_actions = QHBoxLayout()
@@ -698,8 +725,7 @@ class MainWindow(QMainWindow):
                 "No hay configuración de Google Sheets. Abre Opciones para configurarlo.",
             )
             return
-        self.sync_button.setEnabled(False)
-        self.review_conflicts_button.setEnabled(False)
+        self._set_sync_in_progress(True)
         self._sync_thread = QThread()
         self._sync_worker = SyncWorker(
             self._config_store,
@@ -716,19 +742,16 @@ class MainWindow(QMainWindow):
         self._sync_thread.start()
 
     def _on_sync_finished(self, summary: SyncSummary) -> None:
+        self._set_sync_in_progress(False)
         self._update_sync_button_state()
-        if summary.conflicts > 0:
-            self.review_conflicts_button.setEnabled(True)
         self._refresh_last_sync_label()
-        QMessageBox.information(
-            self,
-            "Sincronización completa",
-            f"Bajados: {summary.downloaded}\nSubidos: {summary.uploaded}\nConflictos: {summary.conflicts}",
-        )
+        self._show_sync_summary_dialog("Sincronización completada", summary)
 
-    def _on_sync_failed(self, error: Exception) -> None:
+    def _on_sync_failed(self, payload: object) -> None:
+        self._set_sync_in_progress(False)
         self._update_sync_button_state()
-        self._show_sheets_error(error, "Error de sincronización")
+        error, details = self._normalize_sync_error(payload)
+        self._show_sync_error_dialog(error, details)
 
     def _on_review_conflicts(self) -> None:
         dialog = ConflictsDialog(self._conflicts_service, self)
@@ -1012,8 +1035,7 @@ class MainWindow(QMainWindow):
                 "No hay configuración de Google Sheets. Abre Opciones para configurarlo.",
             )
             return
-        self.sync_button.setEnabled(False)
-        self.review_conflicts_button.setEnabled(False)
+        self._set_sync_in_progress(True)
         self._sync_thread = QThread()
         self._sync_worker = PushWorker(
             self._config_store,
@@ -1030,70 +1052,150 @@ class MainWindow(QMainWindow):
         self._sync_thread.start()
 
     def _on_push_finished(self, summary: SyncSummary) -> None:
+        self._set_sync_in_progress(False)
         self._update_sync_button_state()
         if summary.conflicts > 0:
-            self.review_conflicts_button.setEnabled(True)
             dialog = ConflictsDialog(self._conflicts_service, self)
             dialog.exec()
-            self.review_conflicts_button.setEnabled(self._conflicts_service.count_conflicts() > 0)
         self._refresh_last_sync_label()
-        QMessageBox.information(
-            self,
-            "Subida completa",
-            f"Subidos: {summary.uploaded}\nConflictos: {summary.conflicts}",
-        )
+        self._show_sync_summary_dialog("Sincronización completada", summary)
 
-    def _on_push_failed(self, error: Exception) -> None:
+    def _on_push_failed(self, payload: object) -> None:
+        self._set_sync_in_progress(False)
         self._update_sync_button_state()
-        self._show_sheets_error(error, "Error de subida")
+        error, details = self._normalize_sync_error(payload)
+        self._show_sync_error_dialog(error, details)
 
     def _update_sync_button_state(self) -> None:
         configured = self._sync_service.is_configured()
-        self.sync_button.setEnabled(configured)
+        self.sync_button.setEnabled(configured and not self._sync_in_progress)
+        self.review_conflicts_button.setEnabled(
+            not self._sync_in_progress and self._conflicts_service.count_conflicts() > 0
+        )
 
-    def _show_sheets_error(self, error: Exception, fallback_title: str) -> None:
+    def _show_sync_error_dialog(self, error: Exception, details: str | None) -> None:
+        title = "Error de sincronización"
+        icon = QMessageBox.Critical
         if isinstance(error, SheetsApiDisabledError):
-            QMessageBox.critical(
-                self,
-                "Google Sheets API deshabilitada",
+            self._show_message_with_details(
+                title,
                 "La API de Google Sheets no está habilitada en tu proyecto de Google Cloud.\n\n"
                 "Solución: entra en Google Cloud Console → APIs & Services → Library → "
                 "Google Sheets API → Enable.\n\n"
                 "Después espera 2–5 minutos y vuelve a probar.",
+                details,
+                icon,
             )
             return
         if isinstance(error, SheetsPermissionError):
             email = self._service_account_email()
             email_hint = f"{email}" if email else "la cuenta de servicio"
-            QMessageBox.critical(
-                self,
-                "Permisos insuficientes",
+            self._show_message_with_details(
+                title,
                 "La hoja no está compartida con la cuenta de servicio.\n\n"
                 f"Comparte la hoja con: {email_hint} como Editor.",
+                details,
+                icon,
             )
             return
         if isinstance(error, SheetsNotFoundError):
-            QMessageBox.critical(
-                self,
-                "Hoja no encontrada",
+            self._show_message_with_details(
+                title,
                 "El Spreadsheet ID/URL no es válido o la hoja no existe.",
+                details,
+                icon,
             )
             return
         if isinstance(error, SheetsCredentialsError):
-            QMessageBox.critical(
-                self,
-                "Credenciales inválidas",
+            self._show_message_with_details(
+                title,
                 "No se pueden leer las credenciales JSON seleccionadas.",
+                details,
+                icon,
             )
             return
         if isinstance(error, SheetsConfigError):
-            QMessageBox.warning(
-                self,
-                "Sin configuración",
+            self._show_message_with_details(
+                title,
                 "No hay configuración de Google Sheets. Abre Opciones para configurarlo.",
+                details,
+                QMessageBox.Warning,
             )
             return
-        QMessageBox.critical(self, fallback_title, str(error))
+        self._show_message_with_details(title, str(error), details, icon)
+
+    def _show_sync_summary_dialog(self, title: str, summary: SyncSummary) -> None:
+        last_sync = self._sync_service.get_last_sync_at()
+        last_sync_text = self._format_timestamp(last_sync) if last_sync else "Nunca"
+        omitted_duplicates = 0
+        errors = summary.conflicts
+        message = (
+            f"Subidas: {summary.uploaded}\n"
+            f"Actualizadas: {summary.downloaded}\n"
+            f"Omitidas por duplicado: {omitted_duplicates}\n"
+            f"Errores: {errors}\n"
+            f"Última sincronización: {last_sync_text}"
+        )
+        icon = QMessageBox.Information if errors == 0 else QMessageBox.Warning
+        details = None
+        if errors > 0:
+            details = (
+                "Se detectaron discrepancias durante la sincronización.\n"
+                "Usa “Revisar discrepancias” para ver el detalle y resolverlas."
+            )
+        self._show_message_with_details(title, message, details, icon)
+
+    def _show_message_with_details(
+        self,
+        title: str,
+        message: str,
+        details: str | None,
+        icon: QMessageBox.Icon,
+    ) -> None:
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle(title)
+        dialog.setIcon(icon)
+        dialog.setText(message)
+        details_button = None
+        if details:
+            details_button = dialog.addButton("Ver detalles", QMessageBox.ActionRole)
+        dialog.addButton("Cerrar", QMessageBox.AcceptRole)
+        dialog.exec()
+        if details_button and dialog.clickedButton() == details_button:
+            self._show_details_dialog(title, details)
+
+    def _show_details_dialog(self, title: str, details: str) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        layout = QVBoxLayout(dialog)
+        details_text = QPlainTextEdit()
+        details_text.setReadOnly(True)
+        details_text.setPlainText(details)
+        layout.addWidget(details_text)
+        close_button = QPushButton("Cerrar")
+        close_button.clicked.connect(dialog.accept)
+        layout.addWidget(close_button, alignment=Qt.AlignRight)
+        dialog.resize(520, 360)
+        dialog.exec()
+
+    def _normalize_sync_error(self, payload: object) -> tuple[Exception, str | None]:
+        if isinstance(payload, dict):
+            error = payload.get("error")
+            details = payload.get("details")
+            if isinstance(error, Exception):
+                return error, details
+            return Exception(str(error)), details
+        if isinstance(payload, Exception):
+            return payload, None
+        return Exception(str(payload)), None
+
+    def _set_sync_in_progress(self, in_progress: bool) -> None:
+        self._sync_in_progress = in_progress
+        self.sync_status_label.setVisible(in_progress)
+        self.sync_progress.setVisible(in_progress)
+        if in_progress:
+            self.sync_button.setEnabled(False)
+            self.review_conflicts_button.setEnabled(False)
 
     def _service_account_email(self) -> str | None:
         config = self._sheets_service.get_config()
