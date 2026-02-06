@@ -828,14 +828,35 @@ class SheetsSyncService:
 
     def _sync_local_cuadrantes_from_personas(self) -> None:
         cursor = self._connection.cursor()
+        cursor.execute("PRAGMA table_info(personas)")
+        persona_columns = {row[1] for row in cursor.fetchall()}
+        has_updated_at = "updated_at" in persona_columns
         cursor.execute("SELECT uuid, id FROM personas")
         personas = cursor.fetchall()
         for persona in personas:
+            persona_uuid = persona["uuid"]
+            if not persona_uuid:
+                persona_uuid = self._generate_uuid()
+                now_iso = self._now_iso()
+                if has_updated_at:
+                    cursor.execute(
+                        "UPDATE personas SET uuid = ?, updated_at = ? WHERE id = ?",
+                        (persona_uuid, now_iso, persona["id"]),
+                    )
+                else:
+                    cursor.execute(
+                        "UPDATE personas SET uuid = ? WHERE id = ?",
+                        (persona_uuid, persona["id"]),
+                    )
+                logger.warning(
+                    "Persona sin uuid encontrada (id=%s). Se generó un uuid nuevo para sincronización.",
+                    persona["id"],
+                )
             cursor.execute(
                 """
                 SELECT uuid, dia_semana, man_min, tar_min, updated_at FROM cuadrantes WHERE delegada_uuid = ?
                 """,
-                (persona["uuid"],),
+                (persona_uuid,),
             )
             existing = {row["dia_semana"]: row for row in cursor.fetchall()}
             for dia in ["lun", "mar", "mie", "jue", "vie", "sab", "dom"]:
@@ -863,7 +884,7 @@ class SheetsSyncService:
                         INSERT INTO cuadrantes (uuid, delegada_uuid, dia_semana, man_min, tar_min, updated_at, deleted)
                         VALUES (?, ?, ?, ?, ?, ?, 0)
                         """,
-                        (self._generate_uuid(), persona["uuid"], dia, man_min, tar_min, self._now_iso()),
+                        (self._generate_uuid(), persona_uuid, dia, man_min, tar_min, self._now_iso()),
                     )
         self._connection.commit()
 
