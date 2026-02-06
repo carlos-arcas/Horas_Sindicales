@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 from app.application.dto import GrupoConfigDTO
 from app.application.use_cases import GrupoConfigUseCases
 from app.domain.services import BusinessRuleError
+from app.infrastructure.sheets_sync_service import SheetsSyncService
 from app.ui.widgets.time_edit import TimeEditHM
 from app.pdf import pdf_builder
 
@@ -27,9 +28,15 @@ logger = logging.getLogger(__name__)
 
 
 class GrupoConfigDialog(QDialog):
-    def __init__(self, use_cases: GrupoConfigUseCases, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        use_cases: GrupoConfigUseCases,
+        sync_service: SheetsSyncService | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self._use_cases = use_cases
+        self._sync_service = sync_service
         self._config: GrupoConfigDTO | None = None
         self._include_hours: bool | None = None
         self.setWindowTitle("Editar grupo")
@@ -74,7 +81,7 @@ class GrupoConfigDialog(QDialog):
         logo_row.addWidget(self.logo_button)
         pdf_group.addLayout(logo_row)
 
-        intro_label = QLabel("Texto introductorio del PDF (se imprimirá en el documento)")
+        intro_label = QLabel("Texto legal del PDF (se usa literalmente en el PDF)")
         pdf_group.addWidget(intro_label)
 
         self.pdf_intro_input = QPlainTextEdit()
@@ -146,4 +153,6 @@ class GrupoConfigDialog(QDialog):
             logger.exception("Error guardando configuración de grupo")
             QMessageBox.critical(self, "Error", str(exc))
             return
+        if self._sync_service:
+            self._sync_service.store_sync_config_value("pdf_text", intro_text)
         self.accept()

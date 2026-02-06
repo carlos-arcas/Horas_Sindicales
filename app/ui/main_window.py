@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.application.conflicts_service import ConflictsService
 from app.application.dto import PeriodoFiltro, PersonaDTO, SolicitudDTO
 from app.application.sheets_service import SheetsService
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
@@ -41,6 +42,7 @@ from app.domain.time_utils import minutes_to_hhmm
 from app.infrastructure.sheets_sync_service import SheetsSyncService, SyncSummary
 from app.ui.models_qt import SolicitudesTableModel
 from app.ui.dialog_opciones import OpcionesDialog
+from app.ui.conflicts_dialog import ConflictsDialog
 from app.ui.group_dialog import GrupoConfigDialog
 from app.ui.person_dialog import PersonaDialog
 from app.ui.style import apply_theme
@@ -68,6 +70,25 @@ class SyncWorker(QObject):
         self.finished.emit(summary)
 
 
+class PushWorker(QObject):
+    finished = Signal(SyncSummary)
+    failed = Signal(str)
+
+    def __init__(self, sync_service: SheetsSyncService) -> None:
+        super().__init__()
+        self._sync_service = sync_service
+
+    @Slot()
+    def run(self) -> None:
+        try:
+            summary = self._sync_service.push()
+        except Exception as exc:
+            logger.exception("Error durante la subida")
+            self.failed.emit(str(exc))
+            return
+        self.finished.emit(summary)
+
+
 class MainWindow(QMainWindow):
     def __init__(
         self,
@@ -76,6 +97,7 @@ class MainWindow(QMainWindow):
         grupo_use_cases: GrupoConfigUseCases,
         sheets_service: SheetsService,
         sync_service: SheetsSyncService,
+        conflicts_service: ConflictsService,
     ) -> None:
         super().__init__()
         app = QApplication.instance()
@@ -86,6 +108,7 @@ class MainWindow(QMainWindow):
         self._grupo_use_cases = grupo_use_cases
         self._sheets_service = sheets_service
         self._sync_service = sync_service
+        self._conflicts_service = conflicts_service
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
         self.setWindowTitle("Horas Sindicales")
@@ -606,7 +629,7 @@ class MainWindow(QMainWindow):
         self.hasta_placeholder.setVisible(checked)
 
     def _on_edit_grupo(self) -> None:
-        dialog = GrupoConfigDialog(self._grupo_use_cases, self)
+        dialog = GrupoConfigDialog(self._grupo_use_cases, self._sync_service, self)
         if dialog.exec():
             self._refresh_saldos()
 
@@ -640,11 +663,9 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Error de sincronización", error_message)
 
     def _on_review_conflicts(self) -> None:
-        QMessageBox.information(
-            self,
-            "Revisar discrepancias",
-            "Las discrepancias se almacenaron en la base de datos. Se habilitará un flujo de revisión en el próximo paso.",
-        )
+        dialog = ConflictsDialog(self._conflicts_service, self)
+        dialog.exec()
+        self.review_conflicts_button.setEnabled(self._conflicts_service.count_conflicts() > 0)
 
     def _on_open_opciones(self) -> None:
         dialog = OpcionesDialog(self._sheets_service, self)
@@ -892,11 +913,66 @@ class MainWindow(QMainWindow):
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(generado)))
         if errores:
             QMessageBox.warning(self, "Errores", "\n".join(errores))
+        if generado and creadas:
+            pdf_hash = creadas[0].pdf_hash
+            fechas = [solicitud.fecha_pedida for solicitud in creadas]
+            self._sync_service.register_pdf_log(persona.id or 0, fechas, pdf_hash)
+            self._ask_push_after_pdf()
         self._pending_solicitudes = pendientes_restantes
         self.pendientes_model.set_solicitudes(self._pending_solicitudes)
         self._refresh_historico()
         self._refresh_saldos()
         self._update_action_state()
+
+    def _ask_push_after_pdf(self) -> None:
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("PDF generado")
+        dialog.setText("PDF generado. ¿Quieres subir los cambios a Google Sheets ahora?")
+        subir_button = dialog.addButton("Subir ahora", QMessageBox.AcceptRole)
+        dialog.addButton("Más tarde", QMessageBox.RejectRole)
+        dialog.exec()
+        if dialog.clickedButton() != subir_button:
+            return
+        self._on_push_now()
+
+    def _on_push_now(self) -> None:
+        if not self._sync_service.is_configured():
+            QMessageBox.warning(
+                self,
+                "Sin configuración",
+                "No hay configuración de Google Sheets. Abre Opciones para configurarlo.",
+            )
+            return
+        self.sync_button.setEnabled(False)
+        self.review_conflicts_button.setEnabled(False)
+        self._sync_thread = QThread()
+        self._sync_worker = PushWorker(self._sync_service)
+        self._sync_worker.moveToThread(self._sync_thread)
+        self._sync_thread.started.connect(self._sync_worker.run)
+        self._sync_worker.finished.connect(self._on_push_finished)
+        self._sync_worker.failed.connect(self._on_push_failed)
+        self._sync_worker.finished.connect(self._sync_thread.quit)
+        self._sync_worker.finished.connect(self._sync_worker.deleteLater)
+        self._sync_thread.finished.connect(self._sync_thread.deleteLater)
+        self._sync_thread.start()
+
+    def _on_push_finished(self, summary: SyncSummary) -> None:
+        self.sync_button.setEnabled(True)
+        if summary.conflicts > 0:
+            self.review_conflicts_button.setEnabled(True)
+            dialog = ConflictsDialog(self._conflicts_service, self)
+            dialog.exec()
+            self.review_conflicts_button.setEnabled(self._conflicts_service.count_conflicts() > 0)
+        self._refresh_last_sync_label()
+        QMessageBox.information(
+            self,
+            "Subida completa",
+            f"Subidos: {summary.uploaded}\nConflictos: {summary.conflicts}",
+        )
+
+    def _on_push_failed(self, error_message: str) -> None:
+        self.sync_button.setEnabled(True)
+        QMessageBox.critical(self, "Error de subida", error_message)
 
     def _on_generar_pdf_historico(self) -> None:
         persona = self._current_persona()
