@@ -10,6 +10,7 @@ from app.domain.models import SheetsConfig
 from app.domain.ports import SheetsConfigRepository
 from app.domain.services import BusinessRuleError, ValidacionError, validar_sheets_config
 from app.infrastructure.sheets_client import SheetsClient
+from app.infrastructure.sheets_errors import SheetsCredentialsError
 from app.infrastructure.sheets_repository import SheetsRepository
 
 logger = logging.getLogger(__name__)
@@ -160,4 +161,4 @@ class SheetsService:
             raise BusinessRuleError("Debe seleccionar un archivo de credenciales JSON.")
         credentials_path = Path(path)
         if not credentials_path.exists():
-            raise BusinessRuleError("No se encontró el archivo de credenciales JSON guardado.")
+            raise SheetsCredentialsError(f"No se encuentra credentials.json en {credentials_path}.")

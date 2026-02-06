@@ -14,6 +14,7 @@ import gspread
 from app.application.sheets_service import SHEETS_SCHEMA
 from app.infrastructure.local_config import SheetsConfigStore
 from app.infrastructure.sheets_client import SheetsClient
+from app.infrastructure.sheets_errors import SheetsConfigError
 from app.infrastructure.sheets_repository import SheetsRepository
 
 logger = logging.getLogger(__name__)
@@ -150,8 +151,8 @@ class SheetsSyncService:
 
     def _open_spreadsheet(self) -> gspread.Spreadsheet:
         config = self._config_store.load()
-        if not config:
-            raise RuntimeError("No hay configuración de Google Sheets.")
+        if not config or not config.spreadsheet_id or not config.credentials_path:
+            raise SheetsConfigError("No hay configuración de Google Sheets.")
         credentials_path = Path(config.credentials_path)
         spreadsheet = self._client.open_spreadsheet(credentials_path, config.spreadsheet_id)
         return spreadsheet

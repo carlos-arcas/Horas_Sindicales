@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -40,6 +41,13 @@ from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, Soli
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.time_utils import minutes_to_hhmm
 from app.infrastructure.sheets_sync_service import SheetsSyncService, SyncSummary
+from app.infrastructure.sheets_errors import (
+    SheetsApiDisabledError,
+    SheetsConfigError,
+    SheetsCredentialsError,
+    SheetsNotFoundError,
+    SheetsPermissionError,
+)
 from app.ui.models_qt import SolicitudesTableModel
 from app.ui.dialog_opciones import OpcionesDialog
 from app.ui.conflicts_dialog import ConflictsDialog
@@ -53,7 +61,7 @@ logger = logging.getLogger(__name__)
 
 class SyncWorker(QObject):
     finished = Signal(SyncSummary)
-    failed = Signal(str)
+    failed = Signal(object)
 
     def __init__(self, sync_service: SheetsSyncService) -> None:
         super().__init__()
@@ -65,14 +73,14 @@ class SyncWorker(QObject):
             summary = self._sync_service.sync()
         except Exception as exc:
             logger.exception("Error durante la sincronización")
-            self.failed.emit(str(exc))
+            self.failed.emit(exc)
             return
         self.finished.emit(summary)
 
 
 class PushWorker(QObject):
     finished = Signal(SyncSummary)
-    failed = Signal(str)
+    failed = Signal(object)
 
     def __init__(self, sync_service: SheetsSyncService) -> None:
         super().__init__()
@@ -84,7 +92,7 @@ class PushWorker(QObject):
             summary = self._sync_service.push()
         except Exception as exc:
             logger.exception("Error durante la subida")
-            self.failed.emit(str(exc))
+            self.failed.emit(exc)
             return
         self.finished.emit(summary)
 
@@ -115,6 +123,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._load_personas()
         self._refresh_last_sync_label()
+        self._update_sync_button_state()
 
     def _create_card(self, title: str) -> tuple[QFrame, QVBoxLayout]:
         card = QFrame()
@@ -634,6 +643,13 @@ class MainWindow(QMainWindow):
             self._refresh_saldos()
 
     def _on_sync(self) -> None:
+        if not self._sync_service.is_configured():
+            QMessageBox.warning(
+                self,
+                "Sin configuración",
+                "No hay configuración de Google Sheets. Abre Opciones para configurarlo.",
+            )
+            return
         self.sync_button.setEnabled(False)
         self.review_conflicts_button.setEnabled(False)
         self._sync_thread = QThread()
@@ -648,7 +664,7 @@ class MainWindow(QMainWindow):
         self._sync_thread.start()
 
     def _on_sync_finished(self, summary: SyncSummary) -> None:
-        self.sync_button.setEnabled(True)
+        self._update_sync_button_state()
         if summary.conflicts > 0:
             self.review_conflicts_button.setEnabled(True)
         self._refresh_last_sync_label()
@@ -658,9 +674,9 @@ class MainWindow(QMainWindow):
             f"Bajados: {summary.downloaded}\nSubidos: {summary.uploaded}\nConflictos: {summary.conflicts}",
         )
 
-    def _on_sync_failed(self, error_message: str) -> None:
-        self.sync_button.setEnabled(True)
-        QMessageBox.critical(self, "Error de sincronización", error_message)
+    def _on_sync_failed(self, error: Exception) -> None:
+        self._update_sync_button_state()
+        self._show_sheets_error(error, "Error de sincronización")
 
     def _on_review_conflicts(self) -> None:
         dialog = ConflictsDialog(self._conflicts_service, self)
@@ -670,6 +686,7 @@ class MainWindow(QMainWindow):
     def _on_open_opciones(self) -> None:
         dialog = OpcionesDialog(self._sheets_service, self)
         dialog.exec()
+        self._update_sync_button_state()
 
     def _on_edit_pdf(self) -> None:
         self._on_edit_grupo()
@@ -957,7 +974,7 @@ class MainWindow(QMainWindow):
         self._sync_thread.start()
 
     def _on_push_finished(self, summary: SyncSummary) -> None:
-        self.sync_button.setEnabled(True)
+        self._update_sync_button_state()
         if summary.conflicts > 0:
             self.review_conflicts_button.setEnabled(True)
             dialog = ConflictsDialog(self._conflicts_service, self)
@@ -970,9 +987,67 @@ class MainWindow(QMainWindow):
             f"Subidos: {summary.uploaded}\nConflictos: {summary.conflicts}",
         )
 
-    def _on_push_failed(self, error_message: str) -> None:
-        self.sync_button.setEnabled(True)
-        QMessageBox.critical(self, "Error de subida", error_message)
+    def _on_push_failed(self, error: Exception) -> None:
+        self._update_sync_button_state()
+        self._show_sheets_error(error, "Error de subida")
+
+    def _update_sync_button_state(self) -> None:
+        configured = self._sync_service.is_configured()
+        self.sync_button.setEnabled(configured)
+
+    def _show_sheets_error(self, error: Exception, fallback_title: str) -> None:
+        if isinstance(error, SheetsApiDisabledError):
+            QMessageBox.critical(
+                self,
+                "Google Sheets API deshabilitada",
+                "La API de Google Sheets no está habilitada en tu proyecto de Google Cloud.\n\n"
+                "Solución: entra en Google Cloud Console → APIs & Services → Library → "
+                "Google Sheets API → Enable.\n\n"
+                "Después espera 2–5 minutos y vuelve a probar.",
+            )
+            return
+        if isinstance(error, SheetsPermissionError):
+            email = self._service_account_email()
+            email_hint = f"{email}" if email else "la cuenta de servicio"
+            QMessageBox.critical(
+                self,
+                "Permisos insuficientes",
+                "La hoja no está compartida con la cuenta de servicio.\n\n"
+                f"Comparte la hoja con: {email_hint} como Editor.",
+            )
+            return
+        if isinstance(error, SheetsNotFoundError):
+            QMessageBox.critical(
+                self,
+                "Hoja no encontrada",
+                "El Spreadsheet ID/URL no es válido o la hoja no existe.",
+            )
+            return
+        if isinstance(error, SheetsCredentialsError):
+            QMessageBox.critical(
+                self,
+                "Credenciales inválidas",
+                "No se pueden leer las credenciales JSON seleccionadas.",
+            )
+            return
+        if isinstance(error, SheetsConfigError):
+            QMessageBox.warning(
+                self,
+                "Sin configuración",
+                "No hay configuración de Google Sheets. Abre Opciones para configurarlo.",
+            )
+            return
+        QMessageBox.critical(self, fallback_title, str(error))
+
+    def _service_account_email(self) -> str | None:
+        config = self._sheets_service.get_config()
+        if not config or not config.credentials_path:
+            return None
+        try:
+            payload = json.loads(Path(config.credentials_path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        return str(payload.get("client_email", "")).strip() or None
 
     def _on_generar_pdf_historico(self) -> None:
         persona = self._current_persona()
