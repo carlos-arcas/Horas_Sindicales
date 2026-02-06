@@ -83,7 +83,38 @@ def _add_column_if_missing(
 ) -> None:
     if _column_exists(cursor, table, column):
         return
-    cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+    sanitized_type = column_type.replace("UNIQUE", "").replace("unique", "")
+    sanitized_type = " ".join(sanitized_type.split())
+    cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {sanitized_type}")
+
+
+def _ensure_unique_uuids(cursor: sqlite3.Cursor, table: str) -> None:
+    cursor.execute(f"SELECT id, uuid FROM {table} WHERE uuid IS NULL")
+    for row in cursor.fetchall():
+        cursor.execute(
+            f"UPDATE {table} SET uuid = ? WHERE id = ?",
+            (str(uuid.uuid4()), row["id"]),
+        )
+
+    cursor.execute(
+        f"""
+        SELECT uuid
+        FROM {table}
+        WHERE uuid IS NOT NULL
+        GROUP BY uuid
+        HAVING COUNT(*) > 1
+        """
+    )
+    for row in cursor.fetchall():
+        cursor.execute(
+            f"SELECT id FROM {table} WHERE uuid = ? ORDER BY id", (row["uuid"],)
+        )
+        ids = [duplicate["id"] for duplicate in cursor.fetchall()]
+        for duplicate_id in ids[1:]:
+            cursor.execute(
+                f"UPDATE {table} SET uuid = ? WHERE id = ?",
+                (str(uuid.uuid4()), duplicate_id),
+            )
 
 
 def _ensure_personas_columns(cursor: sqlite3.Cursor) -> None:
@@ -276,20 +307,34 @@ def _ensure_sync_tables(cursor: sqlite3.Cursor) -> None:
 
 def _ensure_sync_columns(cursor: sqlite3.Cursor) -> None:
     for column, column_type in [
-        ("uuid", "TEXT UNIQUE"),
+        ("uuid", "TEXT"),
         ("updated_at", "TEXT"),
         ("source_device", "TEXT"),
         ("deleted", "INTEGER DEFAULT 0"),
     ]:
         _add_column_if_missing(cursor, "personas", column, column_type)
+    _ensure_unique_uuids(cursor, "personas")
+    cursor.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_personas_uuid
+        ON personas(uuid)
+        """
+    )
     for column, column_type in [
-        ("uuid", "TEXT UNIQUE"),
+        ("uuid", "TEXT"),
         ("updated_at", "TEXT"),
         ("source_device", "TEXT"),
         ("deleted", "INTEGER DEFAULT 0"),
         ("created_at", "TEXT"),
     ]:
         _add_column_if_missing(cursor, "solicitudes", column, column_type)
+    _ensure_unique_uuids(cursor, "solicitudes")
+    cursor.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_solicitudes_uuid
+        ON solicitudes(uuid)
+        """
+    )
 
 
 def _seed_sync_metadata(cursor: sqlite3.Cursor) -> None:
