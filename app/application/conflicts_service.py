@@ -7,6 +7,16 @@ from datetime import datetime, timezone
 from typing import Callable
 
 
+def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: tuple[object, ...], context: str) -> None:
+    expected = sql.count("?")
+    actual = len(params)
+    if expected != actual:
+        raise ValueError(
+            f"SQL param mismatch for {context}: expected {expected} placeholders, got {actual} parameters."
+        )
+    cursor.execute(sql, params)
+
+
 @dataclass(frozen=True)
 class ConflictRecord:
     id: int
@@ -156,7 +166,8 @@ class ConflictsService:
             data["updated_at"] = self._now_iso()
             data["source_device"] = self._device_id_provider()
         if persona_id:
-            cursor.execute(
+            _execute_with_validation(
+                cursor,
                 """
                 UPDATE personas
                 SET nombre = ?, genero = ?, horas_mes_min = ?, horas_ano_min = ?, is_active = ?,
@@ -174,9 +185,11 @@ class ConflictsService:
                     data["deleted"],
                     persona_id,
                 ),
+                "personas.update",
             )
             if cuad_fields:
-                cursor.execute(
+                _execute_with_validation(
+                    cursor,
                     """
                     UPDATE personas
                     SET cuad_lun_man_min = ?, cuad_lun_tar_min = ?, cuad_mar_man_min = ?, cuad_mar_tar_min = ?,
@@ -202,9 +215,11 @@ class ConflictsService:
                         cuad_fields["cuad_dom_tar_min"],
                         persona_id,
                     ),
+                    "personas.update_cuadrantes",
                 )
         else:
-            cursor.execute(
+            _execute_with_validation(
+                cursor,
                 """
                 INSERT INTO personas (
                     uuid, nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min, is_active,
@@ -213,7 +228,7 @@ class ConflictsService:
                     cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
                     cuad_dom_man_min, cuad_dom_tar_min,
                     updated_at, source_device, deleted
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     uuid_value,
@@ -241,6 +256,7 @@ class ConflictsService:
                     data["source_device"],
                     data["deleted"],
                 ),
+                "personas.insert",
             )
 
     def _apply_solicitud(self, uuid_value: str, snapshot: dict, mark_dirty: bool, remote: bool) -> None:
@@ -287,7 +303,8 @@ class ConflictsService:
             data["updated_at"] = self._now_iso()
             data["source_device"] = self._device_id_provider()
         if solicitud_id:
-            cursor.execute(
+            _execute_with_validation(
+                cursor,
                 """
                 UPDATE solicitudes
                 SET persona_id = ?, fecha_pedida = ?, desde_min = ?, hasta_min = ?, completo = ?,
@@ -310,9 +327,11 @@ class ConflictsService:
                     data["deleted"],
                     solicitud_id,
                 ),
+                "solicitudes.update",
             )
         else:
-            cursor.execute(
+            _execute_with_validation(
+                cursor,
                 """
                 INSERT INTO solicitudes (
                     uuid, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
@@ -338,6 +357,7 @@ class ConflictsService:
                     data["source_device"],
                     data["deleted"],
                 ),
+                "solicitudes.insert",
             )
 
     def _apply_cuadrante(self, uuid_value: str, snapshot: dict, mark_dirty: bool, remote: bool) -> None:
@@ -419,14 +439,12 @@ class ConflictsService:
         if persona_id is None:
             return
         cursor = self._connection.cursor()
-        cursor.execute(
-            f"""
+        sql = f"""
             UPDATE personas
             SET cuad_{dia}_man_min = ?, cuad_{dia}_tar_min = ?
             WHERE id = ?
-            """,
-            (man_min or 0, tar_min or 0, persona_id),
-        )
+            """
+        _execute_with_validation(cursor, sql, (man_min or 0, tar_min or 0, persona_id), "personas.update_cuadrante")
 
     def _persona_id_from_uuid(self, delegada_uuid: str | None) -> int | None:
         if not delegada_uuid:

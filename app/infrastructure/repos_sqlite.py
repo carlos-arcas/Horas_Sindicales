@@ -23,6 +23,17 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: Iterable[object], context: str) -> None:
+    expected = sql.count("?")
+    params_list = list(params)
+    actual = len(params_list)
+    if expected != actual:
+        raise ValueError(
+            f"SQL param mismatch for {context}: expected {expected} placeholders, got {actual} parameters."
+        )
+    cursor.execute(sql, tuple(params_list))
+
+
 class PersonaRepositorySQLite(PersonaRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
@@ -169,7 +180,8 @@ class PersonaRepositorySQLite(PersonaRepository):
         cursor = self._connection.cursor()
         persona_uuid = str(uuid.uuid4())
         updated_at = _now_iso()
-        cursor.execute(
+        _execute_with_validation(
+            cursor,
             """
             INSERT INTO personas (
                 uuid, nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min, is_active,
@@ -178,7 +190,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                 cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
                 cuad_dom_man_min, cuad_dom_tar_min,
                 updated_at, deleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 persona_uuid,
@@ -205,6 +217,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                 updated_at,
                 0,
             ),
+            "personas.insert",
         )
         self._connection.commit()
         return Persona(
@@ -233,7 +246,8 @@ class PersonaRepositorySQLite(PersonaRepository):
     def update(self, persona: Persona) -> Persona:
         cursor = self._connection.cursor()
         updated_at = _now_iso()
-        cursor.execute(
+        _execute_with_validation(
+            cursor,
             """
             UPDATE personas
             SET nombre = ?, genero = ?, horas_mes_min = ?, horas_ano_min = ?, horas_jornada_defecto_min = ?,
@@ -269,6 +283,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                 updated_at,
                 persona.id,
             ),
+            "personas.update",
         )
         self._connection.commit()
         return persona
@@ -464,12 +479,13 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor = self._connection.cursor()
         solicitud_uuid = str(uuid.uuid4())
         created_at = _now_iso()
-        cursor.execute(
+        _execute_with_validation(
+            cursor,
             """
             INSERT INTO solicitudes (
                 uuid, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
                 horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, created_at, updated_at, deleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 solicitud_uuid,
@@ -481,13 +497,14 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 int(solicitud.completo),
                 solicitud.horas_solicitadas_min,
                 solicitud.observaciones,
-                solicitud.notas,
+                solicitud.notas or "",
                 solicitud.pdf_path,
                 solicitud.pdf_hash,
                 created_at,
                 created_at,
                 0,
             ),
+            "solicitudes.insert",
         )
         self._connection.commit()
         return Solicitud(
@@ -500,7 +517,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             completo=solicitud.completo,
             horas_solicitadas_min=solicitud.horas_solicitadas_min,
             observaciones=solicitud.observaciones,
-            notas=solicitud.notas,
+            notas=solicitud.notas or "",
             pdf_path=solicitud.pdf_path,
             pdf_hash=solicitud.pdf_hash,
         )
@@ -508,13 +525,15 @@ class SolicitudRepositorySQLite(SolicitudRepository):
     def delete(self, solicitud_id: int) -> None:
         cursor = self._connection.cursor()
         updated_at = _now_iso()
-        cursor.execute(
+        _execute_with_validation(
+            cursor,
             """
             UPDATE solicitudes
             SET deleted = 1, updated_at = ?
             WHERE id = ?
             """,
             (updated_at, solicitud_id),
+            "solicitudes.delete",
         )
         self._connection.commit()
 
@@ -524,22 +543,22 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             return
         cursor = self._connection.cursor()
         placeholders = ",".join("?" for _ in ids)
-        cursor.execute(
-            f"UPDATE solicitudes SET deleted = 1, updated_at = ? WHERE id IN ({placeholders})",
-            [_now_iso(), *ids],
-        )
+        sql = f"UPDATE solicitudes SET deleted = 1, updated_at = ? WHERE id IN ({placeholders})"
+        _execute_with_validation(cursor, sql, [_now_iso(), *ids], "solicitudes.delete_by_ids")
         self._connection.commit()
 
     def update_pdf_info(self, solicitud_id: int, pdf_path: str, pdf_hash: str | None) -> None:
         cursor = self._connection.cursor()
         updated_at = _now_iso()
-        cursor.execute(
+        _execute_with_validation(
+            cursor,
             """
             UPDATE solicitudes
             SET pdf_path = ?, pdf_hash = ?, updated_at = ?
             WHERE id = ?
             """,
             (pdf_path, pdf_hash, updated_at, solicitud_id),
+            "solicitudes.update_pdf_info",
         )
         self._connection.commit()
 

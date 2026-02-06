@@ -20,6 +20,16 @@ from app.infrastructure.sheets_repository import SheetsRepository
 logger = logging.getLogger(__name__)
 
 
+def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: tuple[object, ...], context: str) -> None:
+    expected = sql.count("?")
+    actual = len(params)
+    if expected != actual:
+        raise ValueError(
+            f"SQL param mismatch for {context}: expected {expected} placeholders, got {actual} parameters."
+        )
+    cursor.execute(sql, params)
+
+
 @dataclass(frozen=True)
 class SyncSummary:
     downloaded: int
@@ -610,7 +620,8 @@ class SheetsSyncService:
 
     def _insert_persona_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:
         cursor = self._connection.cursor()
-        cursor.execute(
+        _execute_with_validation(
+            cursor,
             """
             INSERT INTO personas (
                 uuid, nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min, is_active,
@@ -619,7 +630,7 @@ class SheetsSyncService:
                 cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
                 cuad_dom_man_min, cuad_dom_tar_min,
                 updated_at, source_device, deleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 uuid_value,
@@ -647,13 +658,15 @@ class SheetsSyncService:
                 row.get("source_device"),
                 self._int_or_zero(row.get("deleted")),
             ),
+            "personas.insert_remote",
         )
         self._connection.commit()
 
     def _update_persona_from_remote(self, persona_id: int, row: dict[str, Any]) -> None:
         cursor = self._connection.cursor()
         deleted = self._int_or_zero(row.get("deleted"))
-        cursor.execute(
+        _execute_with_validation(
+            cursor,
             """
             UPDATE personas
             SET nombre = ?, genero = ?, horas_mes_min = ?, horas_ano_min = ?, is_active = ?,
@@ -671,6 +684,7 @@ class SheetsSyncService:
                 deleted,
                 persona_id,
             ),
+            "personas.update_remote",
         )
         self._connection.commit()
 
@@ -682,7 +696,8 @@ class SheetsSyncService:
             return
         desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
         hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
-        cursor.execute(
+        _execute_with_validation(
+            cursor,
             """
             INSERT INTO solicitudes (
                 uuid, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
@@ -700,7 +715,7 @@ class SheetsSyncService:
                 1 if self._int_or_zero(row.get("completo")) else 0,
                 self._int_or_zero(row.get("minutos_total")),
                 None,
-                row.get("notas"),
+                row.get("notas") or "",
                 None,
                 row.get("pdf_id"),
                 row.get("created_at") or row.get("fecha"),
@@ -708,6 +723,7 @@ class SheetsSyncService:
                 row.get("source_device"),
                 self._int_or_zero(row.get("deleted")),
             ),
+            "solicitudes.insert_remote",
         )
         self._connection.commit()
 
@@ -719,7 +735,8 @@ class SheetsSyncService:
             return
         desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
         hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
-        cursor.execute(
+        _execute_with_validation(
+            cursor,
             """
             UPDATE solicitudes
             SET persona_id = ?, fecha_pedida = ?, desde_min = ?, hasta_min = ?, completo = ?,
@@ -734,7 +751,7 @@ class SheetsSyncService:
                 hasta_min,
                 1 if self._int_or_zero(row.get("completo")) else 0,
                 self._int_or_zero(row.get("minutos_total")),
-                row.get("notas"),
+                row.get("notas") or "",
                 row.get("pdf_id"),
                 row.get("created_at") or row.get("fecha"),
                 row.get("updated_at") or self._now_iso(),
@@ -742,6 +759,7 @@ class SheetsSyncService:
                 self._int_or_zero(row.get("deleted")),
                 solicitud_id,
             ),
+            "solicitudes.update_remote",
         )
         self._connection.commit()
 
@@ -800,14 +818,12 @@ class SheetsSyncService:
         man_min = self._join_minutes(row.get("man_h"), row.get("man_m"))
         tar_min = self._join_minutes(row.get("tar_h"), row.get("tar_m"))
         cursor = self._connection.cursor()
-        cursor.execute(
-            f"""
+        sql = f"""
             UPDATE personas
             SET cuad_{dia}_man_min = ?, cuad_{dia}_tar_min = ?
             WHERE id = ?
-            """,
-            (man_min, tar_min, persona_id),
-        )
+            """
+        _execute_with_validation(cursor, sql, (man_min, tar_min, persona_id), "personas.update_cuadrante")
         self._connection.commit()
 
     def _sync_local_cuadrantes_from_personas(self) -> None:

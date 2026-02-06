@@ -6,6 +6,20 @@ import sqlite3
 logger = logging.getLogger(__name__)
 
 
+def _validate_params_length(sql: str, params: tuple[object, ...], context: str) -> None:
+    expected = sql.count("?")
+    actual = len(params)
+    if expected != actual:
+        raise ValueError(
+            f"SQL param mismatch for {context}: expected {expected} placeholders, got {actual} parameters."
+        )
+
+
+def _validate_executemany(sql: str, params_list: list[tuple[object, ...]], context: str) -> None:
+    for index, params in enumerate(params_list):
+        _validate_params_length(sql, params, f"{context}[{index}]")
+
+
 def seed_if_empty(connection: sqlite3.Connection) -> None:
     cursor = connection.cursor()
     cursor.execute("SELECT COUNT(*) FROM personas")
@@ -58,8 +72,7 @@ def seed_if_empty(connection: sqlite3.Connection) -> None:
         ),
     ]
     if _column_exists(cursor, "personas", "horas_mes"):
-        cursor.executemany(
-            """
+        sql = """
             INSERT INTO personas (
                 nombre, genero,
                 horas_mes, horas_ano, horas_jornada_defecto,
@@ -70,29 +83,32 @@ def seed_if_empty(connection: sqlite3.Connection) -> None:
                 cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
                 cuad_dom_man_min, cuad_dom_tar_min
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            [
-                (
-                    persona[0],
-                    persona[1],
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    *persona[2:],
-                )
-                for persona in personas
-            ],
+            """
+        params_list = [
+            (
+                persona[0],
+                persona[1],
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                *persona[2:],
+            )
+            for persona in personas
+        ]
+        _validate_executemany(sql, params_list, "personas.seed_with_legacy_columns")
+        cursor.executemany(
+            sql,
+            params_list,
         )
     else:
-        cursor.executemany(
-            """
+        sql = """
             INSERT INTO personas (
                 nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
                 cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
@@ -100,8 +116,12 @@ def seed_if_empty(connection: sqlite3.Connection) -> None:
                 cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
                 cuad_dom_man_min, cuad_dom_tar_min
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            personas,
+            """
+        params_list = personas
+        _validate_executemany(sql, params_list, "personas.seed_min_columns")
+        cursor.executemany(
+            sql,
+            params_list,
         )
     connection.commit()
 
