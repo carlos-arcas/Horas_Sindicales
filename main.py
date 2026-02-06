@@ -146,8 +146,10 @@ def _run_app() -> int:
     solicitud_use_cases = SolicitudUseCases(solicitud_repo, persona_repo, grupo_repo)
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)
     config_store = SheetsConfigStore()
-    sheets_service = SheetsService(config_store, SheetsClient(), SheetsRepository())
-    sync_service = SheetsSyncService(connection, config_store, SheetsClient(), SheetsRepository())
+    sheets_client = SheetsClient()
+    sheets_repository = SheetsRepository()
+    sheets_service = SheetsService(config_store, sheets_client, sheets_repository)
+    sync_service = SheetsSyncService(connection, config_store, sheets_client, sheets_repository)
     conflicts_service = ConflictsService(
         connection, lambda: config_store.load().device_id if config_store.load() else ""
     )
@@ -160,6 +162,9 @@ def _run_app() -> int:
             grupo_use_cases,
             sheets_service,
             sync_service,
+            config_store,
+            sheets_client,
+            sheets_repository,
             conflicts_service,
         )
     except Exception:
