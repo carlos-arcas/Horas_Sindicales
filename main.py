@@ -117,6 +117,7 @@ def _run_app() -> int:
 
     from PySide6.QtWidgets import QApplication
 
+    from app.application.conflicts_service import ConflictsService
     from app.application.sheets_service import SheetsService
     from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
     from app.infrastructure.db import get_connection
@@ -147,6 +148,9 @@ def _run_app() -> int:
     config_store = SheetsConfigStore()
     sheets_service = SheetsService(config_store, SheetsClient(), SheetsRepository())
     sync_service = SheetsSyncService(connection, config_store, SheetsClient(), SheetsRepository())
+    conflicts_service = ConflictsService(
+        connection, lambda: config_store.load().device_id if config_store.load() else ""
+    )
 
     app = QApplication([])
     try:
@@ -156,6 +160,7 @@ def _run_app() -> int:
             grupo_use_cases,
             sheets_service,
             sync_service,
+            conflicts_service,
         )
     except Exception:
         logger.exception("Error construyendo MainWindow")

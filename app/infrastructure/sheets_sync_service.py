@@ -74,6 +74,8 @@ class SheetsSyncService:
         uploaded_count, conflict_count = self._push_cuadrantes(spreadsheet, last_sync_at)
         uploaded += uploaded_count
         conflicts += conflict_count
+        uploaded += self._push_pdf_log(spreadsheet, last_sync_at)
+        uploaded += self._push_config(spreadsheet, last_sync_at)
         self._set_last_sync_at(self._now_iso())
         return SyncSummary(downloaded=0, uploaded=uploaded, conflicts=conflicts)
 
@@ -88,6 +90,63 @@ class SheetsSyncService:
 
     def get_last_sync_at(self) -> str | None:
         return self._get_last_sync_at()
+
+    def is_configured(self) -> bool:
+        config = self._config_store.load()
+        return bool(config and config.spreadsheet_id and config.credentials_path)
+
+    def store_sync_config_value(self, key: str, value: str) -> None:
+        if not self.is_configured():
+            return
+        cursor = self._connection.cursor()
+        now_iso = self._now_iso()
+        cursor.execute(
+            """
+            INSERT INTO sync_config (key, value, updated_at, source_device)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = excluded.updated_at,
+                source_device = excluded.source_device
+            """,
+            (key, value, now_iso, self._device_id()),
+        )
+        self._connection.commit()
+
+    def register_pdf_log(self, persona_id: int, fechas: list[str], pdf_hash: str | None) -> None:
+        if not pdf_hash:
+            return
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT uuid FROM personas WHERE id = ?", (persona_id,))
+        row = cursor.fetchone()
+        if not row:
+            return
+        delegada_uuid = row["uuid"]
+        rango = self._format_rango_fechas(fechas)
+        now_iso = self._now_iso()
+        cursor.execute(
+            """
+            INSERT INTO pdf_log (pdf_id, delegada_uuid, rango_fechas, fecha_generacion, hash, updated_at, source_device)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(pdf_id) DO UPDATE SET
+                delegada_uuid = excluded.delegada_uuid,
+                rango_fechas = excluded.rango_fechas,
+                fecha_generacion = excluded.fecha_generacion,
+                hash = excluded.hash,
+                updated_at = excluded.updated_at,
+                source_device = excluded.source_device
+            """,
+            (
+                pdf_hash,
+                delegada_uuid,
+                rango,
+                now_iso,
+                pdf_hash,
+                now_iso,
+                self._device_id(),
+            ),
+        )
+        self._connection.commit()
 
     def _open_spreadsheet(self) -> gspread.Spreadsheet:
         config = self._config_store.load()
@@ -261,6 +320,7 @@ class SheetsSyncService:
                     (key, row.get("value"), row.get("updated_at"), row.get("source_device")),
                 )
                 downloaded += 1
+                self._apply_config_value(key, row.get("value"))
             elif self._is_remote_newer(existing["updated_at"], self._parse_iso(row.get("updated_at"))):
                 cursor.execute(
                     """
@@ -271,8 +331,84 @@ class SheetsSyncService:
                     (row.get("value"), row.get("updated_at"), row.get("source_device"), key),
                 )
                 downloaded += 1
+                self._apply_config_value(key, row.get("value"))
         self._connection.commit()
         return downloaded
+
+    def _push_pdf_log(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> int:
+        worksheet = spreadsheet.worksheet("pdf_log")
+        headers, rows = self._rows_with_index(worksheet)
+        header_map = self._header_map(headers, SHEETS_SCHEMA["pdf_log"])
+        remote_index = {row["pdf_id"]: row for _, row in rows if row.get("pdf_id")}
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT pdf_id, delegada_uuid, rango_fechas, fecha_generacion, hash, updated_at, source_device
+            FROM pdf_log
+            WHERE updated_at IS NOT NULL
+            """
+        )
+        uploaded = 0
+        for row in cursor.fetchall():
+            if not self._is_after_last_sync(row["updated_at"], last_sync_at):
+                continue
+            remote_row = remote_index.get(row["pdf_id"])
+            remote_updated_at = self._parse_iso(remote_row.get("updated_at") if remote_row else None)
+            local_updated_at = self._parse_iso(row["updated_at"])
+            if remote_row and remote_updated_at and local_updated_at and remote_updated_at > local_updated_at:
+                continue
+            payload = {
+                "pdf_id": row["pdf_id"],
+                "delegada_uuid": row["delegada_uuid"],
+                "rango_fechas": row["rango_fechas"],
+                "fecha_generacion": row["fecha_generacion"],
+                "hash": row["hash"],
+                "updated_at": row["updated_at"],
+                "source_device": row["source_device"] or self._device_id(),
+            }
+            if remote_row:
+                row_number = remote_row["__row_number__"]
+                self._update_row(worksheet, row_number, header_map, payload)
+            else:
+                self._append_row(worksheet, header_map, payload)
+            uploaded += 1
+        return uploaded
+
+    def _push_config(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> int:
+        worksheet = spreadsheet.worksheet("config")
+        headers, rows = self._rows_with_index(worksheet)
+        header_map = self._header_map(headers, SHEETS_SCHEMA["config"])
+        remote_index = {row["key"]: row for _, row in rows if row.get("key")}
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT key, value, updated_at, source_device
+            FROM sync_config
+            WHERE updated_at IS NOT NULL
+            """
+        )
+        uploaded = 0
+        for row in cursor.fetchall():
+            if not self._is_after_last_sync(row["updated_at"], last_sync_at):
+                continue
+            remote_row = remote_index.get(row["key"])
+            remote_updated_at = self._parse_iso(remote_row.get("updated_at") if remote_row else None)
+            local_updated_at = self._parse_iso(row["updated_at"])
+            if remote_row and remote_updated_at and local_updated_at and remote_updated_at > local_updated_at:
+                continue
+            payload = {
+                "key": row["key"],
+                "value": row["value"],
+                "updated_at": row["updated_at"],
+                "source_device": row["source_device"] or self._device_id(),
+            }
+            if remote_row:
+                row_number = remote_row["__row_number__"]
+                self._update_row(worksheet, row_number, header_map, payload)
+            else:
+                self._append_row(worksheet, header_map, payload)
+            uploaded += 1
+        return uploaded
 
     def _push_delegadas(
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
@@ -875,6 +1011,28 @@ class SheetsSyncService:
     def _device_id(self) -> str:
         config = self._config_store.load()
         return config.device_id if config else ""
+
+    def _apply_config_value(self, key: str, value: Any) -> None:
+        if key != "pdf_text":
+            return
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            UPDATE grupo_config
+            SET pdf_intro_text = ?
+            WHERE id = 1
+            """,
+            (value or "",),
+        )
+
+    @staticmethod
+    def _format_rango_fechas(fechas: list[str]) -> str:
+        fechas_filtradas = sorted({fecha for fecha in fechas if fecha})
+        if not fechas_filtradas:
+            return ""
+        if len(fechas_filtradas) == 1:
+            return fechas_filtradas[0]
+        return f"{fechas_filtradas[0]} - {fechas_filtradas[-1]}"
 
     @staticmethod
     def _generate_uuid() -> str:
