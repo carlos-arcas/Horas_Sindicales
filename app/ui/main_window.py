@@ -203,8 +203,29 @@ class MainWindow(QMainWindow):
         header_layout = QVBoxLayout(header_frame)
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(8)
+        header_top = QHBoxLayout()
+        header_top.setSpacing(12)
         header = HeaderWidget()
-        header_layout.addWidget(header)
+        header_top.addWidget(header, 1)
+
+        header_actions = QHBoxLayout()
+        header_actions.setSpacing(8)
+        self.edit_grupo_button = QPushButton("Editar grupo")
+        self.edit_grupo_button.setProperty("variant", "secondary")
+        self.edit_grupo_button.clicked.connect(self._on_edit_grupo)
+        header_actions.addWidget(self.edit_grupo_button)
+
+        self.editar_pdf_button = QPushButton("Opciones (PDF)")
+        self.editar_pdf_button.setProperty("variant", "secondary")
+        self.editar_pdf_button.clicked.connect(self._on_edit_pdf)
+        header_actions.addWidget(self.editar_pdf_button)
+
+        self.opciones_button = QPushButton("Sincronización Google Sheets")
+        self.opciones_button.setProperty("variant", "secondary")
+        self.opciones_button.clicked.connect(self._on_open_opciones)
+        header_actions.addWidget(self.opciones_button)
+        header_top.addLayout(header_actions)
+        header_layout.addLayout(header_top)
         header_separator = QFrame()
         header_separator.setObjectName("headerSeparator")
         header_separator.setFixedHeight(3)
@@ -237,8 +258,6 @@ class MainWindow(QMainWindow):
         self.last_sync_label = QLabel("Última sync: --")
         self.last_sync_label.setProperty("role", "secondary")
         sync_layout.addWidget(self.last_sync_label)
-        left_column.addWidget(sync_card)
-
         persona_card, persona_layout = self._create_card("Delegado")
 
         persona_actions = QHBoxLayout()
@@ -252,16 +271,6 @@ class MainWindow(QMainWindow):
         self.edit_persona_button.setProperty("variant", "secondary")
         self.edit_persona_button.clicked.connect(self._on_edit_persona)
         persona_actions.addWidget(self.edit_persona_button)
-
-        self.edit_grupo_button = QPushButton("Editar grupo")
-        self.edit_grupo_button.setProperty("variant", "secondary")
-        self.edit_grupo_button.clicked.connect(self._on_edit_grupo)
-        persona_actions.addWidget(self.edit_grupo_button)
-
-        self.opciones_button = QPushButton("Opciones")
-        self.opciones_button.setProperty("variant", "secondary")
-        self.opciones_button.clicked.connect(self._on_open_opciones)
-        persona_actions.addWidget(self.opciones_button)
         persona_layout.addLayout(persona_actions)
 
         persona_selector = QHBoxLayout()
@@ -379,11 +388,6 @@ class MainWindow(QMainWindow):
         self.eliminar_pendiente_button.setProperty("variant", "danger")
         self.eliminar_pendiente_button.clicked.connect(self._on_remove_pendiente)
         pendientes_footer.addWidget(self.eliminar_pendiente_button)
-
-        self.editar_pdf_button = QPushButton("Editar PDF")
-        self.editar_pdf_button.setProperty("variant", "secondary")
-        self.editar_pdf_button.clicked.connect(self._on_edit_pdf)
-        pendientes_footer.addWidget(self.editar_pdf_button)
 
         pendientes_footer.addStretch(1)
         self.abrir_pdf_check = QCheckBox("Abrir PDF al finalizar")
@@ -539,6 +543,7 @@ class MainWindow(QMainWindow):
         historico_layout.addLayout(historico_actions)
 
         right_column.addWidget(historico_card, 1)
+        right_column.addWidget(sync_card)
 
         self._scroll_area.setWidget(content)
         self.setCentralWidget(self._scroll_area)
@@ -579,6 +584,7 @@ class MainWindow(QMainWindow):
             self.add_persona_button,
             self.edit_persona_button,
             self.edit_grupo_button,
+            self.opciones_button,
             self.delete_persona_button,
             self.agregar_button,
             self.eliminar_pendiente_button,
