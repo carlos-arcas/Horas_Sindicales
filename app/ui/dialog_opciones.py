@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import json
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -18,6 +20,12 @@ from PySide6.QtWidgets import (
 
 from app.application.sheets_service import SheetsService
 from app.domain.services import BusinessRuleError
+from app.infrastructure.sheets_errors import (
+    SheetsApiDisabledError,
+    SheetsCredentialsError,
+    SheetsNotFoundError,
+    SheetsPermissionError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +34,7 @@ class OpcionesDialog(QDialog):
     def __init__(self, sheets_service: SheetsService, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._sheets_service = sheets_service
+        self._last_status_key: tuple[str, str] | None = None
         self.setWindowTitle("Opciones")
         self._build_ui()
         self._load_config()
@@ -61,6 +70,18 @@ class OpcionesDialog(QDialog):
 
         layout.addLayout(form_layout)
 
+        status_container = QVBoxLayout()
+        status_title = QLabel("Estado")
+        status_title.setProperty("role", "subtitle")
+        status_container.addWidget(status_title)
+        self.credentials_status_label = QLabel()
+        self.spreadsheet_status_label = QLabel()
+        self.connection_status_label = QLabel()
+        status_container.addWidget(self.credentials_status_label)
+        status_container.addWidget(self.spreadsheet_status_label)
+        status_container.addWidget(self.connection_status_label)
+        layout.addLayout(status_container)
+
         actions_layout = QHBoxLayout()
         actions_layout.addStretch(1)
 
@@ -81,11 +102,15 @@ class OpcionesDialog(QDialog):
 
         layout.addLayout(actions_layout)
 
+        self.spreadsheet_input.textChanged.connect(self._update_status)
+        self.credentials_input.textChanged.connect(self._update_status)
+
     def _load_config(self) -> None:
         config = self._sheets_service.get_config()
         if config:
             self.spreadsheet_input.setText(config.spreadsheet_id)
             self.credentials_input.setText(config.credentials_path)
+        self._update_status()
 
     def _on_select_credentials(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -103,6 +128,7 @@ class OpcionesDialog(QDialog):
             QMessageBox.critical(self, "Error", str(exc))
             return
         self.credentials_input.setText(str(destination))
+        self._update_status()
 
     def _on_save(self) -> None:
         try:
@@ -118,6 +144,7 @@ class OpcionesDialog(QDialog):
             QMessageBox.critical(self, "Error", str(exc))
             return
         QMessageBox.information(self, "Opciones", "Configuración guardada correctamente.")
+        self._update_status()
 
     def _on_test_connection(self) -> None:
         try:
@@ -127,6 +154,46 @@ class OpcionesDialog(QDialog):
             )
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Validación", str(exc))
+            return
+        except SheetsApiDisabledError:
+            self._set_connection_error(
+                "La API de Google Sheets no está habilitada en tu proyecto de Google Cloud."
+            )
+            QMessageBox.critical(
+                self,
+                "Google Sheets API deshabilitada",
+                "La API de Google Sheets no está habilitada en tu proyecto de Google Cloud.\n\n"
+                "Solución: entra en Google Cloud Console → APIs & Services → Library → "
+                "Google Sheets API → Enable.\n\n"
+                "Después espera 2–5 minutos y vuelve a probar.",
+            )
+            return
+        except SheetsPermissionError:
+            email = self._service_account_email()
+            email_hint = f"{email}" if email else "la cuenta de servicio"
+            self._set_connection_error("Permisos insuficientes para acceder a la hoja.")
+            QMessageBox.critical(
+                self,
+                "Permisos insuficientes",
+                "La hoja no está compartida con la cuenta de servicio.\n\n"
+                f"Comparte la hoja con: {email_hint} como Editor.",
+            )
+            return
+        except SheetsNotFoundError:
+            self._set_connection_error("Hoja no encontrada.")
+            QMessageBox.critical(
+                self,
+                "Hoja no encontrada",
+                "El Spreadsheet ID/URL no es válido o la hoja no existe.",
+            )
+            return
+        except SheetsCredentialsError:
+            self._set_connection_error("Credenciales inválidas.")
+            QMessageBox.critical(
+                self,
+                "Credenciales inválidas",
+                "No se pueden leer las credenciales JSON seleccionadas.",
+            )
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error probando conexión a Sheets")
@@ -140,3 +207,36 @@ class OpcionesDialog(QDialog):
             "Conexión OK",
             f"Spreadsheet: {result.spreadsheet_title}\nID: {result.spreadsheet_id}{extra}",
         )
+        self._set_connection_ok()
+
+    def _update_status(self) -> None:
+        credentials_value = self.credentials_input.text().strip()
+        spreadsheet_value = self.spreadsheet_input.text().strip()
+        credentials_set = bool(credentials_value)
+        spreadsheet_set = bool(spreadsheet_value)
+        self.credentials_status_label.setText(
+            "✅ Credenciales seleccionadas" if credentials_set else "❌ Credenciales sin seleccionar"
+        )
+        self.spreadsheet_status_label.setText(
+            "✅ Hoja configurada" if spreadsheet_set else "❌ Hoja sin configurar"
+        )
+        status_key = (credentials_value, spreadsheet_value)
+        if status_key != self._last_status_key:
+            self.connection_status_label.setText("❌ Conexión no comprobada")
+            self._last_status_key = status_key
+
+    def _set_connection_ok(self) -> None:
+        self.connection_status_label.setText("✅ Conexión OK")
+
+    def _set_connection_error(self, message: str) -> None:
+        self.connection_status_label.setText(f"❌ Error: {message}")
+
+    def _service_account_email(self) -> str | None:
+        path = self.credentials_input.text().strip()
+        if not path:
+            return None
+        try:
+            payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        return str(payload.get("client_email", "")).strip() or None
