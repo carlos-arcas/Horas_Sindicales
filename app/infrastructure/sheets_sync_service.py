@@ -35,6 +35,7 @@ class SyncSummary:
     downloaded: int
     uploaded: int
     conflicts: int
+    omitted_duplicates: int
 
 
 class SheetsSyncService:
@@ -56,18 +57,25 @@ class SheetsSyncService:
         last_sync_at = self._get_last_sync_at()
         downloaded = 0
         conflicts = 0
+        omitted_duplicates = 0
         downloaded_count, conflict_count = self._pull_delegadas(spreadsheet, last_sync_at)
         downloaded += downloaded_count
         conflicts += conflict_count
-        downloaded_count, conflict_count = self._pull_solicitudes(spreadsheet, last_sync_at)
+        downloaded_count, conflict_count, duplicate_count = self._pull_solicitudes(spreadsheet, last_sync_at)
         downloaded += downloaded_count
         conflicts += conflict_count
+        omitted_duplicates += duplicate_count
         downloaded_count, conflict_count = self._pull_cuadrantes(spreadsheet, last_sync_at)
         downloaded += downloaded_count
         conflicts += conflict_count
         downloaded += self._pull_pdf_log(spreadsheet)
         downloaded += self._pull_config(spreadsheet)
-        return SyncSummary(downloaded=downloaded, uploaded=0, conflicts=conflicts)
+        return SyncSummary(
+            downloaded=downloaded,
+            uploaded=0,
+            conflicts=conflicts,
+            omitted_duplicates=omitted_duplicates,
+        )
 
     def push(self) -> SyncSummary:
         spreadsheet = self._open_spreadsheet()
@@ -75,20 +83,27 @@ class SheetsSyncService:
         last_sync_at = self._get_last_sync_at()
         uploaded = 0
         conflicts = 0
+        omitted_duplicates = 0
         self._sync_local_cuadrantes_from_personas()
         uploaded_count, conflict_count = self._push_delegadas(spreadsheet, last_sync_at)
         uploaded += uploaded_count
         conflicts += conflict_count
-        uploaded_count, conflict_count = self._push_solicitudes(spreadsheet, last_sync_at)
+        uploaded_count, conflict_count, duplicate_count = self._push_solicitudes(spreadsheet, last_sync_at)
         uploaded += uploaded_count
         conflicts += conflict_count
+        omitted_duplicates += duplicate_count
         uploaded_count, conflict_count = self._push_cuadrantes(spreadsheet, last_sync_at)
         uploaded += uploaded_count
         conflicts += conflict_count
         uploaded += self._push_pdf_log(spreadsheet, last_sync_at)
         uploaded += self._push_config(spreadsheet, last_sync_at)
         self._set_last_sync_at(self._now_iso())
-        return SyncSummary(downloaded=0, uploaded=uploaded, conflicts=conflicts)
+        return SyncSummary(
+            downloaded=0,
+            uploaded=uploaded,
+            conflicts=conflicts,
+            omitted_duplicates=omitted_duplicates,
+        )
 
     def sync(self) -> SyncSummary:
         pull_summary = self.pull()
@@ -97,6 +112,7 @@ class SheetsSyncService:
             downloaded=pull_summary.downloaded,
             uploaded=push_summary.uploaded,
             conflicts=pull_summary.conflicts + push_summary.conflicts,
+            omitted_duplicates=pull_summary.omitted_duplicates + push_summary.omitted_duplicates,
         )
 
     def get_last_sync_at(self) -> str | None:
@@ -209,11 +225,12 @@ class SheetsSyncService:
 
     def _pull_solicitudes(
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, int]:
         worksheet = spreadsheet.worksheet("solicitudes")
         _, rows = self._rows_with_index(worksheet)
         downloaded = 0
         conflicts = 0
+        omitted_duplicates = 0
         for _, row in rows:
             uuid_value = str(row.get("uuid", "")).strip()
             if not uuid_value:
@@ -221,6 +238,15 @@ class SheetsSyncService:
             remote_updated_at = self._parse_iso(row.get("updated_at"))
             local_row = self._fetch_solicitud(uuid_value)
             if local_row is None:
+                duplicate_key = self._solicitud_dedupe_key_from_remote_row(row)
+                if duplicate_key and self._is_duplicate_local_solicitud(duplicate_key, exclude_uuid=uuid_value):
+                    logger.info(
+                        "Omitiendo solicitud duplicada en pull. clave=%s registro=%s",
+                        duplicate_key,
+                        row,
+                    )
+                    omitted_duplicates += 1
+                    continue
                 self._insert_solicitud_from_remote(uuid_value, row)
                 downloaded += 1
                 continue
@@ -231,7 +257,7 @@ class SheetsSyncService:
             if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
                 self._update_solicitud_from_remote(local_row["id"], row)
                 downloaded += 1
-        return downloaded, conflicts
+        return downloaded, conflicts, omitted_duplicates
 
     def _pull_cuadrantes(
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
@@ -470,11 +496,16 @@ class SheetsSyncService:
 
     def _push_solicitudes(
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, int]:
         worksheet = spreadsheet.worksheet("solicitudes")
         headers, rows = self._rows_with_index(worksheet)
         header_map = self._header_map(headers, SHEETS_SCHEMA["solicitudes"])
         remote_index = self._uuid_index(rows)
+        remote_dedupe_index: dict[tuple[object, ...], dict[str, Any]] = {}
+        for _, row in rows:
+            key = self._solicitud_dedupe_key_from_remote_row(row)
+            if key:
+                remote_dedupe_index.setdefault(key, row)
         cursor = self._connection.cursor()
         cursor.execute(
             """
@@ -489,6 +520,7 @@ class SheetsSyncService:
         )
         uploaded = 0
         conflicts = 0
+        omitted_duplicates = 0
         for row in cursor.fetchall():
             if not self._is_after_last_sync(row["updated_at"], last_sync_at):
                 continue
@@ -499,6 +531,17 @@ class SheetsSyncService:
                 self._store_conflict("solicitudes", uuid_value, dict(row), remote_row or {})
                 conflicts += 1
                 continue
+            if not remote_row:
+                local_key = self._solicitud_dedupe_key_from_local_row(dict(row))
+                if local_key and local_key in remote_dedupe_index:
+                    logger.info(
+                        "Omitiendo solicitud duplicada en push. clave=%s registro_local=%s registro_remoto=%s",
+                        local_key,
+                        dict(row),
+                        remote_dedupe_index[local_key],
+                    )
+                    omitted_duplicates += 1
+                    continue
             desde_h, desde_m = self._split_minutes(row["desde_min"])
             hasta_h, hasta_m = self._split_minutes(row["hasta_min"])
             payload = {
@@ -525,7 +568,7 @@ class SheetsSyncService:
             else:
                 self._append_row(worksheet, header_map, payload)
             uploaded += 1
-        return uploaded, conflicts
+        return uploaded, conflicts, omitted_duplicates
 
     def _push_cuadrantes(
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
@@ -1031,6 +1074,148 @@ class SheetsSyncService:
         if hours is None and minutes is None:
             return None
         return self._int_or_zero(hours) * 60 + self._int_or_zero(minutes)
+
+    def _normalize_total_minutes(self, value: Any) -> int | None:
+        if value is None or value == "":
+            return None
+        return self._int_or_zero(value)
+
+    def _normalize_hm_to_minutes(self, hours: Any, minutes: Any) -> int | None:
+        if hours is None and minutes is None:
+            return None
+        parsed = self._parse_hhmm_to_minutes(hours)
+        if parsed is not None:
+            return parsed
+        return self._int_or_zero(hours) * 60 + self._int_or_zero(minutes)
+
+    @staticmethod
+    def _parse_hhmm_to_minutes(value: Any) -> int | None:
+        if value is None:
+            return None
+        if isinstance(value, str) and ":" in value:
+            parts = value.strip().split(":")
+            if len(parts) >= 2:
+                try:
+                    hours = int(parts[0])
+                    minutes = int(parts[1])
+                except ValueError:
+                    return None
+                return hours * 60 + minutes
+        return None
+
+    def _build_delegada_key(self, delegada_uuid: str | None, delegada_id: int | None) -> str | None:
+        uuid_value = (delegada_uuid or "").strip()
+        if uuid_value:
+            return f"uuid:{uuid_value}"
+        if delegada_id is None:
+            return None
+        return f"id:{delegada_id}"
+
+    def _solicitud_dedupe_key(
+        self,
+        delegada_uuid: str | None,
+        delegada_id: int | None,
+        fecha_pedida: Any,
+        completo: bool,
+        horas_min: Any,
+        desde_min: Any,
+        hasta_min: Any,
+    ) -> tuple[object, ...] | None:
+        delegada_key = self._build_delegada_key(delegada_uuid, delegada_id)
+        if not delegada_key or not fecha_pedida:
+            return None
+        minutos_total = self._int_or_zero(horas_min)
+        if completo:
+            return (delegada_key, str(fecha_pedida), True, minutos_total, None, None)
+        desde_value = self._normalize_total_minutes(desde_min)
+        hasta_value = self._normalize_total_minutes(hasta_min)
+        return (
+            delegada_key,
+            str(fecha_pedida),
+            False,
+            minutos_total,
+            desde_value,
+            hasta_value,
+        )
+
+    def _solicitud_dedupe_key_from_remote_row(self, row: dict[str, Any]) -> tuple[object, ...] | None:
+        delegada_uuid = str(row.get("delegada_uuid", "")).strip() or None
+        delegada_id = None
+        if row.get("delegada_id") not in (None, ""):
+            delegada_id = self._int_or_zero(row.get("delegada_id"))
+        fecha_pedida = row.get("fecha") or row.get("fecha_pedida")
+        completo = bool(self._int_or_zero(row.get("completo")))
+        horas_min = row.get("minutos_total") or row.get("horas_solicitadas_min")
+        desde_min = self._normalize_hm_to_minutes(row.get("desde_h"), row.get("desde_m"))
+        hasta_min = self._normalize_hm_to_minutes(row.get("hasta_h"), row.get("hasta_m"))
+        return self._solicitud_dedupe_key(
+            delegada_uuid,
+            delegada_id,
+            fecha_pedida,
+            completo,
+            horas_min,
+            desde_min,
+            hasta_min,
+        )
+
+    def _solicitud_dedupe_key_from_local_row(self, row: dict[str, Any]) -> tuple[object, ...] | None:
+        delegada_uuid = row.get("delegada_uuid")
+        delegada_id = row.get("persona_id")
+        fecha_pedida = row.get("fecha_pedida")
+        completo = bool(row.get("completo"))
+        horas_min = row.get("horas_solicitadas_min")
+        return self._solicitud_dedupe_key(
+            delegada_uuid,
+            delegada_id,
+            fecha_pedida,
+            completo,
+            horas_min,
+            row.get("desde_min"),
+            row.get("hasta_min"),
+        )
+
+    def _is_duplicate_local_solicitud(self, key: tuple[object, ...], exclude_uuid: str | None = None) -> bool:
+        delegada_key, fecha_pedida, _, _, _, _ = key
+        if not delegada_key or not fecha_pedida:
+            return False
+        cursor = self._connection.cursor()
+        if delegada_key.startswith("uuid:"):
+            delegada_uuid = delegada_key.removeprefix("uuid:")
+            cursor.execute(
+                """
+                SELECT s.uuid, s.persona_id, p.uuid AS delegada_uuid, s.fecha_pedida,
+                       s.desde_min, s.hasta_min, s.completo, s.horas_solicitadas_min
+                FROM solicitudes s
+                JOIN personas p ON p.id = s.persona_id
+                WHERE p.uuid = ?
+                  AND s.fecha_pedida = ?
+                  AND (s.deleted = 0 OR s.deleted IS NULL)
+                """,
+                (delegada_uuid, fecha_pedida),
+            )
+        elif delegada_key.startswith("id:"):
+            persona_id = self._int_or_zero(delegada_key.removeprefix("id:"))
+            cursor.execute(
+                """
+                SELECT s.uuid, s.persona_id, p.uuid AS delegada_uuid, s.fecha_pedida,
+                       s.desde_min, s.hasta_min, s.completo, s.horas_solicitadas_min
+                FROM solicitudes s
+                JOIN personas p ON p.id = s.persona_id
+                WHERE s.persona_id = ?
+                  AND s.fecha_pedida = ?
+                  AND (s.deleted = 0 OR s.deleted IS NULL)
+                """,
+                (persona_id, fecha_pedida),
+            )
+        else:
+            return False
+        for row in cursor.fetchall():
+            if exclude_uuid and row["uuid"] == exclude_uuid:
+                continue
+            local_key = self._solicitud_dedupe_key_from_local_row(dict(row))
+            if local_key == key:
+                return True
+        return False
 
     @staticmethod
     def _parse_iso(value: Any) -> datetime | None:

@@ -1127,7 +1127,7 @@ class MainWindow(QMainWindow):
     def _show_sync_summary_dialog(self, title: str, summary: SyncSummary) -> None:
         last_sync = self._sync_service.get_last_sync_at()
         last_sync_text = self._format_timestamp(last_sync) if last_sync else "Nunca"
-        omitted_duplicates = 0
+        omitted_duplicates = summary.omitted_duplicates
         errors = summary.conflicts
         message = (
             f"Subidas: {summary.uploaded}\n"
