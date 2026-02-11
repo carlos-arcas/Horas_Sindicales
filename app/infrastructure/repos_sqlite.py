@@ -361,9 +361,10 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor.execute(
             """
             SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
+                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
             FROM solicitudes
             WHERE persona_id = ?
+              AND generated = 1
               AND (deleted = 0 OR deleted IS NULL)
             ORDER BY fecha_pedida DESC
             """,
@@ -384,6 +385,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 notas=row["notas"],
                 pdf_path=row["pdf_path"],
                 pdf_hash=row["pdf_hash"],
+                generated=bool(row["generated"]),
             )
             for row in rows
         ]
@@ -396,10 +398,11 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             cursor.execute(
                 """
                 SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                       horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
+                       horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
                 FROM solicitudes
                 WHERE persona_id = ?
                   AND strftime('%Y', fecha_pedida) = ?
+                  AND generated = 1
                   AND (deleted = 0 OR deleted IS NULL)
                 ORDER BY fecha_pedida DESC
                 """,
@@ -409,11 +412,12 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             cursor.execute(
                 """
                 SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                       horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
+                       horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
                 FROM solicitudes
                 WHERE persona_id = ?
                   AND strftime('%Y', fecha_pedida) = ?
                   AND strftime('%m', fecha_pedida) = ?
+                  AND generated = 1
                   AND (deleted = 0 OR deleted IS NULL)
                 ORDER BY fecha_pedida DESC
                 """,
@@ -434,6 +438,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 notas=row["notas"],
                 pdf_path=row["pdf_path"],
                 pdf_hash=row["pdf_hash"],
+                generated=bool(row["generated"]),
             )
             for row in rows
         ]
@@ -445,10 +450,11 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor.execute(
             """
             SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
+                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
             FROM solicitudes
             WHERE persona_id = ?
               AND fecha_pedida = ?
+              AND generated = 1
               AND (deleted = 0 OR deleted IS NULL)
             ORDER BY fecha_pedida DESC
             """,
@@ -469,6 +475,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 notas=row["notas"],
                 pdf_path=row["pdf_path"],
                 pdf_hash=row["pdf_hash"],
+                generated=bool(row["generated"]),
             )
             for row in rows
         ]
@@ -478,7 +485,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor.execute(
             """
             SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash
+                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
             FROM solicitudes
             WHERE id = ? AND (deleted = 0 OR deleted IS NULL)
             """,
@@ -500,6 +507,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             notas=row["notas"],
             pdf_path=row["pdf_path"],
             pdf_hash=row["pdf_hash"],
+            generated=bool(row["generated"]),
         )
 
     def exists_duplicate(
@@ -515,6 +523,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             "persona_id = ?",
             "fecha_pedida = ?",
             "completo = ?",
+            "(deleted = 0 OR deleted IS NULL)",
         ]
         params: list[object] = [persona_id, fecha_pedida, int(completo)]
         if desde_min is None:
@@ -547,8 +556,8 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             """
             INSERT INTO solicitudes (
                 uuid, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, created_at, updated_at, deleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated, created_at, updated_at, deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 solicitud_uuid,
@@ -563,6 +572,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 solicitud.notas or "",
                 solicitud.pdf_path,
                 solicitud.pdf_hash,
+                0,
                 created_at,
                 created_at,
                 0,
@@ -583,6 +593,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             notas=solicitud.notas or "",
             pdf_path=solicitud.pdf_path,
             pdf_hash=solicitud.pdf_hash,
+            generated=False,
         )
 
     def delete(self, solicitud_id: int) -> None:
@@ -617,7 +628,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             cursor,
             """
             UPDATE solicitudes
-            SET pdf_path = ?, pdf_hash = ?, updated_at = ?
+            SET pdf_path = ?, pdf_hash = ?, generated = 1, updated_at = ?
             WHERE id = ?
             """,
             (pdf_path, pdf_hash, updated_at, solicitud_id),

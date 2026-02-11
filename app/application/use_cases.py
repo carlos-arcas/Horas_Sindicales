@@ -131,6 +131,7 @@ def _solicitud_to_dto(solicitud: Solicitud) -> SolicitudDTO:
         pdf_path=solicitud.pdf_path,
         pdf_hash=solicitud.pdf_hash,
         notas=notas,
+        generated=solicitud.generated,
     )
 
 
@@ -151,6 +152,7 @@ def _dto_to_solicitud(dto: SolicitudDTO) -> Solicitud:
         notas=notas,
         pdf_path=dto.pdf_path,
         pdf_hash=dto.pdf_hash,
+        generated=dto.generated,
     )
 
 
