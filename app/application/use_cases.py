@@ -278,7 +278,7 @@ class SolicitudUseCases:
         ):
             raise BusinessRuleError("Duplicado")
 
-        minutos = _calcular_minutos(dto, persona)
+        minutos = self.calcular_minutos_solicitud(dto)
         notas = dto.notas if dto.notas is not None else dto.observaciones
         solicitud = Solicitud(
             id=None,
@@ -299,6 +299,10 @@ class SolicitudUseCases:
         year, month = _parse_year_month(dto.fecha_pedida)
         saldos = self.calcular_saldos(dto.persona_id, year, month)
         return _solicitud_to_dto(creada), saldos
+
+    def calcular_minutos_solicitud(self, dto: SolicitudDTO) -> int:
+        persona = self._persona_repo.get_by_id(dto.persona_id)
+        return _calcular_minutos(dto, persona)
 
     def listar_solicitudes_por_persona_y_periodo(
         self, persona_id: int, year: int | None, month: int | None

@@ -363,14 +363,23 @@ class MainWindow(QMainWindow):
         self.completo_check.toggled.connect(self._on_completo_changed)
         solicitud_row.addWidget(self.completo_check)
 
-        self.total_preview_label = QLabel("Total: 00:00")
-        self.total_preview_label.setProperty("role", "secondary")
-        solicitud_row.addWidget(self.total_preview_label)
+        solicitud_row.addWidget(QLabel("Total petición"))
+        self.total_peticion_input = QLineEdit("00:00")
+        self.total_peticion_input.setReadOnly(True)
+        self.total_peticion_input.setObjectName("totalPeticionInput")
+        self.total_peticion_input.setFixedWidth(90)
+        solicitud_row.addWidget(self.total_peticion_input)
 
         self.cuadrante_warning_label = QLabel("")
         self.cuadrante_warning_label.setProperty("role", "secondary")
         self.cuadrante_warning_label.setVisible(False)
         solicitud_row.addWidget(self.cuadrante_warning_label)
+
+        if hasattr(self, "horas_input"):
+            if hasattr(self.horas_input, "valueChanged"):
+                self.horas_input.valueChanged.connect(self._update_solicitud_preview)
+            elif hasattr(self.horas_input, "timeChanged"):
+                self.horas_input.timeChanged.connect(self._update_solicitud_preview)
 
         self.agregar_button = QPushButton("Agregar")
         self.agregar_button.setProperty("variant", "primary")
@@ -767,25 +776,48 @@ class MainWindow(QMainWindow):
         self._on_edit_grupo()
 
     def _calculate_preview_minutes(self) -> tuple[int, bool]:
-        if self.completo_check.isChecked():
-            persona = self._current_persona()
-            if persona is None:
-                return 0, False
-            fecha_pedida = self.fecha_input.date().toString("yyyy-MM-dd")
-            try:
-                minutos = self._solicitud_use_cases.sugerir_completo_min(
-                    persona.id or 0, fecha_pedida
-                )
-                return minutos, minutos == 0
-            except BusinessRuleError:
-                return 0, False
-        minutos = self.desde_input.time().secsTo(self.hasta_input.time()) // 60
-        return max(0, minutos), False
+        persona = self._current_persona()
+        if persona is None:
+            return 0, False
+
+        fecha_pedida = self.fecha_input.date().toString("yyyy-MM-dd")
+        completo = self.completo_check.isChecked()
+        desde = None if completo else self.desde_input.time().toString("HH:mm")
+        hasta = None if completo else self.hasta_input.time().toString("HH:mm")
+
+        manual_horas = 0.0
+        horas_input = getattr(self, "horas_input", None)
+        if horas_input is not None:
+            if hasattr(horas_input, "minutes"):
+                manual_horas = float(horas_input.minutes()) / 60
+            elif hasattr(horas_input, "value"):
+                manual_horas = float(horas_input.value())
+
+        dto = SolicitudDTO(
+            id=None,
+            persona_id=persona.id or 0,
+            fecha_solicitud=datetime.now().strftime("%Y-%m-%d"),
+            fecha_pedida=fecha_pedida,
+            desde=desde,
+            hasta=hasta,
+            completo=completo,
+            horas=manual_horas,
+            observaciones=None,
+            pdf_path=None,
+            pdf_hash=None,
+            notas=None,
+        )
+
+        try:
+            minutos = self._solicitud_use_cases.calcular_minutos_solicitud(dto)
+        except BusinessRuleError:
+            return 0, completo
+        return minutos, completo and minutos == 0
 
     def _update_solicitud_preview(self) -> None:
         minutos, warning = self._calculate_preview_minutes()
-        etiqueta = "Completo" if self.completo_check.isChecked() else "Total"
-        self.total_preview_label.setText(f"{etiqueta}: {self._format_minutes(minutos)}")
+        total_text = self._format_minutes(minutos) if minutos > 0 else ("00:00" if warning else "—")
+        self.total_peticion_input.setText(total_text)
         self.cuadrante_warning_label.setVisible(warning)
         self.cuadrante_warning_label.setText("Cuadrante no configurado" if warning else "")
 
