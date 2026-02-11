@@ -23,6 +23,7 @@ from app.application.dto import (
 )
 from app.domain.models import GrupoConfig, Persona, Solicitud
 from app.domain.ports import GrupoConfigRepository, PersonaRepository, SolicitudRepository
+from app.domain.request_time import compute_request_minutes, minutes_to_hours_float
 from app.domain.services import (
     BusinessRuleError,
     ValidacionError,
@@ -51,7 +52,7 @@ MONTH_NAMES = {
 
 
 def _minutes_to_hours(minutos: int) -> float:
-    return minutos / 60.0
+    return minutes_to_hours_float(minutos)
 
 
 def _hours_to_minutes(horas: float) -> int:
@@ -455,6 +456,9 @@ class SolicitudUseCases:
             raise BusinessRuleError("Persona no encontrada.")
         return _calcular_minutos(dto, persona)
 
+    def minutes_to_hours_float(self, minutos: int) -> float:
+        return minutes_to_hours_float(minutos)
+
     def sugerir_nombre_pdf(self, solicitudes: Iterable[SolicitudDTO]) -> str:
         solicitudes_list = list(solicitudes)
         if not solicitudes_list:
@@ -736,29 +740,22 @@ def _total_cuadrante_por_fecha(persona: Persona, fecha: str) -> int:
 def _calcular_minutos(dto: SolicitudDTO, persona: Persona | None) -> int:
     if dto.horas < 0:
         raise BusinessRuleError("Las horas deben ser mayores a cero.")
+    minutos_manual = _hours_to_minutes(dto.horas) if dto.horas > 0 else 0
+
     if dto.completo:
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
         total_dia = _total_cuadrante_por_fecha(persona, dto.fecha_pedida)
-        minutos = _hours_to_minutes(dto.horas) if dto.horas > 0 else total_dia
-        if minutos <= 0:
-            raise BusinessRuleError(
-                "Las horas deben ser mayores a cero. "
-                "Configura el cuadrante o introduce las horas."
-            )
-        return minutos
+        minutos_calculados = compute_request_minutes(
+            dto.desde,
+            dto.hasta,
+            dto.completo,
+            cuadrante_base=total_dia,
+        )
+        return minutos_manual if minutos_manual > 0 else minutos_calculados
 
-    if not dto.desde or not dto.hasta:
-        raise BusinessRuleError("Desde y hasta son obligatorios para solicitudes parciales.")
-    desde_min = parse_hhmm(dto.desde)
-    hasta_min = parse_hhmm(dto.hasta)
-    if hasta_min <= desde_min:
-        raise BusinessRuleError("La hora hasta debe ser mayor que desde.")
-    minutos_calculados = hasta_min - desde_min
-    minutos = _hours_to_minutes(dto.horas) if dto.horas > 0 else minutos_calculados
-    if minutos <= 0:
-        raise BusinessRuleError("Las horas deben ser mayores a cero.")
-    return minutos
+    minutos_calculados = compute_request_minutes(dto.desde, dto.hasta, dto.completo)
+    return minutos_manual if minutos_manual > 0 else minutos_calculados
 
 
 def _calcular_saldos(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import json
 import traceback
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
@@ -949,13 +950,16 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Validación", str(exc))
             return
         except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error calculando minutos de la petición")
+            logger.error("Error calculando minutos de la petición", exc_info=True)
             QMessageBox.critical(self, "Error", str(exc))
             return
 
-        solicitud.horas = minutos / 60
         notas_text = self.notas_input.toPlainText().strip()
-        solicitud.notas = notas_text or None
+        solicitud = replace(
+            solicitud,
+            horas=self._solicitud_use_cases.minutes_to_hours_float(minutos),
+            notas=notas_text or None,
+        )
         logger.info(
             "Intentando insertar petición persona_id=%s fecha_pedida=%s completo=%s desde=%s hasta=%s horas=%s notas=%s",
             solicitud.persona_id,
@@ -978,7 +982,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Validación", str(exc))
             return
         except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error insertando petición en base de datos")
+            logger.error("Error insertando petición en base de datos", exc_info=True)
             QMessageBox.critical(self, "Error", str(exc))
             return
 
@@ -987,6 +991,14 @@ class MainWindow(QMainWindow):
         self._refresh_historico()
         self._refresh_saldos()
         self._update_action_state()
+
+        visibles_ids = {item.id for item in self.historico_model.solicitudes() if item.id is not None}
+        if creada.id is not None and creada.id not in visibles_ids:
+            QMessageBox.information(
+                self,
+                "Petición agregada",
+                "La petición se creó correctamente, pero no aparece en el histórico actual por los filtros seleccionados.",
+            )
 
     def _resolve_pending_conflict(self, fecha_pedida: str, completo: bool) -> bool:
         conflictos = [
