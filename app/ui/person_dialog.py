@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -29,6 +30,7 @@ class PersonaDialog(QDialog):
             self._load_persona(persona)
         else:
             self._set_uniform_mode(True)
+            self._set_weekend_enabled(False)
 
     def _build_ui(self) -> None:
         layout = QFormLayout(self)
@@ -60,6 +62,9 @@ class PersonaDialog(QDialog):
         mode_layout.addStretch(1)
         layout.addRow("Modo cuadrante L-V", mode_widget)
 
+        self.trabaja_finde_check = QCheckBox("Trabaja fines de semana")
+        layout.addRow("Fines de semana", self.trabaja_finde_check)
+
         self.uniform_row = self._build_day_row("Cuadrante base L-V")
         layout.addRow("Cuadrante L-V", self.uniform_row["widget"])
 
@@ -84,14 +89,20 @@ class PersonaDialog(QDialog):
             weekdays_layout.addRow(QLabel(day_label), row["widget"])
         layout.addRow("Cuadrante por día", self.weekdays_widget)
 
+        self.weekend_widget = QWidget()
+        weekend_layout = QFormLayout(self.weekend_widget)
+        weekend_layout.setContentsMargins(0, 0, 0, 0)
+        weekend_layout.setSpacing(8)
         for day_label, day_key in [("Sábado", "cuad_sab"), ("Domingo", "cuad_dom")]:
             row = self._build_day_row(day_label)
             self.cuad_inputs[day_key] = {"man": row["man"], "tar": row["tar"]}
             self.cuad_totals[day_key] = row["total"]
-            layout.addRow(QLabel(f"Cuadrante {day_label}"), row["widget"])
+            weekend_layout.addRow(QLabel(day_label), row["widget"])
+        layout.addRow("Cuadrante fin de semana", self.weekend_widget)
 
         self.uniform_radio.toggled.connect(self._on_mode_toggled)
         self.by_day_radio.toggled.connect(self._on_mode_toggled)
+        self.trabaja_finde_check.toggled.connect(self._on_weekend_toggled)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         ok_button = buttons.button(QDialogButtonBox.Ok)
@@ -166,6 +177,8 @@ class PersonaDialog(QDialog):
             self.uniform_row["total"],
         )
 
+        self.trabaja_finde_check.setChecked(persona.trabaja_finde)
+
         uniform_detectado = persona.cuadrante_uniforme or self._weekdays_are_uniform(
             persona.cuad_lun_man_min,
             persona.cuad_lun_tar_min,
@@ -179,6 +192,7 @@ class PersonaDialog(QDialog):
             persona.cuad_vie_tar_min,
         )
         self._set_uniform_mode(uniform_detectado)
+        self._set_weekend_enabled(persona.trabaja_finde)
 
     def _on_mode_toggled(self) -> None:
         self._set_uniform_mode(self.uniform_radio.isChecked())
@@ -193,6 +207,12 @@ class PersonaDialog(QDialog):
 
         self.uniform_row["widget"].setVisible(enabled)
         self.weekdays_widget.setVisible(not enabled)
+
+    def _on_weekend_toggled(self) -> None:
+        self._set_weekend_enabled(self.trabaja_finde_check.isChecked())
+
+    def _set_weekend_enabled(self, enabled: bool) -> None:
+        self.weekend_widget.setVisible(enabled)
 
     def _weekdays_are_uniform(self, *values: int) -> bool:
         if len(values) != 10:
@@ -262,4 +282,5 @@ class PersonaDialog(QDialog):
             cuad_dom_man_min=self.cuad_inputs["cuad_dom"]["man"].minutes(),
             cuad_dom_tar_min=self.cuad_inputs["cuad_dom"]["tar"].minutes(),
             cuadrante_uniforme=self.uniform_radio.isChecked(),
+            trabaja_finde=self.trabaja_finde_check.isChecked(),
         )

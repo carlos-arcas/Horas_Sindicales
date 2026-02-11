@@ -3,10 +3,11 @@ from __future__ import annotations
 import sqlite3
 import unittest
 
-from app.application.dto import PersonaDTO
-from app.application.use_cases import PersonaUseCases
+from app.application.dto import PersonaDTO, SolicitudDTO
+from app.application.use_cases import PersonaUseCases, SolicitudUseCases
 from app.infrastructure.migrations import run_migrations
-from app.infrastructure.repos_sqlite import PersonaRepositorySQLite
+from app.domain.services import BusinessRuleError
+from app.infrastructure.repos_sqlite import PersonaRepositorySQLite, SolicitudRepositorySQLite
 
 
 def _build_persona() -> PersonaDTO:
@@ -32,6 +33,7 @@ def _build_persona() -> PersonaDTO:
         cuad_dom_man_min=15,
         cuad_dom_tar_min=25,
         cuadrante_uniforme=True,
+        trabaja_finde=True,
     )
 
 
@@ -81,6 +83,7 @@ class PersonaCuadranteUniformeTests(unittest.TestCase):
             cuad_dom_man_min=22,
             cuad_dom_tar_min=23,
             cuadrante_uniforme=False,
+            trabaja_finde=True,
         )
         actualizada = self.use_cases.editar_persona(editada)
         self.assertFalse(actualizada.cuadrante_uniforme)
@@ -89,6 +92,90 @@ class PersonaCuadranteUniformeTests(unittest.TestCase):
         self.assertEqual(actualizada.cuad_mie_man_min, 14)
         self.assertEqual(actualizada.cuad_jue_man_min, 16)
         self.assertEqual(actualizada.cuad_vie_man_min, 18)
+
+
+    def test_editar_persona_sin_finde_conserva_cuadrantes_previos(self) -> None:
+        creada = self.use_cases.crear_persona(_build_persona())
+        editada = PersonaDTO(
+            id=creada.id,
+            nombre=creada.nombre,
+            genero=creada.genero,
+            horas_mes=creada.horas_mes,
+            horas_ano=creada.horas_ano,
+            is_active=creada.is_active,
+            cuad_lun_man_min=creada.cuad_lun_man_min,
+            cuad_lun_tar_min=creada.cuad_lun_tar_min,
+            cuad_mar_man_min=creada.cuad_mar_man_min,
+            cuad_mar_tar_min=creada.cuad_mar_tar_min,
+            cuad_mie_man_min=creada.cuad_mie_man_min,
+            cuad_mie_tar_min=creada.cuad_mie_tar_min,
+            cuad_jue_man_min=creada.cuad_jue_man_min,
+            cuad_jue_tar_min=creada.cuad_jue_tar_min,
+            cuad_vie_man_min=creada.cuad_vie_man_min,
+            cuad_vie_tar_min=creada.cuad_vie_tar_min,
+            cuad_sab_man_min=0,
+            cuad_sab_tar_min=0,
+            cuad_dom_man_min=0,
+            cuad_dom_tar_min=0,
+            cuadrante_uniforme=creada.cuadrante_uniforme,
+            trabaja_finde=False,
+        )
+
+        actualizada = self.use_cases.editar_persona(editada)
+
+        self.assertFalse(actualizada.trabaja_finde)
+        self.assertEqual(actualizada.cuad_sab_man_min, creada.cuad_sab_man_min)
+        self.assertEqual(actualizada.cuad_sab_tar_min, creada.cuad_sab_tar_min)
+        self.assertEqual(actualizada.cuad_dom_man_min, creada.cuad_dom_man_min)
+        self.assertEqual(actualizada.cuad_dom_tar_min, creada.cuad_dom_tar_min)
+
+    def test_solicitud_completa_en_finde_sin_trabaja_finde_falla(self) -> None:
+        creada = self.use_cases.crear_persona(
+            PersonaDTO(
+                id=None,
+                nombre="Delegada Sin Finde",
+                genero="F",
+                horas_mes=0,
+                horas_ano=0,
+                is_active=True,
+                cuad_lun_man_min=60,
+                cuad_lun_tar_min=60,
+                cuad_mar_man_min=60,
+                cuad_mar_tar_min=60,
+                cuad_mie_man_min=60,
+                cuad_mie_tar_min=60,
+                cuad_jue_man_min=60,
+                cuad_jue_tar_min=60,
+                cuad_vie_man_min=60,
+                cuad_vie_tar_min=60,
+                cuad_sab_man_min=120,
+                cuad_sab_tar_min=120,
+                cuad_dom_man_min=120,
+                cuad_dom_tar_min=120,
+                cuadrante_uniforme=False,
+                trabaja_finde=False,
+            )
+        )
+
+        solicitudes_repo = SolicitudRepositorySQLite(self.connection)
+        solicitudes_uc = SolicitudUseCases(solicitudes_repo, self.repo)
+
+        with self.assertRaises(BusinessRuleError):
+            solicitudes_uc.agregar_solicitud(
+                SolicitudDTO(
+                    id=None,
+                    persona_id=creada.id or 0,
+                    fecha_solicitud="2026-01-10",
+                    fecha_pedida="2026-01-10",
+                    desde=None,
+                    hasta=None,
+                    completo=True,
+                    horas=0,
+                    observaciones=None,
+                    pdf_path=None,
+                    pdf_hash=None,
+                )
+            )
 
 
 if __name__ == "__main__":

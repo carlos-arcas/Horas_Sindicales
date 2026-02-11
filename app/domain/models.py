@@ -27,6 +27,7 @@ class Persona:
     cuad_dom_man_min: int
     cuad_dom_tar_min: int
     cuadrante_uniforme: bool = False
+    trabaja_finde: bool = False
 
 
 @dataclass(frozen=True)
