@@ -18,9 +18,9 @@ from PySide6.QtWidgets import (
 )
 
 from app.application.dto import GrupoConfigDTO
+from app.application.sync_sheets_use_case import SyncSheetsUseCase
 from app.application.use_cases import GrupoConfigUseCases
 from app.domain.services import BusinessRuleError
-from app.infrastructure.sheets_sync_service import SheetsSyncService
 from app.pdf import pdf_builder
 from app.ui.widgets.time_edit import TimeEditHM
 
@@ -31,7 +31,7 @@ class GrupoConfigDialog(QDialog):
     def __init__(
         self,
         use_cases: GrupoConfigUseCases,
-        sync_service: SheetsSyncService | None = None,
+        sync_service: SyncSheetsUseCase | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -119,7 +119,7 @@ class PdfConfigDialog(QDialog):
     def __init__(
         self,
         use_cases: GrupoConfigUseCases,
-        sync_service: SheetsSyncService | None = None,
+        sync_service: SyncSheetsUseCase | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)

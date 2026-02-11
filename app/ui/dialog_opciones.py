@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 
 from app.application.sheets_service import SheetsService
 from app.domain.services import BusinessRuleError
-from app.infrastructure.sheets_errors import (
+from app.domain.sheets_errors import (
     SheetsApiDisabledError,
     SheetsCredentialsError,
     SheetsNotFoundError,
