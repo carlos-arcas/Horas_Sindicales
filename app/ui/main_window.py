@@ -58,7 +58,7 @@ from app.infrastructure.sheets_repository import SheetsRepository
 from app.ui.models_qt import SolicitudesTableModel
 from app.ui.dialog_opciones import OpcionesDialog
 from app.ui.conflicts_dialog import ConflictsDialog
-from app.ui.group_dialog import GrupoConfigDialog
+from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
 from app.ui.person_dialog import PersonaDialog
 from app.ui.style import apply_theme
 from app.ui.widgets.header import HeaderWidget
@@ -787,7 +787,8 @@ class MainWindow(QMainWindow):
         self._update_sync_button_state()
 
     def _on_edit_pdf(self) -> None:
-        self._on_edit_grupo()
+        dialog = PdfConfigDialog(self._grupo_use_cases, self._sync_service, self)
+        dialog.exec()
 
     def _manual_hours_minutes(self) -> int:
         if not hasattr(self, "horas_input"):

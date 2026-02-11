@@ -21,8 +21,8 @@ from app.application.dto import GrupoConfigDTO
 from app.application.use_cases import GrupoConfigUseCases
 from app.domain.services import BusinessRuleError
 from app.infrastructure.sheets_sync_service import SheetsSyncService
-from app.ui.widgets.time_edit import TimeEditHM
 from app.pdf import pdf_builder
+from app.ui.widgets.time_edit import TimeEditHM
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,6 @@ class GrupoConfigDialog(QDialog):
         self._use_cases = use_cases
         self._sync_service = sync_service
         self._config: GrupoConfigDTO | None = None
-        self._include_hours: bool | None = None
         self.setWindowTitle("Editar grupo")
         self._build_ui()
         self._load_config()
@@ -63,33 +62,6 @@ class GrupoConfigDialog(QDialog):
         form_layout.addRow("Horas anuales del grupo", hours_container)
 
         layout.addLayout(form_layout)
-
-        pdf_group = QVBoxLayout()
-        pdf_group.setSpacing(8)
-        pdf_title = QLabel("Opciones PDF")
-        pdf_title.setProperty("role", "subtitle")
-        pdf_group.addWidget(pdf_title)
-
-        logo_row = QHBoxLayout()
-        self.logo_path_input = QLineEdit()
-        self.logo_path_input.setReadOnly(True)
-        logo_row.addWidget(self.logo_path_input, 1)
-
-        self.logo_button = QPushButton("Cambiar logo…")
-        self.logo_button.setProperty("variant", "secondary")
-        self.logo_button.clicked.connect(self._on_select_logo)
-        logo_row.addWidget(self.logo_button)
-        pdf_group.addLayout(logo_row)
-
-        intro_label = QLabel("Texto legal del PDF (se usa literalmente en el PDF)")
-        pdf_group.addWidget(intro_label)
-
-        self.pdf_intro_input = QPlainTextEdit()
-        self.pdf_intro_input.setPlaceholderText(pdf_builder.INTRO_TEXT)
-        self.pdf_intro_input.setFixedHeight(120)
-        pdf_group.addWidget(self.pdf_intro_input)
-
-        layout.addLayout(pdf_group)
 
         actions_layout = QHBoxLayout()
         actions_layout.addStretch(1)
@@ -119,9 +91,101 @@ class GrupoConfigDialog(QDialog):
         if self._config:
             total_min = self._config.bolsa_anual_grupo_min
             self.group_time_input.set_minutes(total_min)
+
+    def _on_save(self) -> None:
+        total_minutes = self.group_time_input.minutes()
+        include_hours = self._config.pdf_include_hours_in_horario if self._config else None
+        dto = GrupoConfigDTO(
+            id=self._config.id if self._config else 1,
+            nombre_grupo=self._config.nombre_grupo if self._config else None,
+            bolsa_anual_grupo_min=total_minutes,
+            pdf_logo_path=self._config.pdf_logo_path if self._config else "",
+            pdf_intro_text=self._config.pdf_intro_text if self._config else pdf_builder.INTRO_TEXT,
+            pdf_include_hours_in_horario=include_hours,
+        )
+        try:
+            self._use_cases.update_grupo_config(dto)
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Validación", str(exc))
+            return
+        except Exception as exc:  # pragma: no cover - fallback
+            logger.exception("Error guardando configuración de grupo")
+            QMessageBox.critical(self, "Error", str(exc))
+            return
+        self.accept()
+
+
+class PdfConfigDialog(QDialog):
+    def __init__(
+        self,
+        use_cases: GrupoConfigUseCases,
+        sync_service: SheetsSyncService | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._use_cases = use_cases
+        self._sync_service = sync_service
+        self._config: GrupoConfigDTO | None = None
+        self.setWindowTitle("Opciones PDF")
+        self._build_ui()
+        self._load_config()
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+
+        title = QLabel("Opciones PDF")
+        title.setProperty("role", "subtitle")
+        layout.addWidget(title)
+
+        logo_row = QHBoxLayout()
+        self.logo_path_input = QLineEdit()
+        self.logo_path_input.setReadOnly(True)
+        logo_row.addWidget(self.logo_path_input, 1)
+
+        self.logo_button = QPushButton("Cambiar logo…")
+        self.logo_button.setProperty("variant", "secondary")
+        self.logo_button.clicked.connect(self._on_select_logo)
+        logo_row.addWidget(self.logo_button)
+        layout.addLayout(logo_row)
+
+        intro_label = QLabel("Texto legal del PDF (se usa literalmente en el PDF)")
+        layout.addWidget(intro_label)
+
+        self.pdf_intro_input = QPlainTextEdit()
+        self.pdf_intro_input.setPlaceholderText(pdf_builder.INTRO_TEXT)
+        self.pdf_intro_input.setFixedHeight(120)
+        layout.addWidget(self.pdf_intro_input)
+
+        actions_layout = QHBoxLayout()
+        actions_layout.addStretch(1)
+
+        self.cancel_button = QPushButton("Cancelar")
+        self.cancel_button.setProperty("variant", "secondary")
+        self.cancel_button.clicked.connect(self.reject)
+        actions_layout.addWidget(self.cancel_button)
+
+        self.save_button = QPushButton("Guardar")
+        self.save_button.setProperty("variant", "primary")
+        self.save_button.clicked.connect(self._on_save)
+        actions_layout.addWidget(self.save_button)
+
+        layout.addLayout(actions_layout)
+
+    def _load_config(self) -> None:
+        try:
+            self._config = self._use_cases.get_grupo_config()
+        except BusinessRuleError:
+            self._config = None
+        except Exception as exc:  # pragma: no cover - fallback
+            logger.exception("Error cargando configuración PDF")
+            QMessageBox.critical(self, "Error", str(exc))
+            return
+
+        if self._config:
             self.logo_path_input.setText(self._config.pdf_logo_path or "")
             self.pdf_intro_input.setPlainText(self._config.pdf_intro_text or "")
-            self._include_hours = self._config.pdf_include_hours_in_horario
 
     def _on_select_logo(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -134,15 +198,16 @@ class GrupoConfigDialog(QDialog):
             self.logo_path_input.setText(path)
 
     def _on_save(self) -> None:
-        total_minutes = self.group_time_input.minutes()
         intro_text = self.pdf_intro_input.toPlainText().strip() or pdf_builder.INTRO_TEXT
         dto = GrupoConfigDTO(
             id=self._config.id if self._config else 1,
             nombre_grupo=self._config.nombre_grupo if self._config else None,
-            bolsa_anual_grupo_min=total_minutes,
+            bolsa_anual_grupo_min=self._config.bolsa_anual_grupo_min if self._config else 0,
             pdf_logo_path=self.logo_path_input.text().strip(),
             pdf_intro_text=intro_text,
-            pdf_include_hours_in_horario=self._include_hours,
+            pdf_include_hours_in_horario=(
+                self._config.pdf_include_hours_in_horario if self._config else None
+            ),
         )
         try:
             self._use_cases.update_grupo_config(dto)
@@ -150,7 +215,7 @@ class GrupoConfigDialog(QDialog):
             QMessageBox.warning(self, "Validación", str(exc))
             return
         except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error guardando configuración de grupo")
+            logger.exception("Error guardando configuración PDF")
             QMessageBox.critical(self, "Error", str(exc))
             return
         if self._sync_service:
