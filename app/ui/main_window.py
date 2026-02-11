@@ -380,7 +380,10 @@ class MainWindow(QMainWindow):
 
         self.agregar_button = QPushButton("Agregar")
         self.agregar_button.setProperty("variant", "primary")
-        self.agregar_button.clicked.connect(self._on_add_pendiente)
+        self.agregar_button.clicked.connect(
+            self._on_add_pendiente,
+            Qt.ConnectionType.UniqueConnection,
+        )
         solicitud_row.addWidget(self.agregar_button)
         solicitud_row.addStretch(1)
         solicitud_layout.addLayout(solicitud_row)
@@ -931,20 +934,43 @@ class MainWindow(QMainWindow):
     def _on_add_pendiente(self) -> None:
         solicitud = self._build_preview_solicitud()
         if solicitud is None:
+            QMessageBox.warning(
+                self,
+                "Validación",
+                "Selecciona una delegada antes de agregar una petición.",
+            )
             return
-        minutos, _warning = self._calculate_preview_minutes()
-        solicitud.horas = (minutos or 0) / 60
+
+        try:
+            minutos = self._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
+        except (ValidacionError, BusinessRuleError) as exc:
+            QMessageBox.warning(self, "Validación", str(exc))
+            return
+        except Exception as exc:  # pragma: no cover - fallback
+            logger.exception("Error calculando minutos de la petición")
+            QMessageBox.critical(self, "Error", str(exc))
+            return
+
+        solicitud.horas = minutos / 60
         notas_text = self.notas_input.toPlainText().strip()
         solicitud.notas = notas_text or None
-        fecha_pedida = solicitud.fecha_pedida
-        completo = solicitud.completo
-        if not self._resolve_pending_conflict(fecha_pedida, completo):
-            return
+
         if not self._resolve_backend_conflict(solicitud.persona_id, solicitud):
             return
-        self._pending_solicitudes.append(solicitud)
-        self.pendientes_model.append_solicitud(solicitud)
+
+        try:
+            self._solicitud_use_cases.agregar_solicitud(solicitud)
+        except (ValidacionError, BusinessRuleError) as exc:
+            QMessageBox.warning(self, "Validación", str(exc))
+            return
+        except Exception as exc:  # pragma: no cover - fallback
+            logger.exception("Error insertando petición en base de datos")
+            QMessageBox.critical(self, "Error", str(exc))
+            return
+
         self.notas_input.setPlainText("")
+        self._sync_historico_filter_with_fecha(solicitud.fecha_pedida)
+        self._refresh_historico()
         self._refresh_saldos()
         self._update_action_state()
 
@@ -1001,11 +1027,23 @@ class MainWindow(QMainWindow):
             logger.exception("Error sustituyendo solicitud")
             QMessageBox.critical(self, "Error", str(exc))
             return False
+        self._sync_historico_filter_with_fecha(solicitud.fecha_pedida)
         self._refresh_historico()
         self._refresh_saldos()
         self._update_action_state()
         self.notas_input.setPlainText("")
-        return False
+        return True
+
+    def _sync_historico_filter_with_fecha(self, fecha_pedida: str) -> None:
+        try:
+            fecha = datetime.strptime(fecha_pedida, "%Y-%m-%d")
+        except ValueError:
+            return
+        self.periodo_modo_combo.setCurrentIndex(self.periodo_modo_combo.findData("MENSUAL"))
+        self.year_input.setValue(fecha.year)
+        month_index = self.month_combo.findData(fecha.month)
+        if month_index >= 0:
+            self.month_combo.setCurrentIndex(month_index)
 
     def _on_confirmar(self) -> None:
         persona = self._current_persona()
