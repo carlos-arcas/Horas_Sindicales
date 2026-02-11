@@ -51,6 +51,7 @@ class PdfRow:
     fecha: str
     horario: str
     horas: str
+    minutos_impresos: int
 
 
 def construir_pdf_solicitudes(
@@ -99,22 +100,32 @@ def construir_pdf_solicitudes(
 
     _ = include_hours_in_horario
     rows = _build_rows(solicitudes_list, persona)
-    data = [["Nombre", "Fecha", "Horario", "Horas"]]
-    data.extend([[row.nombre, row.fecha, row.horario, row.horas] for row in rows])
+    data = _build_table_data(rows)
 
     table = Table(data, repeatRows=1, colWidths=[6.5 * cm, 3.5 * cm, 5 * cm, 3 * cm])
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E5E7EB")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
-                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F9FAFB")]),
-            ]
+    table_style_commands = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E5E7EB")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]
+    if len(data) > 2:
+        table_style_commands.append(
+            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#F9FAFB")])
         )
+
+    total_row_index = len(data) - 1
+    table_style_commands.extend(
+        [
+            ("FONTNAME", (2, total_row_index), (3, total_row_index), "Helvetica-Bold"),
+            ("LINEABOVE", (2, total_row_index), (3, total_row_index), 1.2, colors.black),
+            ("BACKGROUND", (2, total_row_index), (3, total_row_index), colors.HexColor("#F3F4F6")),
+            ("ALIGN", (3, total_row_index), (3, total_row_index), "CENTER"),
+        ]
     )
+
+    table.setStyle(TableStyle(table_style_commands))
 
     intro = intro_text if intro_text is not None else INTRO_TEXT
     story = [
@@ -168,9 +179,26 @@ def _build_rows(
     for solicitud in sorted(solicitudes, key=lambda item: item.fecha_pedida):
         fecha = _format_fecha_tabla(solicitud.fecha_pedida)
         horario = _format_horario(solicitud)
-        horas = _format_horas(solicitud)
-        rows.append(PdfRow(nombre=nombre, fecha=fecha, horario=horario, horas=horas))
+        minutos_impresos = _minutos_impresos(solicitud)
+        horas = minutes_to_hhmm(minutos_impresos)
+        rows.append(
+            PdfRow(
+                nombre=nombre,
+                fecha=fecha,
+                horario=horario,
+                horas=horas,
+                minutos_impresos=minutos_impresos,
+            )
+        )
     return rows
+
+
+def _build_table_data(rows: list[PdfRow]) -> list[list[str]]:
+    data = [["Nombre", "Fecha", "Horario", "Horas"]]
+    data.extend([[row.nombre, row.fecha, row.horario, row.horas] for row in rows])
+    total_minutos = sum(row.minutos_impresos for row in rows)
+    data.append(["", "", "TOTAL:", minutes_to_hhmm(total_minutos)])
+    return data
 
 
 def _format_nombre(persona: Persona) -> str:
@@ -191,10 +219,14 @@ def _format_horario(solicitud: SolicitudDTO) -> str:
 
 
 def _format_horas(solicitud: SolicitudDTO) -> str:
+    return minutes_to_hhmm(_minutos_impresos(solicitud))
+
+
+def _minutos_impresos(solicitud: SolicitudDTO) -> int:
     minutos = int(round(solicitud.horas * 60))
     if minutos <= 0:
-        minutos = 0
-    return minutes_to_hhmm(minutos)
+        return 0
+    return minutos
 
 
 def _format_dias_seleccionados(fechas: list[datetime]) -> str:
