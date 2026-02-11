@@ -51,7 +51,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                    cuad_vie_man_min, cuad_vie_tar_min,
                    cuad_sab_man_min, cuad_sab_tar_min,
                    cuad_dom_man_min, cuad_dom_tar_min,
-                   cuadrante_uniforme
+                   cuadrante_uniforme, trabaja_finde
             FROM personas
         """
         if not include_inactive:
@@ -84,6 +84,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                 cuad_dom_man_min=_int_or_zero(row["cuad_dom_man_min"]),
                 cuad_dom_tar_min=_int_or_zero(row["cuad_dom_tar_min"]),
                 cuadrante_uniforme=_bool_from_db(row["cuadrante_uniforme"]) if "cuadrante_uniforme" in row.keys() else False,
+                trabaja_finde=_bool_from_db(row["trabaja_finde"]) if "trabaja_finde" in row.keys() else False,
             )
             for row in rows
         ]
@@ -102,7 +103,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                    cuad_vie_man_min, cuad_vie_tar_min,
                    cuad_sab_man_min, cuad_sab_tar_min,
                    cuad_dom_man_min, cuad_dom_tar_min,
-                   cuadrante_uniforme
+                   cuadrante_uniforme, trabaja_finde
             FROM personas
             WHERE id = ? AND (deleted = 0 OR deleted IS NULL)
             """,
@@ -133,6 +134,7 @@ class PersonaRepositorySQLite(PersonaRepository):
             cuad_dom_man_min=_int_or_zero(row["cuad_dom_man_min"]),
             cuad_dom_tar_min=_int_or_zero(row["cuad_dom_tar_min"]),
             cuadrante_uniforme=_bool_from_db(row["cuadrante_uniforme"]) if "cuadrante_uniforme" in row.keys() else False,
+            trabaja_finde=_bool_from_db(row["trabaja_finde"]) if "trabaja_finde" in row.keys() else False,
         )
 
     def get_by_nombre(self, nombre: str) -> Persona | None:
@@ -149,7 +151,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                    cuad_vie_man_min, cuad_vie_tar_min,
                    cuad_sab_man_min, cuad_sab_tar_min,
                    cuad_dom_man_min, cuad_dom_tar_min,
-                   cuadrante_uniforme
+                   cuadrante_uniforme, trabaja_finde
             FROM personas
             WHERE nombre = ? AND (deleted = 0 OR deleted IS NULL)
             """,
@@ -180,6 +182,7 @@ class PersonaRepositorySQLite(PersonaRepository):
             cuad_dom_man_min=_int_or_zero(row["cuad_dom_man_min"]),
             cuad_dom_tar_min=_int_or_zero(row["cuad_dom_tar_min"]),
             cuadrante_uniforme=_bool_from_db(row["cuadrante_uniforme"]) if "cuadrante_uniforme" in row.keys() else False,
+            trabaja_finde=_bool_from_db(row["trabaja_finde"]) if "trabaja_finde" in row.keys() else False,
         )
 
     def create(self, persona: Persona) -> Persona:
@@ -194,9 +197,9 @@ class PersonaRepositorySQLite(PersonaRepository):
                 cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
                 cuad_mie_man_min, cuad_mie_tar_min, cuad_jue_man_min, cuad_jue_tar_min,
                 cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
-                cuad_dom_man_min, cuad_dom_tar_min, cuadrante_uniforme,
+                cuad_dom_man_min, cuad_dom_tar_min, cuadrante_uniforme, trabaja_finde,
                 updated_at, deleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 persona_uuid,
@@ -221,6 +224,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                 persona.cuad_dom_man_min,
                 persona.cuad_dom_tar_min,
                 1 if persona.cuadrante_uniforme else 0,
+                1 if persona.trabaja_finde else 0,
                 updated_at,
                 0,
             ),
@@ -249,6 +253,7 @@ class PersonaRepositorySQLite(PersonaRepository):
             cuad_dom_man_min=persona.cuad_dom_man_min,
             cuad_dom_tar_min=persona.cuad_dom_tar_min,
             cuadrante_uniforme=persona.cuadrante_uniforme,
+            trabaja_finde=persona.trabaja_finde,
         )
 
     def update(self, persona: Persona) -> Persona:
@@ -263,7 +268,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                 cuad_lun_man_min = ?, cuad_lun_tar_min = ?, cuad_mar_man_min = ?, cuad_mar_tar_min = ?,
                 cuad_mie_man_min = ?, cuad_mie_tar_min = ?, cuad_jue_man_min = ?, cuad_jue_tar_min = ?,
                 cuad_vie_man_min = ?, cuad_vie_tar_min = ?, cuad_sab_man_min = ?, cuad_sab_tar_min = ?,
-                cuad_dom_man_min = ?, cuad_dom_tar_min = ?, cuadrante_uniforme = ?,
+                cuad_dom_man_min = ?, cuad_dom_tar_min = ?, cuadrante_uniforme = ?, trabaja_finde = ?,
                 updated_at = ?
             WHERE id = ?
             """,
@@ -289,6 +294,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                 persona.cuad_dom_man_min,
                 persona.cuad_dom_tar_min,
                 1 if persona.cuadrante_uniforme else 0,
+                1 if persona.trabaja_finde else 0,
                 updated_at,
                 persona.id,
             ),

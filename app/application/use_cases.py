@@ -87,6 +87,7 @@ def _persona_to_dto(persona: Persona) -> PersonaDTO:
         cuad_dom_man_min=persona.cuad_dom_man_min,
         cuad_dom_tar_min=persona.cuad_dom_tar_min,
         cuadrante_uniforme=persona.cuadrante_uniforme,
+        trabaja_finde=persona.trabaja_finde,
     )
 
 
@@ -113,25 +114,35 @@ def _dto_to_persona(dto: PersonaDTO) -> Persona:
         cuad_dom_man_min=dto.cuad_dom_man_min,
         cuad_dom_tar_min=dto.cuad_dom_tar_min,
         cuadrante_uniforme=dto.cuadrante_uniforme,
+        trabaja_finde=dto.trabaja_finde,
     )
 
 
 
 
 def _normalizar_cuadrante_persona(dto: PersonaDTO) -> PersonaDTO:
-    if not dto.cuadrante_uniforme:
-        return dto
-    return replace(
-        dto,
-        cuad_mar_man_min=dto.cuad_lun_man_min,
-        cuad_mar_tar_min=dto.cuad_lun_tar_min,
-        cuad_mie_man_min=dto.cuad_lun_man_min,
-        cuad_mie_tar_min=dto.cuad_lun_tar_min,
-        cuad_jue_man_min=dto.cuad_lun_man_min,
-        cuad_jue_tar_min=dto.cuad_lun_tar_min,
-        cuad_vie_man_min=dto.cuad_lun_man_min,
-        cuad_vie_tar_min=dto.cuad_lun_tar_min,
-    )
+    dto_normalizado = dto
+    if dto_normalizado.cuadrante_uniforme:
+        dto_normalizado = replace(
+            dto_normalizado,
+            cuad_mar_man_min=dto_normalizado.cuad_lun_man_min,
+            cuad_mar_tar_min=dto_normalizado.cuad_lun_tar_min,
+            cuad_mie_man_min=dto_normalizado.cuad_lun_man_min,
+            cuad_mie_tar_min=dto_normalizado.cuad_lun_tar_min,
+            cuad_jue_man_min=dto_normalizado.cuad_lun_man_min,
+            cuad_jue_tar_min=dto_normalizado.cuad_lun_tar_min,
+            cuad_vie_man_min=dto_normalizado.cuad_lun_man_min,
+            cuad_vie_tar_min=dto_normalizado.cuad_lun_tar_min,
+        )
+    if not dto_normalizado.trabaja_finde:
+        return replace(
+            dto_normalizado,
+            cuad_sab_man_min=0,
+            cuad_sab_tar_min=0,
+            cuad_dom_man_min=0,
+            cuad_dom_tar_min=0,
+        )
+    return dto_normalizado
 
 def _solicitud_to_dto(solicitud: Solicitud) -> SolicitudDTO:
     desde = minutes_to_hhmm(solicitud.desde_min) if solicitud.desde_min is not None else None
@@ -237,6 +248,17 @@ class PersonaUseCases:
             raise BusinessRuleError("La persona debe tener id para editar.")
         logger.info("Editando persona %s", dto.id)
         dto_normalizado = _normalizar_cuadrante_persona(dto)
+        if not dto_normalizado.trabaja_finde:
+            actual = self._repo.get_by_id(dto_normalizado.id)
+            if actual is None:
+                raise BusinessRuleError("Persona no encontrada.")
+            dto_normalizado = replace(
+                dto_normalizado,
+                cuad_sab_man_min=actual.cuad_sab_man_min,
+                cuad_sab_tar_min=actual.cuad_sab_tar_min,
+                cuad_dom_man_min=actual.cuad_dom_man_min,
+                cuad_dom_tar_min=actual.cuad_dom_tar_min,
+            )
         persona = _dto_to_persona(dto_normalizado)
         validar_persona(persona)
         actualizada = self._repo.update(persona)
@@ -668,6 +690,7 @@ class PersonaFactory:
             cuad_sab_tar_min=cuad_sab_tar_min,
             cuad_dom_man_min=cuad_dom_man_min,
             cuad_dom_tar_min=cuad_dom_tar_min,
+            trabaja_finde=False,
         )
 
 
@@ -692,6 +715,8 @@ def _total_cuadrante_por_fecha(persona: Persona, fecha: str) -> int:
         6: "cuad_dom",
     }
     dia_prefix = dia_map[weekday]
+    if weekday >= 5 and not persona.trabaja_finde:
+        return 0
     return _total_cuadrante_min(persona, dia_prefix)
 
 
