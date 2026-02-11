@@ -397,6 +397,12 @@ class SolicitudUseCases:
             total += _calcular_minutos(solicitud, persona)
         return total
 
+    def calcular_minutos_solicitud(self, dto: SolicitudDTO) -> int:
+        persona = self._persona_repo.get_by_id(dto.persona_id)
+        if persona is None:
+            raise BusinessRuleError("Persona no encontrada.")
+        return _calcular_minutos(dto, persona)
+
     def sugerir_nombre_pdf(self, solicitudes: Iterable[SolicitudDTO]) -> str:
         solicitudes_list = list(solicitudes)
         if not solicitudes_list:

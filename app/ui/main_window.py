@@ -363,9 +363,15 @@ class MainWindow(QMainWindow):
         self.completo_check.toggled.connect(self._on_completo_changed)
         solicitud_row.addWidget(self.completo_check)
 
-        self.total_preview_label = QLabel("Total: 00:00")
+        self.total_preview_label = QLabel("Total petición")
         self.total_preview_label.setProperty("role", "secondary")
         solicitud_row.addWidget(self.total_preview_label)
+
+        self.total_preview_input = QLineEdit("00:00")
+        self.total_preview_input.setReadOnly(True)
+        self.total_preview_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.total_preview_input.setMaximumWidth(84)
+        solicitud_row.addWidget(self.total_preview_input)
 
         self.cuadrante_warning_label = QLabel("")
         self.cuadrante_warning_label.setProperty("role", "secondary")
@@ -705,6 +711,8 @@ class MainWindow(QMainWindow):
         self.desde_placeholder.setFixedSize(desde_hint)
         self.hasta_placeholder.setFixedSize(hasta_hint)
         self._sync_completo_visibility(self.completo_check.isChecked())
+        if hasattr(self, "horas_input"):
+            self.horas_input.timeChanged.connect(self._update_solicitud_preview)
 
     def _sync_completo_visibility(self, checked: bool) -> None:
         self.desde_container.setVisible(not checked)
@@ -766,26 +774,59 @@ class MainWindow(QMainWindow):
     def _on_edit_pdf(self) -> None:
         self._on_edit_grupo()
 
-    def _calculate_preview_minutes(self) -> tuple[int, bool]:
-        if self.completo_check.isChecked():
-            persona = self._current_persona()
-            if persona is None:
-                return 0, False
-            fecha_pedida = self.fecha_input.date().toString("yyyy-MM-dd")
-            try:
-                minutos = self._solicitud_use_cases.sugerir_completo_min(
-                    persona.id or 0, fecha_pedida
-                )
-                return minutos, minutos == 0
-            except BusinessRuleError:
-                return 0, False
-        minutos = self.desde_input.time().secsTo(self.hasta_input.time()) // 60
-        return max(0, minutos), False
+    def _manual_hours_minutes(self) -> int:
+        if not hasattr(self, "horas_input"):
+            return 0
+        horas_input = self.horas_input
+        if hasattr(horas_input, "minutes"):
+            return max(0, int(horas_input.minutes()))
+        if hasattr(horas_input, "time"):
+            qtime = horas_input.time()
+            return (qtime.hour() * 60) + qtime.minute()
+        if hasattr(horas_input, "value"):
+            return max(0, int(horas_input.value() * 60))
+        return 0
+
+    def _build_preview_solicitud(self) -> SolicitudDTO | None:
+        persona = self._current_persona()
+        if persona is None:
+            return None
+        completo = self.completo_check.isChecked()
+        fecha_pedida = self.fecha_input.date().toString("yyyy-MM-dd")
+        desde = None if completo else self.desde_input.time().toString("HH:mm")
+        hasta = None if completo else self.hasta_input.time().toString("HH:mm")
+        manual_minutes = self._manual_hours_minutes()
+        return SolicitudDTO(
+            id=None,
+            persona_id=persona.id or 0,
+            fecha_solicitud=datetime.now().strftime("%Y-%m-%d"),
+            fecha_pedida=fecha_pedida,
+            desde=desde,
+            hasta=hasta,
+            completo=completo,
+            horas=manual_minutes / 60 if manual_minutes > 0 else 0,
+            observaciones=None,
+            pdf_path=None,
+            pdf_hash=None,
+            notas=None,
+        )
+
+    def _calculate_preview_minutes(self) -> tuple[int | None, bool]:
+        solicitud = self._build_preview_solicitud()
+        if solicitud is None:
+            return 0, False
+        try:
+            minutos = self._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
+            return minutos, False
+        except BusinessRuleError as exc:
+            mensaje = str(exc).lower()
+            warning = solicitud.completo and "configura el cuadrante" in mensaje
+            return None, warning
 
     def _update_solicitud_preview(self) -> None:
         minutos, warning = self._calculate_preview_minutes()
-        etiqueta = "Completo" if self.completo_check.isChecked() else "Total"
-        self.total_preview_label.setText(f"{etiqueta}: {self._format_minutes(minutos)}")
+        total_txt = "—" if minutos is None else self._format_minutes(minutos)
+        self.total_preview_input.setText(total_txt)
         self.cuadrante_warning_label.setVisible(warning)
         self.cuadrante_warning_label.setText("Cuadrante no configurado" if warning else "")
 
@@ -876,33 +917,18 @@ class MainWindow(QMainWindow):
         self._load_personas()
 
     def _on_add_pendiente(self) -> None:
-        persona = self._current_persona()
-        if persona is None:
+        solicitud = self._build_preview_solicitud()
+        if solicitud is None:
             return
-        fecha_pedida = self.fecha_input.date().toString("yyyy-MM-dd")
-        completo = self.completo_check.isChecked()
-        desde = None if completo else self.desde_input.time().toString("HH:mm")
-        hasta = None if completo else self.hasta_input.time().toString("HH:mm")
         minutos, _warning = self._calculate_preview_minutes()
+        solicitud.horas = (minutos or 0) / 60
         notas_text = self.notas_input.toPlainText().strip()
-        notas = notas_text or None
-        solicitud = SolicitudDTO(
-            id=None,
-            persona_id=persona.id or 0,
-            fecha_solicitud=datetime.now().strftime("%Y-%m-%d"),
-            fecha_pedida=fecha_pedida,
-            desde=desde,
-            hasta=hasta,
-            completo=completo,
-            horas=minutos / 60 if minutos > 0 else 0,
-            observaciones=None,
-            pdf_path=None,
-            pdf_hash=None,
-            notas=notas,
-        )
+        solicitud.notas = notas_text or None
+        fecha_pedida = solicitud.fecha_pedida
+        completo = solicitud.completo
         if not self._resolve_pending_conflict(fecha_pedida, completo):
             return
-        if not self._resolve_backend_conflict(persona.id or 0, solicitud):
+        if not self._resolve_backend_conflict(solicitud.persona_id, solicitud):
             return
         self._pending_solicitudes.append(solicitud)
         self.pendientes_model.append_solicitud(solicitud)
