@@ -4,7 +4,6 @@ import json
 import logging
 import sqlite3
 import uuid
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -14,7 +13,8 @@ import gspread
 from app.application.sheets_service import SHEETS_SCHEMA
 from app.infrastructure.local_config import SheetsConfigStore
 from app.infrastructure.sheets_client import SheetsClient
-from app.infrastructure.sheets_errors import SheetsConfigError
+from app.domain.sheets_errors import SheetsConfigError
+from app.domain.sync_models import SyncSummary
 from app.infrastructure.sheets_repository import SheetsRepository
 
 logger = logging.getLogger(__name__)
@@ -29,13 +29,6 @@ def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: tuple[obj
         )
     cursor.execute(sql, params)
 
-
-@dataclass(frozen=True)
-class SyncSummary:
-    downloaded: int
-    uploaded: int
-    conflicts: int
-    omitted_duplicates: int
 
 
 class SheetsSyncService:

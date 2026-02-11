@@ -7,11 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.domain.models import SheetsConfig
-from app.domain.ports import SheetsConfigRepository
+from app.domain.ports import SheetsConfigStorePort, SheetsGatewayPort
 from app.domain.services import BusinessRuleError, ValidacionError, validar_sheets_config
-from app.infrastructure.sheets_client import SheetsClient
-from app.infrastructure.sheets_errors import SheetsCredentialsError
-from app.infrastructure.sheets_repository import SheetsRepository
+from app.domain.sheets_errors import SheetsCredentialsError
 
 logger = logging.getLogger(__name__)
 
@@ -86,13 +84,11 @@ class SheetsConnectionResult:
 class SheetsService:
     def __init__(
         self,
-        config_repo: SheetsConfigRepository,
-        client: SheetsClient,
-        repository: SheetsRepository,
+        config_repo: SheetsConfigStorePort,
+        gateway: SheetsGatewayPort,
     ) -> None:
         self._config_repo = config_repo
-        self._client = client
-        self._repository = repository
+        self._gateway = gateway
 
     def get_config(self) -> SheetsConfig | None:
         return self._config_repo.load()
@@ -130,12 +126,11 @@ class SheetsService:
     def test_connection(self, spreadsheet_input: str, credentials_path: str | None = None) -> SheetsConnectionResult:
         config = self.save_config(spreadsheet_input, credentials_path)
         self._validate_credentials_file(config.credentials_path)
-        spreadsheet = self._client.open_spreadsheet(Path(config.credentials_path), config.spreadsheet_id)
-        logger.info("Conexión OK. Spreadsheet: %s (%s)", spreadsheet.title, spreadsheet.id)
-        actions = self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+        title, spreadsheet_id, actions = self._gateway.test_connection(config, SHEETS_SCHEMA)
+        logger.info("Conexión OK. Spreadsheet: %s (%s)", title, spreadsheet_id)
         return SheetsConnectionResult(
-            spreadsheet_title=spreadsheet.title,
-            spreadsheet_id=spreadsheet.id,
+            spreadsheet_title=title,
+            spreadsheet_id=spreadsheet_id,
             schema_actions=actions,
         )
 

@@ -41,21 +41,18 @@ from PySide6.QtWidgets import (
 from app.application.conflicts_service import ConflictsService
 from app.application.dto import PeriodoFiltro, PersonaDTO, SolicitudDTO
 from app.application.sheets_service import SheetsService
+from app.application.sync_sheets_use_case import SyncSheetsUseCase
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.time_utils import minutes_to_hhmm
-from app.infrastructure.db import get_connection
-from app.infrastructure.local_config import SheetsConfigStore
-from app.infrastructure.sheets_client import SheetsClient
-from app.infrastructure.sheets_sync_service import SheetsSyncService, SyncSummary
-from app.infrastructure.sheets_errors import (
+from app.domain.sync_models import SyncSummary
+from app.domain.sheets_errors import (
     SheetsApiDisabledError,
     SheetsConfigError,
     SheetsCredentialsError,
     SheetsNotFoundError,
     SheetsPermissionError,
 )
-from app.infrastructure.sheets_repository import SheetsRepository
 from app.ui.models_qt import SolicitudesTableModel
 from app.ui.dialog_opciones import OpcionesDialog
 from app.ui.conflicts_dialog import ConflictsDialog
@@ -71,28 +68,14 @@ class SyncWorker(QObject):
     finished = Signal(SyncSummary)
     failed = Signal(object)
 
-    def __init__(
-        self,
-        config_store: SheetsConfigStore,
-        client: SheetsClient,
-        repository: SheetsRepository,
-    ) -> None:
+    def __init__(self, sync_use_case: SyncSheetsUseCase) -> None:
         super().__init__()
-        self._config_store = config_store
-        self._client = client
-        self._repository = repository
+        self._sync_use_case = sync_use_case
 
     @Slot()
     def run(self) -> None:
-        connection = get_connection()
         try:
-            sync_service = SheetsSyncService(
-                connection,
-                self._config_store,
-                self._client,
-                self._repository,
-            )
-            summary = sync_service.sync()
+            summary = self._sync_use_case.sync()
         except Exception as exc:
             logger.exception("Error durante la sincronización")
             self.failed.emit(
@@ -102,8 +85,6 @@ class SyncWorker(QObject):
                 }
             )
             return
-        finally:
-            connection.close()
         self.finished.emit(summary)
 
 
@@ -111,28 +92,14 @@ class PushWorker(QObject):
     finished = Signal(SyncSummary)
     failed = Signal(object)
 
-    def __init__(
-        self,
-        config_store: SheetsConfigStore,
-        client: SheetsClient,
-        repository: SheetsRepository,
-    ) -> None:
+    def __init__(self, sync_use_case: SyncSheetsUseCase) -> None:
         super().__init__()
-        self._config_store = config_store
-        self._client = client
-        self._repository = repository
+        self._sync_use_case = sync_use_case
 
     @Slot()
     def run(self) -> None:
-        connection = get_connection()
         try:
-            sync_service = SheetsSyncService(
-                connection,
-                self._config_store,
-                self._client,
-                self._repository,
-            )
-            summary = sync_service.push()
+            summary = self._sync_use_case.push()
         except Exception as exc:
             logger.exception("Error durante la subida")
             self.failed.emit(
@@ -142,8 +109,6 @@ class PushWorker(QObject):
                 }
             )
             return
-        finally:
-            connection.close()
         self.finished.emit(summary)
 
 
@@ -154,10 +119,7 @@ class MainWindow(QMainWindow):
         solicitud_use_cases: SolicitudUseCases,
         grupo_use_cases: GrupoConfigUseCases,
         sheets_service: SheetsService,
-        sync_service: SheetsSyncService,
-        config_store: SheetsConfigStore,
-        sheets_client: SheetsClient,
-        sheets_repository: SheetsRepository,
+        sync_sheets_use_case: SyncSheetsUseCase,
         conflicts_service: ConflictsService,
     ) -> None:
         super().__init__()
@@ -168,10 +130,7 @@ class MainWindow(QMainWindow):
         self._solicitud_use_cases = solicitud_use_cases
         self._grupo_use_cases = grupo_use_cases
         self._sheets_service = sheets_service
-        self._sync_service = sync_service
-        self._config_store = config_store
-        self._sheets_client = sheets_client
-        self._sheets_repository = sheets_repository
+        self._sync_service = sync_sheets_use_case
         self._conflicts_service = conflicts_service
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
@@ -751,11 +710,7 @@ class MainWindow(QMainWindow):
             return
         self._set_sync_in_progress(True)
         self._sync_thread = QThread()
-        self._sync_worker = SyncWorker(
-            self._config_store,
-            self._sheets_client,
-            self._sheets_repository,
-        )
+        self._sync_worker = SyncWorker(self._sync_service)
         self._sync_worker.moveToThread(self._sync_thread)
         self._sync_thread.started.connect(self._sync_worker.run)
         self._sync_worker.finished.connect(self._on_sync_finished)
@@ -1125,11 +1080,7 @@ class MainWindow(QMainWindow):
             return
         self._set_sync_in_progress(True)
         self._sync_thread = QThread()
-        self._sync_worker = PushWorker(
-            self._config_store,
-            self._sheets_client,
-            self._sheets_repository,
-        )
+        self._sync_worker = PushWorker(self._sync_service)
         self._sync_worker.moveToThread(self._sync_thread)
         self._sync_thread.started.connect(self._sync_worker.run)
         self._sync_worker.finished.connect(self._on_push_finished)

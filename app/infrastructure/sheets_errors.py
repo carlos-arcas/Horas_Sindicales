@@ -6,25 +6,13 @@ from typing import Optional
 import gspread
 from google.auth.exceptions import DefaultCredentialsError
 
-
-class SheetsConfigError(Exception):
-    pass
-
-
-class SheetsApiDisabledError(Exception):
-    pass
-
-
-class SheetsPermissionError(Exception):
-    pass
-
-
-class SheetsNotFoundError(Exception):
-    pass
-
-
-class SheetsCredentialsError(Exception):
-    pass
+from app.domain.sheets_errors import (
+    SheetsApiDisabledError,
+    SheetsConfigError,
+    SheetsCredentialsError,
+    SheetsNotFoundError,
+    SheetsPermissionError,
+)
 
 
 def _extract_api_error_text(ex: gspread.exceptions.APIError) -> str:

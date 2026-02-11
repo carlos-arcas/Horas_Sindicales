@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol, Iterable
 
+from app.domain.sync_models import SyncSummary
 from app.domain.models import GrupoConfig, Persona, SheetsConfig, Solicitud
 
 
@@ -80,7 +81,7 @@ class GrupoConfigRepository(Protocol):
         ...
 
 
-class SheetsConfigRepository(Protocol):
+class SheetsConfigStorePort(Protocol):
     def load(self) -> SheetsConfig | None:
         ...
 
@@ -89,3 +90,34 @@ class SheetsConfigRepository(Protocol):
 
     def credentials_path(self) -> Path:
         ...
+
+
+class SheetsGatewayPort(Protocol):
+    def test_connection(self, config: SheetsConfig, schema: dict[str, list[str]]) -> tuple[str, str, list[str]]:
+        ...
+
+
+class SheetsSyncPort(Protocol):
+    def pull(self) -> SyncSummary:
+        ...
+
+    def push(self) -> SyncSummary:
+        ...
+
+    def sync(self) -> SyncSummary:
+        ...
+
+    def get_last_sync_at(self) -> str | None:
+        ...
+
+    def is_configured(self) -> bool:
+        ...
+
+    def store_sync_config_value(self, key: str, value: str) -> None:
+        ...
+
+    def register_pdf_log(self, persona_id: int, fechas: list[str], pdf_hash: str | None) -> None:
+        ...
+
+
+SheetsConfigRepository = SheetsConfigStorePort

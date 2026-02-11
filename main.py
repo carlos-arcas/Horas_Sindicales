@@ -120,9 +120,10 @@ def _run_app() -> int:
     from app.application.base_cuadrantes_service import BaseCuadrantesService
     from app.application.conflicts_service import ConflictsService
     from app.application.sheets_service import SheetsService
+    from app.application.sync_sheets_use_case import SyncSheetsUseCase
     from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
     from app.infrastructure.db import get_connection
-    from app.infrastructure.local_config import SheetsConfigStore
+    from app.infrastructure.local_config_store import LocalConfigStore
     from app.infrastructure.migrations import run_migrations
     from app.infrastructure.repos_sqlite import (
         CuadranteRepositorySQLite,
@@ -131,8 +132,9 @@ def _run_app() -> int:
         SolicitudRepositorySQLite,
     )
     from app.infrastructure.sheets_client import SheetsClient
+    from app.infrastructure.sheets_gateway_gspread import SheetsGatewayGspread
     from app.infrastructure.sheets_repository import SheetsRepository
-    from app.infrastructure.sheets_sync_service import SheetsSyncService
+    from app.infrastructure.sync_sheets_adapter import SyncSheetsAdapter
     from app.infrastructure.seed import seed_if_empty
     from app.ui.main_window import MainWindow
 
@@ -150,11 +152,13 @@ def _run_app() -> int:
     persona_use_cases = PersonaUseCases(persona_repo, base_cuadrantes_service)
     solicitud_use_cases = SolicitudUseCases(solicitud_repo, persona_repo, grupo_repo)
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)
-    config_store = SheetsConfigStore()
+    config_store = LocalConfigStore()
     sheets_client = SheetsClient()
     sheets_repository = SheetsRepository()
-    sheets_service = SheetsService(config_store, sheets_client, sheets_repository)
-    sync_service = SheetsSyncService(connection, config_store, sheets_client, sheets_repository)
+    sheets_gateway = SheetsGatewayGspread(sheets_client, sheets_repository)
+    sheets_service = SheetsService(config_store, sheets_gateway)
+    sync_port = SyncSheetsAdapter(get_connection, config_store, sheets_client, sheets_repository)
+    sync_service = SyncSheetsUseCase(sync_port)
     conflicts_service = ConflictsService(
         connection, lambda: config_store.load().device_id if config_store.load() else ""
     )
@@ -167,9 +171,6 @@ def _run_app() -> int:
             grupo_use_cases,
             sheets_service,
             sync_service,
-            config_store,
-            sheets_client,
-            sheets_repository,
             conflicts_service,
         )
     except Exception:
