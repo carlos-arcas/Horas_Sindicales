@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
+from app.application.base_cuadrantes_service import BaseCuadrantesService
 from app.application.dto import (
     ConflictoDiaDTO,
     PeriodoFiltro,
@@ -183,8 +184,9 @@ def _pdf_intro_text(config: GrupoConfig | None) -> str | None:
 
 
 class PersonaUseCases:
-    def __init__(self, repo: PersonaRepository) -> None:
+    def __init__(self, repo: PersonaRepository, base_cuadrantes_service: BaseCuadrantesService | None = None) -> None:
         self._repo = repo
+        self._base_cuadrantes_service = base_cuadrantes_service
 
     def listar(self) -> Iterable[PersonaDTO]:
         return self.listar_personas()
@@ -201,6 +203,11 @@ class PersonaUseCases:
         persona = _dto_to_persona(dto)
         validar_persona(persona)
         creada = self._repo.create(persona)
+        if self._base_cuadrantes_service and creada.id is not None:
+            self._base_cuadrantes_service.ensure_for_persona(creada.id)
+            refrescada = self._repo.get_by_id(creada.id)
+            if refrescada is not None:
+                creada = refrescada
         return _persona_to_dto(creada)
 
     def editar_persona(self, dto: PersonaDTO) -> PersonaDTO:

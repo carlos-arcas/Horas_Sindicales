@@ -117,6 +117,7 @@ def _run_app() -> int:
 
     from PySide6.QtWidgets import QApplication
 
+    from app.application.base_cuadrantes_service import BaseCuadrantesService
     from app.application.conflicts_service import ConflictsService
     from app.application.sheets_service import SheetsService
     from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
@@ -124,6 +125,7 @@ def _run_app() -> int:
     from app.infrastructure.local_config import SheetsConfigStore
     from app.infrastructure.migrations import run_migrations
     from app.infrastructure.repos_sqlite import (
+        CuadranteRepositorySQLite,
         GrupoConfigRepositorySQLite,
         PersonaRepositorySQLite,
         SolicitudRepositorySQLite,
@@ -141,8 +143,11 @@ def _run_app() -> int:
     persona_repo = PersonaRepositorySQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     grupo_repo = GrupoConfigRepositorySQLite(connection)
+    cuadrante_repo = CuadranteRepositorySQLite(connection)
 
-    persona_use_cases = PersonaUseCases(persona_repo)
+    base_cuadrantes_service = BaseCuadrantesService(persona_repo, cuadrante_repo)
+    base_cuadrantes_service.ensure_for_all_personas()
+    persona_use_cases = PersonaUseCases(persona_repo, base_cuadrantes_service)
     solicitud_use_cases = SolicitudUseCases(solicitud_repo, persona_repo, grupo_repo)
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)
     config_store = SheetsConfigStore()

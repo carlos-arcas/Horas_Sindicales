@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Iterable
 
 from app.domain.models import GrupoConfig, Persona, Solicitud
-from app.domain.ports import GrupoConfigRepository, PersonaRepository, SolicitudRepository
+from app.domain.ports import CuadranteRepository, GrupoConfigRepository, PersonaRepository, SolicitudRepository
 
 
 def _int_or_zero(value: int | None) -> int:
@@ -287,6 +287,69 @@ class PersonaRepositorySQLite(PersonaRepository):
         )
         self._connection.commit()
         return persona
+
+    def get_or_create_uuid(self, persona_id: int) -> str | None:
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT uuid FROM personas WHERE id = ? AND (deleted = 0 OR deleted IS NULL)", (persona_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        persona_uuid = row["uuid"]
+        if persona_uuid:
+            return persona_uuid
+        persona_uuid = str(uuid.uuid4())
+        updated_at = _now_iso()
+        cursor.execute("PRAGMA table_info(personas)")
+        columns = {col[1] for col in cursor.fetchall()}
+        if "updated_at" in columns:
+            _execute_with_validation(
+                cursor,
+                "UPDATE personas SET uuid = ?, updated_at = ? WHERE id = ?",
+                (persona_uuid, updated_at, persona_id),
+                "personas.ensure_uuid",
+            )
+        else:
+            _execute_with_validation(
+                cursor,
+                "UPDATE personas SET uuid = ? WHERE id = ?",
+                (persona_uuid, persona_id),
+                "personas.ensure_uuid_no_updated_at",
+            )
+        self._connection.commit()
+        return persona_uuid
+
+
+class CuadranteRepositorySQLite(CuadranteRepository):
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def exists_for_delegada(self, delegada_uuid: str, dia_semana: str) -> bool:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT 1
+            FROM cuadrantes
+            WHERE delegada_uuid = ?
+              AND dia_semana = ?
+              AND (deleted = 0 OR deleted IS NULL)
+            LIMIT 1
+            """,
+            (delegada_uuid, dia_semana),
+        )
+        return cursor.fetchone() is not None
+
+    def create(self, delegada_uuid: str, dia_semana: str, man_min: int, tar_min: int) -> None:
+        cursor = self._connection.cursor()
+        _execute_with_validation(
+            cursor,
+            """
+            INSERT INTO cuadrantes (uuid, delegada_uuid, dia_semana, man_min, tar_min, updated_at, deleted)
+            VALUES (?, ?, ?, ?, ?, ?, 0)
+            """,
+            (str(uuid.uuid4()), delegada_uuid, dia_semana, man_min, tar_min, _now_iso()),
+            "cuadrantes.insert",
+        )
+        self._connection.commit()
 
 
 class SolicitudRepositorySQLite(SolicitudRepository):

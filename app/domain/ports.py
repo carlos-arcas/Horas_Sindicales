@@ -22,6 +22,17 @@ class PersonaRepository(Protocol):
     def update(self, persona: Persona) -> Persona:
         ...
 
+    def get_or_create_uuid(self, persona_id: int) -> str | None:
+        ...
+
+
+class CuadranteRepository(Protocol):
+    def exists_for_delegada(self, delegada_uuid: str, dia_semana: str) -> bool:
+        ...
+
+    def create(self, delegada_uuid: str, dia_semana: str, man_min: int, tar_min: int) -> None:
+        ...
+
 
 class SolicitudRepository(Protocol):
     def list_by_persona(self, persona_id: int) -> Iterable[Solicitud]:
