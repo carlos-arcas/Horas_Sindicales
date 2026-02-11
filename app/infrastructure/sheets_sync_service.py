@@ -481,7 +481,7 @@ class SheetsSyncService:
             SELECT s.id, s.uuid, s.persona_id, s.fecha_pedida, s.desde_min, s.hasta_min,
                    s.completo, s.horas_solicitadas_min, s.notas, s.created_at, s.updated_at,
                    s.source_device, s.deleted, s.pdf_hash,
-                   p.uuid AS delegada_uuid
+                   p.uuid AS delegada_uuid, p.nombre AS delegada_nombre
             FROM solicitudes s
             JOIN personas p ON p.id = s.persona_id
             WHERE s.updated_at IS NOT NULL
@@ -504,6 +504,7 @@ class SheetsSyncService:
             payload = {
                 "uuid": uuid_value,
                 "delegada_uuid": row["delegada_uuid"],
+                "Delegada": row["delegada_nombre"] or "",
                 "fecha": row["fecha_pedida"],
                 "desde_h": desde_h,
                 "desde_m": desde_m,
