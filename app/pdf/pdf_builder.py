@@ -20,8 +20,6 @@ from reportlab.platypus import (
 
 from app.application.dto import SolicitudDTO
 from app.domain.models import Persona
-from app.domain.time_utils import minutes_to_hhmm
-
 INTRO_TEXT = (
     "Conforme a lo dispuesto en el art.68 e) del Estatuto de los Trabajadores, aprobado por el "
     "Real Decreto Legislativo 1/1995 de 24 de marzo, dispense la ausencia al trabajo de los/as "
@@ -103,25 +101,29 @@ def construir_pdf_solicitudes(
     data = _build_table_data(rows)
 
     table = Table(data, repeatRows=1, colWidths=[6.5 * cm, 3.5 * cm, 5 * cm, 3 * cm])
+    total_row_index = len(data) - 1
     table_style_commands = [
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E5E7EB")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (3, 1), (3, -1), "RIGHT"),
     ]
     if len(data) > 2:
         table_style_commands.append(
             ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#F9FAFB")])
         )
 
-    total_row_index = len(data) - 1
     table_style_commands.extend(
         [
-            ("FONTNAME", (2, total_row_index), (3, total_row_index), "Helvetica-Bold"),
-            ("LINEABOVE", (2, total_row_index), (3, total_row_index), 1.2, colors.black),
-            ("BACKGROUND", (2, total_row_index), (3, total_row_index), colors.HexColor("#F3F4F6")),
-            ("ALIGN", (3, total_row_index), (3, total_row_index), "CENTER"),
+            ("SPAN", (0, total_row_index), (2, total_row_index)),
+            ("ALIGN", (0, total_row_index), (2, total_row_index), "RIGHT"),
+            ("FONTNAME", (0, total_row_index), (3, total_row_index), "Helvetica-Bold"),
+            ("BACKGROUND", (0, total_row_index), (3, total_row_index), colors.whitesmoke),
+            ("LINEABOVE", (0, total_row_index), (3, total_row_index), 1.25, colors.black),
         ]
     )
 
@@ -196,9 +198,24 @@ def _build_rows(
 def _build_table_data(rows: list[PdfRow]) -> list[list[str]]:
     data = [["Nombre", "Fecha", "Horario", "Horas"]]
     data.extend([[row.nombre, row.fecha, row.horario, row.horas] for row in rows])
-    total_minutos = sum(row.minutos_impresos for row in rows)
-    data.append(["", "", "TOTAL:", minutes_to_hhmm(total_minutos)])
+    total_minutos = sum(parse_hhmm_to_minutes(row.horas) for row in rows)
+    data.append(["TOTAL", "", "", minutes_to_hhmm(total_minutos)])
     return data
+
+
+def parse_hhmm_to_minutes(hhmm: str) -> int:
+    cleaned = hhmm.strip()
+    if not cleaned:
+        return 0
+    hours_text, minutes_text = cleaned.split(":", 1)
+    return int(hours_text) * 60 + int(minutes_text)
+
+
+def minutes_to_hhmm(total_minutes: int) -> str:
+    if total_minutes <= 0:
+        return "00:00"
+    hours, minutes = divmod(total_minutes, 60)
+    return f"{hours:02d}:{minutes:02d}"
 
 
 def _format_nombre(persona: Persona) -> str:
