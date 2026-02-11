@@ -86,6 +86,7 @@ def _persona_to_dto(persona: Persona) -> PersonaDTO:
         cuad_sab_tar_min=persona.cuad_sab_tar_min,
         cuad_dom_man_min=persona.cuad_dom_man_min,
         cuad_dom_tar_min=persona.cuad_dom_tar_min,
+        cuadrante_uniforme=persona.cuadrante_uniforme,
     )
 
 
@@ -111,8 +112,26 @@ def _dto_to_persona(dto: PersonaDTO) -> Persona:
         cuad_sab_tar_min=dto.cuad_sab_tar_min,
         cuad_dom_man_min=dto.cuad_dom_man_min,
         cuad_dom_tar_min=dto.cuad_dom_tar_min,
+        cuadrante_uniforme=dto.cuadrante_uniforme,
     )
 
+
+
+
+def _normalizar_cuadrante_persona(dto: PersonaDTO) -> PersonaDTO:
+    if not dto.cuadrante_uniforme:
+        return dto
+    return replace(
+        dto,
+        cuad_mar_man_min=dto.cuad_lun_man_min,
+        cuad_mar_tar_min=dto.cuad_lun_tar_min,
+        cuad_mie_man_min=dto.cuad_lun_man_min,
+        cuad_mie_tar_min=dto.cuad_lun_tar_min,
+        cuad_jue_man_min=dto.cuad_lun_man_min,
+        cuad_jue_tar_min=dto.cuad_lun_tar_min,
+        cuad_vie_man_min=dto.cuad_lun_man_min,
+        cuad_vie_tar_min=dto.cuad_lun_tar_min,
+    )
 
 def _solicitud_to_dto(solicitud: Solicitud) -> SolicitudDTO:
     desde = minutes_to_hhmm(solicitud.desde_min) if solicitud.desde_min is not None else None
@@ -200,7 +219,8 @@ class PersonaUseCases:
 
     def crear_persona(self, dto: PersonaDTO) -> PersonaDTO:
         logger.info("Creando persona %s", dto.nombre)
-        persona = _dto_to_persona(dto)
+        dto_normalizado = _normalizar_cuadrante_persona(dto)
+        persona = _dto_to_persona(dto_normalizado)
         validar_persona(persona)
         creada = self._repo.create(persona)
         if self._base_cuadrantes_service and creada.id is not None:
@@ -214,7 +234,8 @@ class PersonaUseCases:
         if dto.id is None:
             raise BusinessRuleError("La persona debe tener id para editar.")
         logger.info("Editando persona %s", dto.id)
-        persona = _dto_to_persona(dto)
+        dto_normalizado = _normalizar_cuadrante_persona(dto)
+        persona = _dto_to_persona(dto_normalizado)
         validar_persona(persona)
         actualizada = self._repo.update(persona)
         return _persona_to_dto(actualizada)
