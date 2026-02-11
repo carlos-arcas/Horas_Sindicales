@@ -711,8 +711,20 @@ class MainWindow(QMainWindow):
         self.desde_placeholder.setFixedSize(desde_hint)
         self.hasta_placeholder.setFixedSize(hasta_hint)
         self._sync_completo_visibility(self.completo_check.isChecked())
-        if hasattr(self, "horas_input"):
-            self.horas_input.timeChanged.connect(self._update_solicitud_preview)
+        self._bind_manual_hours_preview_refresh()
+
+    def _bind_manual_hours_preview_refresh(self) -> None:
+        if not hasattr(self, "horas_input"):
+            return
+        horas_input = self.horas_input
+        for signal_name in ("minutesChanged", "timeChanged", "valueChanged", "textChanged"):
+            signal = getattr(horas_input, signal_name, None)
+            if signal is None:
+                continue
+            try:
+                signal.connect(self._update_solicitud_preview)
+            except Exception:  # pragma: no cover - compatibilidad entre widgets Qt
+                continue
 
     def _sync_completo_visibility(self, checked: bool) -> None:
         self.desde_container.setVisible(not checked)
