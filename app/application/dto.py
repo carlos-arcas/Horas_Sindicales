@@ -26,6 +26,7 @@ class PersonaDTO:
     cuad_sab_tar_min: int
     cuad_dom_man_min: int
     cuad_dom_tar_min: int
+    cuadrante_uniforme: bool = False
 
 
 @dataclass(frozen=True)

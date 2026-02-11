@@ -35,7 +35,8 @@ def run_migrations(connection: sqlite3.Connection) -> None:
             cuad_sab_man_min INTEGER,
             cuad_sab_tar_min INTEGER,
             cuad_dom_man_min INTEGER,
-            cuad_dom_tar_min INTEGER
+            cuad_dom_tar_min INTEGER,
+            cuadrante_uniforme INTEGER DEFAULT 0
         )
         """
     )
@@ -148,6 +149,7 @@ def _ensure_personas_columns(cursor: sqlite3.Cursor) -> None:
         ("cuad_sab_tar_min", "INTEGER"),
         ("cuad_dom_man_min", "INTEGER"),
         ("cuad_dom_tar_min", "INTEGER"),
+        ("cuadrante_uniforme", "INTEGER DEFAULT 0"),
     ]:
         _add_column_if_missing(cursor, "personas", column, column_type)
 
@@ -182,6 +184,16 @@ def _ensure_personas_columns(cursor: sqlite3.Cursor) -> None:
             UPDATE personas
             SET is_active = 1
             WHERE is_active IS NULL
+            """
+        )
+
+
+    if _column_exists(cursor, "personas", "cuadrante_uniforme"):
+        cursor.execute(
+            """
+            UPDATE personas
+            SET cuadrante_uniforme = 0
+            WHERE cuadrante_uniforme IS NULL
             """
         )
 
