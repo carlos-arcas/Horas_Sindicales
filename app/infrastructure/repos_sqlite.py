@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -7,6 +8,9 @@ from typing import Iterable
 
 from app.domain.models import GrupoConfig, Persona, Solicitud
 from app.domain.ports import CuadranteRepository, GrupoConfigRepository, PersonaRepository, SolicitudRepository
+
+
+logger = logging.getLogger(__name__)
 
 
 def _int_or_zero(value: int | None) -> int:
@@ -563,6 +567,15 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         return cursor.fetchone() is not None
 
     def create(self, solicitud: Solicitud) -> Solicitud:
+        logger.info(
+            "INSERT solicitudes persona_id=%s fecha_pedida=%s completo=%s desde_min=%s hasta_min=%s horas_min=%s",
+            solicitud.persona_id,
+            solicitud.fecha_pedida,
+            solicitud.completo,
+            solicitud.desde_min,
+            solicitud.hasta_min,
+            solicitud.horas_solicitadas_min,
+        )
         cursor = self._connection.cursor()
         solicitud_uuid = str(uuid.uuid4())
         created_at = _now_iso()

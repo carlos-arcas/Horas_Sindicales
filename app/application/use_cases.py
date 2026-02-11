@@ -304,7 +304,14 @@ class SolicitudUseCases:
         return solicitud
 
     def agregar_solicitud(self, dto: SolicitudDTO) -> tuple[SolicitudDTO, SaldosDTO]:
-        logger.info("Creando solicitud para persona %s", dto.persona_id)
+        logger.info(
+            "Creando solicitud persona_id=%s fecha_pedida=%s completo=%s desde=%s hasta=%s",
+            dto.persona_id,
+            dto.fecha_pedida,
+            dto.completo,
+            dto.desde,
+            dto.hasta,
+        )
         persona = self._persona_repo.get_by_id(dto.persona_id)
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
@@ -467,7 +474,13 @@ class SolicitudUseCases:
         errores: list[str] = []
         for solicitud in solicitudes_list:
             try:
-                creada, _ = self.agregar_solicitud(solicitud)
+                if solicitud.id is not None:
+                    existente = self._repo.get_by_id(solicitud.id)
+                    if existente is None:
+                        raise BusinessRuleError("La solicitud pendiente ya no existe.")
+                    creada = _solicitud_to_dto(existente)
+                else:
+                    creada, _ = self.agregar_solicitud(solicitud)
                 creadas.append(creada)
             except (ValidacionError, BusinessRuleError) as exc:
                 errores.append(str(exc))

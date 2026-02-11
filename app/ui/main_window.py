@@ -933,6 +933,7 @@ class MainWindow(QMainWindow):
         self._load_personas()
 
     def _on_add_pendiente(self) -> None:
+        logger.info("Botón Agregar pulsado en pantalla de Peticiones")
         solicitud = self._build_preview_solicitud()
         if solicitud is None:
             QMessageBox.warning(
@@ -955,12 +956,24 @@ class MainWindow(QMainWindow):
         solicitud.horas = minutos / 60
         notas_text = self.notas_input.toPlainText().strip()
         solicitud.notas = notas_text or None
+        logger.info(
+            "Intentando insertar petición persona_id=%s fecha_pedida=%s completo=%s desde=%s hasta=%s horas=%s notas=%s",
+            solicitud.persona_id,
+            solicitud.fecha_pedida,
+            solicitud.completo,
+            solicitud.desde,
+            solicitud.hasta,
+            solicitud.horas,
+            bool(solicitud.notas),
+        )
 
         if not self._resolve_backend_conflict(solicitud.persona_id, solicitud):
             return
 
         try:
-            self._solicitud_use_cases.agregar_solicitud(solicitud)
+            creada, _ = self._solicitud_use_cases.agregar_solicitud(solicitud)
+            self._pending_solicitudes.append(creada)
+            self.pendientes_model.set_solicitudes(self._pending_solicitudes)
         except (ValidacionError, BusinessRuleError) as exc:
             QMessageBox.warning(self, "Validación", str(exc))
             return
