@@ -987,17 +987,15 @@ class MainWindow(QMainWindow):
             return
 
         self.notas_input.setPlainText("")
-        self._sync_historico_filter_with_fecha(solicitud.fecha_pedida)
         self._refresh_historico()
         self._refresh_saldos()
         self._update_action_state()
 
         visibles_ids = {item.id for item in self.historico_model.solicitudes() if item.id is not None}
         if creada.id is not None and creada.id not in visibles_ids:
-            QMessageBox.information(
-                self,
-                "Petición agregada",
-                "La petición se creó correctamente, pero no aparece en el histórico actual por los filtros seleccionados.",
+            logger.info(
+                "Petición creada con id=%s, pero no visible en histórico por filtros actuales.",
+                creada.id,
             )
 
     def _resolve_pending_conflict(self, fecha_pedida: str, completo: bool) -> bool:
@@ -1053,23 +1051,11 @@ class MainWindow(QMainWindow):
             logger.exception("Error sustituyendo solicitud")
             QMessageBox.critical(self, "Error", str(exc))
             return False
-        self._sync_historico_filter_with_fecha(solicitud.fecha_pedida)
         self._refresh_historico()
         self._refresh_saldos()
         self._update_action_state()
         self.notas_input.setPlainText("")
         return True
-
-    def _sync_historico_filter_with_fecha(self, fecha_pedida: str) -> None:
-        try:
-            fecha = datetime.strptime(fecha_pedida, "%Y-%m-%d")
-        except ValueError:
-            return
-        self.periodo_modo_combo.setCurrentIndex(self.periodo_modo_combo.findData("MENSUAL"))
-        self.year_input.setValue(fecha.year)
-        month_index = self.month_combo.findData(fecha.month)
-        if month_index >= 0:
-            self.month_combo.setCurrentIndex(month_index)
 
     def _on_confirmar(self) -> None:
         persona = self._current_persona()
