@@ -54,6 +54,7 @@ def run_migrations(connection: sqlite3.Connection) -> None:
             notas TEXT NULL,
             pdf_path TEXT NULL,
             pdf_hash TEXT NULL,
+            generated INTEGER NOT NULL DEFAULT 1,
             FOREIGN KEY(persona_id) REFERENCES personas(id)
         )
         """
@@ -203,6 +204,7 @@ def _ensure_solicitudes_columns(cursor: sqlite3.Cursor) -> None:
         ("hasta_min", "INTEGER"),
         ("horas_solicitadas_min", "INTEGER"),
         ("notas", "TEXT NULL"),
+        ("generated", "INTEGER NOT NULL DEFAULT 1"),
     ]:
         _add_column_if_missing(cursor, "solicitudes", column, column_type)
 
@@ -244,6 +246,15 @@ def _ensure_solicitudes_columns(cursor: sqlite3.Cursor) -> None:
             UPDATE solicitudes
             SET notas = observaciones
             WHERE notas IS NULL AND observaciones IS NOT NULL
+            """
+        )
+
+    if _column_exists(cursor, "solicitudes", "generated"):
+        cursor.execute(
+            """
+            UPDATE solicitudes
+            SET generated = 1
+            WHERE generated IS NULL
             """
         )
 

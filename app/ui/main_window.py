@@ -1301,13 +1301,11 @@ class MainWindow(QMainWindow):
             return
         try:
             resumen = self._solicitud_use_cases.calcular_resumen_saldos(persona.id or 0, filtro)
-            pendientes_periodo = self._pending_minutes_for_period(filtro)
-            pendientes_ano = self._pending_minutes_for_period(PeriodoFiltro.anual(filtro.year))
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Validación", str(exc))
             self._set_saldos_labels(None)
             return
-        self._set_saldos_labels(resumen, pendientes_periodo, pendientes_ano)
+        self._set_saldos_labels(resumen)
 
     def _update_periodo_label(self) -> None:
         self.saldo_periodo_label.setText("Mensual")
@@ -1325,15 +1323,15 @@ class MainWindow(QMainWindow):
             self._set_bolsa_labels(0, 0, 0)
             self.exceso_badge.setVisible(False)
             return
-        consumidas_periodo = resumen.individual.consumidas_periodo_min + pendientes_periodo
+        consumidas_periodo = resumen.individual.consumidas_periodo_min
         bolsa_periodo = resumen.individual.bolsa_periodo_min
         restantes_periodo = bolsa_periodo - consumidas_periodo
 
-        consumidas_anual = resumen.individual.consumidas_anual_min + pendientes_ano
+        consumidas_anual = resumen.individual.consumidas_anual_min
         bolsa_anual = resumen.individual.bolsa_anual_min
         restantes_anual = bolsa_anual - consumidas_anual
 
-        consumidas_grupo = resumen.grupo_anual.consumidas_anual_min + pendientes_ano
+        consumidas_grupo = resumen.grupo_anual.consumidas_anual_min
         bolsa_grupo = resumen.grupo_anual.bolsa_anual_grupo_min
         restantes_grupo = bolsa_grupo - consumidas_grupo
 

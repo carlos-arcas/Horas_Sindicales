@@ -42,6 +42,7 @@ class Solicitud:
     notas: Optional[str] = None
     pdf_path: Optional[str] = None
     pdf_hash: Optional[str] = None
+    generated: bool = False
 
 
 @dataclass(frozen=True)

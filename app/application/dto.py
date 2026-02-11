@@ -42,6 +42,7 @@ class SolicitudDTO:
     pdf_path: Optional[str]
     pdf_hash: Optional[str]
     notas: Optional[str] = None
+    generated: bool = False
 
 
 @dataclass(frozen=True)
