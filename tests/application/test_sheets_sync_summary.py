@@ -330,3 +330,132 @@ def test_pull_solicitudes_omite_huerfanas_sin_uuid_ni_nombre(connection) -> None
     cursor = connection.cursor()
     cursor.execute("SELECT COUNT(*) AS total FROM solicitudes WHERE uuid = ?", ("sol-huerfana",))
     assert cursor.fetchone()["total"] == 0
+
+
+def test_pull_solicitudes_con_cabecera_real_resuelve_por_columna_delegada(connection, persona_repo, persona_id) -> None:
+    persona_uuid = persona_repo.get_or_create_uuid(persona_id)
+    cursor = connection.cursor()
+    cursor.execute("SELECT nombre FROM personas WHERE id = ?", (persona_id,))
+    nombre = cursor.fetchone()["nombre"]
+
+    solicitudes_sheet = [
+        [
+            "uuid",
+            "delegada_uuid",
+            "fecha",
+            "desde_h",
+            "desde_m",
+            "hasta_h",
+            "hasta_m",
+            "completo",
+            "minutos_total",
+            "notas",
+            "estado",
+            "created_at",
+            "updated_at",
+            "source_device",
+            "deleted",
+            "pdf_id",
+            "Delegada",
+            "",
+        ],
+        [
+            "sol-real-1",
+            "",
+            "15/01/2025",
+            "9",
+            "0",
+            "11",
+            "0",
+            "0",
+            "120",
+            "importada",
+            "historico",
+            "2025-01-15",
+            "2025-01-20T10:00:00Z",
+            "device-remote",
+            "0",
+            "",
+            f"  {nombre}  ",
+            "valor-ignorado",
+        ],
+    ]
+
+    spreadsheet = _FakeSpreadsheet(
+        {
+            "delegadas": _empty_sheet(["uuid", "updated_at"]),
+            "solicitudes": _FakeWorksheet(solicitudes_sheet),
+            "cuadrantes": _empty_sheet(["uuid", "updated_at"]),
+            "pdf_log": _empty_sheet(["pdf_id", "updated_at"]),
+            "config": _empty_sheet(["key", "updated_at"]),
+        }
+    )
+    service = SheetsSyncService(
+        connection=connection,
+        config_store=_FakeConfigStore(
+            SheetsConfig(
+                spreadsheet_id="sheet-id",
+                credentials_path="/tmp/fake_credentials.json",
+                device_id="device-local",
+            )
+        ),
+        client=_FakeClient(spreadsheet),
+        repository=_FakeRepository(),
+    )
+
+    summary = service.pull()
+
+    assert summary.inserted_local == 1
+    assert summary.omitidas_por_delegada == 0
+
+    cursor.execute(
+        """
+        SELECT s.uuid, p.uuid AS delegada_uuid, s.fecha_pedida, s.desde_min, s.hasta_min
+        FROM solicitudes s
+        JOIN personas p ON p.id = s.persona_id
+        WHERE s.uuid = ?
+        """,
+        ("sol-real-1",),
+    )
+    inserted = cursor.fetchone()
+    assert inserted["delegada_uuid"] == persona_uuid
+    assert inserted["fecha_pedida"] == "2025-01-15"
+    assert inserted["desde_min"] == 540
+    assert inserted["hasta_min"] == 660
+
+
+def test_pull_solicitudes_omite_si_delegada_no_resuelve_por_nombre(connection) -> None:
+    solicitudes_sheet = [
+        ["uuid", "delegada_uuid", "Delegada", "fecha", "desde_h", "desde_m", "hasta_h", "hasta_m", "completo", "minutos_total", "updated_at"],
+        ["sol-no-match", "", "Delegada Inexistente", "2025-01-15", "9", "0", "11", "0", "0", "120", "2025-01-20T10:00:00Z"],
+    ]
+
+    spreadsheet = _FakeSpreadsheet(
+        {
+            "delegadas": _empty_sheet(["uuid", "updated_at"]),
+            "solicitudes": _FakeWorksheet(solicitudes_sheet),
+            "cuadrantes": _empty_sheet(["uuid", "updated_at"]),
+            "pdf_log": _empty_sheet(["pdf_id", "updated_at"]),
+            "config": _empty_sheet(["key", "updated_at"]),
+        }
+    )
+    service = SheetsSyncService(
+        connection=connection,
+        config_store=_FakeConfigStore(
+            SheetsConfig(
+                spreadsheet_id="sheet-id",
+                credentials_path="/tmp/fake_credentials.json",
+                device_id="device-local",
+            )
+        ),
+        client=_FakeClient(spreadsheet),
+        repository=_FakeRepository(),
+    )
+
+    summary = service.pull()
+
+    assert summary.inserted_local == 0
+    assert summary.omitidas_por_delegada == 1
+    cursor = connection.cursor()
+    cursor.execute("SELECT COUNT(*) AS total FROM solicitudes WHERE uuid = ?", ("sol-no-match",))
+    assert cursor.fetchone()["total"] == 0
