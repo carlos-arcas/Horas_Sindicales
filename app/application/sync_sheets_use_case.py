@@ -20,7 +20,10 @@ class SyncSheetsUseCase:
         return self._sync_port.push()
 
     def sync(self) -> SyncSummary:
-        return self._sync_port.sync()
+        return self.sync_bidirectional()
+
+    def sync_bidirectional(self) -> SyncSummary:
+        return self._sync_port.sync_bidirectional()
 
     def is_configured(self) -> bool:
         return self._sync_port.is_configured()
