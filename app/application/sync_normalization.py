@@ -7,7 +7,7 @@ def normalize_date(value: str | None) -> str | None:
     if not value:
         return None
     raw = value.strip()
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y", "%d-%m-%y"):
         try:
             return datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
         except ValueError:
@@ -21,7 +21,7 @@ def normalize_hhmm(value: str | None) -> str | None:
     raw = value.strip()
     if ":" in raw:
         parts = raw.split(":")
-        if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+        if len(parts) >= 2 and parts[0].strip().isdigit() and parts[1].strip().isdigit():
             return f"{int(parts[0]):02d}:{int(parts[1]):02d}"
     if raw.isdigit():
         num = int(raw)
