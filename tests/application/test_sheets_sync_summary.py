@@ -17,11 +17,18 @@ class _FakeConfigStore:
 
 
 class _FakeWorksheet:
-    def __init__(self, values: list[list[str]]) -> None:
+    def __init__(self, title: str, values: list[list[str]]) -> None:
+        self.title = title
         self._values = values
 
     def get_all_values(self) -> list[list[str]]:
         return self._values
+
+    def update(self, *_: Any, **__: Any) -> None:
+        return None
+
+    def append_row(self, *_: Any, **__: Any) -> None:
+        return None
 
 
 class _FakeSpreadsheet:
@@ -31,13 +38,49 @@ class _FakeSpreadsheet:
     def worksheet(self, name: str) -> _FakeWorksheet:
         return self._worksheets[name]
 
+    def batch_get(self, ranges: list[str]) -> list[list[list[str]]]:
+        result: list[list[list[str]]] = []
+        for range_name in ranges:
+            worksheet_name = range_name.split("!", maxsplit=1)[0].strip("'")
+            result.append(self._worksheets[worksheet_name].get_all_values())
+        return result
+
 
 class _FakeClient:
     def __init__(self, spreadsheet: _FakeSpreadsheet) -> None:
         self.spreadsheet = spreadsheet
+        self.open_calls = 0
+        self.read_calls_count = 0
+        self._cache: dict[str, list[list[str]]] = {}
 
     def open_spreadsheet(self, _: Path, __: str) -> _FakeSpreadsheet:
+        self.open_calls += 1
+        self._cache.clear()
         return self.spreadsheet
+
+    def get_worksheet_values_cached(self, name: str) -> list[list[str]]:
+        if name in self._cache:
+            return self._cache[name]
+        self.read_calls_count += 1
+        values = self.spreadsheet.worksheet(name).get_all_values()
+        self._cache[name] = values
+        return values
+
+    def batch_get_ranges(self, ranges: list[str]) -> dict[str, list[list[str]]]:
+        self.read_calls_count += 1
+        values = self.spreadsheet.batch_get(ranges)
+        result: dict[str, list[list[str]]] = {}
+        for range_name, sheet_values in zip(ranges, values, strict=False):
+            worksheet_name = range_name.split("!", maxsplit=1)[0].strip("'")
+            result[worksheet_name] = sheet_values
+            self._cache[worksheet_name] = sheet_values
+        return result
+
+    def reset_read_calls_count(self) -> None:
+        self.read_calls_count = 0
+
+    def get_read_calls_count(self) -> int:
+        return self.read_calls_count
 
 
 class _FakeRepository:
@@ -49,8 +92,8 @@ class _FakeRepository:
         return []
 
 
-def _empty_sheet(headers: list[str]) -> _FakeWorksheet:
-    return _FakeWorksheet([headers])
+def _empty_sheet(name: str, headers: list[str]) -> _FakeWorksheet:
+    return _FakeWorksheet(name, [headers])
 
 
 def test_sync_pull_omite_duplicados_y_devuelve_summary(connection, persona_repo, solicitud_repo, persona_id) -> None:
@@ -101,11 +144,11 @@ def test_sync_pull_omite_duplicados_y_devuelve_summary(connection, persona_repo,
 
     spreadsheet = _FakeSpreadsheet(
         {
-            "delegadas": _empty_sheet(["uuid", "updated_at"]),
-            "solicitudes": _FakeWorksheet(remote_duplicate),
-            "cuadrantes": _empty_sheet(["uuid", "updated_at"]),
-            "pdf_log": _empty_sheet(["pdf_id", "updated_at"]),
-            "config": _empty_sheet(["key", "updated_at"]),
+            "delegadas": _empty_sheet("delegadas", ["uuid", "updated_at"]),
+            "solicitudes": _FakeWorksheet("solicitudes", remote_duplicate),
+            "cuadrantes": _empty_sheet("cuadrantes", ["uuid", "updated_at"]),
+            "pdf_log": _empty_sheet("pdf_log", ["pdf_id", "updated_at"]),
+            "config": _empty_sheet("config", ["key", "updated_at"]),
         }
     )
     repository = _FakeRepository()
@@ -181,11 +224,11 @@ def test_sync_pull_reutiliza_persona_existente_y_no_rompe_unique_nombre(connecti
 
     spreadsheet = _FakeSpreadsheet(
         {
-            "delegadas": _FakeWorksheet(delegadas_sheet),
-            "solicitudes": _empty_sheet(["uuid", "updated_at"]),
-            "cuadrantes": _empty_sheet(["uuid", "updated_at"]),
-            "pdf_log": _empty_sheet(["pdf_id", "updated_at"]),
-            "config": _empty_sheet(["key", "updated_at"]),
+            "delegadas": _FakeWorksheet("delegadas", delegadas_sheet),
+            "solicitudes": _empty_sheet("solicitudes", ["uuid", "updated_at"]),
+            "cuadrantes": _empty_sheet("cuadrantes", ["uuid", "updated_at"]),
+            "pdf_log": _empty_sheet("pdf_log", ["pdf_id", "updated_at"]),
+            "config": _empty_sheet("config", ["key", "updated_at"]),
         }
     )
     service = SheetsSyncService(
@@ -208,3 +251,33 @@ def test_sync_pull_reutiliza_persona_existente_y_no_rompe_unique_nombre(connecti
     cursor.execute("SELECT COUNT(*) AS total FROM personas WHERE nombre = ?", ("Delegada Repetida",))
     total = cursor.fetchone()["total"]
     assert total == 1
+
+
+def test_sync_bidirectional_reutiliza_open_y_cuenta_lecturas(connection) -> None:
+    spreadsheet = _FakeSpreadsheet(
+        {
+            "delegadas": _empty_sheet("delegadas", ["uuid", "updated_at"]),
+            "solicitudes": _empty_sheet("solicitudes", ["uuid", "updated_at"]),
+            "cuadrantes": _empty_sheet("cuadrantes", ["uuid", "updated_at"]),
+            "pdf_log": _empty_sheet("pdf_log", ["pdf_id", "updated_at"]),
+            "config": _empty_sheet("config", ["key", "updated_at"]),
+        }
+    )
+    client = _FakeClient(spreadsheet)
+    service = SheetsSyncService(
+        connection=connection,
+        config_store=_FakeConfigStore(
+            SheetsConfig(
+                spreadsheet_id="sheet-id",
+                credentials_path="/tmp/fake_credentials.json",
+                device_id="device-local",
+            )
+        ),
+        client=client,
+        repository=_FakeRepository(),
+    )
+
+    service.sync_bidirectional()
+
+    assert client.open_calls == 1
+    assert client.read_calls_count <= 5

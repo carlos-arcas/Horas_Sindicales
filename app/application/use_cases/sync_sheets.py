@@ -46,76 +46,52 @@ class SheetsSyncService:
         self._config_store = config_store
         self._client = client
         self._repository = repository
+        self._active_spreadsheet: gspread.Spreadsheet | None = None
 
     def pull(self) -> SyncSummary:
-        spreadsheet = self._open_spreadsheet()
-        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
-        last_sync_at = self._get_last_sync_at()
-        downloaded = 0
-        conflicts = 0
-        omitted_duplicates = 0
-        downloaded_count, conflict_count = self._pull_delegadas(spreadsheet, last_sync_at)
-        downloaded += downloaded_count
-        conflicts += conflict_count
-        downloaded_count, conflict_count, duplicate_count = self._pull_solicitudes(spreadsheet, last_sync_at)
-        downloaded += downloaded_count
-        conflicts += conflict_count
-        omitted_duplicates += duplicate_count
-        downloaded_count, conflict_count = self._pull_cuadrantes(spreadsheet, last_sync_at)
-        downloaded += downloaded_count
-        conflicts += conflict_count
-        downloaded += self._pull_pdf_log(spreadsheet)
-        downloaded += self._pull_config(spreadsheet)
-        return SyncSummary(
-            inserted_local=downloaded,
-            updated_local=0,
-            duplicates_skipped=omitted_duplicates,
-            conflicts_detected=conflicts,
-        )
+        self._start_sync_cycle()
+        try:
+            spreadsheet = self._open_spreadsheet()
+            self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+            summary = self._pull_with_spreadsheet(spreadsheet)
+            self._log_read_calls_count("pull")
+            return summary
+        finally:
+            self._finish_sync_cycle()
 
     def push(self) -> SyncSummary:
-        spreadsheet = self._open_spreadsheet()
-        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
-        last_sync_at = self._get_last_sync_at()
-        uploaded = 0
-        conflicts = 0
-        omitted_duplicates = 0
-        self._sync_local_cuadrantes_from_personas()
-        uploaded_count, conflict_count = self._push_delegadas(spreadsheet, last_sync_at)
-        uploaded += uploaded_count
-        conflicts += conflict_count
-        uploaded_count, conflict_count, duplicate_count = self._push_solicitudes(spreadsheet, last_sync_at)
-        uploaded += uploaded_count
-        conflicts += conflict_count
-        omitted_duplicates += duplicate_count
-        uploaded_count, conflict_count = self._push_cuadrantes(spreadsheet, last_sync_at)
-        uploaded += uploaded_count
-        conflicts += conflict_count
-        uploaded += self._push_pdf_log(spreadsheet, last_sync_at)
-        uploaded += self._push_config(spreadsheet, last_sync_at)
-        self._set_last_sync_at(self._now_iso())
-        return SyncSummary(
-            inserted_remote=uploaded,
-            updated_remote=0,
-            duplicates_skipped=omitted_duplicates,
-            conflicts_detected=conflicts,
-        )
+        self._start_sync_cycle()
+        try:
+            spreadsheet = self._open_spreadsheet()
+            self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+            summary = self._push_with_spreadsheet(spreadsheet)
+            self._log_read_calls_count("push")
+            return summary
+        finally:
+            self._finish_sync_cycle()
 
     def sync(self) -> SyncSummary:
         return self.sync_bidirectional()
 
     def sync_bidirectional(self) -> SyncSummary:
-        pull_summary = self.pull()
-        push_summary = self.push()
-        return SyncSummary(
-            inserted_local=pull_summary.inserted_local,
-            updated_local=pull_summary.updated_local,
-            inserted_remote=push_summary.inserted_remote,
-            updated_remote=push_summary.updated_remote,
-            duplicates_skipped=pull_summary.duplicates_skipped + push_summary.duplicates_skipped,
-            conflicts_detected=pull_summary.conflicts_detected + push_summary.conflicts_detected,
-            errors=pull_summary.errors + push_summary.errors,
-        )
+        self._start_sync_cycle()
+        try:
+            spreadsheet = self._open_spreadsheet()
+            self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+            pull_summary = self._pull_with_spreadsheet(spreadsheet)
+            push_summary = self._push_with_spreadsheet(spreadsheet)
+            self._log_read_calls_count("sync")
+            return SyncSummary(
+                inserted_local=pull_summary.inserted_local,
+                updated_local=pull_summary.updated_local,
+                inserted_remote=push_summary.inserted_remote,
+                updated_remote=push_summary.updated_remote,
+                duplicates_skipped=pull_summary.duplicates_skipped + push_summary.duplicates_skipped,
+                conflicts_detected=pull_summary.conflicts_detected + push_summary.conflicts_detected,
+                errors=pull_summary.errors + push_summary.errors,
+            )
+        finally:
+            self._finish_sync_cycle()
 
     def get_last_sync_at(self) -> str | None:
         return self._get_last_sync_at()
@@ -177,13 +153,79 @@ class SheetsSyncService:
         )
         self._connection.commit()
 
+    def _start_sync_cycle(self) -> None:
+        self._active_spreadsheet = None
+        self._client.reset_read_calls_count()
+
+    def _finish_sync_cycle(self) -> None:
+        self._active_spreadsheet = None
+
+    def _log_read_calls_count(self, operation: str) -> None:
+        logger.info("Sync '%s' completed with read_calls_count=%s", operation, self._client.get_read_calls_count())
+
+    def _pull_with_spreadsheet(self, spreadsheet: gspread.Spreadsheet) -> SyncSummary:
+        last_sync_at = self._get_last_sync_at()
+        downloaded = 0
+        conflicts = 0
+        omitted_duplicates = 0
+        cached_ranges = self._client.batch_get_ranges(["'delegadas'!A:ZZ", "'solicitudes'!A:ZZ"])
+        delegadas_values = cached_ranges.get("delegadas", [])
+        solicitudes_values = cached_ranges.get("solicitudes", [])
+        downloaded_count, conflict_count = self._pull_delegadas(spreadsheet, last_sync_at, delegadas_values)
+        downloaded += downloaded_count
+        conflicts += conflict_count
+        downloaded_count, conflict_count, duplicate_count = self._pull_solicitudes(
+            spreadsheet, last_sync_at, solicitudes_values
+        )
+        downloaded += downloaded_count
+        conflicts += conflict_count
+        omitted_duplicates += duplicate_count
+        downloaded_count, conflict_count = self._pull_cuadrantes(spreadsheet, last_sync_at)
+        downloaded += downloaded_count
+        conflicts += conflict_count
+        downloaded += self._pull_pdf_log(spreadsheet)
+        downloaded += self._pull_config(spreadsheet)
+        return SyncSummary(
+            inserted_local=downloaded,
+            updated_local=0,
+            duplicates_skipped=omitted_duplicates,
+            conflicts_detected=conflicts,
+        )
+
+    def _push_with_spreadsheet(self, spreadsheet: gspread.Spreadsheet) -> SyncSummary:
+        last_sync_at = self._get_last_sync_at()
+        uploaded = 0
+        conflicts = 0
+        omitted_duplicates = 0
+        self._sync_local_cuadrantes_from_personas()
+        uploaded_count, conflict_count = self._push_delegadas(spreadsheet, last_sync_at)
+        uploaded += uploaded_count
+        conflicts += conflict_count
+        uploaded_count, conflict_count, duplicate_count = self._push_solicitudes(spreadsheet, last_sync_at)
+        uploaded += uploaded_count
+        conflicts += conflict_count
+        omitted_duplicates += duplicate_count
+        uploaded_count, conflict_count = self._push_cuadrantes(spreadsheet, last_sync_at)
+        uploaded += uploaded_count
+        conflicts += conflict_count
+        uploaded += self._push_pdf_log(spreadsheet, last_sync_at)
+        uploaded += self._push_config(spreadsheet, last_sync_at)
+        self._set_last_sync_at(self._now_iso())
+        return SyncSummary(
+            inserted_remote=uploaded,
+            updated_remote=0,
+            duplicates_skipped=omitted_duplicates,
+            conflicts_detected=conflicts,
+        )
+
     def _open_spreadsheet(self) -> gspread.Spreadsheet:
         config = self._config_store.load()
         if not config or not config.spreadsheet_id or not config.credentials_path:
             raise SheetsConfigError("No hay configuración de Google Sheets.")
         credentials_path = Path(config.credentials_path)
-        spreadsheet = self._client.open_spreadsheet(credentials_path, config.spreadsheet_id)
-        return spreadsheet
+        if self._active_spreadsheet is None:
+            self._active_spreadsheet = self._client.open_spreadsheet(credentials_path, config.spreadsheet_id)
+        return self._active_spreadsheet
 
     def _get_last_sync_at(self) -> str | None:
         cursor = self._connection.cursor()
@@ -201,9 +243,11 @@ class SheetsSyncService:
         )
         self._connection.commit()
 
-    def _pull_delegadas(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> tuple[int, int]:
+    def _pull_delegadas(
+        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None, values: list[list[str]] | None = None
+    ) -> tuple[int, int]:
         worksheet = spreadsheet.worksheet("delegadas")
-        headers, rows = self._rows_with_index(worksheet)
+        headers, rows = self._rows_with_index(worksheet, values)
         downloaded = 0
         conflicts = 0
         for row_number, row in rows:
@@ -232,10 +276,10 @@ class SheetsSyncService:
         return downloaded, conflicts
 
     def _pull_solicitudes(
-        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
+        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None, values: list[list[str]] | None = None
     ) -> tuple[int, int, int]:
         worksheet = spreadsheet.worksheet("solicitudes")
-        headers, rows = self._rows_with_index(worksheet)
+        headers, rows = self._rows_with_index(worksheet, values)
         downloaded = 0
         conflicts = 0
         omitted_duplicates = 0
@@ -1095,8 +1139,14 @@ class SheetsSyncService:
         )
         self._connection.commit()
 
-    def _rows_with_index(self, worksheet: gspread.Worksheet) -> tuple[list[str], list[tuple[int, dict[str, Any]]]]:
-        values = worksheet.get_all_values()
+    def _rows_with_index(
+        self, worksheet: gspread.Worksheet, values: list[list[str]] | None = None
+    ) -> tuple[list[str], list[tuple[int, dict[str, Any]]]]:
+        worksheet_title = getattr(worksheet, "title", "")
+        if values is None and worksheet_title:
+            values = self._client.get_worksheet_values_cached(worksheet_title)
+        if values is None:
+            values = worksheet.get_all_values()
         if not values:
             return [], []
         headers = values[0]
