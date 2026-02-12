@@ -129,3 +129,82 @@ def test_sync_pull_omite_duplicados_y_devuelve_summary(connection, persona_repo,
     assert summary.omitted_duplicates == 1
     assert summary.uploaded == 0
     assert repository.ensure_calls == 1
+
+
+def test_sync_pull_reutiliza_persona_existente_y_no_rompe_unique_nombre(connection) -> None:
+    delegadas_sheet = [
+        [
+            "uuid",
+            "nombre",
+            "genero",
+            "bolsa_mes_min",
+            "bolsa_anual_min",
+            "activa",
+            "updated_at",
+            "source_device",
+            "deleted",
+        ],
+        [
+            "uuid-remoto-1",
+            "Delegada Repetida",
+            "F",
+            "600",
+            "7200",
+            "1",
+            "2025-01-20T10:00:00Z",
+            "device-remote",
+            "0",
+        ],
+        [
+            "uuid-remoto-2",
+            "Delegada Repetida",
+            "F",
+            "600",
+            "7200",
+            "1",
+            "2025-01-20T11:00:00Z",
+            "device-remote",
+            "0",
+        ],
+        [
+            "",
+            "Delegada Repetida",
+            "F",
+            "600",
+            "7200",
+            "1",
+            "2025-01-20T12:00:00Z",
+            "device-remote",
+            "0",
+        ],
+    ]
+
+    spreadsheet = _FakeSpreadsheet(
+        {
+            "delegadas": _FakeWorksheet(delegadas_sheet),
+            "solicitudes": _empty_sheet(["uuid", "updated_at"]),
+            "cuadrantes": _empty_sheet(["uuid", "updated_at"]),
+            "pdf_log": _empty_sheet(["pdf_id", "updated_at"]),
+            "config": _empty_sheet(["key", "updated_at"]),
+        }
+    )
+    service = SheetsSyncService(
+        connection=connection,
+        config_store=_FakeConfigStore(
+            SheetsConfig(
+                spreadsheet_id="sheet-id",
+                credentials_path="/tmp/fake_credentials.json",
+                device_id="device-local",
+            )
+        ),
+        client=_FakeClient(spreadsheet),
+        repository=_FakeRepository(),
+    )
+
+    service.pull()
+    service.pull()
+
+    cursor = connection.cursor()
+    cursor.execute("SELECT COUNT(*) AS total FROM personas WHERE nombre = ?", ("Delegada Repetida",))
+    total = cursor.fetchone()["total"]
+    assert total == 1
