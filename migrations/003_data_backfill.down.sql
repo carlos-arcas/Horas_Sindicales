@@ -1,0 +1,1 @@
+-- Rollback lógico: sin transformación inversa automática.

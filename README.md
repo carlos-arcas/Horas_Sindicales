@@ -95,6 +95,25 @@ Este script crea `.venv`, instala dependencias y ejecuta la app.
 └── launch.bat            # Arranque asistido en Windows
 ```
 
+
+## Migraciones SQLite
+
+El proyecto usa una herramienta de migración versionada basada en archivos en `migrations/`:
+
+- `NNN_nombre.up.sql`: cambios hacia delante.
+- `NNN_nombre.down.sql`: rollback del cambio.
+- `NNN_nombre.up.py` (opcional): hook de transformación de datos (ej. rellenar `uuid`, migrar flags).
+
+Se registra cada migración en la tabla `schema_migrations` (`version`, `name`, `checksum`, `applied_at`) y también se actualiza `PRAGMA user_version` con la versión aplicada.
+
+CLI:
+
+```bash
+python -m app.infrastructure.migrations_cli status --db horas_sindicales.db
+python -m app.infrastructure.migrations_cli up --db horas_sindicales.db
+python -m app.infrastructure.migrations_cli down --db horas_sindicales.db --steps 1
+```
+
 ## Tests
 
 Ejecuta la suite con `pytest`:

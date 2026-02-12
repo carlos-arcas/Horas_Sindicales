@@ -1,0 +1,8 @@
+DROP TABLE IF EXISTS grupo_config;
+DROP TABLE IF EXISTS sync_config;
+DROP TABLE IF EXISTS pdf_log;
+DROP TABLE IF EXISTS cuadrantes;
+DROP TABLE IF EXISTS conflicts;
+DROP TABLE IF EXISTS sync_state;
+DROP TABLE IF EXISTS solicitudes;
+DROP TABLE IF EXISTS personas;
