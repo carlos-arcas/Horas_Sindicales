@@ -200,15 +200,19 @@ class SheetsSyncService:
         downloaded = 0
         conflicts = 0
         for _, row in rows:
+            nombre_value = str(row.get("nombre", "")).strip()
             uuid_value = str(row.get("uuid", "")).strip()
-            if not uuid_value:
+            if not uuid_value and not nombre_value:
+                logger.warning("Fila delegada sin uuid ni nombre; se omite: %s", row)
                 continue
-            remote_updated_at = self._parse_iso(row.get("updated_at"))
-            local_row = self._fetch_persona(uuid_value)
-            if local_row is None:
-                self._insert_persona_from_remote(uuid_value, row)
+            local_row, was_inserted = self._get_or_create_persona(row)
+            if was_inserted:
                 downloaded += 1
                 continue
+            if not uuid_value or local_row is None or local_row["uuid"] != uuid_value:
+                # Sin UUID remoto, o con colisión de nombre+UUID, no hay clave remota estable para merge por timestamps.
+                continue
+            remote_updated_at = self._parse_iso(row.get("updated_at"))
             if self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at):
                 self._store_conflict("delegadas", uuid_value, dict(local_row), row)
                 conflicts += 1
@@ -631,6 +635,68 @@ class SheetsSyncService:
             (uuid_value,),
         )
         return cursor.fetchone()
+
+    def _fetch_persona_by_nombre(self, nombre: str) -> sqlite3.Row | None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, uuid, nombre, genero, is_active, horas_mes_min, horas_ano_min,
+                   updated_at, source_device, deleted,
+                   cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
+                   cuad_mie_man_min, cuad_mie_tar_min, cuad_jue_man_min, cuad_jue_tar_min,
+                   cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
+                   cuad_dom_man_min, cuad_dom_tar_min
+            FROM personas
+            WHERE nombre = ?
+            """,
+            (nombre,),
+        )
+        return cursor.fetchone()
+
+    def _get_or_create_persona(self, row: dict[str, Any]) -> tuple[sqlite3.Row | None, bool]:
+        persona_uuid = str(row.get("uuid", "")).strip() or None
+        nombre = str(row.get("nombre", "")).strip()
+
+        if persona_uuid:
+            by_uuid = self._fetch_persona(persona_uuid)
+            if by_uuid is not None:
+                logger.info("Persona existente: uuid=%s, nombre=%s", by_uuid["uuid"], by_uuid["nombre"])
+                return by_uuid, False
+
+            by_nombre = self._fetch_persona_by_nombre(nombre) if nombre else None
+            if by_nombre is not None:
+                existing_uuid = (by_nombre["uuid"] or "").strip()
+                if existing_uuid and existing_uuid != persona_uuid:
+                    logger.warning(
+                        "Colisión persona por nombre; se prioriza existente. nombre=%s uuid_local=%s uuid_remoto=%s",
+                        nombre,
+                        existing_uuid,
+                        persona_uuid,
+                    )
+                elif not existing_uuid:
+                    cursor = self._connection.cursor()
+                    cursor.execute(
+                        "UPDATE personas SET uuid = ?, updated_at = ? WHERE id = ?",
+                        (persona_uuid, row.get("updated_at") or self._now_iso(), by_nombre["id"]),
+                    )
+                    self._connection.commit()
+                    by_nombre = self._fetch_persona(persona_uuid) or by_nombre
+                logger.info("Persona existente: uuid=%s, nombre=%s", by_nombre["uuid"], by_nombre["nombre"])
+                return by_nombre, False
+
+            logger.info("Insertando persona nueva: uuid=%s, nombre=%s", persona_uuid, nombre)
+            self._insert_persona_from_remote(persona_uuid, row)
+            return self._fetch_persona(persona_uuid), True
+
+        by_nombre = self._fetch_persona_by_nombre(nombre) if nombre else None
+        if by_nombre is not None:
+            logger.info("Persona existente: uuid=%s, nombre=%s", by_nombre["uuid"], by_nombre["nombre"])
+            return by_nombre, False
+
+        generated_uuid = self._generate_uuid()
+        logger.info("Insertando persona nueva: uuid=%s, nombre=%s", generated_uuid, nombre)
+        self._insert_persona_from_remote(generated_uuid, row)
+        return self._fetch_persona(generated_uuid), True
 
     def _fetch_solicitud(self, uuid_value: str) -> sqlite3.Row | None:
         cursor = self._connection.cursor()
