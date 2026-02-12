@@ -49,13 +49,17 @@ class _FakeClient:
         self._read_calls_count = 0
         return self.spreadsheet
 
-    def get_worksheet_values_cached(self, name: str) -> list[list[str]]:
+    def read_all_values(self, name: str) -> list[list[str]]:
         if name in self._cache:
             return self._cache[name]
         values = self.spreadsheet.worksheet(name).get_all_values()
         self._cache[name] = values
         self._read_calls_count += 1
         return values
+
+
+    def get_worksheet_values_cached(self, name: str) -> list[list[str]]:
+        return self.read_all_values(name)
 
     def get_worksheet(self, name: str) -> _FakeWorksheet:
         return self.spreadsheet.worksheet(name)
@@ -67,7 +71,7 @@ class _FakeClient:
         mapped: dict[str, list[list[str]]] = {}
         for range_name in ranges:
             worksheet_name = range_name.split("!", 1)[0].strip("'").replace("''", "'")
-            mapped[range_name] = self.get_worksheet_values_cached(worksheet_name)
+            mapped[range_name] = self.read_all_values(worksheet_name)
         if ranges:
             self._read_calls_count = max(0, self._read_calls_count - len(ranges) + 1)
         return mapped

@@ -51,18 +51,22 @@ class SheetsClient(SheetsClientPort):
         except Exception as exc:
             raise map_gspread_exception(exc) from exc
 
-    def get_worksheet_values_cached(self, name: str) -> list[list[str]]:
-        if name in self._worksheet_values_cache:
+    def read_all_values(self, worksheet_name: str) -> list[list[str]]:
+        if worksheet_name in self._worksheet_values_cache:
             self._avoided_requests_count += 1
-            return self._worksheet_values_cache[name]
-        worksheet = self.get_worksheet(name)
+            return self._worksheet_values_cache[worksheet_name]
+        worksheet = self.get_worksheet(worksheet_name)
         values = self._with_rate_limit_retry(
-            f"worksheet.get_all_values({name})",
+            f"worksheet.get_all_values({worksheet_name})",
             worksheet.get_all_values,
         )
-        self._worksheet_values_cache[name] = values
+        self._worksheet_values_cache[worksheet_name] = values
         self._read_calls_count += 1
         return values
+
+    # Backward-compatible alias for existing collaborators/tests.
+    def get_worksheet_values_cached(self, name: str) -> list[list[str]]:
+        return self.read_all_values(name)
 
     def get_worksheet(self, name: str):
         if name in self._worksheet_cache:
@@ -138,20 +142,22 @@ class SheetsClient(SheetsClientPort):
     def get_write_calls_count(self) -> int:
         return self._write_calls_count
 
-    def append_rows(self, worksheet: gspread.Worksheet, rows: list[list[Any]]) -> None:
+    def append_rows(self, worksheet_name: str, rows: list[list[Any]]) -> None:
         if not rows:
             return
+        worksheet = self.get_worksheet(worksheet_name)
         self._with_write_retry(
-            f"worksheet.append_rows({worksheet.title})",
+            f"worksheet.append_rows({worksheet_name})",
             lambda: worksheet.append_rows(rows, value_input_option="USER_ENTERED"),
         )
         self._write_calls_count += 1
 
-    def batch_update(self, worksheet: gspread.Worksheet, data: list[dict[str, Any]]) -> None:
+    def batch_update(self, worksheet_name: str, data: list[dict[str, Any]]) -> None:
         if not data:
             return
+        worksheet = self.get_worksheet(worksheet_name)
         self._with_write_retry(
-            f"worksheet.batch_update({worksheet.title})",
+            f"worksheet.batch_update({worksheet_name})",
             lambda: worksheet.batch_update(data, value_input_option="USER_ENTERED"),
         )
         self._write_calls_count += 1

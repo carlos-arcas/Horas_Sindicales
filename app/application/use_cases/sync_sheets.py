@@ -41,6 +41,8 @@ class SheetsSyncService:
         config_store: SheetsConfigStorePort,
         client: SheetsClientPort,
         repository: SheetsRepositoryPort,
+        *,
+        enable_backfill: bool = False,
     ) -> None:
         self._connection = connection
         self._config_store = config_store
@@ -50,18 +52,14 @@ class SheetsSyncService:
         self._pending_append_rows: dict[str, list[list[Any]]] = {}
         self._pending_batch_updates: dict[str, list[dict[str, Any]]] = {}
         self._pending_values_batch_updates: dict[str, list[dict[str, Any]]] = {}
+        self._enable_backfill = enable_backfill
 
     def pull(self) -> SyncSummary:
         spreadsheet = self._open_spreadsheet()
         self._prepare_sync_context(spreadsheet)
         self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
         summary = self._pull_with_spreadsheet(spreadsheet)
-        logger.info(
-            "Pull completado. read_calls_count=%s avoided_requests=%s write_calls=%s",
-            self._client.get_read_calls_count(),
-            self._client.get_avoided_requests_count(),
-            self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else "n/a",
-        )
+        self._log_sync_stats("pull")
         return summary
 
     def push(self) -> SyncSummary:
@@ -69,12 +67,7 @@ class SheetsSyncService:
         self._prepare_sync_context(spreadsheet)
         self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
         summary = self._push_with_spreadsheet(spreadsheet)
-        logger.info(
-            "Push completado. read_calls_count=%s avoided_requests=%s write_calls=%s",
-            self._client.get_read_calls_count(),
-            self._client.get_avoided_requests_count(),
-            self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else "n/a",
-        )
+        self._log_sync_stats("push")
         return summary
 
     def sync(self) -> SyncSummary:
@@ -88,12 +81,7 @@ class SheetsSyncService:
         # Garantiza persistencia local del pull antes de cualquier push/refresh de UI.
         self._connection.commit()
         push_summary = self._push_with_spreadsheet(spreadsheet)
-        logger.info(
-            "Sync bidireccional completado. read_calls_count=%s avoided_requests=%s write_calls=%s",
-            self._client.get_read_calls_count(),
-            self._client.get_avoided_requests_count(),
-            self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else "n/a",
-        )
+        self._log_sync_stats("sync_bidirectional")
         return SyncSummary(
             inserted_local=pull_summary.inserted_local,
             updated_local=pull_summary.updated_local,
@@ -188,7 +176,6 @@ class SheetsSyncService:
         conflicts = 0
         omitted_duplicates = 0
         solicitud_titles = self._solicitudes_pull_source_titles(spreadsheet)
-        self._warmup_pull_reads(solicitud_titles)
         downloaded_count, conflict_count = self._pull_delegadas(spreadsheet, last_sync_at)
         downloaded += downloaded_count
         conflicts += conflict_count
@@ -276,7 +263,7 @@ class SheetsSyncService:
                 logger.warning("Fila delegada sin uuid ni nombre; se omite: %s", row)
                 continue
             local_row, was_inserted, persona_uuid = self._get_or_create_persona(row)
-            if not str(row.get("uuid", "")).strip() and persona_uuid:
+            if self._enable_backfill and not str(row.get("uuid", "")).strip() and persona_uuid:
                 self._backfill_uuid(worksheet, headers, row_number, "uuid", persona_uuid)
             if was_inserted:
                 downloaded += 1
@@ -319,7 +306,8 @@ class SheetsSyncService:
                         self._insert_solicitud_from_remote(uuid_value, row)
                         downloaded += 1
                         inserted_ws += 1
-                    self._backfill_uuid(worksheet, headers, row_number, "uuid", uuid_value)
+                    if self._enable_backfill:
+                        self._backfill_uuid(worksheet, headers, row_number, "uuid", uuid_value)
                     continue
                 remote_updated_at = self._parse_iso(row.get("updated_at"))
                 local_row = self._fetch_solicitud(uuid_value)
@@ -371,14 +359,6 @@ class SheetsSyncService:
         selected_titles = titles or self._solicitudes_pull_source_titles(spreadsheet)
         return [(title, self._get_worksheet(spreadsheet, title)) for title in selected_titles]
 
-    def _warmup_pull_reads(self, solicitud_titles: list[str]) -> None:
-        ranges = [self._worksheet_range("delegadas"), *[self._worksheet_range(title) for title in solicitud_titles]]
-        self._client.batch_get_ranges(ranges)
-
-    @staticmethod
-    def _worksheet_range(worksheet_name: str) -> str:
-        escaped = worksheet_name.replace("'", "''")
-        return f"'{escaped}'!A:ZZZ"
 
     def _normalize_remote_solicitud_row(self, row: dict[str, Any], worksheet_name: str) -> dict[str, Any]:
         payload = dict(row)
@@ -561,10 +541,11 @@ class SheetsSyncService:
                 "source_device": row["source_device"] or self._device_id(),
             }
             if remote_row:
-                row_number = remote_row["__row_number__"]
-                self._update_row(worksheet, row_number, header_map, payload)
-            else:
-                self._append_row(worksheet, header_map, payload)
+                if self._enable_backfill:
+                    row_number = remote_row["__row_number__"]
+                    self._update_row(worksheet, row_number, header_map, payload)
+                continue
+            self._append_row(worksheet, header_map, payload)
             uploaded += 1
         self._flush_write_batches(spreadsheet, worksheet)
         return uploaded
@@ -598,10 +579,11 @@ class SheetsSyncService:
                 "source_device": row["source_device"] or self._device_id(),
             }
             if remote_row:
-                row_number = remote_row["__row_number__"]
-                self._update_row(worksheet, row_number, header_map, payload)
-            else:
-                self._append_row(worksheet, header_map, payload)
+                if self._enable_backfill:
+                    row_number = remote_row["__row_number__"]
+                    self._update_row(worksheet, row_number, header_map, payload)
+                continue
+            self._append_row(worksheet, header_map, payload)
             uploaded += 1
         self._flush_write_batches(spreadsheet, worksheet)
         return uploaded
@@ -646,10 +628,11 @@ class SheetsSyncService:
                 "deleted": row["deleted"] or 0,
             }
             if remote_row:
-                row_number = remote_row["__row_number__"]
-                self._update_row(worksheet, row_number, header_map, payload)
-            else:
-                self._append_row(worksheet, header_map, payload)
+                if self._enable_backfill:
+                    row_number = remote_row["__row_number__"]
+                    self._update_row(worksheet, row_number, header_map, payload)
+                continue
+            self._append_row(worksheet, header_map, payload)
             uploaded += 1
         self._flush_write_batches(spreadsheet, worksheet)
         return uploaded, conflicts
@@ -724,10 +707,11 @@ class SheetsSyncService:
                 "pdf_id": row["pdf_hash"] or "",
             }
             if remote_row:
-                row_number = remote_row["__row_number__"]
-                self._update_row(worksheet, row_number, header_map, payload)
-            else:
-                self._append_row(worksheet, header_map, payload)
+                if self._enable_backfill:
+                    row_number = remote_row["__row_number__"]
+                    self._update_row(worksheet, row_number, header_map, payload)
+                continue
+            self._append_row(worksheet, header_map, payload)
             uploaded += 1
         self._flush_write_batches(spreadsheet, worksheet)
         return uploaded, conflicts, omitted_duplicates
@@ -774,10 +758,11 @@ class SheetsSyncService:
                 "deleted": row["deleted"] or 0,
             }
             if remote_row:
-                row_number = remote_row["__row_number__"]
-                self._update_row(worksheet, row_number, header_map, payload)
-            else:
-                self._append_row(worksheet, header_map, payload)
+                if self._enable_backfill:
+                    row_number = remote_row["__row_number__"]
+                    self._update_row(worksheet, row_number, header_map, payload)
+                continue
+            self._append_row(worksheet, header_map, payload)
             uploaded += 1
         self._flush_write_batches(spreadsheet, worksheet)
         return uploaded, conflicts
@@ -891,7 +876,7 @@ class SheetsSyncService:
         return cursor.fetchone()
 
     def _backfill_uuid(self, worksheet: gspread.Worksheet, headers: list[str], row_number: int, column: str, value: str) -> None:
-        if not value:
+        if not self._enable_backfill or not value:
             return
         if column not in headers:
             return
@@ -1240,7 +1225,7 @@ class SheetsSyncService:
     ) -> tuple[list[str], list[tuple[int, dict[str, Any]]]]:
         cache_name = worksheet_name or getattr(worksheet, "title", None)
         if cache_name:
-            values = self._client.get_worksheet_values_cached(cache_name)
+            values = self._client.read_all_values(cache_name)
         else:
             values = worksheet.get_all_values()
         if not values:
@@ -1253,6 +1238,7 @@ class SheetsSyncService:
             payload = {headers[i]: row[i] if i < len(row) else "" for i in range(len(headers))}
             payload["__row_number__"] = row_number
             rows.append((row_number, payload))
+        logger.info("Read worksheet=%s filas_leidas=%s", cache_name or worksheet.title, len(rows))
         return headers, rows
 
     def _header_map(self, headers: list[str], expected: list[str]) -> list[str]:
@@ -1300,17 +1286,17 @@ class SheetsSyncService:
 
         if appended_rows:
             if hasattr(self._client, "append_rows"):
-                self._client.append_rows(worksheet, appended_rows)
+                self._client.append_rows(worksheet_title, appended_rows)
             else:
                 worksheet.append_rows(appended_rows, value_input_option="USER_ENTERED")
-            logger.info("Write batch: %s rows appended", len(appended_rows))
+            logger.info("Write batch (%s): %s rows appended", worksheet_title, len(appended_rows))
 
         if updated_rows:
             if hasattr(self._client, "batch_update"):
-                self._client.batch_update(worksheet, updated_rows)
+                self._client.batch_update(worksheet_title, updated_rows)
             else:
                 worksheet.batch_update(updated_rows, value_input_option="USER_ENTERED")
-            logger.info("Write batch: %s rows updated", len(updated_rows))
+            logger.info("Write batch (%s): %s rows updated", worksheet_title, len(updated_rows))
 
         if backfills:
             body = {"valueInputOption": "USER_ENTERED", "data": backfills}
@@ -1319,6 +1305,18 @@ class SheetsSyncService:
             else:
                 spreadsheet.values_batch_update(body)
             logger.info("Write batch: %s rows updated", len(backfills))
+
+    def _log_sync_stats(self, operation: str) -> None:
+        read_count = self._client.get_read_calls_count() if hasattr(self._client, "get_read_calls_count") else "n/a"
+        write_count = self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else "n/a"
+        avoided = self._client.get_avoided_requests_count() if hasattr(self._client, "get_avoided_requests_count") else "n/a"
+        logger.info(
+            "Sync stats (%s): read_count=%s write_count=%s avoided_requests=%s",
+            operation,
+            read_count,
+            write_count,
+            avoided,
+        )
 
     def _is_after_last_sync(self, updated_at: str | None, last_sync_at: str | None) -> bool:
         if not updated_at:
