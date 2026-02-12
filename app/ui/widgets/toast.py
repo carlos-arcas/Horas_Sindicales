@@ -23,10 +23,10 @@ class ToastPalette:
 
 
 TOAST_STYLES: dict[str, ToastPalette] = {
-    "success": ToastPalette("#f8fcf8", "#8ebd95", "#1b3a1f"),
-    "info": ToastPalette("#f8fbff", "#98b4d4", "#1f3854"),
-    "warning": ToastPalette("#fffaf2", "#d7b078", "#5d3e13"),
-    "error": ToastPalette("#fff8f8", "#d8a0a0", "#5f2222"),
+    "success": ToastPalette("#6FCF97", "#2F8F55", "#000000"),
+    "info": ToastPalette("#5BA6F6", "#1D5FA8", "#000000"),
+    "warning": ToastPalette("#F2B441", "#A06912", "#000000"),
+    "error": ToastPalette("#EB6B6B", "#A32D2D", "#000000"),
 }
 
 TOAST_ICONS = {
@@ -119,34 +119,32 @@ class ToastWidget(QFrame):
             f"""
             QWidget#toastWidget {{
                 background-color: {palette.bg};
-                color: {palette.text};
                 border: 1px solid {palette.border};
                 border-radius: 10px;
             }}
             QLabel[role="toastIcon"] {{
                 font-size: 16px;
                 font-weight: 700;
-                color: {palette.text};
+                color: #000;
                 min-width: 16px;
             }}
             QLabel[role="toastTitle"] {{
                 font-weight: 700;
+                color: #000;
             }}
-            QLabel[role="toastMessage"],
-            QLabel[role="toastTitle"],
-            QLabel[role="toastIcon"] {{
-                background-color: transparent;
+            QLabel[role="toastMessage"] {{
+                color: #000;
             }}
             QPushButton#toastCloseButton {{
                 border: none;
                 background: transparent;
-                color: {palette.text};
+                color: #000;
                 font-size: 16px;
                 font-weight: 700;
                 padding: 0px 4px;
             }}
             QPushButton#toastCloseButton:hover {{
-                color: {QColor(palette.text).lighter(115).name()};
+                color: {QColor("#000000").lighter(140).name()};
             }}
             """
         )
