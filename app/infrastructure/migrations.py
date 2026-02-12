@@ -156,6 +156,55 @@ class MigrationRunner:
 
 def run_migrations(connection: sqlite3.Connection) -> None:
     MigrationRunner(connection).apply_all()
+    run_data_fixups(connection)
+
+
+def _normalize_legacy_date(value: str | None) -> str | None:
+    if not value:
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    for fmt in ("%Y-%m-%d", "%d/%m/%y", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
+
+
+def run_data_fixups(connection: sqlite3.Connection) -> None:
+    cursor = connection.cursor()
+    cursor.execute(
+        """
+        SELECT id, fecha_pedida, fecha_solicitud
+        FROM solicitudes
+        WHERE (fecha_pedida LIKE '%/%' OR fecha_solicitud LIKE '%/%')
+        """
+    )
+    rows = cursor.fetchall()
+    updates: list[tuple[str | None, str | None, int]] = []
+    for row in rows:
+        fecha_pedida_iso = _normalize_legacy_date(row["fecha_pedida"])
+        fecha_solicitud_iso = _normalize_legacy_date(row["fecha_solicitud"]) or fecha_pedida_iso
+        if not fecha_pedida_iso:
+            continue
+        if fecha_pedida_iso == row["fecha_pedida"] and fecha_solicitud_iso == row["fecha_solicitud"]:
+            continue
+        updates.append((fecha_pedida_iso, fecha_solicitud_iso, row["id"]))
+
+    if not updates:
+        return
+
+    cursor.executemany(
+        """
+        UPDATE solicitudes
+        SET fecha_pedida = ?, fecha_solicitud = ?
+        WHERE id = ?
+        """,
+        updates,
+    )
+    connection.commit()
 
 
 def build_cli() -> argparse.ArgumentParser:

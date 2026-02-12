@@ -292,9 +292,15 @@ class SheetsSyncService:
             headers, rows = self._rows_with_index(worksheet, worksheet_name)
             inserted_ws = 0
             updated_ws = 0
+            sample_fecha_before: str | None = None
+            sample_fecha_after: str | None = None
             logger.info("Pull solicitudes: worksheet=%s filas_leidas=%s", worksheet_name, len(rows))
             for row_number, raw_row in rows:
+                if sample_fecha_before is None:
+                    sample_fecha_before = str(raw_row.get("fecha") or raw_row.get("fecha_pedida") or "")
                 row = self._normalize_remote_solicitud_row(raw_row, worksheet_name)
+                if sample_fecha_after is None:
+                    sample_fecha_after = str(row.get("fecha") or "")
                 uuid_value = str(row.get("uuid", "")).strip()
                 if not uuid_value:
                     existing = self._find_solicitud_by_composite_key(row)
@@ -339,6 +345,12 @@ class SheetsSyncService:
                 inserted_ws,
                 updated_ws,
             )
+            logger.debug(
+                "Pull solicitudes fechas: worksheet=%s ejemplo_antes='%s' ejemplo_despues='%s'",
+                worksheet_name,
+                sample_fecha_before or "",
+                sample_fecha_after or "",
+            )
             self._flush_write_batches(spreadsheet, worksheet)
         return downloaded, conflicts, omitted_duplicates
 
@@ -362,8 +374,8 @@ class SheetsSyncService:
 
     def _normalize_remote_solicitud_row(self, row: dict[str, Any], worksheet_name: str) -> dict[str, Any]:
         payload = dict(row)
-        payload["fecha"] = normalize_date(str(row.get("fecha") or row.get("fecha_pedida") or "")) or ""
-        payload["created_at"] = str(row.get("created_at") or payload["fecha"] or "")
+        payload["fecha"] = self._normalize_date(row.get("fecha") or row.get("fecha_pedida")) or ""
+        payload["created_at"] = self._normalize_date(row.get("created_at")) or payload["fecha"] or ""
 
         desde_hhmm = self._remote_hhmm(
             row.get("desde_h"),
@@ -848,7 +860,7 @@ class SheetsSyncService:
 
     def _find_solicitud_by_composite_key(self, row: dict[str, Any]) -> sqlite3.Row | None:
         delegada_uuid = str(row.get("delegada_uuid", "")).strip() or None
-        fecha = normalize_date(str(row.get("fecha", "")))
+        fecha = self._normalize_date(row.get("fecha"))
         completo = bool(self._int_or_zero(row.get("completo")))
         desde = normalize_hhmm(f"{self._int_or_zero(row.get('desde_h')):02d}:{self._int_or_zero(row.get('desde_m')):02d}")
         hasta = normalize_hhmm(f"{self._int_or_zero(row.get('hasta_h')):02d}:{self._int_or_zero(row.get('hasta_m')):02d}")
@@ -985,7 +997,11 @@ class SheetsSyncService:
         if persona_id is None:
             logger.warning("Delegada %s no encontrada al importar solicitud %s", row.get("delegada_uuid"), uuid_value)
             return
-        fecha_normalizada = normalize_date(str(row.get("fecha") or "")) or str(row.get("fecha") or "")
+        fecha_normalizada = self._normalize_date(row.get("fecha") or row.get("fecha_pedida"))
+        created_normalizada = self._normalize_date(row.get("created_at")) or fecha_normalizada
+        if not fecha_normalizada:
+            logger.warning("Solicitud %s descartada por fecha inválida en pull: %s", uuid_value, row.get("fecha"))
+            return
         desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
         hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
         _execute_with_validation(
@@ -1000,7 +1016,7 @@ class SheetsSyncService:
             (
                 uuid_value,
                 persona_id,
-                row.get("created_at") or fecha_normalizada,
+                created_normalizada,
                 fecha_normalizada,
                 desde_min,
                 hasta_min,
@@ -1010,7 +1026,7 @@ class SheetsSyncService:
                 row.get("notas") or "",
                 None,
                 row.get("pdf_id"),
-                row.get("created_at") or fecha_normalizada,
+                created_normalizada,
                 row.get("updated_at") or self._now_iso(),
                 row.get("source_device"),
                 self._int_or_zero(row.get("deleted")),
@@ -1026,7 +1042,11 @@ class SheetsSyncService:
         if persona_id is None:
             logger.warning("Delegada %s no encontrada al actualizar solicitud %s", row.get("delegada_uuid"), row)
             return
-        fecha_normalizada = normalize_date(str(row.get("fecha") or "")) or str(row.get("fecha") or "")
+        fecha_normalizada = self._normalize_date(row.get("fecha") or row.get("fecha_pedida"))
+        created_normalizada = self._normalize_date(row.get("created_at")) or fecha_normalizada
+        if not fecha_normalizada:
+            logger.warning("Solicitud id=%s no actualizada por fecha inválida en pull: %s", solicitud_id, row.get("fecha"))
+            return
         desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
         hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
         _execute_with_validation(
@@ -1047,7 +1067,7 @@ class SheetsSyncService:
                 self._int_or_zero(row.get("minutos_total")),
                 row.get("notas") or "",
                 row.get("pdf_id"),
-                row.get("created_at") or fecha_normalizada,
+                created_normalizada,
                 row.get("updated_at") or self._now_iso(),
                 row.get("source_device"),
                 self._int_or_zero(row.get("deleted")),
@@ -1056,6 +1076,20 @@ class SheetsSyncService:
             "solicitudes.update_remote",
         )
         self._connection.commit()
+
+    @staticmethod
+    def _normalize_date(value: str | None) -> str | None:
+        if value is None:
+            return None
+        raw = str(value).strip()
+        if not raw:
+            return None
+        for fmt in ("%Y-%m-%d", "%d/%m/%y", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
+            except ValueError:
+                continue
+        return None
 
     def _insert_cuadrante_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:
         cursor = self._connection.cursor()
