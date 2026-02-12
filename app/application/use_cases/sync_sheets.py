@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import sqlite3
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,8 +19,9 @@ from app.domain.ports import (
     SheetsConfigStorePort,
     SheetsRepositoryPort,
 )
-from app.domain.sheets_errors import SheetsConfigError
+from app.domain.sheets_errors import SheetsConfigError, SheetsRateLimitError
 from app.domain.sync_models import SyncSummary
+from app.infrastructure.sheets_errors import is_rate_limited_api_error, map_gspread_exception
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +49,13 @@ class SheetsSyncService:
         self._config_store = config_store
         self._client = client
         self._repository = repository
+        self._worksheet_cache: dict[str, gspread.Worksheet] = {}
+        self._sheet_list_cache: list[gspread.Worksheet] | None = None
+        self._avoided_worksheet_reads = 0
 
-    def pull(self) -> SyncSummary:
-        spreadsheet = self._open_spreadsheet()
+    def pull(self, spreadsheet: gspread.Spreadsheet | None = None) -> SyncSummary:
+        spreadsheet = spreadsheet or self._open_spreadsheet()
+        self._begin_sync_context()
         self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
         last_sync_at = self._get_last_sync_at()
         downloaded = 0
@@ -66,6 +73,7 @@ class SheetsSyncService:
         conflicts += conflict_count
         downloaded += self._pull_pdf_log(spreadsheet)
         downloaded += self._pull_config(spreadsheet)
+        logger.info("Sync pull: lecturas worksheet evitadas por caché=%s", self._avoided_worksheet_reads)
         return SyncSummary(
             inserted_local=downloaded,
             updated_local=0,
@@ -73,8 +81,9 @@ class SheetsSyncService:
             conflicts_detected=conflicts,
         )
 
-    def push(self) -> SyncSummary:
-        spreadsheet = self._open_spreadsheet()
+    def push(self, spreadsheet: gspread.Spreadsheet | None = None) -> SyncSummary:
+        spreadsheet = spreadsheet or self._open_spreadsheet()
+        self._begin_sync_context()
         self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
         last_sync_at = self._get_last_sync_at()
         uploaded = 0
@@ -94,6 +103,7 @@ class SheetsSyncService:
         uploaded += self._push_pdf_log(spreadsheet, last_sync_at)
         uploaded += self._push_config(spreadsheet, last_sync_at)
         self._set_last_sync_at(self._now_iso())
+        logger.info("Sync push: lecturas worksheet evitadas por caché=%s", self._avoided_worksheet_reads)
         return SyncSummary(
             inserted_remote=uploaded,
             updated_remote=0,
@@ -105,10 +115,11 @@ class SheetsSyncService:
         return self.sync_bidirectional()
 
     def sync_bidirectional(self) -> SyncSummary:
-        pull_summary = self.pull()
+        spreadsheet = self._open_spreadsheet()
+        pull_summary = self.pull(spreadsheet=spreadsheet)
         # Garantiza persistencia local del pull antes de cualquier push/refresh de UI.
         self._connection.commit()
-        push_summary = self.push()
+        push_summary = self.push(spreadsheet=spreadsheet)
         return SyncSummary(
             inserted_local=pull_summary.inserted_local,
             updated_local=pull_summary.updated_local,
@@ -187,6 +198,71 @@ class SheetsSyncService:
         spreadsheet = self._client.open_spreadsheet(credentials_path, config.spreadsheet_id)
         return spreadsheet
 
+
+    def _begin_sync_context(self) -> None:
+        self._worksheet_cache = {}
+        self._sheet_list_cache = None
+        self._avoided_worksheet_reads = 0
+
+    def _list_worksheets(self, spreadsheet: gspread.Spreadsheet) -> list[gspread.Worksheet]:
+        if self._sheet_list_cache is not None:
+            return self._sheet_list_cache
+        worksheets_method = getattr(spreadsheet, "worksheets", None)
+        if not callable(worksheets_method):
+            self._sheet_list_cache = []
+            return self._sheet_list_cache
+        self._sheet_list_cache = self._retry_rate_limited(
+            worksheets_method,
+            operation="worksheets()",
+        )
+        return self._sheet_list_cache
+
+    def _get_worksheet(self, spreadsheet: gspread.Spreadsheet, worksheet_name: str) -> gspread.Worksheet:
+        cached = self._worksheet_cache.get(worksheet_name)
+        if cached is not None:
+            self._avoided_worksheet_reads += 1
+            return cached
+        worksheet = self._retry_rate_limited(
+            lambda: spreadsheet.worksheet(worksheet_name),
+            operation=f"worksheet({worksheet_name})",
+        )
+        self._worksheet_cache[worksheet_name] = worksheet
+        return worksheet
+
+    def _retry_rate_limited(self, action, operation: str):
+        max_attempts = 5
+        backoff_seconds = (1, 2, 4, 8, 16)
+        last_exc: Exception | None = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return action()
+            except Exception as exc:
+                if not is_rate_limited_api_error(exc):
+                    raise map_gspread_exception(exc) from exc
+                last_exc = exc
+                if attempt >= max_attempts:
+                    break
+                backoff = backoff_seconds[attempt - 1]
+                jitter_ms = random.randint(0, 300)
+                delay = backoff + (jitter_ms / 1000)
+                logger.warning(
+                    "Google Sheets rate limit en %s (intento %s/%s). Backoff %.3fs",
+                    operation,
+                    attempt,
+                    max_attempts,
+                    delay,
+                )
+                time.sleep(delay)
+        logger.error(
+            "Rate limit agotado en %s tras %s intentos. Lecturas worksheet evitadas por caché=%s",
+            operation,
+            max_attempts,
+            self._avoided_worksheet_reads,
+        )
+        raise SheetsRateLimitError(
+            "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta."
+        ) from last_exc
+
     def _get_last_sync_at(self) -> str | None:
         cursor = self._connection.cursor()
         cursor.execute("SELECT last_sync_at FROM sync_state WHERE id = 1")
@@ -204,7 +280,7 @@ class SheetsSyncService:
         self._connection.commit()
 
     def _pull_delegadas(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> tuple[int, int]:
-        worksheet = spreadsheet.worksheet("delegadas")
+        worksheet = self._get_worksheet(spreadsheet, "delegadas")
         headers, rows = self._rows_with_index(worksheet)
         downloaded = 0
         conflicts = 0
@@ -297,11 +373,11 @@ class SheetsSyncService:
         worksheets_by_title: dict[str, gspread.Worksheet] = {}
         worksheets_method = getattr(spreadsheet, "worksheets", None)
         if callable(worksheets_method):
-            worksheets_by_title = {ws.title: ws for ws in worksheets_method()}
+            worksheets_by_title = {ws.title: ws for ws in self._list_worksheets(spreadsheet)}
         else:
             for name in ("solicitudes", "Histórico", "Historico"):
                 try:
-                    worksheet = spreadsheet.worksheet(name)
+                    worksheet = self._get_worksheet(spreadsheet, name)
                 except Exception:
                     continue
                 worksheets_by_title[name] = worksheet
@@ -352,7 +428,7 @@ class SheetsSyncService:
     def _pull_cuadrantes(
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
     ) -> tuple[int, int]:
-        worksheet = spreadsheet.worksheet("cuadrantes")
+        worksheet = self._get_worksheet(spreadsheet, "cuadrantes")
         _, rows = self._rows_with_index(worksheet)
         downloaded = 0
         conflicts = 0
@@ -376,7 +452,7 @@ class SheetsSyncService:
         return downloaded, conflicts
 
     def _pull_pdf_log(self, spreadsheet: gspread.Spreadsheet) -> int:
-        worksheet = spreadsheet.worksheet("pdf_log")
+        worksheet = self._get_worksheet(spreadsheet, "pdf_log")
         _, rows = self._rows_with_index(worksheet)
         downloaded = 0
         cursor = self._connection.cursor()
@@ -428,7 +504,7 @@ class SheetsSyncService:
         return downloaded
 
     def _pull_config(self, spreadsheet: gspread.Spreadsheet) -> int:
-        worksheet = spreadsheet.worksheet("config")
+        worksheet = self._get_worksheet(spreadsheet, "config")
         _, rows = self._rows_with_index(worksheet)
         downloaded = 0
         cursor = self._connection.cursor()
@@ -463,7 +539,7 @@ class SheetsSyncService:
         return downloaded
 
     def _push_pdf_log(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> int:
-        worksheet = spreadsheet.worksheet("pdf_log")
+        worksheet = self._get_worksheet(spreadsheet, "pdf_log")
         headers, rows = self._rows_with_index(worksheet)
         header_map = self._header_map(headers, SHEETS_SCHEMA["pdf_log"])
         remote_index = {row["pdf_id"]: row for _, row in rows if row.get("pdf_id")}
@@ -502,7 +578,7 @@ class SheetsSyncService:
         return uploaded
 
     def _push_config(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> int:
-        worksheet = spreadsheet.worksheet("config")
+        worksheet = self._get_worksheet(spreadsheet, "config")
         headers, rows = self._rows_with_index(worksheet)
         header_map = self._header_map(headers, SHEETS_SCHEMA["config"])
         remote_index = {row["key"]: row for _, row in rows if row.get("key")}
@@ -540,7 +616,7 @@ class SheetsSyncService:
     def _push_delegadas(
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
     ) -> tuple[int, int]:
-        worksheet = spreadsheet.worksheet("delegadas")
+        worksheet = self._get_worksheet(spreadsheet, "delegadas")
         headers, rows = self._rows_with_index(worksheet)
         header_map = self._header_map(headers, SHEETS_SCHEMA["delegadas"])
         remote_index = self._uuid_index(rows)
@@ -587,7 +663,7 @@ class SheetsSyncService:
     def _push_solicitudes(
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
     ) -> tuple[int, int, int]:
-        worksheet = spreadsheet.worksheet("solicitudes")
+        worksheet = self._get_worksheet(spreadsheet, "solicitudes")
         headers, rows = self._rows_with_index(worksheet)
         header_map = self._header_map(headers, SHEETS_SCHEMA["solicitudes"])
         remote_index = self._uuid_index(rows)
@@ -664,7 +740,7 @@ class SheetsSyncService:
     def _push_cuadrantes(
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
     ) -> tuple[int, int]:
-        worksheet = spreadsheet.worksheet("cuadrantes")
+        worksheet = self._get_worksheet(spreadsheet, "cuadrantes")
         headers, rows = self._rows_with_index(worksheet)
         header_map = self._header_map(headers, SHEETS_SCHEMA["cuadrantes"])
         remote_index = self._uuid_index(rows)
@@ -1172,7 +1248,10 @@ class SheetsSyncService:
         self._connection.commit()
 
     def _rows_with_index(self, worksheet: gspread.Worksheet) -> tuple[list[str], list[tuple[int, dict[str, Any]]]]:
-        values = worksheet.get_all_values()
+        values = self._retry_rate_limited(
+            lambda: worksheet.get_all_values(),
+            operation=f"get_all_values({worksheet.title})",
+        )
         if not values:
             return [], []
         headers = values[0]
