@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import random
 import time
 from pathlib import Path
 from typing import Any, Callable, TypeVar
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 _MAX_RETRIES = 5
 _BASE_BACKOFF_SECONDS = 1
-_MAX_JITTER_MS = 300
+_WRITE_MAX_RETRIES = 5
 
 T = TypeVar("T")
 
@@ -30,6 +29,7 @@ class SheetsClient(SheetsClientPort):
         self._worksheets_by_title_cache: dict[str, gspread.Worksheet] | None = None
         self._read_calls_count = 0
         self._avoided_requests_count = 0
+        self._write_calls_count = 0
 
     def open_spreadsheet(self, credentials_path: Path, spreadsheet_id: str) -> gspread.Spreadsheet:
         logger.info("Conectando a Google Sheets con credenciales: %s", credentials_path)
@@ -46,6 +46,7 @@ class SheetsClient(SheetsClientPort):
             self._worksheets_by_title_cache = None
             self._read_calls_count = 0
             self._avoided_requests_count = 0
+            self._write_calls_count = 0
             return spreadsheet
         except Exception as exc:
             raise map_gspread_exception(exc) from exc
@@ -134,6 +135,38 @@ class SheetsClient(SheetsClientPort):
     def get_avoided_requests_count(self) -> int:
         return self._avoided_requests_count
 
+    def get_write_calls_count(self) -> int:
+        return self._write_calls_count
+
+    def append_rows(self, worksheet: gspread.Worksheet, rows: list[list[Any]]) -> None:
+        if not rows:
+            return
+        self._with_write_retry(
+            f"worksheet.append_rows({worksheet.title})",
+            lambda: worksheet.append_rows(rows, value_input_option="USER_ENTERED"),
+        )
+        self._write_calls_count += 1
+
+    def batch_update(self, worksheet: gspread.Worksheet, data: list[dict[str, Any]]) -> None:
+        if not data:
+            return
+        self._with_write_retry(
+            f"worksheet.batch_update({worksheet.title})",
+            lambda: worksheet.batch_update(data, value_input_option="USER_ENTERED"),
+        )
+        self._write_calls_count += 1
+
+    def values_batch_update(self, body: dict[str, Any]) -> None:
+        if not body.get("data"):
+            return
+        if self._spreadsheet is None:
+            raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
+        self._with_write_retry(
+            "spreadsheet.values_batch_update",
+            lambda: self._spreadsheet.values_batch_update(body),
+        )
+        self._write_calls_count += 1
+
     def _with_rate_limit_retry(self, operation_name: str, operation: Callable[[], T]) -> T:
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
@@ -152,17 +185,43 @@ class SheetsClient(SheetsClientPort):
                         "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta."
                     ) from exc
                 backoff_seconds = _BASE_BACKOFF_SECONDS * (2 ** (attempt - 1))
-                jitter_ms = random.randint(0, _MAX_JITTER_MS)
-                wait_seconds = backoff_seconds + (jitter_ms / 1000)
                 logger.warning(
                     "Rate limit en Google Sheets (%s). intento=%s/%s backoff=%.3fs",
                     operation_name,
                     attempt,
                     _MAX_RETRIES,
-                    wait_seconds,
+                    backoff_seconds,
                 )
-                time.sleep(wait_seconds)
+                time.sleep(backoff_seconds)
         raise RuntimeError("No se pudo completar la operación de Google Sheets.")
+
+    def _with_write_retry(self, operation_name: str, operation: Callable[[], T]) -> T:
+        for attempt in range(1, _WRITE_MAX_RETRIES + 1):
+            try:
+                return operation()
+            except gspread.exceptions.APIError as exc:
+                mapped_error = map_gspread_exception(exc)
+                if not isinstance(mapped_error, SheetsRateLimitError):
+                    raise mapped_error from exc
+                if attempt >= _WRITE_MAX_RETRIES:
+                    logger.error(
+                        "Google Sheets rate limit persistente en escritura %s tras %s intentos.",
+                        operation_name,
+                        attempt,
+                    )
+                    raise SheetsRateLimitError(
+                        "Límite de escritura de Google Sheets alcanzado. Espera 1 minuto y reintenta."
+                    ) from exc
+                backoff_seconds = 2 ** (attempt - 1)
+                logger.warning(
+                    "Rate limit en escritura Google Sheets (%s). intento=%s/%s backoff=%ss",
+                    operation_name,
+                    attempt,
+                    _WRITE_MAX_RETRIES,
+                    backoff_seconds,
+                )
+                time.sleep(backoff_seconds)
+        raise RuntimeError("No se pudo completar la escritura en Google Sheets.")
 
     @staticmethod
     def _worksheet_name_from_range(range_name: str) -> str | None:

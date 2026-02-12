@@ -134,6 +134,18 @@ class SheetsClientPort(Protocol):
     def get_avoided_requests_count(self) -> int:
         ...
 
+    def get_write_calls_count(self) -> int:
+        ...
+
+    def append_rows(self, worksheet, rows: list[list[Any]]) -> None:
+        ...
+
+    def batch_update(self, worksheet, data: list[dict[str, Any]]) -> None:
+        ...
+
+    def values_batch_update(self, body: dict[str, Any]) -> None:
+        ...
+
 
 class SheetsRepositoryPort(Protocol):
     def ensure_schema(self, spreadsheet, schema: dict[str, list[str]]) -> list[str]:
