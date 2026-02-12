@@ -47,13 +47,21 @@ class SheetsSyncService:
         self._client = client
         self._repository = repository
         self._worksheet_cache: dict[str, gspread.Worksheet] = {}
+        self._pending_append_rows: dict[str, list[list[Any]]] = {}
+        self._pending_batch_updates: dict[str, list[dict[str, Any]]] = {}
+        self._pending_values_batch_updates: dict[str, list[dict[str, Any]]] = {}
 
     def pull(self) -> SyncSummary:
         spreadsheet = self._open_spreadsheet()
         self._prepare_sync_context(spreadsheet)
         self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
         summary = self._pull_with_spreadsheet(spreadsheet)
-        logger.info("Pull completado. read_calls_count=%s avoided_requests=%s", self._client.get_read_calls_count(), self._client.get_avoided_requests_count())
+        logger.info(
+            "Pull completado. read_calls_count=%s avoided_requests=%s write_calls=%s",
+            self._client.get_read_calls_count(),
+            self._client.get_avoided_requests_count(),
+            self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else "n/a",
+        )
         return summary
 
     def push(self) -> SyncSummary:
@@ -61,7 +69,12 @@ class SheetsSyncService:
         self._prepare_sync_context(spreadsheet)
         self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
         summary = self._push_with_spreadsheet(spreadsheet)
-        logger.info("Push completado. read_calls_count=%s avoided_requests=%s", self._client.get_read_calls_count(), self._client.get_avoided_requests_count())
+        logger.info(
+            "Push completado. read_calls_count=%s avoided_requests=%s write_calls=%s",
+            self._client.get_read_calls_count(),
+            self._client.get_avoided_requests_count(),
+            self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else "n/a",
+        )
         return summary
 
     def sync(self) -> SyncSummary:
@@ -75,7 +88,12 @@ class SheetsSyncService:
         # Garantiza persistencia local del pull antes de cualquier push/refresh de UI.
         self._connection.commit()
         push_summary = self._push_with_spreadsheet(spreadsheet)
-        logger.info("Sync bidireccional completado. read_calls_count=%s avoided_requests=%s", self._client.get_read_calls_count(), self._client.get_avoided_requests_count())
+        logger.info(
+            "Sync bidireccional completado. read_calls_count=%s avoided_requests=%s write_calls=%s",
+            self._client.get_read_calls_count(),
+            self._client.get_avoided_requests_count(),
+            self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else "n/a",
+        )
         return SyncSummary(
             inserted_local=pull_summary.inserted_local,
             updated_local=pull_summary.updated_local,
@@ -163,6 +181,8 @@ class SheetsSyncService:
         return worksheet
 
     def _pull_with_spreadsheet(self, spreadsheet: gspread.Spreadsheet) -> SyncSummary:
+        self._reset_write_batch_state()
+        write_calls_before = self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else 0
         last_sync_at = self._get_last_sync_at()
         downloaded = 0
         conflicts = 0
@@ -181,6 +201,8 @@ class SheetsSyncService:
         conflicts += conflict_count
         downloaded += self._pull_pdf_log(spreadsheet)
         downloaded += self._pull_config(spreadsheet)
+        write_calls_after = self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else 0
+        logger.info("Write calls por sync (pull): %s", write_calls_after - write_calls_before)
         return SyncSummary(
             inserted_local=downloaded,
             updated_local=0,
@@ -189,6 +211,8 @@ class SheetsSyncService:
         )
 
     def _push_with_spreadsheet(self, spreadsheet: gspread.Spreadsheet) -> SyncSummary:
+        self._reset_write_batch_state()
+        write_calls_before = self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else 0
         last_sync_at = self._get_last_sync_at()
         uploaded = 0
         conflicts = 0
@@ -207,6 +231,8 @@ class SheetsSyncService:
         uploaded += self._push_pdf_log(spreadsheet, last_sync_at)
         uploaded += self._push_config(spreadsheet, last_sync_at)
         self._set_last_sync_at(self._now_iso())
+        write_calls_after = self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else 0
+        logger.info("Write calls por sync (push): %s", write_calls_after - write_calls_before)
         return SyncSummary(
             inserted_remote=uploaded,
             updated_remote=0,
@@ -266,6 +292,7 @@ class SheetsSyncService:
             if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
                 self._update_persona_from_remote(local_row["id"], row)
                 downloaded += 1
+        self._flush_write_batches(spreadsheet, worksheet)
         return downloaded, conflicts
 
     def _pull_solicitudes(
@@ -324,6 +351,7 @@ class SheetsSyncService:
                 inserted_ws,
                 updated_ws,
             )
+            self._flush_write_batches(spreadsheet, worksheet)
         return downloaded, conflicts, omitted_duplicates
 
     def _solicitudes_pull_source_titles(self, spreadsheet: gspread.Spreadsheet) -> list[str]:
@@ -538,6 +566,7 @@ class SheetsSyncService:
             else:
                 self._append_row(worksheet, header_map, payload)
             uploaded += 1
+        self._flush_write_batches(spreadsheet, worksheet)
         return uploaded
 
     def _push_config(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> int:
@@ -574,6 +603,7 @@ class SheetsSyncService:
             else:
                 self._append_row(worksheet, header_map, payload)
             uploaded += 1
+        self._flush_write_batches(spreadsheet, worksheet)
         return uploaded
 
     def _push_delegadas(
@@ -621,6 +651,7 @@ class SheetsSyncService:
             else:
                 self._append_row(worksheet, header_map, payload)
             uploaded += 1
+        self._flush_write_batches(spreadsheet, worksheet)
         return uploaded, conflicts
 
     def _push_solicitudes(
@@ -698,6 +729,7 @@ class SheetsSyncService:
             else:
                 self._append_row(worksheet, header_map, payload)
             uploaded += 1
+        self._flush_write_batches(spreadsheet, worksheet)
         return uploaded, conflicts, omitted_duplicates
 
     def _push_cuadrantes(
@@ -747,6 +779,7 @@ class SheetsSyncService:
             else:
                 self._append_row(worksheet, header_map, payload)
             uploaded += 1
+        self._flush_write_batches(spreadsheet, worksheet)
         return uploaded, conflicts
 
     def _fetch_persona(self, uuid_value: str) -> sqlite3.Row | None:
@@ -863,16 +896,8 @@ class SheetsSyncService:
         if column not in headers:
             return
         col_idx = headers.index(column) + 1
-        if hasattr(worksheet, "update_cell"):
-            worksheet.update_cell(row_number, col_idx, value)
-            return
-        if hasattr(worksheet, "_values"):
-            values = getattr(worksheet, "_values")
-            while len(values) < row_number:
-                values.append([""] * len(headers))
-            while len(values[row_number - 1]) < col_idx:
-                values[row_number - 1].append("")
-            values[row_number - 1][col_idx - 1] = value
+        # Evita write-per-row: acumulamos backfills y se ejecutan en un único values_batch_update por worksheet.
+        self._queue_values_batch_update(worksheet, row_number, col_idx, value)
 
     def _fetch_solicitud(self, uuid_value: str) -> sqlite3.Row | None:
         cursor = self._connection.cursor()
@@ -1245,12 +1270,55 @@ class SheetsSyncService:
         return index
 
     def _update_row(self, worksheet: gspread.Worksheet, row_number: int, headers: list[str], payload: dict[str, Any]) -> None:
+        # Evita write-per-row: acumulamos updates y se ejecutan en un único batch_update por worksheet.
         row_values = [payload.get(header, "") for header in headers]
-        worksheet.update(f"A{row_number}:{gspread.utils.rowcol_to_a1(row_number, len(headers))}", [row_values])
+        range_name = f"A{row_number}:{gspread.utils.rowcol_to_a1(row_number, len(headers))}"
+        self._pending_batch_updates.setdefault(worksheet.title, []).append({"range": range_name, "values": [row_values]})
 
     def _append_row(self, worksheet: gspread.Worksheet, headers: list[str], payload: dict[str, Any]) -> None:
+        # Evita write-per-row: acumulamos altas y se ejecutan en un único append_rows por worksheet.
         row_values = [payload.get(header, "") for header in headers]
-        worksheet.append_row(row_values, value_input_option="USER_ENTERED")
+        self._pending_append_rows.setdefault(worksheet.title, []).append(row_values)
+
+
+    def _reset_write_batch_state(self) -> None:
+        self._pending_append_rows = {}
+        self._pending_batch_updates = {}
+        self._pending_values_batch_updates = {}
+
+    def _queue_values_batch_update(self, worksheet: gspread.Worksheet, row_number: int, col_idx: int, value: Any) -> None:
+        a1_cell = gspread.utils.rowcol_to_a1(row_number, col_idx)
+        sheet_title = worksheet.title.replace("'", "''")
+        range_name = f"'{sheet_title}'!{a1_cell}"
+        self._pending_values_batch_updates.setdefault(worksheet.title, []).append({"range": range_name, "values": [[value]]})
+
+    def _flush_write_batches(self, spreadsheet: gspread.Spreadsheet, worksheet: gspread.Worksheet) -> None:
+        worksheet_title = worksheet.title
+        appended_rows = self._pending_append_rows.pop(worksheet_title, [])
+        updated_rows = self._pending_batch_updates.pop(worksheet_title, [])
+        backfills = self._pending_values_batch_updates.pop(worksheet_title, [])
+
+        if appended_rows:
+            if hasattr(self._client, "append_rows"):
+                self._client.append_rows(worksheet, appended_rows)
+            else:
+                worksheet.append_rows(appended_rows, value_input_option="USER_ENTERED")
+            logger.info("Write batch: %s rows appended", len(appended_rows))
+
+        if updated_rows:
+            if hasattr(self._client, "batch_update"):
+                self._client.batch_update(worksheet, updated_rows)
+            else:
+                worksheet.batch_update(updated_rows, value_input_option="USER_ENTERED")
+            logger.info("Write batch: %s rows updated", len(updated_rows))
+
+        if backfills:
+            body = {"valueInputOption": "USER_ENTERED", "data": backfills}
+            if hasattr(self._client, "values_batch_update"):
+                self._client.values_batch_update(body)
+            else:
+                spreadsheet.values_batch_update(body)
+            logger.info("Write batch: %s rows updated", len(backfills))
 
     def _is_after_last_sync(self, updated_at: str | None, last_sync_at: str | None) -> bool:
         if not updated_at:
