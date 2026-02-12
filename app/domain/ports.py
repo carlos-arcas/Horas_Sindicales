@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol, Iterable
+from typing import Any, Protocol, Iterable
 
 from app.domain.sync_models import SyncSummary
 from app.domain.models import GrupoConfig, Persona, SheetsConfig, Solicitud
@@ -96,6 +96,21 @@ class SheetsGatewayPort(Protocol):
     def test_connection(self, config: SheetsConfig, schema: dict[str, list[str]]) -> tuple[str, str, list[str]]:
         ...
 
+    def read_personas(self, config: SheetsConfig) -> list[tuple[int, dict[str, Any]]]:
+        ...
+
+    def read_solicitudes(self, config: SheetsConfig) -> list[tuple[int, dict[str, Any]]]:
+        ...
+
+    def upsert_persona(self, config: SheetsConfig, row: dict[str, Any]) -> None:
+        ...
+
+    def upsert_solicitud(self, config: SheetsConfig, row: dict[str, Any]) -> None:
+        ...
+
+    def backfill_uuid(self, config: SheetsConfig, worksheet_name: str, row_index: int, uuid_value: str) -> None:
+        ...
+
 
 class SheetsClientPort(Protocol):
     def open_spreadsheet(self, credentials_path: Path, spreadsheet_id: str):
@@ -115,6 +130,9 @@ class SheetsSyncPort(Protocol):
         ...
 
     def sync(self) -> SyncSummary:
+        ...
+
+    def sync_bidirectional(self) -> SyncSummary:
         ...
 
     def get_last_sync_at(self) -> str | None:

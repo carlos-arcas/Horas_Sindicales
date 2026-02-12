@@ -33,7 +33,10 @@ class SyncSheetsAdapter(SheetsSyncPort):
         return self._run_with_connection(lambda service: service.push())
 
     def sync(self) -> SyncSummary:
-        return self._run_with_connection(lambda service: service.sync())
+        return self.sync_bidirectional()
+
+    def sync_bidirectional(self) -> SyncSummary:
+        return self._run_with_connection(lambda service: service.sync_bidirectional())
 
     def get_last_sync_at(self) -> str | None:
         return self._run_with_connection(lambda service: service.get_last_sync_at())

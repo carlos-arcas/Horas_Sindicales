@@ -307,6 +307,43 @@ class PersonaRepositorySQLite(PersonaRepository):
         self._connection.commit()
         return persona
 
+    def get_by_uuid(self, persona_uuid: str) -> Persona | None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, nombre, genero,
+                   horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
+                   is_active,
+                   cuad_lun_man_min, cuad_lun_tar_min,
+                   cuad_mar_man_min, cuad_mar_tar_min,
+                   cuad_mie_man_min, cuad_mie_tar_min,
+                   cuad_jue_man_min, cuad_jue_tar_min,
+                   cuad_vie_man_min, cuad_vie_tar_min,
+                   cuad_sab_man_min, cuad_sab_tar_min,
+                   cuad_dom_man_min, cuad_dom_tar_min,
+                   cuadrante_uniforme, trabaja_finde
+            FROM personas
+            WHERE uuid = ? AND (deleted = 0 OR deleted IS NULL)
+            """,
+            (persona_uuid,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return Persona(
+            id=row["id"], nombre=row["nombre"], genero=row["genero"],
+            horas_mes_min=_int_or_zero(row["horas_mes_min"]), horas_ano_min=_int_or_zero(row["horas_ano_min"]),
+            is_active=_bool_from_db(row["is_active"]),
+            cuad_lun_man_min=_int_or_zero(row["cuad_lun_man_min"]), cuad_lun_tar_min=_int_or_zero(row["cuad_lun_tar_min"]),
+            cuad_mar_man_min=_int_or_zero(row["cuad_mar_man_min"]), cuad_mar_tar_min=_int_or_zero(row["cuad_mar_tar_min"]),
+            cuad_mie_man_min=_int_or_zero(row["cuad_mie_man_min"]), cuad_mie_tar_min=_int_or_zero(row["cuad_mie_tar_min"]),
+            cuad_jue_man_min=_int_or_zero(row["cuad_jue_man_min"]), cuad_jue_tar_min=_int_or_zero(row["cuad_jue_tar_min"]),
+            cuad_vie_man_min=_int_or_zero(row["cuad_vie_man_min"]), cuad_vie_tar_min=_int_or_zero(row["cuad_vie_tar_min"]),
+            cuad_sab_man_min=_int_or_zero(row["cuad_sab_man_min"]), cuad_sab_tar_min=_int_or_zero(row["cuad_sab_tar_min"]),
+            cuad_dom_man_min=_int_or_zero(row["cuad_dom_man_min"]), cuad_dom_tar_min=_int_or_zero(row["cuad_dom_tar_min"]),
+            cuadrante_uniforme=_bool_from_db(row["cuadrante_uniforme"]), trabaja_finde=_bool_from_db(row["trabaja_finde"]),
+        )
+
     def get_or_create_uuid(self, persona_id: int) -> str | None:
         cursor = self._connection.cursor()
         cursor.execute("SELECT uuid FROM personas WHERE id = ? AND (deleted = 0 OR deleted IS NULL)", (persona_id,))
@@ -527,6 +564,58 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             pdf_path=row["pdf_path"],
             pdf_hash=row["pdf_hash"],
             generated=bool(row["generated"]),
+        )
+
+    def get_by_uuid(self, solicitud_uuid: str) -> Solicitud | None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
+            FROM solicitudes
+            WHERE uuid = ? AND (deleted = 0 OR deleted IS NULL)
+            """,
+            (solicitud_uuid,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return Solicitud(
+            id=row["id"], persona_id=row["persona_id"], fecha_solicitud=row["fecha_solicitud"], fecha_pedida=row["fecha_pedida"],
+            desde_min=row["desde_min"], hasta_min=row["hasta_min"], completo=bool(row["completo"]),
+            horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]), observaciones=row["observaciones"],
+            notas=row["notas"], pdf_path=row["pdf_path"], pdf_hash=row["pdf_hash"], generated=bool(row["generated"]),
+        )
+
+    def get_by_unique_key(
+        self,
+        persona_id: int,
+        fecha_pedida: str,
+        completo: bool,
+        desde_min: int | None,
+        hasta_min: int | None,
+    ) -> Solicitud | None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
+            FROM solicitudes
+            WHERE persona_id = ? AND fecha_pedida = ? AND completo = ?
+              AND (desde_min IS ? OR desde_min = ?) AND (hasta_min IS ? OR hasta_min = ?)
+              AND (deleted = 0 OR deleted IS NULL)
+            LIMIT 1
+            """,
+            (persona_id, fecha_pedida, int(completo), desde_min, desde_min, hasta_min, hasta_min),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return Solicitud(
+            id=row["id"], persona_id=row["persona_id"], fecha_solicitud=row["fecha_solicitud"], fecha_pedida=row["fecha_pedida"],
+            desde_min=row["desde_min"], hasta_min=row["hasta_min"], completo=bool(row["completo"]),
+            horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]), observaciones=row["observaciones"],
+            notas=row["notas"], pdf_path=row["pdf_path"], pdf_hash=row["pdf_hash"], generated=bool(row["generated"]),
         )
 
     def exists_duplicate(

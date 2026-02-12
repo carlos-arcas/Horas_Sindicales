@@ -11,6 +11,7 @@ from typing import Any
 import gspread
 
 from app.application.sheets_service import SHEETS_SCHEMA
+from app.application.sync_normalization import normalize_date, normalize_hhmm, solicitud_unique_key
 from app.domain.ports import (
     SheetsClientPort,
     SheetsConfigStorePort,
@@ -66,10 +67,10 @@ class SheetsSyncService:
         downloaded += self._pull_pdf_log(spreadsheet)
         downloaded += self._pull_config(spreadsheet)
         return SyncSummary(
-            downloaded=downloaded,
-            uploaded=0,
-            conflicts=conflicts,
-            omitted_duplicates=omitted_duplicates,
+            inserted_local=downloaded,
+            updated_local=0,
+            duplicates_skipped=omitted_duplicates,
+            conflicts_detected=conflicts,
         )
 
     def push(self) -> SyncSummary:
@@ -94,20 +95,26 @@ class SheetsSyncService:
         uploaded += self._push_config(spreadsheet, last_sync_at)
         self._set_last_sync_at(self._now_iso())
         return SyncSummary(
-            downloaded=0,
-            uploaded=uploaded,
-            conflicts=conflicts,
-            omitted_duplicates=omitted_duplicates,
+            inserted_remote=uploaded,
+            updated_remote=0,
+            duplicates_skipped=omitted_duplicates,
+            conflicts_detected=conflicts,
         )
 
     def sync(self) -> SyncSummary:
+        return self.sync_bidirectional()
+
+    def sync_bidirectional(self) -> SyncSummary:
         pull_summary = self.pull()
         push_summary = self.push()
         return SyncSummary(
-            downloaded=pull_summary.downloaded,
-            uploaded=push_summary.uploaded,
-            conflicts=pull_summary.conflicts + push_summary.conflicts,
-            omitted_duplicates=pull_summary.omitted_duplicates + push_summary.omitted_duplicates,
+            inserted_local=pull_summary.inserted_local,
+            updated_local=pull_summary.updated_local,
+            inserted_remote=push_summary.inserted_remote,
+            updated_remote=push_summary.updated_remote,
+            duplicates_skipped=pull_summary.duplicates_skipped + push_summary.duplicates_skipped,
+            conflicts_detected=pull_summary.conflicts_detected + push_summary.conflicts_detected,
+            errors=pull_summary.errors + push_summary.errors,
         )
 
     def get_last_sync_at(self) -> str | None:
@@ -196,16 +203,18 @@ class SheetsSyncService:
 
     def _pull_delegadas(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> tuple[int, int]:
         worksheet = spreadsheet.worksheet("delegadas")
-        _, rows = self._rows_with_index(worksheet)
+        headers, rows = self._rows_with_index(worksheet)
         downloaded = 0
         conflicts = 0
-        for _, row in rows:
+        for row_number, row in rows:
             nombre_value = str(row.get("nombre", "")).strip()
             uuid_value = str(row.get("uuid", "")).strip()
             if not uuid_value and not nombre_value:
                 logger.warning("Fila delegada sin uuid ni nombre; se omite: %s", row)
                 continue
-            local_row, was_inserted = self._get_or_create_persona(row)
+            local_row, was_inserted, persona_uuid = self._get_or_create_persona(row)
+            if not str(row.get("uuid", "")).strip() and persona_uuid:
+                self._backfill_uuid(worksheet, headers, row_number, "uuid", persona_uuid)
             if was_inserted:
                 downloaded += 1
                 continue
@@ -226,13 +235,22 @@ class SheetsSyncService:
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
     ) -> tuple[int, int, int]:
         worksheet = spreadsheet.worksheet("solicitudes")
-        _, rows = self._rows_with_index(worksheet)
+        headers, rows = self._rows_with_index(worksheet)
         downloaded = 0
         conflicts = 0
         omitted_duplicates = 0
-        for _, row in rows:
+        for row_number, row in rows:
             uuid_value = str(row.get("uuid", "")).strip()
             if not uuid_value:
+                existing = self._find_solicitud_by_composite_key(row)
+                if existing is not None:
+                    omitted_duplicates += 1
+                    uuid_value = str(existing["uuid"] or "").strip()
+                else:
+                    uuid_value = self._generate_uuid()
+                    self._insert_solicitud_from_remote(uuid_value, row)
+                    downloaded += 1
+                self._backfill_uuid(worksheet, headers, row_number, "uuid", uuid_value)
                 continue
             remote_updated_at = self._parse_iso(row.get("updated_at"))
             local_row = self._fetch_solicitud(uuid_value)
@@ -653,7 +671,7 @@ class SheetsSyncService:
         )
         return cursor.fetchone()
 
-    def _get_or_create_persona(self, row: dict[str, Any]) -> tuple[sqlite3.Row | None, bool]:
+    def _get_or_create_persona(self, row: dict[str, Any]) -> tuple[sqlite3.Row | None, bool, str | None]:
         persona_uuid = str(row.get("uuid", "")).strip() or None
         nombre = str(row.get("nombre", "")).strip()
 
@@ -661,7 +679,7 @@ class SheetsSyncService:
             by_uuid = self._fetch_persona(persona_uuid)
             if by_uuid is not None:
                 logger.info("Persona existente: uuid=%s, nombre=%s", by_uuid["uuid"], by_uuid["nombre"])
-                return by_uuid, False
+                return by_uuid, False, by_uuid["uuid"]
 
             by_nombre = self._fetch_persona_by_nombre(nombre) if nombre else None
             if by_nombre is not None:
@@ -682,21 +700,67 @@ class SheetsSyncService:
                     self._connection.commit()
                     by_nombre = self._fetch_persona(persona_uuid) or by_nombre
                 logger.info("Persona existente: uuid=%s, nombre=%s", by_nombre["uuid"], by_nombre["nombre"])
-                return by_nombre, False
+                return by_nombre, False, by_nombre["uuid"]
 
             logger.info("Insertando persona nueva: uuid=%s, nombre=%s", persona_uuid, nombre)
             self._insert_persona_from_remote(persona_uuid, row)
-            return self._fetch_persona(persona_uuid), True
+            return self._fetch_persona(persona_uuid), True, persona_uuid
 
         by_nombre = self._fetch_persona_by_nombre(nombre) if nombre else None
         if by_nombre is not None:
             logger.info("Persona existente: uuid=%s, nombre=%s", by_nombre["uuid"], by_nombre["nombre"])
-            return by_nombre, False
+            return by_nombre, False, by_nombre["uuid"]
 
         generated_uuid = self._generate_uuid()
         logger.info("Insertando persona nueva: uuid=%s, nombre=%s", generated_uuid, nombre)
         self._insert_persona_from_remote(generated_uuid, row)
-        return self._fetch_persona(generated_uuid), True
+        return self._fetch_persona(generated_uuid), True, generated_uuid
+
+    def _find_solicitud_by_composite_key(self, row: dict[str, Any]) -> sqlite3.Row | None:
+        delegada_uuid = str(row.get("delegada_uuid", "")).strip() or None
+        fecha = normalize_date(str(row.get("fecha", "")))
+        completo = bool(self._int_or_zero(row.get("completo")))
+        desde = normalize_hhmm(f"{self._int_or_zero(row.get('desde_h')):02d}:{self._int_or_zero(row.get('desde_m')):02d}")
+        hasta = normalize_hhmm(f"{self._int_or_zero(row.get('hasta_h')):02d}:{self._int_or_zero(row.get('hasta_m')):02d}")
+        key = solicitud_unique_key(delegada_uuid, fecha, completo, desde, hasta)
+        if key is None:
+            return None
+        persona_id = self._persona_id_from_uuid(delegada_uuid)
+        if persona_id is None:
+            return None
+        cursor = self._connection.cursor()
+        desde_min = self._parse_hhmm_to_minutes(desde)
+        hasta_min = self._parse_hhmm_to_minutes(hasta)
+        cursor.execute(
+            """
+            SELECT id, uuid, persona_id, fecha_pedida, desde_min, hasta_min, completo,
+                   horas_solicitadas_min, notas, created_at, updated_at, source_device, deleted, pdf_hash
+            FROM solicitudes
+            WHERE persona_id = ? AND fecha_pedida = ? AND completo = ?
+              AND (desde_min IS ? OR desde_min = ?) AND (hasta_min IS ? OR hasta_min = ?)
+              AND (deleted = 0 OR deleted IS NULL)
+            LIMIT 1
+            """,
+            (persona_id, key[1], 1 if key[2] else 0, desde_min, desde_min, hasta_min, hasta_min),
+        )
+        return cursor.fetchone()
+
+    def _backfill_uuid(self, worksheet: gspread.Worksheet, headers: list[str], row_number: int, column: str, value: str) -> None:
+        if not value:
+            return
+        if column not in headers:
+            return
+        col_idx = headers.index(column) + 1
+        if hasattr(worksheet, "update_cell"):
+            worksheet.update_cell(row_number, col_idx, value)
+            return
+        if hasattr(worksheet, "_values"):
+            values = getattr(worksheet, "_values")
+            while len(values) < row_number:
+                values.append([""] * len(headers))
+            while len(values[row_number - 1]) < col_idx:
+                values[row_number - 1].append("")
+            values[row_number - 1][col_idx - 1] = value
 
     def _fetch_solicitud(self, uuid_value: str) -> sqlite3.Row | None:
         cursor = self._connection.cursor()
