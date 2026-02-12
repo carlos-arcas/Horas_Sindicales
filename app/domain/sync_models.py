@@ -24,6 +24,7 @@ class SyncSummary:
         conflicts_detected: int = 0,
         errors: int = 0,
         omitted_by_delegada: int = 0,
+        omitidas_por_delegada: int | None = None,
         downloaded: int | None = None,
         uploaded: int | None = None,
         conflicts: int | None = None,
@@ -37,6 +38,8 @@ class SyncSummary:
             conflicts_detected = conflicts
         if omitted_duplicates is not None:
             duplicates_skipped = omitted_duplicates
+        if omitidas_por_delegada is not None:
+            omitted_by_delegada = omitidas_por_delegada
         object.__setattr__(self, "inserted_local", inserted_local)
         object.__setattr__(self, "updated_local", updated_local)
         object.__setattr__(self, "inserted_remote", inserted_remote)
@@ -61,3 +64,7 @@ class SyncSummary:
     @property
     def omitted_duplicates(self) -> int:
         return self.duplicates_skipped
+
+    @property
+    def omitidas_por_delegada(self) -> int:
+        return self.omitted_by_delegada

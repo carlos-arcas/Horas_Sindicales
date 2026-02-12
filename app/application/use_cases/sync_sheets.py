@@ -429,7 +429,28 @@ class SheetsSyncService:
 
 
     def _normalize_remote_solicitud_row(self, row: dict[str, Any], worksheet_name: str) -> dict[str, Any]:
-        payload = dict(row)
+        payload: dict[str, Any] = {
+            "uuid": row.get("uuid") or "",
+            "delegada_uuid": row.get("delegada_uuid") or "",
+            "delegada_nombre": row.get("delegada_nombre") or row.get("Delegada") or "",
+            "fecha": row.get("fecha") or row.get("fecha_pedida") or "",
+            "desde": row.get("desde") or row.get("hora_desde") or "",
+            "hasta": row.get("hasta") or row.get("hora_hasta") or "",
+            "desde_h": row.get("desde_h") or "",
+            "desde_m": row.get("desde_m") or "",
+            "hasta_h": row.get("hasta_h") or "",
+            "hasta_m": row.get("hasta_m") or "",
+            "completo": row.get("completo") or "",
+            "minutos_total": row.get("minutos_total") or "",
+            "horas": row.get("horas") or "",
+            "notas": row.get("notas") or "",
+            "estado": row.get("estado") or "",
+            "created_at": row.get("created_at") or "",
+            "updated_at": row.get("updated_at") or "",
+            "source_device": row.get("source_device") or "",
+            "deleted": row.get("deleted") or "",
+            "pdf_id": row.get("pdf_id") or "",
+        }
         payload["fecha"] = self._normalize_date(row.get("fecha") or row.get("fecha_pedida")) or ""
         payload["created_at"] = self._normalize_date(row.get("created_at")) or payload["fecha"] or ""
         if row.get("minutos_total") in (None, "") and row.get("horas") not in (None, ""):
@@ -438,7 +459,7 @@ class SheetsSyncService:
         if row.get("delegada_uuid") in (None, "") and row.get("delegado_uuid") not in (None, ""):
             payload["delegada_uuid"] = row.get("delegado_uuid")
         if row.get("delegada_nombre") in (None, ""):
-            payload["delegada_nombre"] = row.get("delegado_nombre") or row.get("delegada") or row.get("delegado") or ""
+            payload["delegada_nombre"] = row.get("Delegada") or row.get("delegado_nombre") or row.get("delegada") or row.get("delegado") or ""
 
         desde_hhmm = self._remote_hhmm(
             row.get("desde_h"),
@@ -1059,22 +1080,22 @@ class SheetsSyncService:
     def _insert_solicitud_from_remote(self, uuid_value: str, row: dict[str, Any]) -> tuple[bool, int, int]:
         cursor = self._connection.cursor()
         delegada_uuid = str(row.get("delegada_uuid") or "").strip()
-        delegada_nombre = str(row.get("delegada_nombre") or "").strip()
+        delegada_nombre = " ".join(str(row.get("delegada_nombre") or row.get("Delegada") or "").split())
         if not delegada_uuid:
             logger.warning(
-                "Solicitud %s sin delegada_uuid. Intentando resolver por nombre='%s'",
+                "Solicitud %s sin delegada_uuid, resolviendo por nombre '%s'",
                 uuid_value,
                 delegada_nombre,
             )
         resolved_uuid = get_or_resolve_delegada_uuid(self._connection, delegada_uuid, delegada_nombre)
         if not resolved_uuid:
-            logger.warning("No resuelta -> omitida. Solicitud %s", uuid_value)
+            logger.warning("Solicitud omitida por delegada no resuelta: %s", uuid_value)
             return False, 1, 1
         persona_id = self._persona_id_from_uuid(resolved_uuid)
         if persona_id is None:
-            logger.warning("No resuelta -> omitida. Solicitud %s", uuid_value)
+            logger.warning("Solicitud omitida por delegada no resuelta: %s", uuid_value)
             return False, 1, 1
-        logger.info("Resuelta delegada: uuid_local=%s, nombre=%s", resolved_uuid, delegada_nombre)
+        logger.info("Delegada resuelta: %s %s", resolved_uuid, delegada_nombre)
         fecha_normalizada = self._normalize_date(row.get("fecha") or row.get("fecha_pedida"))
         created_normalizada = self._normalize_date(row.get("created_at")) or fecha_normalizada
         if not fecha_normalizada:
@@ -1118,22 +1139,22 @@ class SheetsSyncService:
     def _update_solicitud_from_remote(self, solicitud_id: int, row: dict[str, Any]) -> tuple[bool, int, int]:
         cursor = self._connection.cursor()
         delegada_uuid = str(row.get("delegada_uuid") or "").strip()
-        delegada_nombre = str(row.get("delegada_nombre") or "").strip()
+        delegada_nombre = " ".join(str(row.get("delegada_nombre") or row.get("Delegada") or "").split())
         if not delegada_uuid:
             logger.warning(
-                "Solicitud %s sin delegada_uuid. Intentando resolver por nombre='%s'",
+                "Solicitud %s sin delegada_uuid, resolviendo por nombre '%s'",
                 row.get("uuid") or solicitud_id,
                 delegada_nombre,
             )
         resolved_uuid = get_or_resolve_delegada_uuid(self._connection, delegada_uuid, delegada_nombre)
         if not resolved_uuid:
-            logger.warning("No resuelta -> omitida. Solicitud %s", row.get("uuid") or solicitud_id)
+            logger.warning("Solicitud omitida por delegada no resuelta: %s", row.get("uuid") or solicitud_id)
             return False, 1, 1
         persona_id = self._persona_id_from_uuid(resolved_uuid)
         if persona_id is None:
-            logger.warning("No resuelta -> omitida. Solicitud %s", row.get("uuid") or solicitud_id)
+            logger.warning("Solicitud omitida por delegada no resuelta: %s", row.get("uuid") or solicitud_id)
             return False, 1, 1
-        logger.info("Resuelta delegada: uuid_local=%s, nombre=%s", resolved_uuid, delegada_nombre)
+        logger.info("Delegada resuelta: %s %s", resolved_uuid, delegada_nombre)
         fecha_normalizada = self._normalize_date(row.get("fecha") or row.get("fecha_pedida"))
         created_normalizada = self._normalize_date(row.get("created_at")) or fecha_normalizada
         if not fecha_normalizada:
@@ -1395,7 +1416,11 @@ class SheetsSyncService:
         for row_number, row in enumerate(values[1:], start=2):
             if not any(str(cell).strip() for cell in row):
                 continue
-            payload = {headers[i]: row[i] if i < len(row) else "" for i in range(len(headers))}
+            payload = {
+                headers[i]: row[i] if i < len(row) else ""
+                for i in range(len(headers))
+                if str(headers[i]).strip()
+            }
             if canonical_by_header:
                 canonical_payload: dict[str, Any] = {}
                 for original_key, value in payload.items():
