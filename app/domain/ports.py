@@ -116,7 +116,7 @@ class SheetsClientPort(Protocol):
     def open_spreadsheet(self, credentials_path: Path, spreadsheet_id: str):
         ...
 
-    def get_worksheet_values_cached(self, name: str) -> list[list[str]]:
+    def read_all_values(self, worksheet_name: str) -> list[list[str]]:
         ...
 
     def get_worksheet(self, name: str):
@@ -137,10 +137,10 @@ class SheetsClientPort(Protocol):
     def get_write_calls_count(self) -> int:
         ...
 
-    def append_rows(self, worksheet, rows: list[list[Any]]) -> None:
+    def append_rows(self, worksheet_name: str, rows: list[list[Any]]) -> None:
         ...
 
-    def batch_update(self, worksheet, data: list[dict[str, Any]]) -> None:
+    def batch_update(self, worksheet_name: str, data: list[dict[str, Any]]) -> None:
         ...
 
     def values_batch_update(self, body: dict[str, Any]) -> None:
