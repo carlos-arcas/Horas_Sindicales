@@ -25,6 +25,7 @@ from app.domain.sheets_errors import (
     SheetsCredentialsError,
     SheetsNotFoundError,
     SheetsPermissionError,
+    SheetsRateLimitError,
 )
 
 logger = logging.getLogger(__name__)
@@ -193,6 +194,14 @@ class OpcionesDialog(QDialog):
                 self,
                 "Credenciales inválidas",
                 "No se pueden leer las credenciales JSON seleccionadas.",
+            )
+            return
+        except SheetsRateLimitError:
+            self._set_connection_error("Límite temporal alcanzado.")
+            QMessageBox.warning(
+                self,
+                "Límite de Google Sheets",
+                "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta.",
             )
             return
         except Exception as exc:  # pragma: no cover - fallback

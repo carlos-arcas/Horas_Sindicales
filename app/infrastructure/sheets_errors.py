@@ -12,6 +12,7 @@ from app.domain.sheets_errors import (
     SheetsCredentialsError,
     SheetsNotFoundError,
     SheetsPermissionError,
+    SheetsRateLimitError,
 )
 
 
@@ -30,10 +31,33 @@ def _credentials_not_found_message(path: Optional[str]) -> str:
     return "No se encuentra credentials.json."
 
 
+def _is_rate_limited_api_error(ex: gspread.exceptions.APIError, text_lower: str) -> bool:
+    response = getattr(ex, "response", None)
+    status_code = getattr(response, "status_code", None)
+    if status_code == 429:
+        return True
+    return any(
+        token in text_lower
+        for token in (
+            "[429]",
+            "resource_exhausted",
+            "rate_limit_exceeded",
+            "quota exceeded",
+            "read requests per minute per user",
+        )
+    )
+
+
 def map_gspread_exception(ex: Exception) -> Exception:
+    if isinstance(ex, SheetsRateLimitError):
+        return ex
     if isinstance(ex, gspread.exceptions.APIError):
         text = _extract_api_error_text(ex)
         text_lower = text.lower()
+        if _is_rate_limited_api_error(ex, text_lower):
+            return SheetsRateLimitError(
+                "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta."
+            )
         if "google sheets api has not been used" in text_lower or "it is disabled" in text_lower:
             return SheetsApiDisabledError(
                 "La API de Google Sheets no está habilitada en tu proyecto de Google Cloud."

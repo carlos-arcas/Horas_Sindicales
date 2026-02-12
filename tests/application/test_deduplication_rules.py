@@ -16,6 +16,24 @@ class _Client:
     def open_spreadsheet(self, *_args, **_kwargs):
         raise RuntimeError("No debería llamarse en estos tests")
 
+    def get_worksheet_values_cached(self, *_args, **_kwargs):
+        raise RuntimeError("No debería llamarse en estos tests")
+
+    def get_worksheet(self, *_args, **_kwargs):
+        raise RuntimeError("No debería llamarse en estos tests")
+
+    def get_worksheets_by_title(self):
+        raise RuntimeError("No debería llamarse en estos tests")
+
+    def batch_get_ranges(self, *_args, **_kwargs):
+        raise RuntimeError("No debería llamarse en estos tests")
+
+    def get_read_calls_count(self):
+        return 0
+
+    def get_avoided_requests_count(self):
+        return 0
+
 
 class _Repository:
     def ensure_schema(self, *_args, **_kwargs):
