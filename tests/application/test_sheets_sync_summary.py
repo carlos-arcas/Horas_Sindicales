@@ -17,8 +17,9 @@ class _FakeConfigStore:
 
 
 class _FakeWorksheet:
-    def __init__(self, values: list[list[str]]) -> None:
+    def __init__(self, values: list[list[str]], title: str | None = None) -> None:
         self._values = values
+        self.title = title or ""
 
     def get_all_values(self) -> list[list[str]]:
         return self._values
@@ -27,17 +28,46 @@ class _FakeWorksheet:
 class _FakeSpreadsheet:
     def __init__(self, worksheets: dict[str, _FakeWorksheet]) -> None:
         self._worksheets = worksheets
+        for name, worksheet in worksheets.items():
+            worksheet.title = name
 
     def worksheet(self, name: str) -> _FakeWorksheet:
         return self._worksheets[name]
+
+    def worksheets(self) -> list[_FakeWorksheet]:
+        return list(self._worksheets.values())
 
 
 class _FakeClient:
     def __init__(self, spreadsheet: _FakeSpreadsheet) -> None:
         self.spreadsheet = spreadsheet
+        self._cache: dict[str, list[list[str]]] = {}
+        self._read_calls_count = 0
 
     def open_spreadsheet(self, _: Path, __: str) -> _FakeSpreadsheet:
+        self._cache = {}
+        self._read_calls_count = 0
         return self.spreadsheet
+
+    def get_worksheet_values_cached(self, name: str) -> list[list[str]]:
+        if name in self._cache:
+            return self._cache[name]
+        values = self.spreadsheet.worksheet(name).get_all_values()
+        self._cache[name] = values
+        self._read_calls_count += 1
+        return values
+
+    def batch_get_ranges(self, ranges: list[str]) -> dict[str, list[list[str]]]:
+        mapped: dict[str, list[list[str]]] = {}
+        for range_name in ranges:
+            worksheet_name = range_name.split("!", 1)[0].strip("'").replace("''", "'")
+            mapped[range_name] = self.get_worksheet_values_cached(worksheet_name)
+        if ranges:
+            self._read_calls_count = max(0, self._read_calls_count - len(ranges) + 1)
+        return mapped
+
+    def get_read_calls_count(self) -> int:
+        return self._read_calls_count
 
 
 class _FakeRepository:
