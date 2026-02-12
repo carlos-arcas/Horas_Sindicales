@@ -8,7 +8,7 @@ import pytest
 
 from app.domain.sheets_errors import SheetsRateLimitError
 from app.infrastructure.sheets_client import SheetsClient
-from app.infrastructure.sheets_errors import SheetsApiCompatibilityError, map_gspread_exception
+from app.infrastructure.sheets_errors import map_gspread_exception
 
 
 class _Resp:
@@ -81,8 +81,8 @@ def test_with_rate_limit_retry_does_not_retry_attribute_error() -> None:
         calls["count"] += 1
         raise AttributeError("missing")
 
-    with pytest.raises(SheetsApiCompatibilityError) as err:
+    with pytest.raises(AttributeError) as err:
         client._with_rate_limit_retry("attr", operation)
 
-    assert "values_batch_get" in str(err.value)
+    assert "missing" in str(err.value)
     assert calls["count"] == 1

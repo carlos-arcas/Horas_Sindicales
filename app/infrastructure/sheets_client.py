@@ -93,9 +93,10 @@ class SheetsClient(SheetsClientPort):
             raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
         if not ranges:
             return {}
+        logger.debug("values_batch_get %s ranges", len(ranges))
         values_by_range = self._with_rate_limit_retry(
             f"spreadsheet.values_batch_get({len(ranges)} ranges)",
-            lambda: self._perform_batch_get_ranges(ranges),
+            lambda: self._spreadsheet.values_batch_get(ranges),
         )
         self._read_calls_count += 1
         mapped = self._normalize_batch_get_result(ranges, values_by_range)
@@ -105,53 +106,12 @@ class SheetsClient(SheetsClientPort):
                 self._worksheet_values_cache[worksheet_name] = normalized_values
         return mapped
 
-    def _perform_batch_get_ranges(self, ranges: list[str]) -> Any:
-        if self._spreadsheet is None:
-            raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
-
-        spreadsheet_values_batch_get = getattr(self._spreadsheet, "values_batch_get", None)
-        if callable(spreadsheet_values_batch_get):
-            return spreadsheet_values_batch_get(ranges)
-
-        if self._client is not None:
-            client_values_batch_get = getattr(self._client, "values_batch_get", None)
-            if callable(client_values_batch_get):
-                return client_values_batch_get(self._spreadsheet.id, ranges)
-
-            http_client = getattr(self._client, "http_client", None)
-            if http_client is not None:
-                http_values_batch_get = getattr(http_client, "values_batch_get", None)
-                if callable(http_values_batch_get):
-                    return http_values_batch_get(self._spreadsheet.id, ranges)
-
-        return self._fallback_batch_get_ranges(ranges)
-
-    def _fallback_batch_get_ranges(self, ranges: list[str]) -> dict[str, Any]:
-        worksheets = self.get_worksheets_by_title()
-        value_ranges: list[dict[str, Any]] = []
-        for range_name in ranges:
-            worksheet_name = self._worksheet_name_from_range(range_name)
-            if not worksheet_name:
-                value_ranges.append({"range": range_name, "values": []})
-                continue
-            worksheet = worksheets.get(worksheet_name)
-            if worksheet is None:
-                value_ranges.append({"range": range_name, "values": []})
-                continue
-            local_range = range_name.split("!", 1)[1] if "!" in range_name else range_name
-            values = self._with_rate_limit_retry(
-                f"worksheet.get({range_name})",
-                lambda ws=worksheet, lr=local_range: ws.get(lr),
-            )
-            normalized_values = values if isinstance(values, list) else []
-            value_ranges.append({"range": range_name, "values": normalized_values})
-        return {"valueRanges": value_ranges}
-
     @staticmethod
     def _normalize_batch_get_result(ranges: list[str], values_by_range: Any) -> dict[str, list[list[str]]]:
         mapped: dict[str, list[list[str]]] = {range_name: [] for range_name in ranges}
         if isinstance(values_by_range, dict):
             value_ranges = values_by_range.get("valueRanges", [])
+            logger.debug("values_batch_get returned %s valueRanges", len(value_ranges) if isinstance(value_ranges, list) else 0)
             if isinstance(value_ranges, list):
                 for value_range in value_ranges:
                     if not isinstance(value_range, dict):
@@ -178,11 +138,7 @@ class SheetsClient(SheetsClientPort):
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
                 return operation()
-            except Exception as exc:
-                if isinstance(exc, AttributeError):
-                    raise SheetsApiCompatibilityError(
-                        "Versión de gspread no soporta batch_get; usa values_batch_get"
-                    ) from exc
+            except gspread.exceptions.APIError as exc:
                 mapped_error = map_gspread_exception(exc)
                 if not isinstance(mapped_error, SheetsRateLimitError):
                     raise mapped_error from exc

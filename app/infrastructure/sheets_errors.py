@@ -42,7 +42,7 @@ def _credentials_not_found_message(path: Optional[str]) -> str:
 def _is_rate_limited_api_error(ex: gspread.exceptions.APIError, text_lower: str) -> bool:
     response = getattr(ex, "response", None)
     status_code = getattr(response, "status_code", None)
-    if status_code == 429:
+    if status_code in {429, 500, 503}:
         return True
     return any(
         token in text_lower
@@ -85,5 +85,5 @@ def map_gspread_exception(ex: Exception) -> Exception:
     if isinstance(ex, DefaultCredentialsError):
         return SheetsCredentialsError("El credentials.json no es válido. Revisa el contenido del archivo.")
     if isinstance(ex, AttributeError):
-        return SheetsApiCompatibilityError("Versión de gspread no soporta batch_get; usa values_batch_get")
+        return SheetsClientError(str(ex))
     return SheetsConfigError(str(ex))
