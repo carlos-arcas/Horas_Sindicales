@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from PySide6.QtCore import QEvent, QPoint, QPropertyAnimation, Qt, QTimer
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QFrame,
     QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
@@ -22,10 +23,10 @@ class ToastPalette:
 
 
 TOAST_STYLES: dict[str, ToastPalette] = {
-    "success": ToastPalette("#1e2d1f", "#4c8a52", "#d8f2db"),
-    "info": ToastPalette("#1d2730", "#4f6f8a", "#d7e9ff"),
-    "warning": ToastPalette("#31261a", "#a77a35", "#ffe9c7"),
-    "error": ToastPalette("#301e1e", "#9f4444", "#ffdede"),
+    "success": ToastPalette("#f8fcf8", "#8ebd95", "#1b3a1f"),
+    "info": ToastPalette("#f8fbff", "#98b4d4", "#1f3854"),
+    "warning": ToastPalette("#fffaf2", "#d7b078", "#5d3e13"),
+    "error": ToastPalette("#fff8f8", "#d8a0a0", "#5f2222"),
 }
 
 TOAST_ICONS = {
@@ -43,7 +44,7 @@ DEFAULT_DURATIONS_MS = {
 }
 
 
-class ToastWidget(QWidget):
+class ToastWidget(QFrame):
     def __init__(
         self,
         message: str,
@@ -62,6 +63,7 @@ class ToastWidget(QWidget):
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setObjectName("toastWidget")
+        self.setFrameShape(QFrame.Shape.NoFrame)
 
         self._opacity = QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(self._opacity)
@@ -129,6 +131,11 @@ class ToastWidget(QWidget):
             }}
             QLabel[role="toastTitle"] {{
                 font-weight: 700;
+            }}
+            QLabel[role="toastMessage"],
+            QLabel[role="toastTitle"],
+            QLabel[role="toastIcon"] {{
+                background-color: transparent;
             }}
             QPushButton#toastCloseButton {{
                 border: none;
@@ -223,16 +230,16 @@ class ToastManager(QWidget):
         if not self._host:
             return
         self.setGeometry(self._host.rect())
-        margin = 16
+        margin = 12
         spacing = 10
-        y = self.height() - margin
-        for toast in reversed(self._toasts):
+        y = margin
+        for toast in self._toasts:
             if not toast.isVisible():
                 continue
             hint = toast.sizeHint()
-            y -= hint.height()
-            toast.move(QPoint(self.width() - margin - hint.width(), y))
-            y -= spacing
+            x = max(margin, (self.width() - hint.width()) // 2)
+            toast.move(QPoint(x, y))
+            y += hint.height() + spacing
 
     def eventFilter(self, watched, event):  # type: ignore[override]
         if watched is self._host and event.type() in (QEvent.Resize, QEvent.Move):

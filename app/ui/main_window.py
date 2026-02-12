@@ -505,24 +505,38 @@ class MainWindow(QMainWindow):
 
         pendientes_footer = QHBoxLayout()
         pendientes_footer.setSpacing(10)
-        self.total_pendientes_label = QLabel("TOTAL PENDIENTES: 00:00")
-        self.total_pendientes_label.setProperty("role", "sectionTitle")
-        pendientes_footer.addWidget(self.total_pendientes_label)
-        self.eliminar_pendiente_button = QPushButton("Eliminar seleccionado")
+
+        left_actions = QHBoxLayout()
+        left_actions.setSpacing(8)
+        self.eliminar_pendiente_button = QPushButton("Eliminar selección")
         self.eliminar_pendiente_button.setProperty("variant", "danger")
         self.eliminar_pendiente_button.clicked.connect(self._on_remove_pendiente)
-        pendientes_footer.addWidget(self.eliminar_pendiente_button)
+        left_actions.addWidget(self.eliminar_pendiente_button)
+
+        self.insertar_sin_pdf_button = QPushButton("Insertar sin generar PDF")
+        self.insertar_sin_pdf_button.setProperty("variant", "secondary")
+        self.insertar_sin_pdf_button.clicked.connect(self._on_insertar_sin_pdf)
+        left_actions.addWidget(self.insertar_sin_pdf_button)
+        pendientes_footer.addLayout(left_actions)
 
         pendientes_footer.addStretch(1)
-        self.abrir_pdf_check = QCheckBox("Abrir PDF al finalizar")
+
+        right_actions = QHBoxLayout()
+        right_actions.setSpacing(10)
+        self.total_pendientes_label = QLabel("Total: 00:00")
+        self.total_pendientes_label.setProperty("role", "sectionTitle")
+        right_actions.addWidget(self.total_pendientes_label)
+
+        self.abrir_pdf_check = QCheckBox("Abrir PDF")
         self.abrir_pdf_check.setChecked(True)
-        pendientes_footer.addWidget(self.abrir_pdf_check)
-        pendientes_footer.addStretch(1)
+        right_actions.addWidget(self.abrir_pdf_check)
 
-        self.confirmar_button = QPushButton("Confirmar y Generar PDF")
+        self.confirmar_button = QPushButton("Confirmar y generar")
         self.confirmar_button.setProperty("variant", "primary")
         self.confirmar_button.clicked.connect(self._on_confirmar)
-        pendientes_footer.addWidget(self.confirmar_button)
+        right_actions.addWidget(self.confirmar_button)
+
+        pendientes_footer.addLayout(right_actions)
         pendientes_layout.addLayout(pendientes_footer)
         left_column.addWidget(pendientes_card, 1)
 
@@ -729,6 +743,7 @@ class MainWindow(QMainWindow):
             self.agregar_button,
             self.eliminar_pendiente_button,
             self.editar_pdf_button,
+            self.insertar_sin_pdf_button,
             self.confirmar_button,
             self.eliminar_button,
             self.generar_pdf_button,
@@ -963,7 +978,9 @@ class MainWindow(QMainWindow):
         persona_selected = self._current_persona() is not None
         form_valid, _ = self._validate_solicitud_form()
         self.agregar_button.setEnabled(persona_selected and form_valid)
-        self.confirmar_button.setEnabled(persona_selected and bool(self._pending_solicitudes))
+        has_pending = bool(self._pending_solicitudes)
+        self.insertar_sin_pdf_button.setEnabled(persona_selected and has_pending)
+        self.confirmar_button.setEnabled(persona_selected and has_pending)
         self.edit_persona_button.setEnabled(persona_selected)
         self.delete_persona_button.setEnabled(persona_selected)
         self.edit_grupo_button.setEnabled(True)
@@ -1172,6 +1189,38 @@ class MainWindow(QMainWindow):
         self._update_action_state()
         self.notas_input.setPlainText("")
         return True
+
+    def _on_insertar_sin_pdf(self) -> None:
+        persona = self._current_persona()
+        if persona is None or not self._pending_solicitudes:
+            return
+
+        creadas: list[SolicitudDTO] = []
+        pendientes_restantes: list[SolicitudDTO] = []
+        errores: list[str] = []
+        for solicitud in self._pending_solicitudes:
+            try:
+                creada, _ = self._solicitud_use_cases.agregar_solicitud(solicitud)
+                creadas.append(creada)
+            except (ValidacionError, BusinessRuleError) as exc:
+                errores.append(str(exc))
+                pendientes_restantes.append(solicitud)
+            except Exception as exc:  # pragma: no cover - fallback
+                logger.exception("Error insertando solicitud sin PDF")
+                errores.append(str(exc))
+                pendientes_restantes.append(solicitud)
+
+        if errores:
+            self.toast.warning("\n".join(errores), title="Errores")
+        if creadas:
+            self.toast.success("Solicitudes insertadas sin generar PDF")
+
+        self._pending_solicitudes = pendientes_restantes
+        self.pendientes_model.set_solicitudes(self._pending_solicitudes)
+        self._update_pending_totals()
+        self._refresh_historico()
+        self._refresh_saldos()
+        self._update_action_state()
 
     def _on_confirmar(self) -> None:
         persona = self._current_persona()
@@ -1419,7 +1468,7 @@ class MainWindow(QMainWindow):
             except BusinessRuleError:
                 total_min = 0
         formatted = self._format_minutes(total_min)
-        self.total_pendientes_label.setText(f"TOTAL PENDIENTES: {formatted}")
+        self.total_pendientes_label.setText(f"Total: {formatted}")
         self.status_pending_label.setText(f"Pendientes calculados: {formatted}")
         self.statusBar().showMessage(f"Pendientes calculados: {formatted}", 4000)
 

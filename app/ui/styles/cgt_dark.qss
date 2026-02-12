@@ -6,6 +6,10 @@ QWidget {
     font-size: 14px;
 }
 
+QLabel {
+    background-color: transparent;
+}
+
 QFrame[role="header"] {
     background-color: #1b1b1b;
     border-radius: 12px;
@@ -49,7 +53,6 @@ QFrame[role="subtleSeparator"] {
 QLabel[role="badge"] {
     color: #ffb8b8;
     border: 1px solid #8f2d2d;
-    background-color: #2f1b1b;
     border-radius: 7px;
     padding: 2px 8px;
     font-weight: 600;
