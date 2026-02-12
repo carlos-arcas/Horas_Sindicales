@@ -11,6 +11,7 @@ from typing import Any
 import gspread
 
 from app.application.sheets_service import SHEETS_SCHEMA
+from app.application.sync_normalization import normalize_date, normalize_hhmm, solicitud_unique_key
 from app.domain.ports import (
     SheetsClientPort,
     SheetsConfigStorePort,
@@ -66,10 +67,9 @@ class SheetsSyncService:
         downloaded += self._pull_pdf_log(spreadsheet)
         downloaded += self._pull_config(spreadsheet)
         return SyncSummary(
-            downloaded=downloaded,
-            uploaded=0,
-            conflicts=conflicts,
-            omitted_duplicates=omitted_duplicates,
+            inserted_local=downloaded,
+            duplicates_skipped=omitted_duplicates,
+            conflicts_detected=conflicts,
         )
 
     def push(self) -> SyncSummary:
@@ -94,20 +94,25 @@ class SheetsSyncService:
         uploaded += self._push_config(spreadsheet, last_sync_at)
         self._set_last_sync_at(self._now_iso())
         return SyncSummary(
-            downloaded=0,
-            uploaded=uploaded,
-            conflicts=conflicts,
-            omitted_duplicates=omitted_duplicates,
+            inserted_remote=uploaded,
+            duplicates_skipped=omitted_duplicates,
+            conflicts_detected=conflicts,
         )
 
     def sync(self) -> SyncSummary:
+        return self.sync_bidirectional()
+
+    def sync_bidirectional(self) -> SyncSummary:
         pull_summary = self.pull()
         push_summary = self.push()
         return SyncSummary(
-            downloaded=pull_summary.downloaded,
-            uploaded=push_summary.uploaded,
-            conflicts=pull_summary.conflicts + push_summary.conflicts,
-            omitted_duplicates=pull_summary.omitted_duplicates + push_summary.omitted_duplicates,
+            inserted_local=pull_summary.inserted_local,
+            updated_local=pull_summary.updated_local,
+            inserted_remote=push_summary.inserted_remote,
+            updated_remote=push_summary.updated_remote,
+            duplicates_skipped=pull_summary.duplicates_skipped + push_summary.duplicates_skipped,
+            conflicts_detected=pull_summary.conflicts_detected + push_summary.conflicts_detected,
+            errors=pull_summary.errors + push_summary.errors,
         )
 
     def get_last_sync_at(self) -> str | None:
@@ -196,21 +201,30 @@ class SheetsSyncService:
 
     def _pull_delegadas(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> tuple[int, int]:
         worksheet = spreadsheet.worksheet("delegadas")
-        _, rows = self._rows_with_index(worksheet)
+        headers, rows = self._rows_with_index(worksheet)
         downloaded = 0
         conflicts = 0
-        for _, row in rows:
+        for row_index, row in rows:
             uuid_value = str(row.get("uuid", "")).strip()
-            if not uuid_value:
+            nombre = str(row.get("nombre", "")).strip()
+            if not uuid_value and not nombre:
                 continue
             remote_updated_at = self._parse_iso(row.get("updated_at"))
-            local_row = self._fetch_persona(uuid_value)
+            local_row = self._fetch_persona(uuid_value) if uuid_value else None
+            if local_row is None and nombre:
+                local_row = self._fetch_persona_by_nombre(nombre)
             if local_row is None:
-                self._insert_persona_from_remote(uuid_value, row)
+                new_uuid = uuid_value or self._generate_uuid()
+                self._insert_persona_from_remote(new_uuid, row)
+                if not uuid_value:
+                    self._backfill_uuid(worksheet, headers, row_index, new_uuid)
                 downloaded += 1
                 continue
+            if not uuid_value and local_row["uuid"]:
+                self._backfill_uuid(worksheet, headers, row_index, str(local_row["uuid"]))
+                continue
             if self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at):
-                self._store_conflict("delegadas", uuid_value, dict(local_row), row)
+                self._store_conflict("delegadas", str(local_row["uuid"] or uuid_value), dict(local_row), row)
                 conflicts += 1
                 continue
             if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
@@ -222,24 +236,43 @@ class SheetsSyncService:
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
     ) -> tuple[int, int, int]:
         worksheet = spreadsheet.worksheet("solicitudes")
-        _, rows = self._rows_with_index(worksheet)
+        headers, rows = self._rows_with_index(worksheet)
         downloaded = 0
         conflicts = 0
         omitted_duplicates = 0
-        for _, row in rows:
+        for row_index, row in rows:
             uuid_value = str(row.get("uuid", "")).strip()
+            delegada_uuid = str(row.get("delegada_uuid") or row.get("persona_uuid") or "").strip()
+            fecha = normalize_date(str(row.get("fecha") or row.get("fecha_pedida") or ""))
+            completo = bool(self._int_or_zero(row.get("completo")))
+            desde = normalize_hhmm(str(row.get("desde_h") or ""))
+            hasta = normalize_hhmm(str(row.get("hasta_h") or ""))
             if not uuid_value:
+                key = solicitud_unique_key(delegada_uuid, fecha, completo, desde, hasta)
+                if key:
+                    existing = self._fetch_solicitud_by_unique_key(key)
+                    if existing is not None:
+                        omitted_duplicates += 1
+                        if existing["uuid"]:
+                            self._backfill_uuid(worksheet, headers, row_index, str(existing["uuid"]))
+                        continue
+                uuid_value = self._generate_uuid()
+                row["fecha"] = fecha or row.get("fecha")
+                if desde:
+                    row["desde_h"] = desde
+                    row["desde_m"] = ""
+                if hasta:
+                    row["hasta_h"] = hasta
+                    row["hasta_m"] = ""
+                self._insert_solicitud_from_remote(uuid_value, row)
+                self._backfill_uuid(worksheet, headers, row_index, uuid_value)
+                downloaded += 1
                 continue
             remote_updated_at = self._parse_iso(row.get("updated_at"))
             local_row = self._fetch_solicitud(uuid_value)
             if local_row is None:
                 duplicate_key = self._solicitud_dedupe_key_from_remote_row(row)
                 if duplicate_key and self._is_duplicate_local_solicitud(duplicate_key, exclude_uuid=uuid_value):
-                    logger.info(
-                        "Omitiendo solicitud duplicada en pull. clave=%s registro=%s",
-                        duplicate_key,
-                        row,
-                    )
                     omitted_duplicates += 1
                     continue
                 self._insert_solicitud_from_remote(uuid_value, row)
@@ -632,6 +665,20 @@ class SheetsSyncService:
         )
         return cursor.fetchone()
 
+    def _fetch_persona_by_nombre(self, nombre: str) -> sqlite3.Row | None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, uuid, nombre, genero, is_active, horas_mes_min, horas_ano_min,
+                   updated_at, source_device, deleted
+            FROM personas
+            WHERE lower(nombre) = lower(?)
+            LIMIT 1
+            """,
+            (nombre,),
+        )
+        return cursor.fetchone()
+
     def _fetch_solicitud(self, uuid_value: str) -> sqlite3.Row | None:
         cursor = self._connection.cursor()
         cursor.execute(
@@ -642,6 +689,42 @@ class SheetsSyncService:
             WHERE uuid = ?
             """,
             (uuid_value,),
+        )
+        return cursor.fetchone()
+
+    def _fetch_solicitud_by_unique_key(
+        self, key: tuple[str, str, bool, str, str]
+    ) -> sqlite3.Row | None:
+        delegada_uuid, fecha, completo, desde_hhmm, hasta_hhmm = key
+        persona_id = self._persona_id_from_uuid(delegada_uuid)
+        if persona_id is None:
+            return None
+        cursor = self._connection.cursor()
+        if completo:
+            cursor.execute(
+                """
+                SELECT id, uuid, persona_id, fecha_pedida, desde_min, hasta_min, completo,
+                       horas_solicitadas_min, notas, created_at, updated_at, source_device, deleted, pdf_hash
+                FROM solicitudes
+                WHERE persona_id = ? AND fecha_pedida = ? AND completo = 1
+                LIMIT 1
+                """,
+                (persona_id, fecha),
+            )
+            return cursor.fetchone()
+        desde_min = self._parse_hhmm_to_minutes(desde_hhmm)
+        hasta_min = self._parse_hhmm_to_minutes(hasta_hhmm)
+        cursor.execute(
+            """
+            SELECT id, uuid, persona_id, fecha_pedida, desde_min, hasta_min, completo,
+                   horas_solicitadas_min, notas, created_at, updated_at, source_device, deleted, pdf_hash
+            FROM solicitudes
+            WHERE persona_id = ? AND fecha_pedida = ? AND completo = 0
+              AND COALESCE(desde_min, -1) = COALESCE(?, -1)
+              AND COALESCE(hasta_min, -1) = COALESCE(?, -1)
+            LIMIT 1
+            """,
+            (persona_id, fecha, desde_min, hasta_min),
         )
         return cursor.fetchone()
 
@@ -733,6 +816,7 @@ class SheetsSyncService:
         if persona_id is None:
             logger.warning("Delegada %s no encontrada al importar solicitud %s", row.get("delegada_uuid"), uuid_value)
             return
+        fecha_normalized = normalize_date(str(row.get("fecha") or row.get("fecha_pedida") or "")) or row.get("fecha")
         desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
         hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
         _execute_with_validation(
@@ -747,8 +831,8 @@ class SheetsSyncService:
             (
                 uuid_value,
                 persona_id,
-                row.get("created_at") or row.get("fecha"),
-                row.get("fecha"),
+                row.get("created_at") or fecha_normalized,
+                fecha_normalized,
                 desde_min,
                 hasta_min,
                 1 if self._int_or_zero(row.get("completo")) else 0,
@@ -757,7 +841,7 @@ class SheetsSyncService:
                 row.get("notas") or "",
                 None,
                 row.get("pdf_id"),
-                row.get("created_at") or row.get("fecha"),
+                row.get("created_at") or fecha_normalized,
                 row.get("updated_at") or self._now_iso(),
                 row.get("source_device"),
                 self._int_or_zero(row.get("deleted")),
@@ -772,6 +856,7 @@ class SheetsSyncService:
         if persona_id is None:
             logger.warning("Delegada %s no encontrada al actualizar solicitud %s", row.get("delegada_uuid"), row)
             return
+        fecha_normalized = normalize_date(str(row.get("fecha") or row.get("fecha_pedida") or "")) or row.get("fecha")
         desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
         hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
         _execute_with_validation(
@@ -1000,6 +1085,22 @@ class SheetsSyncService:
     def _append_row(self, worksheet: gspread.Worksheet, headers: list[str], payload: dict[str, Any]) -> None:
         row_values = [payload.get(header, "") for header in headers]
         worksheet.append_row(row_values, value_input_option="USER_ENTERED")
+
+    def _backfill_uuid(
+        self,
+        worksheet: gspread.Worksheet,
+        headers: list[str],
+        row_number: int,
+        uuid_value: str,
+    ) -> None:
+        if not uuid_value:
+            return
+        if "uuid" not in headers:
+            headers.append("uuid")
+            worksheet.update("1:1", [headers])
+        col_index = headers.index("uuid") + 1
+        cell_ref = gspread.utils.rowcol_to_a1(row_number, col_index)
+        worksheet.update(cell_ref, [[uuid_value]])
 
     def _is_after_last_sync(self, updated_at: str | None, last_sync_at: str | None) -> bool:
         if not updated_at:

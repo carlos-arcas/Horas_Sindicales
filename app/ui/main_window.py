@@ -1411,19 +1411,23 @@ class MainWindow(QMainWindow):
     def _show_sync_summary_dialog(self, title: str, summary: SyncSummary) -> None:
         last_sync = self._sync_service.get_last_sync_at()
         last_sync_text = self._format_timestamp(last_sync) if last_sync else "Nunca"
-        omitted_duplicates = summary.omitted_duplicates
-        errors = summary.conflicts
         message = (
-            f"Subidas: {summary.uploaded}\n"
-            f"Actualizadas: {summary.downloaded}\n"
-            f"Omitidas por duplicado: {omitted_duplicates}\n"
-            f"Errores: {errors}\n"
+            f"Local insertadas: {summary.inserted_local}\n"
+            f"Local actualizadas: {summary.updated_local}\n"
+            f"Sheets insertadas: {summary.inserted_remote}\n"
+            f"Sheets actualizadas: {summary.updated_remote}\n"
+            f"Duplicados omitidos: {summary.duplicates_skipped}\n"
+            f"Conflictos: {summary.conflicts_detected}\n"
+            f"Errores: {len(summary.errors)}\n"
             f"Última sincronización: {last_sync_text}"
         )
-        if errors > 0:
+        has_details = summary.conflicts_detected > 0 or bool(summary.errors)
+        if has_details:
             self.toast.warning(message, title=title, duration_ms=7000)
-        else:
-            self.toast.success(message, title=title)
+            details = "\n".join(summary.errors) if summary.errors else "Hay discrepancias registradas para revisión."
+            self._show_message_with_details(title, message, details, QMessageBox.Warning)
+            return
+        self.toast.success(message, title=title)
 
     def _show_message_with_details(
         self,

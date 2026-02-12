@@ -106,6 +106,21 @@ class SheetsRepositoryPort(Protocol):
     def ensure_schema(self, spreadsheet, schema: dict[str, list[str]]) -> list[str]:
         ...
 
+    def read_personas(self, spreadsheet):
+        ...
+
+    def read_solicitudes(self, spreadsheet):
+        ...
+
+    def upsert_persona(self, worksheet, headers: list[str], row: dict[str, object]) -> None:
+        ...
+
+    def upsert_solicitud(self, worksheet, headers: list[str], row: dict[str, object]) -> None:
+        ...
+
+    def backfill_uuid(self, worksheet, headers: list[str], row_index: int, uuid_value: str) -> None:
+        ...
+
 
 class SheetsSyncPort(Protocol):
     def pull(self) -> SyncSummary:

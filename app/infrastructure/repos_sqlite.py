@@ -189,6 +189,11 @@ class PersonaRepositorySQLite(PersonaRepository):
             trabaja_finde=_bool_from_db(row["trabaja_finde"]) if "trabaja_finde" in row.keys() else False,
         )
 
+    def get_by_uuid(self, uuid_value: str) -> sqlite3.Row | None:
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT * FROM personas WHERE uuid = ? LIMIT 1", (uuid_value,))
+        return cursor.fetchone()
+
     def create(self, persona: Persona) -> Persona:
         cursor = self._connection.cursor()
         persona_uuid = str(uuid.uuid4())
@@ -565,6 +570,33 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             params,
         )
         return cursor.fetchone() is not None
+
+    def get_by_uuid(self, uuid_value: str) -> sqlite3.Row | None:
+        cursor = self._connection.cursor()
+        cursor.execute("SELECT * FROM solicitudes WHERE uuid = ? LIMIT 1", (uuid_value,))
+        return cursor.fetchone()
+
+    def get_by_unique_key(
+        self,
+        persona_id: int,
+        fecha_pedida: str,
+        completo: bool,
+        desde_min: int | None,
+        hasta_min: int | None,
+    ) -> sqlite3.Row | None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT *
+            FROM solicitudes
+            WHERE persona_id = ? AND fecha_pedida = ? AND completo = ?
+              AND COALESCE(desde_min, -1) = COALESCE(?, -1)
+              AND COALESCE(hasta_min, -1) = COALESCE(?, -1)
+            LIMIT 1
+            """,
+            (persona_id, fecha_pedida, 1 if completo else 0, desde_min, hasta_min),
+        )
+        return cursor.fetchone()
 
     def create(self, solicitud: Solicitud) -> Solicitud:
         logger.info(
