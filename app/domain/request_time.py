@@ -4,6 +4,39 @@ from app.domain.services import BusinessRuleError
 from app.domain.time_utils import parse_hhmm
 
 
+def validate_request_inputs(
+    desde: str | None,
+    hasta: str | None,
+    completo: bool,
+) -> dict[str, str]:
+    """Valida coherencia básica de formulario para solicitudes.
+
+    Devuelve errores de UI por campo para permitir validación inline sin
+    depender de popups.
+    """
+
+    errors: dict[str, str] = {}
+    if completo:
+        return errors
+    if not desde:
+        errors["desde"] = "La hora desde es obligatoria."
+    if not hasta:
+        errors["hasta"] = "La hora hasta es obligatoria."
+    if errors:
+        return errors
+    try:
+        desde_min = parse_hhmm(desde)
+        hasta_min = parse_hhmm(hasta)
+    except BusinessRuleError as exc:
+        errors["rango"] = str(exc)
+        return errors
+    if desde_min > hasta_min:
+        errors["rango"] = "La hora desde debe ser menor o igual que hasta."
+    elif desde_min == hasta_min:
+        errors["rango"] = "La solicitud parcial debe tener una duración mayor de 0 minutos."
+    return errors
+
+
 def compute_request_minutes(
     desde: str | None,
     hasta: str | None,
