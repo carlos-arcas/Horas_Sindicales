@@ -97,6 +97,16 @@ class SheetsGatewayPort(Protocol):
         ...
 
 
+class SheetsClientPort(Protocol):
+    def open_spreadsheet(self, credentials_path: Path, spreadsheet_id: str):
+        ...
+
+
+class SheetsRepositoryPort(Protocol):
+    def ensure_schema(self, spreadsheet, schema: dict[str, list[str]]) -> list[str]:
+        ...
+
+
 class SheetsSyncPort(Protocol):
     def pull(self) -> SyncSummary:
         ...
@@ -121,3 +131,10 @@ class SheetsSyncPort(Protocol):
 
 
 SheetsConfigRepository = SheetsConfigStorePort
+
+
+# Puertos nominales para adaptadores SQLite.
+SQLitePersonaRepositoryPort = PersonaRepository
+SQLiteSolicitudRepositoryPort = SolicitudRepository
+SQLiteGrupoConfigRepositoryPort = GrupoConfigRepository
+SQLiteCuadranteRepositoryPort = CuadranteRepository

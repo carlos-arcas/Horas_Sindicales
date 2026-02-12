@@ -5,10 +5,12 @@ from typing import Iterable
 
 import gspread
 
+from app.domain.ports import SheetsRepositoryPort
+
 logger = logging.getLogger(__name__)
 
 
-class SheetsRepository:
+class SheetsRepository(SheetsRepositoryPort):
     def ensure_schema(self, spreadsheet: gspread.Spreadsheet, schema: dict[str, list[str]]) -> list[str]:
         actions: list[str] = []
         for sheet_name, headers in schema.items():
