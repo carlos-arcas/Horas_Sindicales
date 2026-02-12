@@ -316,6 +316,10 @@ class SolicitudUseCases:
     def listar_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
         return self.listar_solicitudes_por_persona_y_periodo(persona_id, None, None)
 
+    def listar_solicitudes_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
+        """Lista todas las solicitudes de una persona sin filtrar por periodo."""
+        return [_solicitud_to_dto(s) for s in self._repo.list_by_persona(persona_id)]
+
     def crear(self, dto: SolicitudDTO) -> SolicitudDTO:
         solicitud, _ = self.agregar_solicitud(dto)
         return solicitud

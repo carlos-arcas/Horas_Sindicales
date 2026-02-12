@@ -90,6 +90,17 @@ class SolicitudesHistoricoRulesTests(unittest.TestCase):
         self.assertEqual(resumen.individual.consumidas_periodo_min, 0)
         self.assertEqual(resumen.individual.consumidas_anual_min, 0)
 
+    def test_listar_solicitudes_por_persona_devuelve_todas_sin_filtrar_periodo(self) -> None:
+        primera, _ = self.use_cases.agregar_solicitud(self._build_solicitud("2025-01-15"))
+        segunda, _ = self.use_cases.agregar_solicitud(self._build_solicitud("2025-02-10"))
+        assert primera.id is not None and segunda.id is not None
+        self.solicitud_repo.update_pdf_info(primera.id, "/tmp/test1.pdf", "hash1")
+        self.solicitud_repo.update_pdf_info(segunda.id, "/tmp/test2.pdf", "hash2")
+
+        solicitudes = list(self.use_cases.listar_solicitudes_por_persona(self.persona_id))
+
+        self.assertEqual(len(solicitudes), 2)
+
     def test_no_hay_doble_sumatorio_tras_insert_delete_insert_y_generar(self) -> None:
         primera, _ = self.use_cases.agregar_solicitud(self._build_solicitud("2025-01-15"))
         assert primera.id is not None
