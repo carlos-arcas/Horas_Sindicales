@@ -895,8 +895,10 @@ class MainWindow(QMainWindow):
         persona = self._current_persona()
         if persona is None or self.historico_model.rowCount() > 0:
             return
-        total_persona = len(list(self._solicitud_use_cases.listar_solicitudes_por_persona(persona.id or 0)))
-        if total_persona > 0:
+        if persona.id is None:
+            return
+        solicitudes_persona = self._solicitud_use_cases.listar_solicitudes_por_persona(persona.id)
+        if any(True for _ in solicitudes_persona):
             self.toast.info(
                 "Datos importados, pero no visibles por el filtro actual (año/periodo).",
                 title="Sincronización",
