@@ -57,6 +57,12 @@ class _FakeClient:
         self._read_calls_count += 1
         return values
 
+    def get_worksheet(self, name: str) -> _FakeWorksheet:
+        return self.spreadsheet.worksheet(name)
+
+    def get_worksheets_by_title(self) -> dict[str, _FakeWorksheet]:
+        return {ws.title: ws for ws in self.spreadsheet.worksheets()}
+
     def batch_get_ranges(self, ranges: list[str]) -> dict[str, list[list[str]]]:
         mapped: dict[str, list[list[str]]] = {}
         for range_name in ranges:
@@ -68,6 +74,9 @@ class _FakeClient:
 
     def get_read_calls_count(self) -> int:
         return self._read_calls_count
+
+    def get_avoided_requests_count(self) -> int:
+        return 0
 
 
 class _FakeRepository:

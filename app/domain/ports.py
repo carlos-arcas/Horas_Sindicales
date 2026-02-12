@@ -119,10 +119,19 @@ class SheetsClientPort(Protocol):
     def get_worksheet_values_cached(self, name: str) -> list[list[str]]:
         ...
 
+    def get_worksheet(self, name: str):
+        ...
+
+    def get_worksheets_by_title(self) -> dict[str, Any]:
+        ...
+
     def batch_get_ranges(self, ranges: list[str]) -> dict[str, list[list[str]]]:
         ...
 
     def get_read_calls_count(self) -> int:
+        ...
+
+    def get_avoided_requests_count(self) -> int:
         ...
 
 
