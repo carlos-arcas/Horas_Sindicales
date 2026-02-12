@@ -3,21 +3,23 @@ from __future__ import annotations
 from collections.abc import Callable
 import sqlite3
 
-from app.domain.ports import SheetsSyncPort
+from app.domain.ports import (
+    SheetsClientPort,
+    SheetsConfigStorePort,
+    SheetsRepositoryPort,
+    SheetsSyncPort,
+)
 from app.domain.sync_models import SyncSummary
-from app.infrastructure.local_config import SheetsConfigStore
-from app.infrastructure.sheets_client import SheetsClient
-from app.infrastructure.sheets_repository import SheetsRepository
-from app.infrastructure.sheets_sync_service import SheetsSyncService
+from app.application.use_cases.sync_sheets import SheetsSyncService
 
 
 class SyncSheetsAdapter(SheetsSyncPort):
     def __init__(
         self,
         connection_factory: Callable[[], sqlite3.Connection],
-        config_store: SheetsConfigStore,
-        client: SheetsClient,
-        repository: SheetsRepository,
+        config_store: SheetsConfigStorePort,
+        client: SheetsClientPort,
+        repository: SheetsRepositoryPort,
     ) -> None:
         self._connection_factory = connection_factory
         self._config_store = config_store
