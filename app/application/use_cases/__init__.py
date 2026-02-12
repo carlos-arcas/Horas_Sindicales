@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Iterable
 
 from app.application.base_cuadrantes_service import BaseCuadrantesService
+from app.application.pending_conflicts import detect_pending_time_conflicts
 from app.application.dto import (
     ConflictoDiaDTO,
     PeriodoFiltro,
@@ -483,6 +484,37 @@ class SolicitudUseCases:
 
     def minutes_to_hours_float(self, minutos: int) -> float:
         return minutes_to_hours_float(minutos)
+
+    def detectar_conflictos_pendientes(self, solicitudes: Iterable[SolicitudDTO]) -> set[int]:
+        solicitudes_list = list(solicitudes)
+        if not solicitudes_list:
+            return set()
+
+        persona_cache: dict[int, Persona] = {}
+
+        def _resolve_interval(dto: SolicitudDTO) -> tuple[int, int]:
+            persona = persona_cache.get(dto.persona_id)
+            if persona is None:
+                persona = self._persona_repo.get_by_id(dto.persona_id)
+                if persona is None:
+                    raise BusinessRuleError("Persona no encontrada.")
+                persona_cache[dto.persona_id] = persona
+
+            if dto.completo:
+                total_dia = _total_cuadrante_por_fecha(persona, dto.fecha_pedida)
+                compute_request_minutes(
+                    dto.desde,
+                    dto.hasta,
+                    dto.completo,
+                    cuadrante_base=total_dia,
+                )
+                return 0, 24 * 60
+
+            if not dto.desde or not dto.hasta:
+                raise BusinessRuleError("Desde y hasta son obligatorios para solicitudes parciales.")
+            return parse_hhmm(dto.desde), parse_hhmm(dto.hasta)
+
+        return detect_pending_time_conflicts(solicitudes_list, _resolve_interval)
 
     def sugerir_nombre_pdf(self, solicitudes: Iterable[SolicitudDTO]) -> str:
         solicitudes_list = list(solicitudes)

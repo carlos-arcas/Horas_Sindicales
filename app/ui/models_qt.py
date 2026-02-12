@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
+from PySide6.QtGui import QColor, QFont
 
 from app.application.dto import PersonaDTO, SolicitudDTO
 from app.domain.time_utils import minutes_to_hhmm
@@ -75,6 +76,7 @@ class SolicitudesTableModel(QAbstractTableModel):
             "Horas",
             "Notas",
         ]
+        self._conflict_rows: set[int] = set()
 
     def rowCount(self, parent: QModelIndex | None = None) -> int:
         return len(self._solicitudes)
@@ -89,6 +91,15 @@ class SolicitudesTableModel(QAbstractTableModel):
         column = index.column()
         if role == Qt.ToolTipRole and column == 5:
             return solicitud.notas or ""
+        if index.row() in self._conflict_rows:
+            if role == Qt.ForegroundRole and column == 0:
+                return QColor("#c62828")
+            if role == Qt.FontRole and column == 0:
+                font = QFont()
+                font.setUnderline(True)
+                return font
+            if role == Qt.ToolTipRole and column == 0:
+                return "⚠ Horario solapado con otra petición pendiente del mismo día."
         if role != Qt.DisplayRole:
             return None
         if column == 0:
@@ -115,6 +126,7 @@ class SolicitudesTableModel(QAbstractTableModel):
     def set_solicitudes(self, solicitudes: list[SolicitudDTO]) -> None:
         self.beginResetModel()
         self._solicitudes = solicitudes
+        self._conflict_rows = set()
         self.endResetModel()
 
     def solicitud_at(self, row: int) -> SolicitudDTO | None:
@@ -134,4 +146,10 @@ class SolicitudesTableModel(QAbstractTableModel):
     def clear(self) -> None:
         self.beginResetModel()
         self._solicitudes = []
+        self._conflict_rows = set()
+        self.endResetModel()
+
+    def set_conflict_rows(self, rows: set[int]) -> None:
+        self.beginResetModel()
+        self._conflict_rows = set(rows)
         self.endResetModel()

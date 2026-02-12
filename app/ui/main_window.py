@@ -248,6 +248,7 @@ class MainWindow(QMainWindow):
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
+        self._pending_conflict_rows: set[int] = set()
         self._sync_in_progress = False
         self.toast = ToastManager()
         self.setWindowTitle("Horas Sindicales")
@@ -981,8 +982,9 @@ class MainWindow(QMainWindow):
         form_valid, _ = self._validate_solicitud_form()
         self.agregar_button.setEnabled(persona_selected and form_valid)
         has_pending = bool(self._pending_solicitudes)
-        self.insertar_sin_pdf_button.setEnabled(persona_selected and has_pending)
-        self.confirmar_button.setEnabled(persona_selected and has_pending)
+        can_confirm = has_pending and not self._pending_conflict_rows
+        self.insertar_sin_pdf_button.setEnabled(persona_selected and can_confirm)
+        self.confirmar_button.setEnabled(persona_selected and can_confirm)
         self.edit_persona_button.setEnabled(persona_selected)
         self.delete_persona_button.setEnabled(persona_selected)
         self.edit_grupo_button.setEnabled(True)
@@ -992,6 +994,32 @@ class MainWindow(QMainWindow):
         self.generar_pdf_button.setEnabled(
             persona_selected and self.historico_model.rowCount() > 0
         )
+
+    def _refresh_pending_conflicts(self) -> None:
+        conflict_rows: set[int] = set()
+        if self._pending_solicitudes:
+            try:
+                conflict_rows = self._solicitud_use_cases.detectar_conflictos_pendientes(
+                    self._pending_solicitudes
+                )
+            except BusinessRuleError as exc:
+                logger.warning("No se pudieron calcular conflictos de pendientes: %s", exc)
+
+        previously_conflicting = bool(self._pending_conflict_rows)
+        self._pending_conflict_rows = conflict_rows
+        self.pendientes_model.set_conflict_rows(conflict_rows)
+
+        if conflict_rows and not previously_conflicting:
+            self.toast.warning(
+                "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
+                title="Conflictos detectados",
+            )
+
+    def _refresh_pending_ui_state(self) -> None:
+        self.pendientes_model.set_solicitudes(self._pending_solicitudes)
+        self._update_pending_totals()
+        self._refresh_pending_conflicts()
+        self._update_action_state()
 
     def _selected_historico(self) -> SolicitudDTO | None:
         selection = self.historico_table.selectionModel().selectedRows()
@@ -1105,8 +1133,7 @@ class MainWindow(QMainWindow):
         try:
             creada, _ = self._solicitud_use_cases.agregar_solicitud(solicitud)
             self._pending_solicitudes.append(creada)
-            self.pendientes_model.set_solicitudes(self._pending_solicitudes)
-            self._update_pending_totals()
+            self._refresh_pending_ui_state()
         except (ValidacionError, BusinessRuleError) as exc:
             self.toast.warning(str(exc), title="Validación")
             return
@@ -1150,7 +1177,7 @@ class MainWindow(QMainWindow):
             return False
         for index in sorted(conflictos, reverse=True):
             self._pending_solicitudes.pop(index)
-        self.pendientes_model.set_solicitudes(self._pending_solicitudes)
+        self._refresh_pending_ui_state()
         return True
 
     def _resolve_backend_conflict(self, persona_id: int, solicitud: SolicitudDTO) -> bool:
@@ -1196,6 +1223,12 @@ class MainWindow(QMainWindow):
         persona = self._current_persona()
         if persona is None or not self._pending_solicitudes:
             return
+        if self._pending_conflict_rows:
+            self.toast.warning(
+                "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
+                title="Conflictos detectados",
+            )
+            return
 
         creadas: list[SolicitudDTO] = []
         pendientes_restantes: list[SolicitudDTO] = []
@@ -1218,15 +1251,19 @@ class MainWindow(QMainWindow):
             self.toast.success("Solicitudes insertadas sin generar PDF")
 
         self._pending_solicitudes = pendientes_restantes
-        self.pendientes_model.set_solicitudes(self._pending_solicitudes)
-        self._update_pending_totals()
+        self._refresh_pending_ui_state()
         self._refresh_historico()
         self._refresh_saldos()
-        self._update_action_state()
 
     def _on_confirmar(self) -> None:
         persona = self._current_persona()
         if persona is None or not self._pending_solicitudes:
+            return
+        if self._pending_conflict_rows:
+            self.toast.warning(
+                "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
+                title="Conflictos detectados",
+            )
             return
         try:
             default_name = self._solicitud_use_cases.sugerir_nombre_pdf(self._pending_solicitudes)
@@ -1267,11 +1304,9 @@ class MainWindow(QMainWindow):
             self._ask_push_after_pdf()
             self.toast.success("Exportación PDF OK")
         self._pending_solicitudes = pendientes_restantes
-        self.pendientes_model.set_solicitudes(self._pending_solicitudes)
-        self._update_pending_totals()
+        self._refresh_pending_ui_state()
         self._refresh_historico()
         self._refresh_saldos()
-        self._update_action_state()
 
     def _ask_push_after_pdf(self) -> None:
         dialog = QMessageBox(self)
@@ -1546,10 +1581,8 @@ class MainWindow(QMainWindow):
         for row in rows:
             if 0 <= row < len(self._pending_solicitudes):
                 self._pending_solicitudes.pop(row)
-        self.pendientes_model.set_solicitudes(self._pending_solicitudes)
-        self._update_pending_totals()
+        self._refresh_pending_ui_state()
         self._refresh_saldos()
-        self._update_action_state()
 
     def _refresh_historico(self) -> None:
         persona = self._current_persona()
@@ -1675,6 +1708,7 @@ class MainWindow(QMainWindow):
     def _clear_pendientes(self) -> None:
         self._pending_solicitudes = []
         self.pendientes_model.clear()
+        self._pending_conflict_rows = set()
         self._update_pending_totals()
         self._update_action_state()
 
