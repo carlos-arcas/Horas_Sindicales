@@ -4,7 +4,7 @@ import json
 import logging
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +21,20 @@ from app.domain.sheets_errors import SheetsConfigError, SheetsRateLimitError
 from app.domain.sync_models import SyncSummary
 
 logger = logging.getLogger(__name__)
+
+
+SOLICITUDES_PUSH_HEADERS = [
+    "uuid",
+    "delegado_nombre",
+    "delegado_uuid",
+    "fecha",
+    "desde",
+    "hasta",
+    "completo",
+    "horas",
+    "notas",
+    "updated_at",
+]
 
 
 def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: tuple[object, ...], context: str) -> None:
@@ -376,6 +390,8 @@ class SheetsSyncService:
         payload = dict(row)
         payload["fecha"] = self._normalize_date(row.get("fecha") or row.get("fecha_pedida")) or ""
         payload["created_at"] = self._normalize_date(row.get("created_at")) or payload["fecha"] or ""
+        if row.get("minutos_total") in (None, "") and row.get("horas") not in (None, ""):
+            payload["minutos_total"] = self._int_or_zero(row.get("horas"))
 
         desde_hhmm = self._remote_hhmm(
             row.get("desde_h"),
@@ -654,13 +670,7 @@ class SheetsSyncService:
     ) -> tuple[int, int, int]:
         worksheet = self._get_worksheet(spreadsheet, "solicitudes")
         headers, rows = self._rows_with_index(worksheet)
-        header_map = self._header_map(headers, SHEETS_SCHEMA["solicitudes"])
         remote_index = self._uuid_index(rows)
-        remote_dedupe_index: dict[tuple[object, ...], dict[str, Any]] = {}
-        for _, row in rows:
-            key = self._solicitud_dedupe_key_from_remote_row(row)
-            if key:
-                remote_dedupe_index.setdefault(key, row)
         cursor = self._connection.cursor()
         cursor.execute(
             """
@@ -676,56 +686,64 @@ class SheetsSyncService:
         uploaded = 0
         conflicts = 0
         omitted_duplicates = 0
+        values: list[list[Any]] = [SOLICITUDES_PUSH_HEADERS]
+        local_uuids: set[str] = set()
         for row in cursor.fetchall():
-            if not self._is_after_last_sync(row["updated_at"], last_sync_at):
+            if last_sync_at and not self._is_after_last_sync(row["updated_at"], last_sync_at):
                 continue
             uuid_value = row["uuid"]
+            local_uuids.add(uuid_value)
             remote_row = remote_index.get(uuid_value)
             remote_updated_at = self._parse_iso(remote_row.get("updated_at") if remote_row else None)
             if self._is_conflict(row["updated_at"], remote_updated_at, last_sync_at):
                 self._store_conflict("solicitudes", uuid_value, dict(row), remote_row or {})
                 conflicts += 1
                 continue
-            if not remote_row:
-                local_key = self._solicitud_dedupe_key_from_local_row(dict(row))
-                if local_key and local_key in remote_dedupe_index:
-                    logger.info(
-                        "Omitiendo solicitud duplicada en push. clave=%s registro_local=%s registro_remoto=%s",
-                        local_key,
-                        dict(row),
-                        remote_dedupe_index[local_key],
-                    )
-                    omitted_duplicates += 1
-                    continue
-            desde_h, desde_m = self._split_minutes(row["desde_min"])
-            hasta_h, hasta_m = self._split_minutes(row["hasta_min"])
-            payload = {
-                "uuid": uuid_value,
-                "delegada_uuid": row["delegada_uuid"],
-                "Delegada": row["delegada_nombre"] or "",
-                "fecha": row["fecha_pedida"],
-                "desde_h": desde_h,
-                "desde_m": desde_m,
-                "hasta_h": hasta_h,
-                "hasta_m": hasta_m,
-                "completo": 1 if row["completo"] else 0,
-                "minutos_total": row["horas_solicitadas_min"] or 0,
-                "notas": row["notas"] or "",
-                "estado": "",
-                "created_at": row["created_at"],
-                "updated_at": row["updated_at"],
-                "source_device": row["source_device"] or self._device_id(),
-                "deleted": row["deleted"] or 0,
-                "pdf_id": row["pdf_hash"] or "",
-            }
-            if remote_row:
-                if self._enable_backfill:
-                    row_number = remote_row["__row_number__"]
-                    self._update_row(worksheet, row_number, header_map, payload)
-                continue
-            self._append_row(worksheet, header_map, payload)
+            values.append(
+                [
+                    uuid_value,
+                    row["delegada_nombre"] or "",
+                    row["delegada_uuid"] or "",
+                    self._to_iso_date(row["fecha_pedida"]),
+                    self._minutes_to_hhmm(row["desde_min"]),
+                    self._minutes_to_hhmm(row["hasta_min"]),
+                    1 if row["completo"] else 0,
+                    self._int_or_zero(row["horas_solicitadas_min"]),
+                    row["notas"] or "",
+                    self._to_iso_date(row["updated_at"]),
+                ]
+            )
             uploaded += 1
-        self._flush_write_batches(spreadsheet, worksheet)
+
+        for _, remote_row in rows:
+            remote_uuid = str(remote_row.get("uuid", "")).strip()
+            if not remote_uuid or remote_uuid in local_uuids:
+                continue
+            values.append(
+                [
+                    remote_uuid,
+                    remote_row.get("delegado_nombre") or remote_row.get("Delegada") or "",
+                    remote_row.get("delegado_uuid") or remote_row.get("delegada_uuid") or "",
+                    self._to_iso_date(remote_row.get("fecha") or remote_row.get("fecha_pedida")),
+                    remote_row.get("desde")
+                    or self._remote_hhmm(remote_row.get("desde_h"), remote_row.get("desde_m"), None)
+                    or "",
+                    remote_row.get("hasta")
+                    or self._remote_hhmm(remote_row.get("hasta_h"), remote_row.get("hasta_m"), None)
+                    or "",
+                    self._int_or_zero(remote_row.get("completo")),
+                    self._int_or_zero(remote_row.get("horas") or remote_row.get("minutos_total")),
+                    remote_row.get("notas") or "",
+                    self._to_iso_date(remote_row.get("updated_at")),
+                ]
+            )
+            omitted_duplicates += 1
+
+        if not headers or headers != SOLICITUDES_PUSH_HEADERS or "delegado_nombre" not in headers:
+            logger.info("Recreando encabezado de 'solicitudes' para incluir formato estándar de push.")
+
+        worksheet.update("A1", values)
+        logger.info("PUSH Sheets: %s filas enviadas", max(len(values) - 1, 0))
         return uploaded, conflicts, omitted_duplicates
 
     def _push_cuadrantes(
@@ -1090,6 +1108,26 @@ class SheetsSyncService:
             except ValueError:
                 continue
         return None
+
+    @staticmethod
+    def _to_iso_date(value: Any) -> str:
+        if not value:
+            return ""
+        if isinstance(value, datetime):
+            return value.strftime("%Y-%m-%d")
+        if isinstance(value, date):
+            return value.strftime("%Y-%m-%d")
+        text = str(value).strip()
+        normalized = SheetsSyncService._normalize_date(text)
+        if normalized:
+            return normalized
+        if "-" in text:
+            return text
+        return text
+
+    def _minutes_to_hhmm(self, value: Any) -> str:
+        hours, minutes = self._split_minutes(value)
+        return f"{hours:02d}:{minutes:02d}"
 
     def _insert_cuadrante_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:
         cursor = self._connection.cursor()
