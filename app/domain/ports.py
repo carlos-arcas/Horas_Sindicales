@@ -116,6 +116,15 @@ class SheetsClientPort(Protocol):
     def open_spreadsheet(self, credentials_path: Path, spreadsheet_id: str):
         ...
 
+    def get_worksheet_values_cached(self, name: str) -> list[list[str]]:
+        ...
+
+    def batch_get_ranges(self, ranges: list[str]) -> dict[str, list[list[str]]]:
+        ...
+
+    def get_read_calls_count(self) -> int:
+        ...
+
 
 class SheetsRepositoryPort(Protocol):
     def ensure_schema(self, spreadsheet, schema: dict[str, list[str]]) -> list[str]:
