@@ -129,3 +129,72 @@ def test_sync_pull_omite_duplicados_y_devuelve_summary(connection, persona_repo,
     assert summary.omitted_duplicates == 1
     assert summary.uploaded == 0
     assert repository.ensure_calls == 1
+
+
+def test_pull_delegadas_reutiliza_persona_por_nombre_y_evita_unique_error(connection) -> None:
+    delegadas_values = [
+        [
+            "uuid",
+            "nombre",
+            "genero",
+            "bolsa_mes_min",
+            "bolsa_anual_min",
+            "activa",
+            "updated_at",
+            "source_device",
+            "deleted",
+        ],
+        [
+            "remote-uuid-1",
+            "Delegada Repetida",
+            "F",
+            "600",
+            "7200",
+            "1",
+            "2025-01-20T10:00:00Z",
+            "device-remote",
+            "0",
+        ],
+        [
+            "remote-uuid-2",
+            "Delegada Repetida",
+            "F",
+            "600",
+            "7200",
+            "1",
+            "2025-01-20T10:05:00Z",
+            "device-remote",
+            "0",
+        ],
+    ]
+
+    spreadsheet = _FakeSpreadsheet(
+        {
+            "delegadas": _FakeWorksheet(delegadas_values),
+            "solicitudes": _empty_sheet(["uuid", "updated_at"]),
+            "cuadrantes": _empty_sheet(["uuid", "updated_at"]),
+            "pdf_log": _empty_sheet(["pdf_id", "updated_at"]),
+            "config": _empty_sheet(["key", "updated_at"]),
+        }
+    )
+    service = SheetsSyncService(
+        connection=connection,
+        config_store=_FakeConfigStore(
+            SheetsConfig(
+                spreadsheet_id="sheet-id",
+                credentials_path="/tmp/fake_credentials.json",
+                device_id="device-local",
+            )
+        ),
+        client=_FakeClient(spreadsheet),
+        repository=_FakeRepository(),
+    )
+
+    summary = service.pull()
+
+    cursor = connection.cursor()
+    cursor.execute("SELECT COUNT(*) AS total FROM personas WHERE nombre = ?", ("Delegada Repetida",))
+    total = int(cursor.fetchone()["total"])
+
+    assert summary.downloaded >= 1
+    assert total == 1
