@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
-from PySide6.QtCore import QEvent, QPoint, QPropertyAnimation, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, QPoint, QPointer, QPropertyAnimation, Qt, QTimer
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFrame,
@@ -180,17 +181,21 @@ class ToastWidget(QFrame):
 class ToastManager(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._host: QWidget | None = None
+        self._host: QPointer[QWidget] | None = None
         self._toasts: list[ToastWidget] = []
+        self._is_active = False
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.hide()
 
     def attach_to(self, main_window: QWidget) -> None:
+        self._detach_host()
         self.setParent(main_window)
-        self._host = main_window
+        self._host = QPointer(main_window)
+        self._is_active = True
         self.setGeometry(main_window.rect())
         self.show()
         main_window.installEventFilter(self)
+        main_window.destroyed.connect(self._on_host_destroyed)
 
     def show_toast(
         self,
@@ -199,11 +204,13 @@ class ToastManager(QWidget):
         title: str | None = None,
         duration_ms: int | None = None,
     ) -> None:
-        if not self._host:
+        if not self._is_active:
+            return
+        if not self._get_host():
             return
         toast = ToastWidget(message=message, level=level, title=title, duration_ms=duration_ms, parent=self)
         toast.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
-        toast.destroyed.connect(lambda *_: self._remove_toast(toast))
+        toast.destroyed.connect(self._on_toast_destroyed)
         self._toasts.append(toast)
         toast.show()
         self._reposition()
@@ -220,14 +227,51 @@ class ToastManager(QWidget):
     def error(self, message: str, title: str | None = None, duration_ms: int | None = None) -> None:
         self.show_toast(message, level="error", title=title, duration_ms=duration_ms)
 
+    def _get_host(self) -> QWidget | None:
+        if not self._is_active or self._host is None or self._host.isNull():
+            return None
+        return cast(QWidget, self._host)
+
+    def _detach_host(self) -> None:
+        host = self._get_host()
+        if host is not None:
+            host.removeEventFilter(self)
+            try:
+                host.destroyed.disconnect(self._on_host_destroyed)
+            except (RuntimeError, TypeError):
+                pass
+        self._host = None
+        self._is_active = False
+
+    def _on_host_destroyed(self, *_args: object) -> None:
+        self._is_active = False
+        self._host = None
+        for toast in self._toasts:
+            try:
+                toast.destroyed.disconnect(self._on_toast_destroyed)
+            except (RuntimeError, TypeError):
+                pass
+            toast.hide()
+            toast.deleteLater()
+        self._toasts.clear()
+        self.hide()
+
+    def _on_toast_destroyed(self, *_args: object) -> None:
+        sender = self.sender()
+        if isinstance(sender, ToastWidget):
+            self._remove_toast(sender)
+
     def _remove_toast(self, toast: ToastWidget) -> None:
         self._toasts = [item for item in self._toasts if item is not toast and item.isVisible()]
+        if self._get_host() is None:
+            return
         self._reposition()
 
     def _reposition(self) -> None:
-        if not self._host:
+        host = self._get_host()
+        if host is None:
             return
-        self.setGeometry(self._host.rect())
+        self.setGeometry(host.rect())
         margin = 12
         spacing = 10
         y = margin
@@ -239,7 +283,8 @@ class ToastManager(QWidget):
             toast.move(QPoint(x, y))
             y += hint.height() + spacing
 
-    def eventFilter(self, watched, event):  # type: ignore[override]
-        if watched is self._host and event.type() in (QEvent.Resize, QEvent.Move):
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
+        host = self._get_host()
+        if host is not None and watched is host and event.type() in (QEvent.Resize, QEvent.Move):
             self._reposition()
         return super().eventFilter(watched, event)
