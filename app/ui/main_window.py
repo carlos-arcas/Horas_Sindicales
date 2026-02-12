@@ -882,7 +882,24 @@ class MainWindow(QMainWindow):
         self._set_sync_in_progress(False)
         self._update_sync_button_state()
         self._refresh_last_sync_label()
+        self._refresh_after_sync(summary)
         self._show_sync_summary_dialog("Sincronización completada", summary)
+
+    def _refresh_after_sync(self, summary: SyncSummary) -> None:
+        self._refresh_historico()
+        self._refresh_saldos()
+        self._refresh_pending_ui_state()
+        if summary.inserted_local <= 0:
+            return
+        persona = self._current_persona()
+        if persona is None or self.historico_model.rowCount() > 0:
+            return
+        total_persona = len(list(self._solicitud_use_cases.listar_solicitudes_por_persona(persona.id or 0)))
+        if total_persona > 0:
+            self.toast.info(
+                "Datos importados, pero no visibles por el filtro actual (año/periodo).",
+                title="Sincronización",
+            )
 
     def _on_sync_failed(self, payload: object) -> None:
         self._set_sync_in_progress(False)
