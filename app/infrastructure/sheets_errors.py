@@ -16,6 +16,14 @@ from app.domain.sheets_errors import (
 )
 
 
+class SheetsClientError(Exception):
+    pass
+
+
+class SheetsApiCompatibilityError(SheetsClientError):
+    pass
+
+
 def _extract_api_error_text(ex: gspread.exceptions.APIError) -> str:
     response = getattr(ex, "response", None)
     if response is not None:
@@ -51,6 +59,8 @@ def _is_rate_limited_api_error(ex: gspread.exceptions.APIError, text_lower: str)
 def map_gspread_exception(ex: Exception) -> Exception:
     if isinstance(ex, SheetsRateLimitError):
         return ex
+    if isinstance(ex, SheetsClientError):
+        return ex
     if isinstance(ex, gspread.exceptions.APIError):
         text = _extract_api_error_text(ex)
         text_lower = text.lower()
@@ -74,4 +84,6 @@ def map_gspread_exception(ex: Exception) -> Exception:
         return SheetsCredentialsError("El credentials.json no es válido. Revisa el contenido del archivo.")
     if isinstance(ex, DefaultCredentialsError):
         return SheetsCredentialsError("El credentials.json no es válido. Revisa el contenido del archivo.")
+    if isinstance(ex, AttributeError):
+        return SheetsApiCompatibilityError("Versión de gspread no soporta batch_get; usa values_batch_get")
     return SheetsConfigError(str(ex))

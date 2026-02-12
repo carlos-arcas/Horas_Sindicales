@@ -8,7 +8,7 @@ import pytest
 
 from app.domain.sheets_errors import SheetsRateLimitError
 from app.infrastructure.sheets_client import SheetsClient
-from app.infrastructure.sheets_errors import map_gspread_exception
+from app.infrastructure.sheets_errors import SheetsApiCompatibilityError, map_gspread_exception
 
 
 class _Resp:
@@ -54,3 +54,35 @@ def test_open_spreadsheet_exceeds_retry_limit(monkeypatch) -> None:
 
     with pytest.raises(SheetsRateLimitError):
         client.open_spreadsheet(Path("/tmp/cred.json"), "sheet-id")
+
+
+def test_batch_get_ranges_normalizes_value_ranges() -> None:
+    client = SheetsClient()
+    normalized = client._normalize_batch_get_result(
+        ["A!A1:B2", "B!A1:A2"],
+        {
+            "valueRanges": [
+                {"range": "A!A1:B2", "values": [["1", "2"], ["3", "4"]]},
+                {"range": "B!A1:A2", "values": [["x"], ["y"]]},
+            ]
+        },
+    )
+    assert normalized == {
+        "A!A1:B2": [["1", "2"], ["3", "4"]],
+        "B!A1:A2": [["x"], ["y"]],
+    }
+
+
+def test_with_rate_limit_retry_does_not_retry_attribute_error() -> None:
+    client = SheetsClient()
+    calls = {"count": 0}
+
+    def operation():
+        calls["count"] += 1
+        raise AttributeError("missing")
+
+    with pytest.raises(SheetsApiCompatibilityError) as err:
+        client._with_rate_limit_retry("attr", operation)
+
+    assert "values_batch_get" in str(err.value)
+    assert calls["count"] == 1
