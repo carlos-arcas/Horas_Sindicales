@@ -12,6 +12,7 @@ class SyncSummary:
     duplicates_skipped: int = 0
     conflicts_detected: int = 0
     errors: int = 0
+    omitted_by_delegada: int = 0
 
     def __init__(
         self,
@@ -22,6 +23,7 @@ class SyncSummary:
         duplicates_skipped: int = 0,
         conflicts_detected: int = 0,
         errors: int = 0,
+        omitted_by_delegada: int = 0,
         downloaded: int | None = None,
         uploaded: int | None = None,
         conflicts: int | None = None,
@@ -42,6 +44,7 @@ class SyncSummary:
         object.__setattr__(self, "duplicates_skipped", duplicates_skipped)
         object.__setattr__(self, "conflicts_detected", conflicts_detected)
         object.__setattr__(self, "errors", errors)
+        object.__setattr__(self, "omitted_by_delegada", omitted_by_delegada)
 
     @property
     def downloaded(self) -> int:
