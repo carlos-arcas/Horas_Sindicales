@@ -1115,6 +1115,12 @@ class SheetsSyncService:
         desde_min: Any,
         hasta_min: Any,
     ) -> tuple[object, ...] | None:
+        """Construye una clave estable para detectar solicitudes equivalentes.
+
+        La clave ignora el UUID de la solicitud porque en sincronización pueden
+        coexistir registros creados en dispositivos distintos para el mismo hecho
+        de negocio. Se compara identidad funcional: delegada, fecha y tramo.
+        """
         delegada_key = self._build_delegada_key(delegada_uuid, delegada_id)
         if not delegada_key or not fecha_pedida:
             return None
@@ -1133,6 +1139,7 @@ class SheetsSyncService:
         )
 
     def _solicitud_dedupe_key_from_remote_row(self, row: dict[str, Any]) -> tuple[object, ...] | None:
+        """Normaliza filas remotas heterogéneas al formato de deduplicación local."""
         delegada_uuid = str(row.get("delegada_uuid", "")).strip() or None
         delegada_id = None
         if row.get("delegada_id") not in (None, ""):
@@ -1153,6 +1160,7 @@ class SheetsSyncService:
         )
 
     def _solicitud_dedupe_key_from_local_row(self, row: dict[str, Any]) -> tuple[object, ...] | None:
+        """Deriva la misma clave de deduplicación desde el esquema SQLite local."""
         delegada_uuid = row.get("delegada_uuid")
         delegada_id = row.get("persona_id")
         fecha_pedida = row.get("fecha_pedida")
@@ -1169,6 +1177,11 @@ class SheetsSyncService:
         )
 
     def _is_duplicate_local_solicitud(self, key: tuple[object, ...], exclude_uuid: str | None = None) -> bool:
+        """Verifica si ya existe una solicitud equivalente activa en local.
+
+        Se limita la búsqueda por delegada y fecha para reducir coste y evitar
+        falsos positivos entre jornadas diferentes durante sincronizaciones masivas.
+        """
         delegada_key, fecha_pedida, _, _, _, _ = key
         if not delegada_key or not fecha_pedida:
             return False

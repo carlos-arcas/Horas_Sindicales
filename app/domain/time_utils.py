@@ -2,6 +2,7 @@ from __future__ import annotations
 
 
 def hm_to_minutes(horas: int, minutos: int) -> int:
+    """Normaliza una pareja horas/minutos a minutos totales no negativos."""
     if horas < 0 or minutos < 0:
         raise ValueError("Horas y minutos deben ser no negativos.")
     return horas * 60 + minutos
@@ -16,6 +17,11 @@ def minutes_to_hm(minutos: int) -> tuple[int, int]:
 
 
 def parse_hhmm(valor: str) -> int:
+    """Parsea texto HH:MM con validación estricta de rango horario.
+
+    Se usa una validación estricta para detectar errores de captura en origen en
+    lugar de corregirlos silenciosamente, evitando cálculos inconsistentes.
+    """
     partes = valor.strip().split(":")
     if len(partes) != 2:
         raise ValueError("Formato inválido, use HH:MM.")

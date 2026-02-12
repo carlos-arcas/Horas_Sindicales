@@ -6,6 +6,13 @@ from typing import Optional
 
 @dataclass(frozen=True)
 class Persona:
+    """Representa a una delegada con su bolsa de horas y patrón de cuadrante.
+
+    El modelo conserva el cuadrante en minutos por tramo para evitar ambigüedades
+    de redondeo cuando se convierten horas parciales y para garantizar que todas
+    las reglas de saldo operan con una única unidad de cálculo.
+    """
+
     id: Optional[int]
     nombre: str
     genero: str
@@ -32,6 +39,13 @@ class Persona:
 
 @dataclass(frozen=True)
 class Solicitud:
+    """Solicitud de horas sindicales lista para validación y persistencia.
+
+    La entidad guarda tanto el intervalo horario (si existe) como los minutos
+    resultantes para que la lógica de negocio pueda validar duplicados y saldos
+    sin recalcular datos históricos con reglas que podrían evolucionar.
+    """
+
     id: Optional[int]
     persona_id: int
     fecha_solicitud: str
@@ -49,6 +63,12 @@ class Solicitud:
 
 @dataclass(frozen=True)
 class GrupoConfig:
+    """Configuración global que afecta a cálculos agregados y salida de PDF.
+
+    Se mantiene separada de `Persona` y `Solicitud` porque representa decisiones
+    organizativas compartidas por todo el grupo, no atributos de una delegada.
+    """
+
     id: Optional[int]
     nombre_grupo: Optional[str]
     bolsa_anual_grupo_min: int

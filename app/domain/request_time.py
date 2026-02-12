@@ -10,6 +10,14 @@ def compute_request_minutes(
     completo: bool,
     cuadrante_base: int | None = None,
 ) -> int:
+    """Calcula los minutos imputables de una solicitud completa o parcial.
+
+    La regla prioriza el cuadrante base en solicitudes completas para evitar que
+    dos personas con turnos distintos consuman la misma bolsa por defecto. En
+    solicitudes parciales se exige un intervalo válido para impedir consumos
+    negativos o nulos que distorsionen el control anual.
+    """
+
     if completo:
         minutos = cuadrante_base or 0
         if minutos <= 0:
@@ -32,7 +40,12 @@ def compute_request_minutes(
 
 
 def minutes_to_hours_float(minutos: int) -> float:
+    """Convierte minutos a horas decimales para capas que muestran métricas.
+
+    El dominio mantiene minutos como unidad canónica; esta conversión existe
+    únicamente para presentación o interoperabilidad con DTOs históricos.
+    """
+
     if minutos < 0:
         raise BusinessRuleError("Las horas deben ser mayores a cero.")
     return minutos / 60.0
-
