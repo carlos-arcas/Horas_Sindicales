@@ -338,6 +338,14 @@ class SolicitudUseCases:
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
 
+        dto = replace(
+            dto,
+            fecha_pedida=normalize_date(dto.fecha_pedida),
+            fecha_solicitud=normalize_date(dto.fecha_solicitud),
+            desde=None if dto.desde is None else normalize_time(dto.desde),
+            hasta=None if dto.hasta is None else normalize_time(dto.hasta),
+        )
+
         conflicto = self.validar_conflicto_dia(dto.persona_id, dto.fecha_pedida, dto.completo)
         if not conflicto.ok:
             raise BusinessRuleError(
@@ -347,9 +355,9 @@ class SolicitudUseCases:
 
         desde_min = parse_hhmm(dto.desde) if dto.desde else None
         hasta_min = parse_hhmm(dto.hasta) if dto.hasta else None
-        if self._repo.exists_duplicate(
-            dto.persona_id, dto.fecha_pedida, desde_min, hasta_min, dto.completo
-        ):
+        duplicate_key = solicitud_key(dto, persona=persona, delegada_uuid=self._delegada_uuid(dto.persona_id))
+        if self._is_duplicate_key(dto.persona_id, dto.completo, duplicate_key):
+            logger.debug("Duplicado detectado al agregar solicitud. nueva=%s existente=%s", duplicate_key, duplicate_key)
             raise BusinessRuleError("Duplicado")
 
         minutos = _calcular_minutos(dto, persona)
@@ -373,6 +381,27 @@ class SolicitudUseCases:
         year, month = _parse_year_month(dto.fecha_pedida)
         saldos = self.calcular_saldos(dto.persona_id, year, month)
         return _solicitud_to_dto(creada), saldos
+
+    def _delegada_uuid(self, persona_id: int) -> str:
+        delegada_uuid = self._persona_repo.get_or_create_uuid(persona_id)
+        if not delegada_uuid:
+            raise BusinessRuleError("No se pudo resolver el uuid de la delegada.")
+        return delegada_uuid
+
+    def _is_duplicate_key(
+        self,
+        persona_id: int,
+        completo: bool,
+        key: tuple[object, ...],
+    ) -> bool:
+        _, fecha, _, desde, hasta = key
+        if completo:
+            desde_min = None
+            hasta_min = None
+        else:
+            desde_min = parse_hhmm(str(desde))
+            hasta_min = parse_hhmm(str(hasta))
+        return self._repo.exists_duplicate(persona_id, str(fecha), desde_min, hasta_min, completo)
 
     def listar_solicitudes_por_persona_y_periodo(
         self, persona_id: int, year: int | None, month: int | None
@@ -773,8 +802,43 @@ def _parse_year_month(fecha: str) -> tuple[int, int]:
     return parsed.year, parsed.month
 
 
+def normalize_date(value: str) -> str:
+    value_norm = value.strip()
+    for pattern in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            parsed = datetime.strptime(value_norm, pattern)
+            return parsed.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    raise BusinessRuleError("Fecha inválida para deduplicación.")
+
+
+def normalize_time(value: str) -> str:
+    return minutes_to_hhmm(parse_hhmm(value.strip()))
+
+
 def _build_periodo_filtro(year: int, month: int | None) -> PeriodoFiltro:
     return PeriodoFiltro.anual(year) if month is None else PeriodoFiltro.mensual(year, month)
+
+
+def _derived_interval_for_key(dto: SolicitudDTO, persona: Persona) -> tuple[str, str]:
+    if dto.completo:
+        total_dia = _total_cuadrante_por_fecha(persona, normalize_date(dto.fecha_pedida))
+        return "00:00", minutes_to_hhmm(total_dia)
+    if not dto.desde or not dto.hasta:
+        raise BusinessRuleError("Desde y hasta son obligatorios para solicitudes parciales.")
+    return normalize_time(dto.desde), normalize_time(dto.hasta)
+
+
+def solicitud_key(
+    dto: SolicitudDTO,
+    *,
+    persona: Persona,
+    delegada_uuid: str,
+) -> tuple[object, ...]:
+    fecha = normalize_date(dto.fecha_pedida)
+    desde, hasta = _derived_interval_for_key(dto, persona)
+    return (delegada_uuid, fecha, bool(dto.completo), desde, hasta)
 
 
 def _total_cuadrante_por_fecha(persona: Persona, fecha: str) -> int:

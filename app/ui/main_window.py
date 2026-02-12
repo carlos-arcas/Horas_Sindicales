@@ -1235,10 +1235,16 @@ class MainWindow(QMainWindow):
         errores: list[str] = []
         for solicitud in self._pending_solicitudes:
             try:
-                creada, _ = self._solicitud_use_cases.agregar_solicitud(solicitud)
+                if solicitud.id is not None:
+                    creada = solicitud
+                else:
+                    creada, _ = self._solicitud_use_cases.agregar_solicitud(solicitud)
                 creadas.append(creada)
             except (ValidacionError, BusinessRuleError) as exc:
-                errores.append(str(exc))
+                if str(exc).strip().lower() == "duplicado":
+                    errores.append("Duplicado: ya existe una solicitud idéntica")
+                else:
+                    errores.append(str(exc))
                 pendientes_restantes.append(solicitud)
             except Exception as exc:  # pragma: no cover - fallback
                 logger.exception("Error insertando solicitud sin PDF")
