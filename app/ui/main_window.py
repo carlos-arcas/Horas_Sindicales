@@ -1164,19 +1164,7 @@ class MainWindow(QMainWindow):
         self._refresh_historico()
         self._refresh_saldos()
         self._update_action_state()
-        self.toast.success("Petición agregada")
-
-        visibles_ids = {item.id for item in self.historico_model.solicitudes() if item.id is not None}
-        if creada.id is not None and creada.id not in visibles_ids:
-            logger.info(
-                "Petición creada con id=%s, pero no visible en histórico por filtros actuales.",
-                creada.id,
-            )
-            self._show_optional_notice(
-                "confirmaciones/no_visible_filtros",
-                "Solicitud creada",
-                "Se creó la solicitud, pero no se ve por los filtros activos del histórico.",
-            )
+        self.toast.success("Petición añadida a pendientes")
 
     def _resolve_pending_conflict(self, fecha_pedida: str, completo: bool) -> bool:
         conflictos = [
@@ -1278,6 +1266,7 @@ class MainWindow(QMainWindow):
         self._refresh_pending_ui_state()
         self._refresh_historico()
         self._refresh_saldos()
+        self._notify_historico_filter_if_hidden(creadas)
 
     def _on_confirmar(self) -> None:
         persona = self._current_persona()
@@ -1331,6 +1320,7 @@ class MainWindow(QMainWindow):
         self._refresh_pending_ui_state()
         self._refresh_historico()
         self._refresh_saldos()
+        self._notify_historico_filter_if_hidden(creadas)
 
     def _ask_push_after_pdf(self) -> None:
         dialog = QMessageBox(self)
@@ -1534,6 +1524,23 @@ class MainWindow(QMainWindow):
         if dialog.skip_next_check.isChecked():
             self._settings.setValue(key, True)
         self.toast.info(message, title=title)
+
+    def _notify_historico_filter_if_hidden(self, solicitudes_insertadas: list[SolicitudDTO]) -> None:
+        inserted_ids = {solicitud.id for solicitud in solicitudes_insertadas if solicitud.id is not None}
+        if not inserted_ids:
+            return
+        visibles_ids = {item.id for item in self.historico_model.solicitudes() if item.id is not None}
+        if inserted_ids.issubset(visibles_ids):
+            return
+        logger.info(
+            "Solicitudes insertadas en histórico pero no visibles por filtros actuales: ids=%s",
+            sorted(inserted_ids - visibles_ids),
+        )
+        self._show_optional_notice(
+            "confirmaciones/no_visible_filtros",
+            "Insertado en histórico",
+            "Insertado en histórico. Puede no verse por el filtro actual.",
+        )
 
     def _update_pending_totals(self) -> None:
         persona = self._current_persona()
