@@ -217,6 +217,11 @@ def _pdf_intro_text(config: GrupoConfig | None) -> str | None:
 
 
 class PersonaUseCases:
+    """Orquesta operaciones de ciclo de vida de delegadas.
+
+    Centraliza normalización y validaciones para que la UI y los adaptadores no
+    repliquen reglas que afectan saldos y conflictos posteriores.
+    """
     def __init__(self, repo: PersonaRepository, base_cuadrantes_service: BaseCuadrantesService | None = None) -> None:
         self._repo = repo
         self._base_cuadrantes_service = base_cuadrantes_service
@@ -232,6 +237,11 @@ class PersonaUseCases:
         return [_persona_to_dto(p) for p in self._repo.list_all()]
 
     def crear_persona(self, dto: PersonaDTO) -> PersonaDTO:
+        """Crea una persona aplicando reglas de consistencia de cuadrante.
+
+        La normalización previa evita persistir estados mixtos (uniforme vs.
+        personalizado) que producirían cálculos diarios contradictorios.
+        """
         logger.info("Creando persona %s", dto.nombre)
         dto_normalizado = _normalizar_cuadrante_persona(dto)
         persona = _dto_to_persona(dto_normalizado)
@@ -287,6 +297,11 @@ class PersonaUseCases:
 
 
 class SolicitudUseCases:
+    """Casos de uso para altas, sustituciones y saldos de solicitudes.
+
+    Esta capa protege invariantes del dominio antes de persistir: conflicto
+    completo/parcial, deduplicación y cálculo en minutos como unidad canónica.
+    """
     def __init__(
         self,
         repo: SolicitudRepository,
@@ -305,6 +320,11 @@ class SolicitudUseCases:
         return solicitud
 
     def agregar_solicitud(self, dto: SolicitudDTO) -> tuple[SolicitudDTO, SaldosDTO]:
+        """Registra una solicitud nueva y devuelve el saldo recalculado.
+
+        Se devuelve saldo en la misma operación para que el cliente trabaje con
+        una vista consistente después de validar duplicados y conflictos del día.
+        """
         logger.info(
             "Creando solicitud persona_id=%s fecha_pedida=%s completo=%s desde=%s hasta=%s",
             dto.persona_id,
@@ -400,6 +420,11 @@ class SolicitudUseCases:
     def validar_conflicto_dia(
         self, persona_id: int, fecha_pedida: str, tipo_nuevo: bool
     ) -> ConflictoDiaDTO:
+        """Impide mezclar solicitudes completas y parciales en la misma fecha.
+
+        La regla existe para mantener una semántica única de consumo diario y
+        evitar dobles cómputos cuando se sustituyen solicitudes existentes.
+        """
         existentes = list(self._repo.list_by_persona_and_fecha(persona_id, fecha_pedida))
         if tipo_nuevo:
             conflictos = [s for s in existentes if not s.completo]
@@ -721,6 +746,11 @@ def _build_periodo_filtro(year: int, month: int | None) -> PeriodoFiltro:
 
 
 def _total_cuadrante_por_fecha(persona: Persona, fecha: str) -> int:
+    """Obtiene el total de minutos de cuadrante para la fecha solicitada.
+
+    Si la persona no trabaja fines de semana, sábado y domingo se fuerzan a
+    cero para respetar la política de consumo por jornada laborable.
+    """
     weekday = datetime.strptime(fecha, "%Y-%m-%d").weekday()
     dia_map = {
         0: "cuad_lun",
@@ -738,6 +768,12 @@ def _total_cuadrante_por_fecha(persona: Persona, fecha: str) -> int:
 
 
 def _calcular_minutos(dto: SolicitudDTO, persona: Persona | None) -> int:
+    """Resuelve minutos finales priorizando entradas explícitas cuando existen.
+
+    Mantiene compatibilidad con formularios que envían horas manuales, pero en
+    solicitudes completas usa el cuadrante diario para preservar reglas de negocio
+    aunque cambie la interfaz de captura.
+    """
     if dto.horas < 0:
         raise BusinessRuleError("Las horas deben ser mayores a cero.")
     minutos_manual = _hours_to_minutes(dto.horas) if dto.horas > 0 else 0

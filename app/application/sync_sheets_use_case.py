@@ -5,6 +5,11 @@ from app.domain.sync_models import SyncSummary
 
 
 class SyncSheetsUseCase:
+    """Fachada de aplicación para sincronización bidireccional con Sheets.
+
+    Mantiene el contrato de la UI desacoplado de la infraestructura concreta y
+    facilita sustituir la estrategia de sync sin tocar consumidores.
+    """
     def __init__(self, sync_port: SheetsSyncPort) -> None:
         self._sync_port = sync_port
 
