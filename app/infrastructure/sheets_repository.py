@@ -6,6 +6,7 @@ from typing import Iterable
 import gspread
 
 from app.domain.ports import SheetsRepositoryPort
+from app.infrastructure.sheets_client import execute_with_rate_limit_retry
 
 logger = logging.getLogger(__name__)
 
@@ -26,17 +27,26 @@ class SheetsRepository(SheetsRepositoryPort):
         actions: list[str],
     ) -> gspread.Worksheet:
         try:
-            return spreadsheet.worksheet(sheet_name)
+            return execute_with_rate_limit_retry(
+                lambda: spreadsheet.worksheet(sheet_name),
+                operation_name=f"worksheet({sheet_name})",
+            )
         except gspread.WorksheetNotFound:
             cols = max(10, len(list(headers)) + 2)
-            worksheet = spreadsheet.add_worksheet(title=sheet_name, rows=200, cols=cols)
+            worksheet = execute_with_rate_limit_retry(
+                lambda: spreadsheet.add_worksheet(title=sheet_name, rows=200, cols=cols),
+                operation_name=f"add_worksheet({sheet_name})",
+            )
             actions.append(f"Creada hoja '{sheet_name}'.")
             return worksheet
 
     def _ensure_headers(
         self, worksheet: gspread.Worksheet, headers: list[str], actions: list[str]
     ) -> None:
-        existing = worksheet.row_values(1)
+        existing = execute_with_rate_limit_retry(
+            lambda: worksheet.row_values(1),
+            operation_name=f"row_values({worksheet.title})",
+        )
         if not existing:
             worksheet.update("1:1", [headers])
             actions.append(f"Cabecera creada en '{worksheet.title}'.")

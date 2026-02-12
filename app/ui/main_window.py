@@ -55,6 +55,7 @@ from app.domain.sheets_errors import (
     SheetsCredentialsError,
     SheetsNotFoundError,
     SheetsPermissionError,
+    SheetsRateLimitError,
 )
 from app.ui.models_qt import SolicitudesTableModel
 from app.ui.dialog_opciones import OpcionesDialog
@@ -1402,6 +1403,16 @@ class MainWindow(QMainWindow):
                 "No se pueden leer las credenciales JSON seleccionadas.",
                 details,
                 icon,
+            )
+            return
+        if isinstance(error, SheetsRateLimitError):
+            message = "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta."
+            self.toast.warning(message, title="Límite alcanzado")
+            self._show_message_with_details(
+                title,
+                message,
+                details,
+                QMessageBox.Warning,
             )
             return
         if isinstance(error, SheetsConfigError):

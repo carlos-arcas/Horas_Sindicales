@@ -19,3 +19,7 @@ class SheetsNotFoundError(SheetsConfigError):
 
 class SheetsCredentialsError(SheetsConfigError):
     pass
+
+
+class SheetsRateLimitError(Exception):
+    pass

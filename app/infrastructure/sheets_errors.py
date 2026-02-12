@@ -12,6 +12,7 @@ from app.domain.sheets_errors import (
     SheetsCredentialsError,
     SheetsNotFoundError,
     SheetsPermissionError,
+    SheetsRateLimitError,
 )
 
 
@@ -34,6 +35,18 @@ def map_gspread_exception(ex: Exception) -> Exception:
     if isinstance(ex, gspread.exceptions.APIError):
         text = _extract_api_error_text(ex)
         text_lower = text.lower()
+        response = getattr(ex, "response", None)
+        status_code = getattr(response, "status_code", None)
+        if (
+            status_code == 429
+            or "[429]" in text_lower
+            or "resource_exhausted" in text_lower
+            or "rate_limit_exceeded" in text_lower
+            or "quota exceeded" in text_lower
+        ):
+            return SheetsRateLimitError(
+                "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta."
+            )
         if "google sheets api has not been used" in text_lower or "it is disabled" in text_lower:
             return SheetsApiDisabledError(
                 "La API de Google Sheets no está habilitada en tu proyecto de Google Cloud."
