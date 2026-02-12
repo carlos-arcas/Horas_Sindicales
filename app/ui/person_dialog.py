@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFormLayout,
     QHBoxLayout,
+    QVBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -62,11 +63,11 @@ class PersonaDialog(QDialog):
         mode_layout.addStretch(1)
         layout.addRow("Modo cuadrante L-V", mode_widget)
 
-        self.trabaja_finde_check = QCheckBox("Trabaja fines de semana")
-        layout.addRow("Fines de semana", self.trabaja_finde_check)
-
         self.uniform_row = self._build_day_row("Cuadrante base L-V")
         layout.addRow("Cuadrante L-V", self.uniform_row["widget"])
+
+        self.trabaja_finde_check = QCheckBox("Trabaja fines de semana")
+        layout.addRow("Fines de semana", self.trabaja_finde_check)
 
         self.cuad_inputs: dict[str, dict[str, TimeEditHM]] = {}
         self.cuad_totals: dict[str, QLabel] = {}
@@ -89,6 +90,15 @@ class PersonaDialog(QDialog):
             weekdays_layout.addRow(QLabel(day_label), row["widget"])
         layout.addRow("Cuadrante por día", self.weekdays_widget)
 
+        self.weekend_container = QWidget()
+        weekend_container_layout = QVBoxLayout(self.weekend_container)
+        weekend_container_layout.setContentsMargins(0, 0, 0, 0)
+        weekend_container_layout.setSpacing(6)
+
+        weekend_title = QLabel("Cuadrante fin de semana")
+        weekend_title.setProperty("role", "sectionTitle")
+        weekend_container_layout.addWidget(weekend_title)
+
         self.weekend_widget = QWidget()
         weekend_layout = QFormLayout(self.weekend_widget)
         weekend_layout.setContentsMargins(0, 0, 0, 0)
@@ -98,7 +108,9 @@ class PersonaDialog(QDialog):
             self.cuad_inputs[day_key] = {"man": row["man"], "tar": row["tar"]}
             self.cuad_totals[day_key] = row["total"]
             weekend_layout.addRow(QLabel(day_label), row["widget"])
-        layout.addRow("Cuadrante fin de semana", self.weekend_widget)
+        weekend_container_layout.addWidget(self.weekend_widget)
+        layout.addRow(self.weekend_container)
+        self.weekend_container.setVisible(False)
 
         self.uniform_radio.toggled.connect(self._on_mode_toggled)
         self.by_day_radio.toggled.connect(self._on_mode_toggled)
@@ -212,7 +224,7 @@ class PersonaDialog(QDialog):
         self._set_weekend_enabled(self.trabaja_finde_check.isChecked())
 
     def _set_weekend_enabled(self, enabled: bool) -> None:
-        self.weekend_widget.setVisible(enabled)
+        self.weekend_container.setVisible(enabled)
 
     def _weekdays_are_uniform(self, *values: int) -> bool:
         if len(values) != 10:
