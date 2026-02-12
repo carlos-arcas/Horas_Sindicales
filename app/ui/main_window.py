@@ -1446,6 +1446,7 @@ class MainWindow(QMainWindow):
             f"Insertadas en Sheets: {summary.inserted_remote}\n"
             f"Actualizadas en Sheets: {summary.updated_remote}\n"
             f"Duplicados omitidos: {summary.duplicates_skipped}\n"
+            f"Omitidas por delegada: {summary.omitted_by_delegada}\n"
             f"Conflictos: {summary.conflicts_detected}\n"
             f"Errores: {summary.errors}\n"
             f"Última sincronización: {last_sync_text}"

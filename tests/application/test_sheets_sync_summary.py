@@ -251,3 +251,82 @@ def test_sync_pull_reutiliza_persona_existente_y_no_rompe_unique_nombre(connecti
     cursor.execute("SELECT COUNT(*) AS total FROM personas WHERE nombre = ?", ("Delegada Repetida",))
     total = cursor.fetchone()["total"]
     assert total == 1
+
+def test_pull_solicitudes_resuelve_delegada_por_nombre(connection, persona_repo, persona_id) -> None:
+    persona_uuid = persona_repo.get_or_create_uuid(persona_id)
+    cursor = connection.cursor()
+    cursor.execute("SELECT nombre FROM personas WHERE id = ?", (persona_id,))
+    nombre = cursor.fetchone()["nombre"]
+
+    solicitudes_sheet = [
+        ["uuid", "delegada_uuid", "delegada_nombre", "fecha", "desde", "hasta", "completo", "horas", "notas", "updated_at"],
+        ["sol-1", "", nombre, "2025-01-15", "09:00", "11:00", "0", "120", "importada", "2025-01-20T10:00:00Z"],
+    ]
+
+    spreadsheet = _FakeSpreadsheet(
+        {
+            "delegadas": _empty_sheet(["uuid", "updated_at"]),
+            "solicitudes": _FakeWorksheet(solicitudes_sheet),
+            "cuadrantes": _empty_sheet(["uuid", "updated_at"]),
+            "pdf_log": _empty_sheet(["pdf_id", "updated_at"]),
+            "config": _empty_sheet(["key", "updated_at"]),
+        }
+    )
+    service = SheetsSyncService(
+        connection=connection,
+        config_store=_FakeConfigStore(
+            SheetsConfig(
+                spreadsheet_id="sheet-id",
+                credentials_path="/tmp/fake_credentials.json",
+                device_id="device-local",
+            )
+        ),
+        client=_FakeClient(spreadsheet),
+        repository=_FakeRepository(),
+    )
+
+    summary = service.pull()
+
+    assert summary.inserted_local == 1
+    assert summary.omitted_by_delegada == 0
+    cursor.execute("SELECT s.uuid, p.uuid AS delegada_uuid FROM solicitudes s JOIN personas p ON p.id = s.persona_id WHERE s.uuid = ?", ("sol-1",))
+    inserted = cursor.fetchone()
+    assert inserted["delegada_uuid"] == persona_uuid
+
+
+def test_pull_solicitudes_omite_huerfanas_sin_uuid_ni_nombre(connection) -> None:
+    solicitudes_sheet = [
+        ["uuid", "fecha", "desde", "hasta", "completo", "horas", "updated_at"],
+        ["sol-huerfana", "2025-01-15", "09:00", "11:00", "0", "120", "2025-01-20T10:00:00Z"],
+    ]
+
+    spreadsheet = _FakeSpreadsheet(
+        {
+            "delegadas": _empty_sheet(["uuid", "updated_at"]),
+            "solicitudes": _FakeWorksheet(solicitudes_sheet),
+            "cuadrantes": _empty_sheet(["uuid", "updated_at"]),
+            "pdf_log": _empty_sheet(["pdf_id", "updated_at"]),
+            "config": _empty_sheet(["key", "updated_at"]),
+        }
+    )
+    service = SheetsSyncService(
+        connection=connection,
+        config_store=_FakeConfigStore(
+            SheetsConfig(
+                spreadsheet_id="sheet-id",
+                credentials_path="/tmp/fake_credentials.json",
+                device_id="device-local",
+            )
+        ),
+        client=_FakeClient(spreadsheet),
+        repository=_FakeRepository(),
+    )
+
+    summary = service.pull()
+
+    assert summary.inserted_local == 0
+    assert summary.omitted_by_delegada == 1
+    assert summary.errors == 1
+    cursor = connection.cursor()
+    cursor.execute("SELECT COUNT(*) AS total FROM solicitudes WHERE uuid = ?", ("sol-huerfana",))
+    assert cursor.fetchone()["total"] == 0

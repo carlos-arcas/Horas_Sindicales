@@ -11,6 +11,7 @@ from typing import Any
 import gspread
 
 from app.application.sheets_service import SHEETS_SCHEMA
+from app.application.delegada_resolution import get_or_resolve_delegada_uuid
 from app.application.sync_normalization import normalize_date, normalize_hhmm, solicitud_unique_key
 from app.domain.ports import (
     SheetsClientPort,
@@ -103,6 +104,7 @@ class SheetsSyncService:
             updated_remote=push_summary.updated_remote,
             duplicates_skipped=pull_summary.duplicates_skipped + push_summary.duplicates_skipped,
             conflicts_detected=pull_summary.conflicts_detected + push_summary.conflicts_detected,
+            omitted_by_delegada=pull_summary.omitted_by_delegada + push_summary.omitted_by_delegada,
             errors=pull_summary.errors + push_summary.errors,
         )
 
@@ -189,14 +191,20 @@ class SheetsSyncService:
         downloaded = 0
         conflicts = 0
         omitted_duplicates = 0
+        omitted_by_delegada = 0
+        errors = 0
         solicitud_titles = self._solicitudes_pull_source_titles(spreadsheet)
         downloaded_count, conflict_count = self._pull_delegadas(spreadsheet, last_sync_at)
         downloaded += downloaded_count
         conflicts += conflict_count
-        downloaded_count, conflict_count, duplicate_count = self._pull_solicitudes(spreadsheet, last_sync_at, solicitud_titles)
+        downloaded_count, conflict_count, duplicate_count, omitted_delegada_count, solicitud_errors = self._pull_solicitudes(
+            spreadsheet, last_sync_at, solicitud_titles
+        )
         downloaded += downloaded_count
         conflicts += conflict_count
         omitted_duplicates += duplicate_count
+        omitted_by_delegada += omitted_delegada_count
+        errors += solicitud_errors
         downloaded_count, conflict_count = self._pull_cuadrantes(spreadsheet, last_sync_at)
         downloaded += downloaded_count
         conflicts += conflict_count
@@ -209,6 +217,8 @@ class SheetsSyncService:
             updated_local=0,
             duplicates_skipped=omitted_duplicates,
             conflicts_detected=conflicts,
+            omitted_by_delegada=omitted_by_delegada,
+            errors=errors,
         )
 
     def _push_with_spreadsheet(self, spreadsheet: gspread.Spreadsheet) -> SyncSummary:
@@ -298,12 +308,18 @@ class SheetsSyncService:
 
     def _pull_solicitudes(
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None, solicitud_titles: list[str] | None = None
-    ) -> tuple[int, int, int]:
+    ) -> tuple[int, int, int, int, int]:
         downloaded = 0
         conflicts = 0
         omitted_duplicates = 0
+        omitted_by_delegada = 0
+        errors = 0
         for worksheet_name, worksheet in self._solicitudes_pull_sources(spreadsheet, solicitud_titles):
-            headers, rows = self._rows_with_index(worksheet, worksheet_name)
+            headers, rows = self._rows_with_index(
+                worksheet,
+                worksheet_name,
+                aliases=self._solicitudes_header_aliases(),
+            )
             inserted_ws = 0
             updated_ws = 0
             sample_fecha_before: str | None = None
@@ -323,9 +339,11 @@ class SheetsSyncService:
                         uuid_value = str(existing["uuid"] or "").strip()
                     else:
                         uuid_value = self._generate_uuid()
-                        self._insert_solicitud_from_remote(uuid_value, row)
-                        downloaded += 1
-                        inserted_ws += 1
+                        inserted, omitted_delegada, insert_errors = self._insert_solicitud_from_remote(uuid_value, row)
+                        downloaded += 1 if inserted else 0
+                        inserted_ws += 1 if inserted else 0
+                        omitted_by_delegada += omitted_delegada
+                        errors += insert_errors
                     if self._enable_backfill:
                         self._backfill_uuid(worksheet, headers, row_number, "uuid", uuid_value)
                     continue
@@ -341,18 +359,22 @@ class SheetsSyncService:
                         )
                         omitted_duplicates += 1
                         continue
-                    self._insert_solicitud_from_remote(uuid_value, row)
-                    downloaded += 1
-                    inserted_ws += 1
+                    inserted, omitted_delegada, insert_errors = self._insert_solicitud_from_remote(uuid_value, row)
+                    downloaded += 1 if inserted else 0
+                    inserted_ws += 1 if inserted else 0
+                    omitted_by_delegada += omitted_delegada
+                    errors += insert_errors
                     continue
                 if self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at):
                     self._store_conflict("solicitudes", uuid_value, dict(local_row), row)
                     conflicts += 1
                     continue
                 if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
-                    self._update_solicitud_from_remote(local_row["id"], row)
-                    downloaded += 1
-                    updated_ws += 1
+                    updated, omitted_delegada, update_errors = self._update_solicitud_from_remote(local_row["id"], row)
+                    downloaded += 1 if updated else 0
+                    updated_ws += 1 if updated else 0
+                    omitted_by_delegada += omitted_delegada
+                    errors += update_errors
             logger.info(
                 "Pull solicitudes: worksheet=%s insertadas_local=%s actualizadas_local=%s",
                 worksheet_name,
@@ -366,7 +388,27 @@ class SheetsSyncService:
                 sample_fecha_after or "",
             )
             self._flush_write_batches(spreadsheet, worksheet)
-        return downloaded, conflicts, omitted_duplicates
+        logger.info(
+            "Pull solicitudes resumen: insertadas_local=%s omitidas_por_delegada=%s errores=%s",
+            downloaded,
+            omitted_by_delegada,
+            errors,
+        )
+        return downloaded, conflicts, omitted_duplicates, omitted_by_delegada, errors
+
+    @staticmethod
+    def _solicitudes_header_aliases() -> dict[str, list[str]]:
+        return {
+            "uuid": ["id", "solicitud_uuid"],
+            "delegada_uuid": ["delegado_uuid", "persona_uuid"],
+            "delegada_nombre": ["delegado_nombre", "delegada", "delegado", "persona_nombre", "nombre"],
+            "fecha": ["fecha_pedida", "dia", "fecha solicitud"],
+            "desde": ["desde_hora", "hora_desde"],
+            "hasta": ["hasta_hora", "hora_hasta"],
+            "completo": ["es_completo", "jornada_completa"],
+            "horas": ["minutos_total", "horas_solicitadas", "total_minutos"],
+            "notas": ["observaciones", "comentarios"],
+        }
 
     def _solicitudes_pull_source_titles(self, spreadsheet: gspread.Spreadsheet) -> list[str]:
         worksheets_by_title = self._client.get_worksheets_by_title()
@@ -393,15 +435,20 @@ class SheetsSyncService:
         if row.get("minutos_total") in (None, "") and row.get("horas") not in (None, ""):
             payload["minutos_total"] = self._int_or_zero(row.get("horas"))
 
+        if row.get("delegada_uuid") in (None, "") and row.get("delegado_uuid") not in (None, ""):
+            payload["delegada_uuid"] = row.get("delegado_uuid")
+        if row.get("delegada_nombre") in (None, ""):
+            payload["delegada_nombre"] = row.get("delegado_nombre") or row.get("delegada") or row.get("delegado") or ""
+
         desde_hhmm = self._remote_hhmm(
             row.get("desde_h"),
             row.get("desde_m"),
-            row.get("desde"),
+            row.get("desde") or row.get("hora_desde"),
         )
         hasta_hhmm = self._remote_hhmm(
             row.get("hasta_h"),
             row.get("hasta_m"),
-            row.get("hasta"),
+            row.get("hasta") or row.get("hora_hasta"),
         )
         payload["desde_h"] = int(desde_hhmm.split(":")[0]) if desde_hhmm else ""
         payload["desde_m"] = int(desde_hhmm.split(":")[1]) if desde_hhmm else ""
@@ -1009,17 +1056,30 @@ class SheetsSyncService:
         )
         self._connection.commit()
 
-    def _insert_solicitud_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:
+    def _insert_solicitud_from_remote(self, uuid_value: str, row: dict[str, Any]) -> tuple[bool, int, int]:
         cursor = self._connection.cursor()
-        persona_id = self._persona_id_from_uuid(row.get("delegada_uuid"))
+        delegada_uuid = str(row.get("delegada_uuid") or "").strip()
+        delegada_nombre = str(row.get("delegada_nombre") or "").strip()
+        if not delegada_uuid:
+            logger.warning(
+                "Solicitud %s sin delegada_uuid. Intentando resolver por nombre='%s'",
+                uuid_value,
+                delegada_nombre,
+            )
+        resolved_uuid = get_or_resolve_delegada_uuid(self._connection, delegada_uuid, delegada_nombre)
+        if not resolved_uuid:
+            logger.warning("No resuelta -> omitida. Solicitud %s", uuid_value)
+            return False, 1, 1
+        persona_id = self._persona_id_from_uuid(resolved_uuid)
         if persona_id is None:
-            logger.warning("Delegada %s no encontrada al importar solicitud %s", row.get("delegada_uuid"), uuid_value)
-            return
+            logger.warning("No resuelta -> omitida. Solicitud %s", uuid_value)
+            return False, 1, 1
+        logger.info("Resuelta delegada: uuid_local=%s, nombre=%s", resolved_uuid, delegada_nombre)
         fecha_normalizada = self._normalize_date(row.get("fecha") or row.get("fecha_pedida"))
         created_normalizada = self._normalize_date(row.get("created_at")) or fecha_normalizada
         if not fecha_normalizada:
             logger.warning("Solicitud %s descartada por fecha inválida en pull: %s", uuid_value, row.get("fecha"))
-            return
+            return False, 0, 1
         desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
         hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
         _execute_with_validation(
@@ -1039,7 +1099,7 @@ class SheetsSyncService:
                 desde_min,
                 hasta_min,
                 1 if self._int_or_zero(row.get("completo")) else 0,
-                self._int_or_zero(row.get("minutos_total")),
+                self._int_or_zero(row.get("minutos_total") or row.get("horas")),
                 None,
                 row.get("notas") or "",
                 None,
@@ -1053,18 +1113,32 @@ class SheetsSyncService:
         )
         self._connection.commit()
         logger.info("Solicitud importada a tabla local 'solicitudes' (histórico): uuid=%s", uuid_value)
+        return True, 0, 0
 
-    def _update_solicitud_from_remote(self, solicitud_id: int, row: dict[str, Any]) -> None:
+    def _update_solicitud_from_remote(self, solicitud_id: int, row: dict[str, Any]) -> tuple[bool, int, int]:
         cursor = self._connection.cursor()
-        persona_id = self._persona_id_from_uuid(row.get("delegada_uuid"))
+        delegada_uuid = str(row.get("delegada_uuid") or "").strip()
+        delegada_nombre = str(row.get("delegada_nombre") or "").strip()
+        if not delegada_uuid:
+            logger.warning(
+                "Solicitud %s sin delegada_uuid. Intentando resolver por nombre='%s'",
+                row.get("uuid") or solicitud_id,
+                delegada_nombre,
+            )
+        resolved_uuid = get_or_resolve_delegada_uuid(self._connection, delegada_uuid, delegada_nombre)
+        if not resolved_uuid:
+            logger.warning("No resuelta -> omitida. Solicitud %s", row.get("uuid") or solicitud_id)
+            return False, 1, 1
+        persona_id = self._persona_id_from_uuid(resolved_uuid)
         if persona_id is None:
-            logger.warning("Delegada %s no encontrada al actualizar solicitud %s", row.get("delegada_uuid"), row)
-            return
+            logger.warning("No resuelta -> omitida. Solicitud %s", row.get("uuid") or solicitud_id)
+            return False, 1, 1
+        logger.info("Resuelta delegada: uuid_local=%s, nombre=%s", resolved_uuid, delegada_nombre)
         fecha_normalizada = self._normalize_date(row.get("fecha") or row.get("fecha_pedida"))
         created_normalizada = self._normalize_date(row.get("created_at")) or fecha_normalizada
         if not fecha_normalizada:
             logger.warning("Solicitud id=%s no actualizada por fecha inválida en pull: %s", solicitud_id, row.get("fecha"))
-            return
+            return False, 0, 1
         desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
         hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
         _execute_with_validation(
@@ -1082,7 +1156,7 @@ class SheetsSyncService:
                 desde_min,
                 hasta_min,
                 1 if self._int_or_zero(row.get("completo")) else 0,
-                self._int_or_zero(row.get("minutos_total")),
+                self._int_or_zero(row.get("minutos_total") or row.get("horas")),
                 row.get("notas") or "",
                 row.get("pdf_id"),
                 created_normalizada,
@@ -1094,6 +1168,7 @@ class SheetsSyncService:
             "solicitudes.update_remote",
         )
         self._connection.commit()
+        return True, 0, 0
 
     @staticmethod
     def _normalize_date(value: str | None) -> str | None:
@@ -1293,7 +1368,10 @@ class SheetsSyncService:
         self._connection.commit()
 
     def _rows_with_index(
-        self, worksheet: gspread.Worksheet, worksheet_name: str | None = None
+        self,
+        worksheet: gspread.Worksheet,
+        worksheet_name: str | None = None,
+        aliases: dict[str, list[str]] | None = None,
     ) -> tuple[list[str], list[tuple[int, dict[str, Any]]]]:
         cache_name = worksheet_name or getattr(worksheet, "title", None)
         if cache_name:
@@ -1303,11 +1381,28 @@ class SheetsSyncService:
         if not values:
             return [], []
         headers = values[0]
+        canonical_by_header: dict[str, str] = {}
+        if aliases:
+            lowered_map: dict[str, str] = {}
+            for canonical, names in aliases.items():
+                lowered_map[canonical.strip().lower()] = canonical
+                for name in names:
+                    lowered_map[name.strip().lower()] = canonical
+            for header in headers:
+                key = str(header).strip().lower()
+                canonical_by_header[header] = lowered_map.get(key, header)
         rows: list[tuple[int, dict[str, Any]]] = []
         for row_number, row in enumerate(values[1:], start=2):
             if not any(str(cell).strip() for cell in row):
                 continue
             payload = {headers[i]: row[i] if i < len(row) else "" for i in range(len(headers))}
+            if canonical_by_header:
+                canonical_payload: dict[str, Any] = {}
+                for original_key, value in payload.items():
+                    canonical_key = canonical_by_header.get(original_key, original_key)
+                    if canonical_key not in canonical_payload or not str(canonical_payload.get(canonical_key, "")).strip():
+                        canonical_payload[canonical_key] = value
+                payload = canonical_payload
             payload["__row_number__"] = row_number
             rows.append((row_number, payload))
         logger.info("Read worksheet=%s filas_leidas=%s", cache_name or worksheet.title, len(rows))
