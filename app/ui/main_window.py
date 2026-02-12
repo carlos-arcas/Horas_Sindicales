@@ -6,8 +6,9 @@ import traceback
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
-from PySide6.QtCore import QDate, QTime, QUrl, Qt, QObject, Signal, Slot, QThread
+from PySide6.QtCore import QDate, QSettings, QTime, QUrl, Qt, QObject, Signal, Slot, QThread
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QBoxLayout,
@@ -32,6 +33,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSpinBox,
     QScrollArea,
+    QStatusBar,
     QTableView,
     QTimeEdit,
     QVBoxLayout,
@@ -45,6 +47,7 @@ from app.application.sync_sheets_use_case import SyncSheetsUseCase
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.time_utils import minutes_to_hhmm
+from app.domain.request_time import validate_request_inputs
 from app.domain.sync_models import SyncSummary
 from app.domain.sheets_errors import (
     SheetsApiDisabledError,
@@ -60,6 +63,17 @@ from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
 from app.ui.person_dialog import PersonaDialog
 from app.ui.style import apply_theme
 from app.ui.widgets.header import HeaderWidget
+from app.ui.widgets.toast import ToastManager
+
+try:
+    from PySide6.QtPdf import QPdfDocument
+    from PySide6.QtPdfWidgets import QPdfView
+
+    PDF_PREVIEW_AVAILABLE = True
+except ImportError:  # pragma: no cover - depende de instalación local
+    QPdfDocument = None
+    QPdfView = None
+    PDF_PREVIEW_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +126,105 @@ class PushWorker(QObject):
         self.finished.emit(summary)
 
 
+class OptionalConfirmDialog(QDialog):
+    def __init__(self, title: str, message: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        layout = QVBoxLayout(self)
+        text = QLabel(message)
+        text.setWordWrap(True)
+        layout.addWidget(text)
+
+        self.skip_next_check = QCheckBox("No mostrar de nuevo")
+        layout.addWidget(self.skip_next_check)
+
+        buttons = QHBoxLayout()
+        buttons.addStretch(1)
+        ok = QPushButton("Aceptar")
+        ok.setProperty("variant", "primary")
+        ok.clicked.connect(self.accept)
+        buttons.addWidget(ok)
+        layout.addLayout(buttons)
+
+
+class PdfPreviewDialog(QDialog):
+    def __init__(self, pdf_generator, default_name: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._pdf_generator = pdf_generator
+        self._default_name = default_name
+        self._last_pdf_path: Path | None = None
+        self._pdf_document = None
+        self.setWindowTitle("Previsualización PDF")
+        self.resize(920, 680)
+        self._build_ui()
+        self._generate_preview()
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        self.info_label = QLabel("Genera una vista previa antes de guardar.")
+        self.info_label.setProperty("role", "secondary")
+        layout.addWidget(self.info_label)
+
+        if PDF_PREVIEW_AVAILABLE and QPdfView and QPdfDocument:
+            self._pdf_document = QPdfDocument(self)
+            self._pdf_view = QPdfView(self)
+            self._pdf_view.setDocument(self._pdf_document)
+            layout.addWidget(self._pdf_view, 1)
+        else:
+            self._pdf_view = QLabel(
+                "QPdfView no está disponible en esta instalación.\n"
+                "Se abrirá la vista previa con el visor del sistema."
+            )
+            self._pdf_view.setAlignment(Qt.AlignCenter)
+            self._pdf_view.setWordWrap(True)
+            self._pdf_view.setProperty("role", "secondary")
+            layout.addWidget(self._pdf_view, 1)
+
+        actions = QHBoxLayout()
+        actions.addStretch(1)
+
+        refresh = QPushButton("Generar/Actualizar vista")
+        refresh.setProperty("variant", "secondary")
+        refresh.clicked.connect(self._generate_preview)
+        actions.addWidget(refresh)
+
+        save_as = QPushButton("Guardar como…")
+        save_as.setProperty("variant", "primary")
+        save_as.clicked.connect(self._save_as)
+        actions.addWidget(save_as)
+
+        close_button = QPushButton("Cerrar")
+        close_button.setProperty("variant", "secondary")
+        close_button.clicked.connect(self.reject)
+        actions.addWidget(close_button)
+        layout.addLayout(actions)
+
+    def _generate_preview(self) -> None:
+        with NamedTemporaryFile(prefix="horas_sindicales_", suffix=".pdf", delete=False) as tmp:
+            temp_path = Path(tmp.name)
+        generated = self._pdf_generator(temp_path)
+        self._last_pdf_path = generated
+        self.info_label.setText(f"Vista previa lista: {generated.name}")
+        if PDF_PREVIEW_AVAILABLE and self._pdf_document is not None:
+            self._pdf_document.load(str(generated))
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(generated)))
+
+    def _save_as(self) -> None:
+        if self._last_pdf_path is None:
+            return
+        default_path = str(Path.home() / self._default_name)
+        target_path, _ = QFileDialog.getSaveFileName(self, "Guardar PDF", default_path, "PDF (*.pdf)")
+        if not target_path:
+            return
+        Path(target_path).write_bytes(self._last_pdf_path.read_bytes())
+        self.accept()
+
+    @property
+    def exported_path(self) -> Path | None:
+        return self._last_pdf_path
+
+
 class MainWindow(QMainWindow):
     def __init__(
         self,
@@ -132,11 +245,14 @@ class MainWindow(QMainWindow):
         self._sheets_service = sheets_service
         self._sync_service = sync_sheets_use_case
         self._conflicts_service = conflicts_service
+        self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
         self._sync_in_progress = False
+        self.toast = ToastManager()
         self.setWindowTitle("Horas Sindicales")
         self._build_ui()
+        self.toast.attach_to(self)
         self._load_personas()
         self._refresh_last_sync_label()
         self._update_sync_button_state()
@@ -198,6 +314,7 @@ class MainWindow(QMainWindow):
         self.opciones_button.setProperty("variant", "secondary")
         self.opciones_button.clicked.connect(self._on_open_opciones)
         header_actions.addWidget(self.opciones_button)
+        header_top.setAlignment(header_actions, Qt.AlignTop | Qt.AlignRight)
         header_top.addLayout(header_actions)
         header_layout.addLayout(header_top)
         header_separator = QFrame()
@@ -215,6 +332,9 @@ class MainWindow(QMainWindow):
         self._content_row.addLayout(left_column, 3)
 
         sync_card, sync_layout = self._create_card("Sincronización")
+        sync_heading = QLabel("Google Sheets")
+        sync_heading.setProperty("role", "sectionTitle")
+        sync_layout.addWidget(sync_heading)
         sync_actions = QHBoxLayout()
         sync_actions.setSpacing(8)
         self.sync_button = QPushButton("Sincronizar")
@@ -348,6 +468,11 @@ class MainWindow(QMainWindow):
         solicitud_row.addStretch(1)
         solicitud_layout.addLayout(solicitud_row)
 
+        self.solicitud_inline_error = QLabel("")
+        self.solicitud_inline_error.setProperty("role", "error")
+        self.solicitud_inline_error.setVisible(False)
+        solicitud_layout.addWidget(self.solicitud_inline_error)
+
         notas_row = QHBoxLayout()
         notas_row.setSpacing(8)
         notas_row.addWidget(QLabel("Notas"))
@@ -380,6 +505,9 @@ class MainWindow(QMainWindow):
 
         pendientes_footer = QHBoxLayout()
         pendientes_footer.setSpacing(10)
+        self.total_pendientes_label = QLabel("TOTAL PENDIENTES: 00:00")
+        self.total_pendientes_label.setProperty("role", "sectionTitle")
+        pendientes_footer.addWidget(self.total_pendientes_label)
         self.eliminar_pendiente_button = QPushButton("Eliminar seleccionado")
         self.eliminar_pendiente_button.setProperty("variant", "danger")
         self.eliminar_pendiente_button.clicked.connect(self._on_remove_pendiente)
@@ -543,6 +671,7 @@ class MainWindow(QMainWindow):
 
         self._scroll_area.setWidget(content)
         self.setCentralWidget(self._scroll_area)
+        self._build_status_bar()
 
         self._normalize_input_heights()
         self._update_responsive_columns()
@@ -550,6 +679,21 @@ class MainWindow(QMainWindow):
         self._on_period_mode_changed()
         self._update_solicitud_preview()
         self._update_action_state()
+
+    def _build_status_bar(self) -> None:
+        status = QStatusBar(self)
+        status.setObjectName("mainStatusBar")
+        self.setStatusBar(status)
+        self.status_sync_label = QLabel("Sincronizando con Google Sheets…")
+        self.status_sync_label.setVisible(False)
+        self.status_sync_progress = QProgressBar()
+        self.status_sync_progress.setRange(0, 0)
+        self.status_sync_progress.setTextVisible(False)
+        self.status_sync_progress.setVisible(False)
+        self.status_pending_label = QLabel("Pendientes calculados: 00:00")
+        status.addPermanentWidget(self.status_sync_label)
+        status.addPermanentWidget(self.status_sync_progress)
+        status.addPermanentWidget(self.status_pending_label)
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
         header = table.horizontalHeader()
@@ -690,10 +834,10 @@ class MainWindow(QMainWindow):
                 continue
 
     def _sync_completo_visibility(self, checked: bool) -> None:
-        self.desde_container.setVisible(not checked)
-        self.hasta_container.setVisible(not checked)
-        self.desde_placeholder.setVisible(checked)
-        self.hasta_placeholder.setVisible(checked)
+        self.desde_input.setEnabled(not checked)
+        self.hasta_input.setEnabled(not checked)
+        self.desde_container.setToolTip("No aplica en solicitud completa" if checked else "")
+        self.hasta_container.setToolTip("No aplica en solicitud completa" if checked else "")
 
     def _on_edit_grupo(self) -> None:
         dialog = GrupoConfigDialog(self._grupo_use_cases, self._sync_service, self)
@@ -702,11 +846,7 @@ class MainWindow(QMainWindow):
 
     def _on_sync(self) -> None:
         if not self._sync_service.is_configured():
-            QMessageBox.warning(
-                self,
-                "Sin configuración",
-                "No hay configuración de Google Sheets. Abre Opciones para configurarlo.",
-            )
+            self.toast.warning("No hay configuración de Google Sheets. Abre Opciones para configurarlo.", title="Sin configuración")
             return
         self._set_sync_in_progress(True)
         self._sync_thread = QThread()
@@ -796,15 +936,33 @@ class MainWindow(QMainWindow):
             return None, warning
 
     def _update_solicitud_preview(self) -> None:
+        valid, message = self._validate_solicitud_form()
         minutos, warning = self._calculate_preview_minutes()
-        total_txt = "—" if minutos is None else self._format_minutes(minutos)
+        total_txt = "—" if minutos is None or not valid else self._format_minutes(minutos)
         self.total_preview_input.setText(total_txt)
         self.cuadrante_warning_label.setVisible(warning)
         self.cuadrante_warning_label.setText("Cuadrante no configurado" if warning else "")
+        self.solicitud_inline_error.setVisible(not valid)
+        self.solicitud_inline_error.setText(message)
+        self._update_action_state()
+
+    def _validate_solicitud_form(self) -> tuple[bool, str]:
+        if self._current_persona() is None:
+            return False, "Selecciona una persona para crear la solicitud."
+        completo = self.completo_check.isChecked()
+        errors = validate_request_inputs(
+            None if completo else self.desde_input.time().toString("HH:mm"),
+            None if completo else self.hasta_input.time().toString("HH:mm"),
+            completo,
+        )
+        if errors:
+            return False, next(iter(errors.values()))
+        return True, ""
 
     def _update_action_state(self) -> None:
         persona_selected = self._current_persona() is not None
-        self.agregar_button.setEnabled(persona_selected)
+        form_valid, _ = self._validate_solicitud_form()
+        self.agregar_button.setEnabled(persona_selected and form_valid)
         self.confirmar_button.setEnabled(persona_selected and bool(self._pending_solicitudes))
         self.edit_persona_button.setEnabled(persona_selected)
         self.delete_persona_button.setEnabled(persona_selected)
@@ -831,11 +989,11 @@ class MainWindow(QMainWindow):
         try:
             creada = self._persona_use_cases.crear(persona_dto)
         except ValidacionError as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error creando persona")
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_critical_error(str(exc))
             return
         self._load_personas(select_id=creada.id)
 
@@ -858,11 +1016,11 @@ class MainWindow(QMainWindow):
         try:
             actualizada = self._persona_use_cases.editar_persona(persona_dto)
         except (ValidacionError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error editando persona")
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_critical_error(str(exc))
             return
         self._load_personas(select_id=actualizada.id)
 
@@ -880,11 +1038,11 @@ class MainWindow(QMainWindow):
         try:
             self._persona_use_cases.desactivar_persona(persona.id or 0)
         except (ValidacionError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error deshabilitando delegado")
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_critical_error(str(exc))
             return
         self._load_personas()
 
@@ -892,21 +1050,17 @@ class MainWindow(QMainWindow):
         logger.info("Botón Agregar pulsado en pantalla de Peticiones")
         solicitud = self._build_preview_solicitud()
         if solicitud is None:
-            QMessageBox.warning(
-                self,
-                "Validación",
-                "Selecciona una delegada antes de agregar una petición.",
-            )
+            self.toast.warning("Selecciona una delegada antes de agregar una petición.", title="Validación")
             return
 
         try:
             minutos = self._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
         except (ValidacionError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.error("Error calculando minutos de la petición", exc_info=True)
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_critical_error(str(exc))
             return
 
         notas_text = self.notas_input.toPlainText().strip()
@@ -933,24 +1087,31 @@ class MainWindow(QMainWindow):
             creada, _ = self._solicitud_use_cases.agregar_solicitud(solicitud)
             self._pending_solicitudes.append(creada)
             self.pendientes_model.set_solicitudes(self._pending_solicitudes)
+            self._update_pending_totals()
         except (ValidacionError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.error("Error insertando petición en base de datos", exc_info=True)
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_critical_error(str(exc))
             return
 
         self.notas_input.setPlainText("")
         self._refresh_historico()
         self._refresh_saldos()
         self._update_action_state()
+        self.toast.success("Petición agregada")
 
         visibles_ids = {item.id for item in self.historico_model.solicitudes() if item.id is not None}
         if creada.id is not None and creada.id not in visibles_ids:
             logger.info(
                 "Petición creada con id=%s, pero no visible en histórico por filtros actuales.",
                 creada.id,
+            )
+            self._show_optional_notice(
+                "confirmaciones/no_visible_filtros",
+                "Solicitud creada",
+                "Se creó la solicitud, pero no se ve por los filtros activos del histórico.",
             )
 
     def _resolve_pending_conflict(self, fecha_pedida: str, completo: bool) -> bool:
@@ -979,7 +1140,7 @@ class MainWindow(QMainWindow):
                 persona_id, solicitud.fecha_pedida, solicitud.completo
             )
         except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             return False
         if conflicto.ok:
             return True
@@ -1000,11 +1161,11 @@ class MainWindow(QMainWindow):
                     persona_id, solicitud.fecha_pedida, solicitud
                 )
         except (ValidacionError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             return False
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error sustituyendo solicitud")
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_critical_error(str(exc))
             return False
         self._refresh_historico()
         self._refresh_saldos()
@@ -1019,11 +1180,11 @@ class MainWindow(QMainWindow):
         try:
             default_name = self._solicitud_use_cases.sugerir_nombre_pdf(self._pending_solicitudes)
         except (ValidacionError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error preparando PDF")
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_critical_error(str(exc))
             return
         default_path = str(Path.home() / default_name)
         pdf_path, _ = QFileDialog.getSaveFileName(
@@ -1042,19 +1203,21 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error confirmando solicitudes")
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_critical_error(str(exc))
             return
         if generado and self.abrir_pdf_check.isChecked():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(generado)))
         if errores:
-            QMessageBox.warning(self, "Errores", "\n".join(errores))
+            self.toast.warning("\n".join(errores), title="Errores")
         if generado and creadas:
             pdf_hash = creadas[0].pdf_hash
             fechas = [solicitud.fecha_pedida for solicitud in creadas]
             self._sync_service.register_pdf_log(persona.id or 0, fechas, pdf_hash)
             self._ask_push_after_pdf()
+            self.toast.success("Exportación PDF OK")
         self._pending_solicitudes = pendientes_restantes
         self.pendientes_model.set_solicitudes(self._pending_solicitudes)
+        self._update_pending_totals()
         self._refresh_historico()
         self._refresh_saldos()
         self._update_action_state()
@@ -1072,11 +1235,7 @@ class MainWindow(QMainWindow):
 
     def _on_push_now(self) -> None:
         if not self._sync_service.is_configured():
-            QMessageBox.warning(
-                self,
-                "Sin configuración",
-                "No hay configuración de Google Sheets. Abre Opciones para configurarlo.",
-            )
+            self.toast.warning("No hay configuración de Google Sheets. Abre Opciones para configurarlo.", title="Sin configuración")
             return
         self._set_sync_in_progress(True)
         self._sync_thread = QThread()
@@ -1175,14 +1334,10 @@ class MainWindow(QMainWindow):
             f"Errores: {errors}\n"
             f"Última sincronización: {last_sync_text}"
         )
-        icon = QMessageBox.Information if errors == 0 else QMessageBox.Warning
-        details = None
         if errors > 0:
-            details = (
-                "Se detectaron discrepancias durante la sincronización.\n"
-                "Usa “Revisar discrepancias” para ver el detalle y resolverlas."
-            )
-        self._show_message_with_details(title, message, details, icon)
+            self.toast.warning(message, title=title, duration_ms=7000)
+        else:
+            self.toast.success(message, title=title)
 
     def _show_message_with_details(
         self,
@@ -1232,9 +1387,41 @@ class MainWindow(QMainWindow):
         self._sync_in_progress = in_progress
         self.sync_status_label.setVisible(in_progress)
         self.sync_progress.setVisible(in_progress)
+        self.status_sync_label.setVisible(in_progress)
+        self.status_sync_progress.setVisible(in_progress)
         if in_progress:
+            self.statusBar().showMessage("Sincronizando con Google Sheets…")
             self.sync_button.setEnabled(False)
             self.review_conflicts_button.setEnabled(False)
+        else:
+            self.statusBar().clearMessage()
+
+    def _show_critical_error(self, message: str) -> None:
+        self.toast.error(message, title="Error")
+        QMessageBox.critical(self, "Error", message)
+
+    def _show_optional_notice(self, key: str, title: str, message: str) -> None:
+        if bool(self._settings.value(key, False, type=bool)):
+            self.toast.info(message, title=title)
+            return
+        dialog = OptionalConfirmDialog(title, message, self)
+        dialog.exec()
+        if dialog.skip_next_check.isChecked():
+            self._settings.setValue(key, True)
+        self.toast.info(message, title=title)
+
+    def _update_pending_totals(self) -> None:
+        persona = self._current_persona()
+        total_min = 0
+        if persona is not None and self._pending_solicitudes:
+            try:
+                total_min = self._solicitud_use_cases.sumar_pendientes_min(persona.id or 0, self._pending_solicitudes)
+            except BusinessRuleError:
+                total_min = 0
+        formatted = self._format_minutes(total_min)
+        self.total_pendientes_label.setText(f"TOTAL PENDIENTES: {formatted}")
+        self.status_pending_label.setText(f"Pendientes calculados: {formatted}")
+        self.statusBar().showMessage(f"Pendientes calculados: {formatted}", 4000)
 
     def _service_account_email(self) -> str | None:
         config = self._sheets_service.get_config()
@@ -1252,39 +1439,36 @@ class MainWindow(QMainWindow):
             return
         filtro = self._current_periodo_filtro()
         if self.historico_model.rowCount() == 0:
-            QMessageBox.information(self, "Histórico", "No hay solicitudes para exportar.")
+            self.toast.info("No hay solicitudes para exportar.", title="Histórico")
             return
         try:
             default_name = self._solicitud_use_cases.sugerir_nombre_pdf_historico(filtro)
         except (ValidacionError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error preparando PDF histórico")
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_critical_error(str(exc))
             return
-        default_path = str(Path.home() / default_name)
-        pdf_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Guardar PDF histórico",
-            default_path,
-            "PDF (*.pdf)",
-        )
-        if not pdf_path:
-            return
+        def _generate_preview(target: Path) -> Path:
+            return self._solicitud_use_cases.exportar_historico_pdf(persona.id or 0, filtro, target)
+
         try:
-            generado = self._solicitud_use_cases.exportar_historico_pdf(
-                persona.id or 0, filtro, Path(pdf_path)
-            )
+            preview = PdfPreviewDialog(_generate_preview, default_name, self)
+            result = preview.exec()
         except (ValidacionError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             return
         except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error generando PDF histórico")
-            QMessageBox.critical(self, "Error", str(exc))
+            logger.exception("Error generando previsualización de PDF histórico")
+            self._show_critical_error(str(exc))
             return
-        if generado:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(generado)))
+        if result == QDialog.DialogCode.Accepted:
+            self._show_optional_notice(
+                "confirmaciones/export_pdf_ok",
+                "Exportación",
+                "Exportación PDF OK",
+            )
 
     def _on_eliminar(self) -> None:
         solicitud = self._selected_historico()
@@ -1293,11 +1477,11 @@ class MainWindow(QMainWindow):
         try:
             self._solicitud_use_cases.eliminar_solicitud(solicitud.id)
         except (ValidacionError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error eliminando solicitud")
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_critical_error(str(exc))
             return
         self._refresh_historico()
         self._refresh_saldos()
@@ -1312,6 +1496,7 @@ class MainWindow(QMainWindow):
             if 0 <= row < len(self._pending_solicitudes):
                 self._pending_solicitudes.pop(row)
         self.pendientes_model.set_solicitudes(self._pending_solicitudes)
+        self._update_pending_totals()
         self._refresh_saldos()
         self._update_action_state()
 
@@ -1341,7 +1526,7 @@ class MainWindow(QMainWindow):
         try:
             resumen = self._solicitud_use_cases.calcular_resumen_saldos(persona.id or 0, filtro)
         except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            self.toast.warning(str(exc), title="Validación")
             self._set_saldos_labels(None)
             return
         self._set_saldos_labels(resumen)
@@ -1439,6 +1624,7 @@ class MainWindow(QMainWindow):
     def _clear_pendientes(self) -> None:
         self._pending_solicitudes = []
         self.pendientes_model.clear()
+        self._update_pending_totals()
         self._update_action_state()
 
     def _set_saldo_line(

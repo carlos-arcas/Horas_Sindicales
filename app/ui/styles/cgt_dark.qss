@@ -24,6 +24,7 @@ QLabel[role="subtitle"] { color: #b8b8b8; font-size: 13px; }
 QLabel[role="secondary"] { color: #bcbcbc; }
 QLabel[role="sectionTitle"] { font-weight: 600; color: #ececec; }
 QLabel[role="warning"] { color: #d08c2f; font-weight: 600; }
+QLabel[role="error"] { color: #ff8e8e; font-size: 12px; font-weight: 600; padding-left: 2px; }
 
 QFrame[card="true"] {
     background-color: #1c1c1c;
@@ -154,20 +155,20 @@ QCheckBox::indicator {
     width: 16px;
     height: 16px;
     border-radius: 4px;
-    border: 1px solid #5a5a5a;
-    background-color: #1b1b1b;
+    border: 1px solid #8a8a8a;
+    background-color: #222222;
 }
 QCheckBox::indicator:unchecked:hover {
-    border: 1px solid #7a7a7a;
-    background-color: #202020;
+    border: 1px solid #b3b3b3;
+    background-color: #2a2a2a;
 }
 QCheckBox::indicator:checked {
-    border: 2px solid #ffb0b0;
-    background-color: #b00000;
+    border: 2px solid #ffd8d8;
+    background-color: #c71c1c;
 }
 QCheckBox::indicator:checked:hover {
-    border: 2px solid #ffd0d0;
-    background-color: #c21414;
+    border: 2px solid #ffe3e3;
+    background-color: #de2f2f;
 }
 QCheckBox::indicator:focus,
 QCheckBox::indicator:pressed {
@@ -177,3 +178,14 @@ QCheckBox::indicator:pressed {
 QCalendarWidget QWidget { alternate-background-color: #1f1f1f; }
 QCalendarWidget QToolButton { background-color: #2a2a2a; border-radius: 6px; padding: 4px; }
 QCalendarWidget QToolButton:hover { background-color: #343434; }
+
+QStatusBar#mainStatusBar {
+    background: #1b1b1b;
+    border-top: 1px solid #2f2f2f;
+    padding: 4px;
+}
+
+QStatusBar::item {
+    border: none;
+    margin: 0px 8px;
+}
