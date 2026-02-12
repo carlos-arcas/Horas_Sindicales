@@ -20,11 +20,19 @@ QFrame[role="header"] {
 }
 
 #headerLogo {
-    padding: 4px;
+    padding: 0;
 }
 
-QLabel[role="title"] { font-size: 20px; font-weight: 700; }
-QLabel[role="subtitle"] { color: #b8b8b8; font-size: 13px; }
+QLabel[role="title"] {
+    font-size: 18px;
+    font-weight: 700;
+    background-color: transparent;
+}
+QLabel[role="subtitle"] {
+    color: #b8b8b8;
+    font-size: 12px;
+    background-color: transparent;
+}
 QLabel[role="secondary"] { color: #bcbcbc; }
 QLabel[role="sectionTitle"] { font-weight: 600; color: #ececec; }
 QLabel[role="warning"] { color: #d08c2f; font-weight: 600; }
