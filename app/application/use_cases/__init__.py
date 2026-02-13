@@ -613,6 +613,37 @@ class SolicitudUseCases:
 
         return creadas, pendientes, errores, pdf_path
 
+    def confirmar_sin_pdf(
+        self, solicitudes: Iterable[SolicitudDTO]
+    ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]:
+        solicitudes_list = list(solicitudes)
+        creadas_confirmadas: list[SolicitudDTO] = []
+        pendientes_restantes: list[SolicitudDTO] = []
+        errores: list[str] = []
+        for solicitud in solicitudes_list:
+            try:
+                if solicitud.id is not None:
+                    existente = self._repo.get_by_id(solicitud.id)
+                    if existente is None:
+                        raise BusinessRuleError("La solicitud pendiente ya no existe.")
+                    creada = _solicitud_to_dto(existente)
+                else:
+                    creada, _ = self.agregar_solicitud(solicitud)
+
+                if creada.id is None:
+                    raise BusinessRuleError("No se pudo confirmar la solicitud sin id.")
+                self._repo.mark_generated(creada.id, True)
+                creadas_confirmadas.append(replace(creada, generated=True))
+            except (ValidacionError, BusinessRuleError) as exc:
+                errores.append(str(exc))
+                pendientes_restantes.append(solicitud)
+            except Exception as exc:  # pragma: no cover - fallback
+                logger.exception("Error confirmando solicitud sin PDF")
+                errores.append(str(exc))
+                pendientes_restantes.append(solicitud)
+
+        return creadas_confirmadas, pendientes_restantes, errores
+
     def confirmar_y_generar_pdf(
         self, solicitudes: Iterable[SolicitudDTO], destino: Path
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:

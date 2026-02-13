@@ -517,7 +517,7 @@ class MainWindow(QMainWindow):
         self.eliminar_pendiente_button.clicked.connect(self._on_remove_pendiente)
         left_actions.addWidget(self.eliminar_pendiente_button)
 
-        self.insertar_sin_pdf_button = QPushButton("Insertar sin generar PDF")
+        self.insertar_sin_pdf_button = QPushButton("Confirmar sin PDF")
         self.insertar_sin_pdf_button.setProperty("variant", "secondary")
         self.insertar_sin_pdf_button.clicked.connect(self._on_insertar_sin_pdf)
         left_actions.addWidget(self.insertar_sin_pdf_button)
@@ -1238,31 +1238,14 @@ class MainWindow(QMainWindow):
             )
             return
 
-        creadas: list[SolicitudDTO] = []
-        pendientes_restantes: list[SolicitudDTO] = []
-        errores: list[str] = []
-        for solicitud in self._pending_solicitudes:
-            try:
-                if solicitud.id is not None:
-                    creada = solicitud
-                else:
-                    creada, _ = self._solicitud_use_cases.agregar_solicitud(solicitud)
-                creadas.append(creada)
-            except (ValidacionError, BusinessRuleError) as exc:
-                if str(exc).strip().lower() == "duplicado":
-                    errores.append("Duplicado: ya existe una solicitud idéntica")
-                else:
-                    errores.append(str(exc))
-                pendientes_restantes.append(solicitud)
-            except Exception as exc:  # pragma: no cover - fallback
-                logger.exception("Error insertando solicitud sin PDF")
-                errores.append(str(exc))
-                pendientes_restantes.append(solicitud)
+        creadas, pendientes_restantes, errores = self._solicitud_use_cases.confirmar_sin_pdf(
+            self._pending_solicitudes
+        )
 
         if errores:
             self.toast.warning("\n".join(errores), title="Errores")
         if creadas:
-            self.toast.success("Solicitudes insertadas sin generar PDF")
+            self.toast.success("Solicitudes confirmadas (sin PDF)")
 
         self._pending_solicitudes = pendientes_restantes
         self._refresh_pending_ui_state()

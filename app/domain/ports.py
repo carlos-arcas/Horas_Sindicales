@@ -66,6 +66,9 @@ class SolicitudRepository(Protocol):
     def update_pdf_info(self, solicitud_id: int, pdf_path: str, pdf_hash: str | None) -> None:
         ...
 
+    def mark_generated(self, solicitud_id: int, generated: bool = True) -> None:
+        ...
+
     def delete(self, solicitud_id: int) -> None:
         ...
 

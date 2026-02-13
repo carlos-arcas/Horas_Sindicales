@@ -18,3 +18,20 @@ def test_crud_insert_update_delete_solicitud(
 
     solicitud_use_cases.eliminar_solicitud(creada.id)
     assert solicitud_repo.get_by_id(creada.id) is None
+
+
+def test_mark_generated_actualiza_estado_sin_tocar_pdf(
+    solicitud_use_cases,
+    solicitud_repo,
+    solicitud_dto,
+) -> None:
+    creada, _ = solicitud_use_cases.agregar_solicitud(solicitud_dto)
+    assert creada.id is not None
+
+    solicitud_repo.mark_generated(creada.id, True)
+
+    persistida = solicitud_repo.get_by_id(creada.id)
+    assert persistida is not None
+    assert persistida.generated is True
+    assert persistida.pdf_path is None
+    assert persistida.pdf_hash is None
