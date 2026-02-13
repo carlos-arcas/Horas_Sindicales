@@ -28,7 +28,7 @@ SHEETS_SCHEMA: dict[str, list[str]] = {
     "solicitudes": [
         "uuid",
         "delegada_uuid",
-        "Delegada",
+        "delegada_nombre",
         "fecha",
         "desde_h",
         "desde_m",
