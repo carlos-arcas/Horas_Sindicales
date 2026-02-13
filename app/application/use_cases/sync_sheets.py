@@ -24,17 +24,24 @@ from app.domain.sync_models import SyncSummary
 logger = logging.getLogger(__name__)
 
 
-SOLICITUDES_PUSH_HEADERS = [
+HEADER_CANONICO_SOLICITUDES = [
     "uuid",
-    "delegado_nombre",
-    "delegado_uuid",
+    "delegada_uuid",
+    "delegada_nombre",
     "fecha",
-    "desde",
-    "hasta",
+    "desde_h",
+    "desde_m",
+    "hasta_h",
+    "hasta_m",
     "completo",
-    "horas",
+    "minutos_total",
     "notas",
+    "estado",
+    "created_at",
     "updated_at",
+    "source_device",
+    "deleted",
+    "pdf_id",
 ]
 
 
@@ -401,7 +408,7 @@ class SheetsSyncService:
         return {
             "uuid": ["id", "solicitud_uuid"],
             "delegada_uuid": ["delegado_uuid", "persona_uuid"],
-            "delegada_nombre": ["delegado_nombre", "delegada", "delegado", "persona_nombre", "nombre"],
+            "delegada_nombre": ["Delegada", "delegado_nombre", "delegada", "delegado", "persona_nombre", "nombre"],
             "fecha": ["fecha_pedida", "dia", "fecha solicitud"],
             "desde": ["desde_hora", "hora_desde"],
             "hasta": ["hasta_hora", "hora_hasta"],
@@ -754,7 +761,7 @@ class SheetsSyncService:
         uploaded = 0
         conflicts = 0
         omitted_duplicates = 0
-        values: list[list[Any]] = [SOLICITUDES_PUSH_HEADERS]
+        values: list[list[Any]] = [HEADER_CANONICO_SOLICITUDES]
         local_uuids: set[str] = set()
         for row in cursor.fetchall():
             if last_sync_at and not self._is_after_last_sync(row["updated_at"], last_sync_at):
@@ -770,15 +777,22 @@ class SheetsSyncService:
             values.append(
                 [
                     uuid_value,
-                    row["delegada_nombre"] or "",
                     row["delegada_uuid"] or "",
+                    row["delegada_nombre"] or "",
                     self._to_iso_date(row["fecha_pedida"]),
-                    self._minutes_to_hhmm(row["desde_min"]),
-                    self._minutes_to_hhmm(row["hasta_min"]),
+                    self._hour_component(row["desde_min"]),
+                    self._minute_component(row["desde_min"]),
+                    self._hour_component(row["hasta_min"]),
+                    self._minute_component(row["hasta_min"]),
                     1 if row["completo"] else 0,
                     self._int_or_zero(row["horas_solicitadas_min"]),
                     row["notas"] or "",
+                    "",
+                    self._to_iso_date(row["created_at"]),
                     self._to_iso_date(row["updated_at"]),
+                    row["source_device"] or self._device_id(),
+                    self._int_or_zero(row["deleted"]),
+                    row["pdf_hash"] or "",
                 ]
             )
             uploaded += 1
@@ -787,28 +801,41 @@ class SheetsSyncService:
             remote_uuid = str(remote_row.get("uuid", "")).strip()
             if not remote_uuid or remote_uuid in local_uuids:
                 continue
+            desde_hhmm = remote_row.get("desde") or self._remote_hhmm(
+                remote_row.get("desde_h"), remote_row.get("desde_m"), None
+            )
+            hasta_hhmm = remote_row.get("hasta") or self._remote_hhmm(
+                remote_row.get("hasta_h"), remote_row.get("hasta_m"), None
+            )
             values.append(
                 [
                     remote_uuid,
-                    remote_row.get("delegado_nombre") or remote_row.get("Delegada") or "",
-                    remote_row.get("delegado_uuid") or remote_row.get("delegada_uuid") or "",
+                    remote_row.get("delegada_uuid") or remote_row.get("delegado_uuid") or "",
+                    remote_row.get("delegada_nombre")
+                    or remote_row.get("Delegada")
+                    or remote_row.get("delegado_nombre")
+                    or "",
                     self._to_iso_date(remote_row.get("fecha") or remote_row.get("fecha_pedida")),
-                    remote_row.get("desde")
-                    or self._remote_hhmm(remote_row.get("desde_h"), remote_row.get("desde_m"), None)
-                    or "",
-                    remote_row.get("hasta")
-                    or self._remote_hhmm(remote_row.get("hasta_h"), remote_row.get("hasta_m"), None)
-                    or "",
+                    self._hour_component_from_hhmm(desde_hhmm),
+                    self._minute_component_from_hhmm(desde_hhmm),
+                    self._hour_component_from_hhmm(hasta_hhmm),
+                    self._minute_component_from_hhmm(hasta_hhmm),
                     self._int_or_zero(remote_row.get("completo")),
                     self._int_or_zero(remote_row.get("horas") or remote_row.get("minutos_total")),
                     remote_row.get("notas") or "",
+                    remote_row.get("estado") or "",
+                    self._to_iso_date(remote_row.get("created_at") or remote_row.get("fecha")),
                     self._to_iso_date(remote_row.get("updated_at")),
+                    remote_row.get("source_device") or "",
+                    self._int_or_zero(remote_row.get("deleted")),
+                    remote_row.get("pdf_id") or "",
                 ]
             )
             omitted_duplicates += 1
 
-        if not headers or headers != SOLICITUDES_PUSH_HEADERS or "delegado_nombre" not in headers:
-            logger.info("Recreando encabezado de 'solicitudes' para incluir formato estándar de push.")
+        if headers != HEADER_CANONICO_SOLICITUDES:
+            logger.info("Reescribiendo encabezado canónico de 'solicitudes' (sin columnas extras o vacías).")
+            self._normalize_solicitudes_header(worksheet)
 
         worksheet.update("A1", values)
         logger.info("PUSH Sheets: %s filas enviadas", max(len(values) - 1, 0))
@@ -1224,6 +1251,33 @@ class SheetsSyncService:
     def _minutes_to_hhmm(self, value: Any) -> str:
         hours, minutes = self._split_minutes(value)
         return f"{hours:02d}:{minutes:02d}"
+
+    def _hour_component(self, value: Any) -> int:
+        hours, _ = self._split_minutes(value)
+        return hours
+
+    def _minute_component(self, value: Any) -> int:
+        _, minutes = self._split_minutes(value)
+        return minutes
+
+    def _hour_component_from_hhmm(self, value: Any) -> int | str:
+        normalized = normalize_hhmm(str(value).strip()) if value not in (None, "") else None
+        if not normalized:
+            return ""
+        return int(normalized.split(":")[0])
+
+    def _minute_component_from_hhmm(self, value: Any) -> int | str:
+        normalized = normalize_hhmm(str(value).strip()) if value not in (None, "") else None
+        if not normalized:
+            return ""
+        return int(normalized.split(":")[1])
+
+    def _normalize_solicitudes_header(self, worksheet: gspread.Worksheet) -> None:
+        worksheet.update("A1", [HEADER_CANONICO_SOLICITUDES])
+        try:
+            worksheet.resize(cols=len(HEADER_CANONICO_SOLICITUDES))
+        except Exception:
+            logger.debug("No se pudo ajustar columnas de la worksheet 'solicitudes'.", exc_info=True)
 
     def _insert_cuadrante_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:
         cursor = self._connection.cursor()
