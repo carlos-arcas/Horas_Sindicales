@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
+import logging
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QPropertyAnimation, Qt, QTimer
-from PySide6.QtGui import QColor
+from PySide6.QtCore import QEvent, QObject, QPoint, QPropertyAnimation, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QMouseEvent
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QGraphicsOpacityEffect,
     QHBoxLayout,
@@ -14,20 +17,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+logger = logging.getLogger(__name__)
 
-@dataclass(frozen=True)
-class ToastPalette:
-    bg: str
-    border: str
-    text: str
-
-
-TOAST_STYLES: dict[str, ToastPalette] = {
-    "success": ToastPalette("#6FCF97", "#2F8F55", "#000000"),
-    "info": ToastPalette("#5BA6F6", "#1D5FA8", "#000000"),
-    "warning": ToastPalette("#F2B441", "#A06912", "#000000"),
-    "error": ToastPalette("#EB6B6B", "#A32D2D", "#000000"),
-}
+LEVELS = {"info", "success", "warning", "error"}
+POSITIONS = {"top-right", "top-left", "bottom-right", "bottom-left"}
 
 TOAST_ICONS = {
     "success": "✓",
@@ -43,23 +36,43 @@ DEFAULT_DURATIONS_MS = {
     "error": 8000,
 }
 
+TOAST_LEVEL_ACCENTS = {
+    "success": "#3FAF6A",
+    "info": "#4C93F0",
+    "warning": "#D09A34",
+    "error": "#D35E5E",
+}
+
+
+@dataclass(slots=True)
+class ToastRequest:
+    message: str
+    level: str = "info"
+    title: str | None = None
+    duration_ms: int = 3000
+    close_on_click: bool = True
+
 
 class ToastWidget(QFrame):
+    closed = Signal(object)
+
     def __init__(
         self,
         message: str,
         level: str = "info",
         title: str | None = None,
         duration_ms: int | None = None,
+        close_on_click: bool = True,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self.level = level if level in TOAST_STYLES else "info"
+        self.level = level if level in LEVELS else "info"
         self._duration_ms = (
             DEFAULT_DURATIONS_MS[self.level] if duration_ms is None else max(0, int(duration_ms))
         )
         self._remaining_ms = self._duration_ms
-        self._started_at_ms = 0
+        self._is_closing = False
+        self._close_on_click = close_on_click
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setObjectName("toastWidget")
@@ -67,7 +80,7 @@ class ToastWidget(QFrame):
 
         self._opacity = QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(self._opacity)
-        self._opacity.setOpacity(1.0)
+        self._opacity.setOpacity(0.0)
 
         self._build_ui(message, title)
         self._apply_style()
@@ -76,9 +89,14 @@ class ToastWidget(QFrame):
         self._auto_hide_timer.setSingleShot(True)
         self._auto_hide_timer.timeout.connect(self.close_animated)
 
-        self._fade = QPropertyAnimation(self._opacity, b"opacity", self)
-        self._fade.setDuration(220)
-        self._fade.finished.connect(self.deleteLater)
+        self._fade_in = QPropertyAnimation(self._opacity, b"opacity", self)
+        self._fade_in.setDuration(180)
+        self._fade_in.setStartValue(0.0)
+        self._fade_in.setEndValue(1.0)
+
+        self._fade_out = QPropertyAnimation(self._opacity, b"opacity", self)
+        self._fade_out.setDuration(220)
+        self._fade_out.finished.connect(self._finalize_close)
 
         if self._duration_ms > 0:
             self._start_timer(self._duration_ms)
@@ -114,54 +132,68 @@ class ToastWidget(QFrame):
         self.setMaximumWidth(420)
 
     def _apply_style(self) -> None:
-        palette = TOAST_STYLES[self.level]
+        palette = QApplication.palette()
+        base = palette.window().color().name()
+        text = palette.windowText().color().name()
+        accent = TOAST_LEVEL_ACCENTS.get(self.level, TOAST_LEVEL_ACCENTS["info"])
+        hover = QColor(text).lighter(130).name()
         self.setStyleSheet(
             f"""
             QWidget#toastWidget {{
-                background-color: {palette.bg};
-                border: 1px solid {palette.border};
+                background-color: {base};
+                border: 1px solid {accent};
+                border-left: 4px solid {accent};
                 border-radius: 10px;
             }}
             QLabel[role="toastIcon"] {{
                 font-size: 16px;
                 font-weight: 700;
-                color: #000;
+                color: {accent};
                 min-width: 16px;
             }}
             QLabel[role="toastTitle"] {{
                 font-weight: 700;
-                color: #000;
+                color: {text};
             }}
             QLabel[role="toastMessage"] {{
-                color: #000;
+                color: {text};
             }}
             QPushButton#toastCloseButton {{
                 border: none;
                 background: transparent;
-                color: #000;
+                color: {text};
                 font-size: 16px;
                 font-weight: 700;
                 padding: 0px 4px;
             }}
             QPushButton#toastCloseButton:hover {{
-                color: {QColor("#000000").lighter(140).name()};
+                color: {hover};
             }}
             """
         )
 
     def _start_timer(self, timeout_ms: int) -> None:
         self._remaining_ms = max(0, timeout_ms)
-        self._started_at_ms = 0
         self._auto_hide_timer.start(self._remaining_ms)
 
+    def play_show_animation(self) -> None:
+        self._fade_in.stop()
+        self._fade_in.start()
+
     def close_animated(self) -> None:
-        if self._fade.state() == QPropertyAnimation.Running:
+        if self._is_closing:
             return
+        self._is_closing = True
         self._auto_hide_timer.stop()
-        self._fade.stop()
-        self._fade.setStartValue(self._opacity.opacity())
-        self._fade.setEndValue(0.0)
-        self._fade.start()
+        self._fade_out.stop()
+        self._fade_out.setStartValue(self._opacity.opacity())
+        self._fade_out.setEndValue(0.0)
+        self._fade_out.start()
+
+    def _finalize_close(self) -> None:
+        self.closed.emit(self)
+        self.hide()
+        self.deleteLater()
 
     def enterEvent(self, event) -> None:  # type: ignore[override]
         super().enterEvent(event)
@@ -172,23 +204,45 @@ class ToastWidget(QFrame):
 
     def leaveEvent(self, event) -> None:  # type: ignore[override]
         super().leaveEvent(event)
-        if self._duration_ms <= 0 or self._remaining_ms <= 0:
+        if self._duration_ms <= 0 or self._remaining_ms <= 0 or self._is_closing:
             return
         self._auto_hide_timer.start(self._remaining_ms)
 
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if self._close_on_click and event.button() == Qt.MouseButton.LeftButton:
+            self.close_animated()
+        super().mousePressEvent(event)
+
     def force_dispose(self) -> None:
         self._auto_hide_timer.stop()
-        self._fade.stop()
+        self._fade_in.stop()
+        self._fade_out.stop()
+        self._is_closing = True
         self.hide()
         self.deleteLater()
 
 
+Toast = ToastWidget
+
+
 class ToastManager(QWidget):
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        max_on_screen: int = 3,
+        position: str = "top-right",
+        spacing: int = 10,
+    ) -> None:
         super().__init__(parent)
         self._host: QWidget | None = None
-        self._toasts: list[ToastWidget] = []
+        self._active_toasts: list[ToastWidget] = []
+        self._queue: deque[ToastRequest] = deque()
+        self._max_on_screen = max(1, int(max_on_screen))
+        self._position = position if position in POSITIONS else "top-right"
+        self._spacing = max(0, int(spacing))
         self._is_active = False
+        self._margin = 12
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.hide()
 
@@ -202,6 +256,49 @@ class ToastManager(QWidget):
         main_window.installEventFilter(self)
         main_window.destroyed.connect(self._on_host_destroyed, Qt.ConnectionType.QueuedConnection)
 
+    def show(
+        self,
+        message: str | None = None,
+        level: str = "info",
+        title: str | None = None,
+        duration_ms: int | None = 3000,
+        **opts: object,
+    ) -> None:
+        if message is None:
+            super().show()
+            return
+        normalized_level = level if level in LEVELS else "info"
+        duration_value = DEFAULT_DURATIONS_MS[normalized_level] if duration_ms is None else int(duration_ms)
+        req = ToastRequest(
+            message=message,
+            level=normalized_level,
+            title=title,
+            duration_ms=duration_value,
+            close_on_click=bool(opts.get("close_on_click", True)),
+        )
+        self._enqueue_or_spawn(req)
+
+    def show_info(
+        self, message: str, title: str | None = None, duration_ms: int | None = 3000, **opts: object
+    ) -> None:
+        self.show(message=message, level="info", title=title, duration_ms=duration_ms, **opts)
+
+    def show_success(
+        self, message: str, title: str | None = None, duration_ms: int | None = 3000, **opts: object
+    ) -> None:
+        self.show(message=message, level="success", title=title, duration_ms=duration_ms, **opts)
+
+    def show_warning(
+        self, message: str, title: str | None = None, duration_ms: int | None = 3000, **opts: object
+    ) -> None:
+        self.show(message=message, level="warning", title=title, duration_ms=duration_ms, **opts)
+
+    def show_error(
+        self, message: str, title: str | None = None, duration_ms: int | None = 3000, **opts: object
+    ) -> None:
+        self.show(message=message, level="error", title=title, duration_ms=duration_ms, **opts)
+
+    # Compat API
     def show_toast(
         self,
         message: str,
@@ -209,28 +306,63 @@ class ToastManager(QWidget):
         title: str | None = None,
         duration_ms: int | None = None,
     ) -> None:
-        if not self._is_active:
-            return
-        if not self._get_host():
-            return
-        toast = ToastWidget(message=message, level=level, title=title, duration_ms=duration_ms, parent=self)
-        toast.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
-        toast.destroyed.connect(self._on_toast_destroyed)
-        self._toasts.append(toast)
-        toast.show()
-        self._reposition()
+        self.show(message=message, level=level, title=title, duration_ms=duration_ms)
+
+    def add_toast(
+        self,
+        message: str,
+        level: str = "info",
+        title: str | None = None,
+        duration_ms: int | None = None,
+    ) -> None:
+        self.show_toast(message=message, level=level, title=title, duration_ms=duration_ms)
 
     def success(self, message: str, title: str | None = None, duration_ms: int | None = None) -> None:
-        self.show_toast(message, level="success", title=title, duration_ms=duration_ms)
+        self.show_success(message=message, title=title, duration_ms=3000 if duration_ms is None else duration_ms)
 
     def info(self, message: str, title: str | None = None, duration_ms: int | None = None) -> None:
-        self.show_toast(message, level="info", title=title, duration_ms=duration_ms)
+        self.show_info(message=message, title=title, duration_ms=3000 if duration_ms is None else duration_ms)
 
     def warning(self, message: str, title: str | None = None, duration_ms: int | None = None) -> None:
-        self.show_toast(message, level="warning", title=title, duration_ms=duration_ms)
+        self.show_warning(message=message, title=title, duration_ms=3000 if duration_ms is None else duration_ms)
 
     def error(self, message: str, title: str | None = None, duration_ms: int | None = None) -> None:
-        self.show_toast(message, level="error", title=title, duration_ms=duration_ms)
+        self.show_error(message=message, title=title, duration_ms=3000 if duration_ms is None else duration_ms)
+
+    def _enqueue_or_spawn(self, request: ToastRequest) -> None:
+        if not self._is_active:
+            logger.warning("ToastManager no activo. Toast descartado: %s", request.message)
+            return
+        if self._get_host() is None:
+            logger.warning("ToastManager sin host válido. Toast descartado: %s", request.message)
+            return
+        if len(self._active_toasts) < self._max_on_screen:
+            self._spawn_toast(request)
+            return
+        self._queue.append(request)
+
+    def _spawn_toast(self, request: ToastRequest) -> None:
+        toast = ToastWidget(
+            message=request.message,
+            level=request.level,
+            title=request.title,
+            duration_ms=request.duration_ms,
+            close_on_click=request.close_on_click,
+            parent=self,
+        )
+        toast.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        toast.closed.connect(self._on_toast_finished)
+        self._active_toasts.append(toast)
+        toast.show()
+        toast.play_show_animation()
+        self._reposition()
+
+    def _on_toast_finished(self, toast: object) -> None:
+        if isinstance(toast, ToastWidget):
+            self._active_toasts = [item for item in self._active_toasts if item is not toast]
+        if self._queue and self._get_host() is not None and self._is_active:
+            self._spawn_toast(self._queue.popleft())
+        self._reposition()
 
     def _get_host(self) -> QWidget | None:
         if not self._is_active or self._host is None:
@@ -249,54 +381,55 @@ class ToastManager(QWidget):
                 host.destroyed.disconnect(self._on_host_destroyed)
             except (RuntimeError, TypeError):
                 pass
-        self._clear_toasts()
-        self._host = None
-        self._is_active = False
+        self._deactivate_manager()
 
-    def _on_host_destroyed(self, *_args: object) -> None:
+    def _deactivate_manager(self) -> None:
         self._clear_toasts()
+        self._queue.clear()
         self._host = None
         self._is_active = False
         self.hide()
 
+    def _on_host_destroyed(self, *_args: object) -> None:
+        self._deactivate_manager()
+
     def _clear_toasts(self) -> None:
-        for toast in self._toasts:
+        for toast in self._active_toasts:
             try:
-                toast.destroyed.disconnect(self._on_toast_destroyed)
+                toast.closed.disconnect(self._on_toast_finished)
             except (RuntimeError, TypeError):
                 pass
             try:
                 toast.force_dispose()
             except RuntimeError:
                 pass
-        self._toasts = []
-
-    def _on_toast_destroyed(self, *_args: object) -> None:
-        sender = self.sender()
-        if isinstance(sender, ToastWidget):
-            self._remove_toast(sender)
-
-    def _remove_toast(self, toast: ToastWidget) -> None:
-        self._toasts = [item for item in self._toasts if item is not toast and item.isVisible()]
-        if self._get_host() is None:
-            return
-        self._reposition()
+        self._active_toasts = []
 
     def _reposition(self) -> None:
         host = self._get_host()
         if host is None:
             return
         self.setGeometry(host.rect())
-        margin = 12
-        spacing = 10
-        y = margin
-        for toast in self._toasts:
-            if not toast.isVisible():
-                continue
+
+        valid_toasts = [toast for toast in self._active_toasts if toast.isVisible()]
+        self._active_toasts = valid_toasts
+
+        is_top = self._position.startswith("top")
+        is_right = self._position.endswith("right")
+
+        current_y = self._margin if is_top else self.height() - self._margin
+        toasts = valid_toasts if is_top else list(reversed(valid_toasts))
+
+        for toast in toasts:
             hint = toast.sizeHint()
-            x = max(margin, (self.width() - hint.width()) // 2)
-            toast.move(QPoint(x, y))
-            y += hint.height() + spacing
+            x = self.width() - hint.width() - self._margin if is_right else self._margin
+            y = current_y if is_top else current_y - hint.height()
+            toast.move(QPoint(max(self._margin, x), max(self._margin, y)))
+            current_y = (
+                current_y + hint.height() + self._spacing
+                if is_top
+                else current_y - hint.height() - self._spacing
+            )
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
         host = self._get_host()
