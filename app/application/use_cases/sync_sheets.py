@@ -1136,8 +1136,8 @@ class SheetsSyncService:
             INSERT INTO solicitudes (
                 uuid, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
                 horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash,
-                created_at, updated_at, source_device, deleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                generated, created_at, updated_at, source_device, deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 uuid_value,
@@ -1152,6 +1152,7 @@ class SheetsSyncService:
                 row.get("notas") or "",
                 None,
                 row.get("pdf_id"),
+                1,
                 created_normalizada,
                 row.get("updated_at") or self._now_iso(),
                 row.get("source_device"),
@@ -1195,7 +1196,7 @@ class SheetsSyncService:
             UPDATE solicitudes
             SET persona_id = ?, fecha_pedida = ?, desde_min = ?, hasta_min = ?, completo = ?,
                 horas_solicitadas_min = ?, notas = ?, pdf_hash = ?, created_at = ?, updated_at = ?,
-                source_device = ?, deleted = ?
+                source_device = ?, deleted = ?, generated = 1
             WHERE id = ?
             """,
             (

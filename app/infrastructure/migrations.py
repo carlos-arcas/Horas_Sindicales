@@ -177,6 +177,17 @@ def run_data_fixups(connection: sqlite3.Connection) -> None:
     cursor = connection.cursor()
     cursor.execute(
         """
+        UPDATE solicitudes
+        SET generated = 1
+        WHERE uuid IS NOT NULL
+          AND source_device IS NOT NULL
+          AND (generated = 0 OR generated IS NULL)
+          AND (deleted = 0 OR deleted IS NULL)
+        """
+    )
+
+    cursor.execute(
+        """
         SELECT id, fecha_pedida, fecha_solicitud
         FROM solicitudes
         WHERE (fecha_pedida LIKE '%/%' OR fecha_solicitud LIKE '%/%')
@@ -194,6 +205,7 @@ def run_data_fixups(connection: sqlite3.Connection) -> None:
         updates.append((fecha_pedida_iso, fecha_solicitud_iso, row["id"]))
 
     if not updates:
+        connection.commit()
         return
 
     cursor.executemany(

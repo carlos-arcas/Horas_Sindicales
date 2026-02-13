@@ -252,7 +252,7 @@ def test_sync_pull_reutiliza_persona_existente_y_no_rompe_unique_nombre(connecti
     total = cursor.fetchone()["total"]
     assert total == 1
 
-def test_pull_solicitudes_resuelve_delegada_por_nombre(connection, persona_repo, persona_id) -> None:
+def test_pull_solicitudes_resuelve_delegada_por_nombre(connection, persona_repo, solicitud_repo, persona_id) -> None:
     persona_uuid = persona_repo.get_or_create_uuid(persona_id)
     cursor = connection.cursor()
     cursor.execute("SELECT nombre FROM personas WHERE id = ?", (persona_id,))
@@ -289,10 +289,88 @@ def test_pull_solicitudes_resuelve_delegada_por_nombre(connection, persona_repo,
 
     assert summary.inserted_local == 1
     assert summary.omitted_by_delegada == 0
-    cursor.execute("SELECT s.uuid, p.uuid AS delegada_uuid FROM solicitudes s JOIN personas p ON p.id = s.persona_id WHERE s.uuid = ?", ("sol-1",))
+    cursor.execute(
+        "SELECT s.uuid, p.uuid AS delegada_uuid, s.generated FROM solicitudes s JOIN personas p ON p.id = s.persona_id WHERE s.uuid = ?",
+        ("sol-1",),
+    )
     inserted = cursor.fetchone()
     assert inserted["delegada_uuid"] == persona_uuid
+    assert inserted["generated"] == 1
 
+    historico = list(solicitud_repo.list_by_persona_and_period(persona_id, 2025, 1))
+    assert len(historico) == 1
+    assert historico[0].notas == "importada"
+
+
+
+
+def test_pull_solicitudes_update_remota_marca_generated_en_historico(connection, persona_repo, solicitud_repo, persona_id) -> None:
+    persona_uuid = persona_repo.get_or_create_uuid(persona_id)
+    cursor = connection.cursor()
+    cursor.execute(
+        """
+        INSERT INTO solicitudes (
+            uuid, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+            horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated, created_at, updated_at, source_device, deleted
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "sol-upd-1",
+            persona_id,
+            "2025-01-10",
+            "2025-01-10",
+            540,
+            600,
+            0,
+            60,
+            None,
+            "pendiente-local",
+            None,
+            None,
+            0,
+            "2025-01-10",
+            "2025-01-10T09:00:00Z",
+            None,
+            0,
+        ),
+    )
+    connection.commit()
+
+    solicitudes_sheet = [
+        ["uuid", "delegada_uuid", "delegada_nombre", "fecha", "desde", "hasta", "completo", "horas", "notas", "updated_at", "source_device", "deleted"],
+        ["sol-upd-1", persona_uuid, "", "2025-01-10", "09:00", "11:00", "0", "120", "hist-remoto", "2025-01-20T10:00:00Z", "device-remoto", "0"],
+    ]
+
+    spreadsheet = _FakeSpreadsheet(
+        {
+            "delegadas": _empty_sheet(["uuid", "updated_at"]),
+            "solicitudes": _FakeWorksheet(solicitudes_sheet),
+            "cuadrantes": _empty_sheet(["uuid", "updated_at"]),
+            "pdf_log": _empty_sheet(["pdf_id", "updated_at"]),
+            "config": _empty_sheet(["key", "updated_at"]),
+        }
+    )
+    service = SheetsSyncService(
+        connection=connection,
+        config_store=_FakeConfigStore(
+            SheetsConfig(
+                spreadsheet_id="sheet-id",
+                credentials_path="/tmp/fake_credentials.json",
+                device_id="device-local",
+            )
+        ),
+        client=_FakeClient(spreadsheet),
+        repository=_FakeRepository(),
+    )
+
+    summary = service.pull()
+
+    assert summary.inserted_local == 1
+    cursor.execute("SELECT generated FROM solicitudes WHERE uuid = ?", ("sol-upd-1",))
+    assert cursor.fetchone()["generated"] == 1
+    historico = list(solicitud_repo.list_by_persona_and_period(persona_id, 2025, 1))
+    assert len(historico) == 1
+    assert historico[0].notas == "hist-remoto"
 
 def test_pull_solicitudes_omite_huerfanas_sin_uuid_ni_nombre(connection) -> None:
     solicitudes_sheet = [
