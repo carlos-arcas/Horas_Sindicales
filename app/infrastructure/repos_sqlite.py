@@ -753,6 +753,21 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         )
         self._connection.commit()
 
+    def mark_generated(self, solicitud_id: int, generated: bool = True) -> None:
+        cursor = self._connection.cursor()
+        updated_at = _now_iso()
+        _execute_with_validation(
+            cursor,
+            """
+            UPDATE solicitudes
+            SET generated = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (int(generated), updated_at, solicitud_id),
+            "solicitudes.mark_generated",
+        )
+        self._connection.commit()
+
 
 class GrupoConfigRepositorySQLite(GrupoConfigRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
