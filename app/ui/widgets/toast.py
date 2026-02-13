@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QPointer, QPropertyAnimation, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, QPoint, QPropertyAnimation, Qt, QTimer
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFrame,
@@ -79,7 +78,7 @@ class ToastWidget(QFrame):
 
         self._fade = QPropertyAnimation(self._opacity, b"opacity", self)
         self._fade.setDuration(220)
-        self._fade.finished.connect(self.close)
+        self._fade.finished.connect(self.deleteLater)
 
         if self._duration_ms > 0:
             self._start_timer(self._duration_ms)
@@ -177,11 +176,17 @@ class ToastWidget(QFrame):
             return
         self._auto_hide_timer.start(self._remaining_ms)
 
+    def force_dispose(self) -> None:
+        self._auto_hide_timer.stop()
+        self._fade.stop()
+        self.hide()
+        self.deleteLater()
+
 
 class ToastManager(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._host: QPointer[QWidget] | None = None
+        self._host: QWidget | None = None
         self._toasts: list[ToastWidget] = []
         self._is_active = False
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
@@ -190,12 +195,12 @@ class ToastManager(QWidget):
     def attach_to(self, main_window: QWidget) -> None:
         self._detach_host()
         self.setParent(main_window)
-        self._host = QPointer(main_window)
+        self._host = main_window
         self._is_active = True
         self.setGeometry(main_window.rect())
         self.show()
         main_window.installEventFilter(self)
-        main_window.destroyed.connect(self._on_host_destroyed)
+        main_window.destroyed.connect(self._on_host_destroyed, Qt.ConnectionType.QueuedConnection)
 
     def show_toast(
         self,
@@ -228,9 +233,13 @@ class ToastManager(QWidget):
         self.show_toast(message, level="error", title=title, duration_ms=duration_ms)
 
     def _get_host(self) -> QWidget | None:
-        if not self._is_active or self._host is None or self._host.isNull():
+        if not self._is_active or self._host is None:
             return None
-        return cast(QWidget, self._host)
+        try:
+            _ = self._host.objectName()
+        except RuntimeError:
+            return None
+        return self._host
 
     def _detach_host(self) -> None:
         host = self._get_host()
@@ -240,21 +249,27 @@ class ToastManager(QWidget):
                 host.destroyed.disconnect(self._on_host_destroyed)
             except (RuntimeError, TypeError):
                 pass
+        self._clear_toasts()
         self._host = None
         self._is_active = False
 
     def _on_host_destroyed(self, *_args: object) -> None:
-        self._is_active = False
+        self._clear_toasts()
         self._host = None
+        self._is_active = False
+        self.hide()
+
+    def _clear_toasts(self) -> None:
         for toast in self._toasts:
             try:
                 toast.destroyed.disconnect(self._on_toast_destroyed)
             except (RuntimeError, TypeError):
                 pass
-            toast.hide()
-            toast.deleteLater()
-        self._toasts.clear()
-        self.hide()
+            try:
+                toast.force_dispose()
+            except RuntimeError:
+                pass
+        self._toasts = []
 
     def _on_toast_destroyed(self, *_args: object) -> None:
         sender = self.sender()
