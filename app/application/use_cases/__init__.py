@@ -258,7 +258,8 @@ class PersonaUseCases:
     def editar_persona(self, dto: PersonaDTO) -> PersonaDTO:
         if dto.id is None:
             raise BusinessRuleError("La persona debe tener id para editar.")
-        logger.info("Editando persona %s", dto.id)
+        uuid_antes = self._repo.get_or_create_uuid(dto.id)
+        logger.info("Editando persona id=%s uuid_antes=%s", dto.id, uuid_antes)
         dto_normalizado = _normalizar_cuadrante_persona(dto)
         if not dto_normalizado.trabaja_finde:
             actual = self._repo.get_by_id(dto_normalizado.id)
@@ -274,6 +275,10 @@ class PersonaUseCases:
         persona = _dto_to_persona(dto_normalizado)
         validar_persona(persona)
         actualizada = self._repo.update(persona)
+        uuid_despues = self._repo.get_or_create_uuid(dto.id)
+        logger.info("Edición persona id=%s uuid_despues=%s", dto.id, uuid_despues)
+        if uuid_antes and uuid_despues and uuid_antes != uuid_despues:
+            raise BusinessRuleError("El UUID de delegada no puede cambiar al editar.")
         return _persona_to_dto(actualizada)
 
     def desactivar_persona(self, persona_id: int) -> PersonaDTO:
@@ -320,6 +325,15 @@ class SolicitudUseCases:
         """Lista todas las solicitudes de una persona sin filtrar por periodo."""
         return [_solicitud_to_dto(s) for s in self._repo.list_by_persona(persona_id)]
 
+    def listar_pendientes_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
+        return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_by_persona(persona_id)]
+
+    def listar_pendientes_all(self) -> Iterable[SolicitudDTO]:
+        return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_all()]
+
+    def listar_pendientes_huerfanas(self) -> Iterable[SolicitudDTO]:
+        return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_huerfanas()]
+
     def crear(self, dto: SolicitudDTO) -> SolicitudDTO:
         solicitud, _ = self.agregar_solicitud(dto)
         return solicitud
@@ -338,6 +352,8 @@ class SolicitudUseCases:
             dto.desde,
             dto.hasta,
         )
+        if dto.persona_id <= 0:
+            raise BusinessRuleError("Selecciona una delegada válida antes de guardar la solicitud.")
         persona = self._persona_repo.get_by_id(dto.persona_id)
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
