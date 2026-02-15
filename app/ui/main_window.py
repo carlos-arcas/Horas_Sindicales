@@ -250,12 +250,15 @@ class MainWindow(QMainWindow):
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
         self._pending_conflict_rows: set[int] = set()
+        self._pending_view_all = False
+        self._orphan_pendientes: list[SolicitudDTO] = []
         self._sync_in_progress = False
         self.toast = ToastManager()
         self.setWindowTitle("Horas Sindicales")
         self._build_ui()
         self.toast.attach_to(self)
         self._load_personas()
+        self._reload_pending_views()
         self._refresh_last_sync_label()
         self._update_sync_button_state()
 
@@ -490,6 +493,16 @@ class MainWindow(QMainWindow):
 
         pendientes_card, pendientes_layout = self._create_card("Pendientes de confirmar")
         self._pendientes_group = pendientes_card
+        pending_tools = QHBoxLayout()
+        pending_tools.setSpacing(8)
+        self.ver_todas_pendientes_button = QPushButton("Ver todas")
+        self.ver_todas_pendientes_button.setProperty("variant", "secondary")
+        self.ver_todas_pendientes_button.setCheckable(True)
+        self.ver_todas_pendientes_button.toggled.connect(self._on_toggle_ver_todas_pendientes)
+        pending_tools.addWidget(self.ver_todas_pendientes_button)
+        pending_tools.addStretch(1)
+        pendientes_layout.addLayout(pending_tools)
+
         self.pendientes_table = QTableView()
         self.pendientes_model = SolicitudesTableModel([])
         self.pendientes_table.setModel(self.pendientes_model)
@@ -498,9 +511,26 @@ class MainWindow(QMainWindow):
         self.pendientes_table.setShowGrid(False)
         self.pendientes_table.setAlternatingRowColors(True)
         self.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.pendientes_table.setMinimumHeight(240)
+        self.pendientes_table.setMinimumHeight(220)
         self._configure_solicitudes_table(self.pendientes_table)
         pendientes_layout.addWidget(self.pendientes_table, 1)
+
+        self.huerfanas_label = QLabel("Reparar · Pendientes huérfanas")
+        self.huerfanas_label.setProperty("role", "sectionTitle")
+        self.huerfanas_label.setVisible(False)
+        pendientes_layout.addWidget(self.huerfanas_label)
+
+        self.huerfanas_table = QTableView()
+        self.huerfanas_model = SolicitudesTableModel([])
+        self.huerfanas_table.setModel(self.huerfanas_model)
+        self.huerfanas_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.huerfanas_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.huerfanas_table.setShowGrid(False)
+        self.huerfanas_table.setAlternatingRowColors(True)
+        self.huerfanas_table.setMinimumHeight(120)
+        self._configure_solicitudes_table(self.huerfanas_table)
+        self.huerfanas_table.setVisible(False)
+        pendientes_layout.addWidget(self.huerfanas_table)
 
         footer_separator = QFrame()
         footer_separator.setProperty("role", "subtleSeparator")
@@ -516,6 +546,12 @@ class MainWindow(QMainWindow):
         self.eliminar_pendiente_button.setProperty("variant", "danger")
         self.eliminar_pendiente_button.clicked.connect(self._on_remove_pendiente)
         left_actions.addWidget(self.eliminar_pendiente_button)
+
+        self.eliminar_huerfana_button = QPushButton("Eliminar huérfana")
+        self.eliminar_huerfana_button.setProperty("variant", "danger")
+        self.eliminar_huerfana_button.clicked.connect(self._on_remove_huerfana)
+        self.eliminar_huerfana_button.setVisible(False)
+        left_actions.addWidget(self.eliminar_huerfana_button)
 
         self.insertar_sin_pdf_button = QPushButton("Confirmar sin PDF")
         self.insertar_sin_pdf_button.setProperty("variant", "secondary")
@@ -803,7 +839,9 @@ class MainWindow(QMainWindow):
         return None
 
     def _on_persona_changed(self) -> None:
-        self._clear_pendientes()
+        self.pendientes_table.clearSelection()
+        self.huerfanas_table.clearSelection()
+        self._reload_pending_views()
         self._update_action_state()
         self._refresh_historico()
         self._refresh_saldos()
@@ -1002,7 +1040,7 @@ class MainWindow(QMainWindow):
         form_valid, _ = self._validate_solicitud_form()
         self.agregar_button.setEnabled(persona_selected and form_valid)
         has_pending = bool(self._pending_solicitudes)
-        can_confirm = has_pending and not self._pending_conflict_rows
+        can_confirm = has_pending and not self._pending_conflict_rows and not self._pending_view_all
         self.insertar_sin_pdf_button.setEnabled(persona_selected and can_confirm)
         self.confirmar_button.setEnabled(persona_selected and can_confirm)
         self.edit_persona_button.setEnabled(persona_selected)
@@ -1010,7 +1048,7 @@ class MainWindow(QMainWindow):
         self.edit_grupo_button.setEnabled(True)
         self.editar_pdf_button.setEnabled(True)
         self.eliminar_button.setEnabled(persona_selected and self._selected_historico() is not None)
-        self.eliminar_pendiente_button.setEnabled(persona_selected and bool(self._pending_solicitudes))
+        self.eliminar_pendiente_button.setEnabled(bool(self._pending_solicitudes))
         self.generar_pdf_button.setEnabled(
             persona_selected and self.historico_model.rowCount() > 0
         )
@@ -1151,9 +1189,8 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            creada, _ = self._solicitud_use_cases.agregar_solicitud(solicitud)
-            self._pending_solicitudes.append(creada)
-            self._refresh_pending_ui_state()
+            self._solicitud_use_cases.agregar_solicitud(solicitud)
+            self._reload_pending_views()
         except (ValidacionError, BusinessRuleError) as exc:
             self.toast.warning(str(exc), title="Validación")
             return
@@ -1247,8 +1284,8 @@ class MainWindow(QMainWindow):
         if creadas:
             self.toast.success("Solicitudes confirmadas (sin PDF)")
 
-        self._pending_solicitudes = pendientes_restantes
-        self._refresh_pending_ui_state()
+        _ = pendientes_restantes
+        self._reload_pending_views()
         self._refresh_historico()
         self._refresh_saldos()
         self._notify_historico_filter_if_hidden(creadas)
@@ -1301,8 +1338,8 @@ class MainWindow(QMainWindow):
             self._sync_service.register_pdf_log(persona.id or 0, fechas, pdf_hash)
             self._ask_push_after_pdf()
             self.toast.success("Exportación PDF OK")
-        self._pending_solicitudes = pendientes_restantes
-        self._refresh_pending_ui_state()
+        _ = pendientes_restantes
+        self._reload_pending_views()
         self._refresh_historico()
         self._refresh_saldos()
         self._notify_historico_filter_if_hidden(creadas)
@@ -1610,10 +1647,15 @@ class MainWindow(QMainWindow):
         if not selection:
             return
         rows = sorted((index.row() for index in selection), reverse=True)
+        ids_to_delete: list[int] = []
         for row in rows:
             if 0 <= row < len(self._pending_solicitudes):
-                self._pending_solicitudes.pop(row)
-        self._refresh_pending_ui_state()
+                solicitud = self._pending_solicitudes[row]
+                if solicitud.id is not None:
+                    ids_to_delete.append(solicitud.id)
+        for solicitud_id in ids_to_delete:
+            self._solicitud_use_cases.eliminar_solicitud(solicitud_id)
+        self._reload_pending_views()
         self._refresh_saldos()
 
     def _refresh_historico(self) -> None:
@@ -1739,10 +1781,56 @@ class MainWindow(QMainWindow):
 
     def _clear_pendientes(self) -> None:
         self._pending_solicitudes = []
+        self._orphan_pendientes = []
         self.pendientes_model.clear()
+        self.huerfanas_model.clear()
         self._pending_conflict_rows = set()
         self._update_pending_totals()
         self._update_action_state()
+
+    def _on_toggle_ver_todas_pendientes(self, checked: bool) -> None:
+        self._pending_view_all = checked
+        self.ver_todas_pendientes_button.setText("Ver solo delegada" if checked else "Ver todas")
+        self._reload_pending_views()
+
+    def _reload_pending_views(self) -> None:
+        persona = self._current_persona()
+        if self._pending_view_all:
+            self._pending_solicitudes = list(self._solicitud_use_cases.listar_pendientes_all())
+        elif persona is None:
+            self._pending_solicitudes = []
+        else:
+            self._pending_solicitudes = list(self._solicitud_use_cases.listar_pendientes_por_persona(persona.id or 0))
+
+        self._orphan_pendientes = list(self._solicitud_use_cases.listar_pendientes_huerfanas())
+        self.huerfanas_model.set_solicitudes(self._orphan_pendientes)
+        has_orphans = bool(self._orphan_pendientes)
+        self.huerfanas_label.setVisible(has_orphans)
+        self.huerfanas_table.setVisible(has_orphans)
+        self.eliminar_huerfana_button.setVisible(has_orphans)
+
+        if persona is not None:
+            logger.info(
+                "Cambio delegada id=%s pendientes_delegada=%s pendientes_totales=%s",
+                persona.id,
+                len(list(self._solicitud_use_cases.listar_pendientes_por_persona(persona.id or 0))),
+                len(list(self._solicitud_use_cases.listar_pendientes_all())),
+            )
+
+        self._refresh_pending_ui_state()
+
+    def _on_remove_huerfana(self) -> None:
+        selection = self.huerfanas_table.selectionModel().selectedRows()
+        if not selection:
+            return
+        row = selection[0].row()
+        if row < 0 or row >= len(self._orphan_pendientes):
+            return
+        solicitud = self._orphan_pendientes[row]
+        if solicitud.id is None:
+            return
+        self._solicitud_use_cases.eliminar_solicitud(solicitud.id)
+        self._reload_pending_views()
 
     def _set_saldo_line(
         self,

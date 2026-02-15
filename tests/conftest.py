@@ -11,7 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.application.dto import SolicitudDTO
-from app.application.use_cases import SolicitudUseCases
+from app.application.use_cases import PersonaUseCases, SolicitudUseCases
 from app.domain.models import Persona
 from app.infrastructure.migrations import run_migrations
 from app.infrastructure.repos_sqlite import PersonaRepositorySQLite, SolicitudRepositorySQLite
@@ -42,6 +42,13 @@ def solicitud_use_cases(
     persona_repo: PersonaRepositorySQLite,
 ) -> SolicitudUseCases:
     return SolicitudUseCases(solicitud_repo, persona_repo)
+
+
+
+
+@pytest.fixture
+def persona_use_cases(persona_repo: PersonaRepositorySQLite) -> PersonaUseCases:
+    return PersonaUseCases(persona_repo)
 
 
 @pytest.fixture

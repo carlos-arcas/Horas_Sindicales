@@ -39,6 +39,8 @@ def validar_persona(persona: Persona) -> None:
 
 
 def validar_solicitud(solicitud: Solicitud) -> None:
+    if solicitud.persona_id <= 0:
+        raise ValidacionError("La solicitud debe tener delegada válida.")
     if solicitud.horas_solicitadas_min <= 0:
         raise ValidacionError("Las horas deben ser mayores a cero.")
     if not solicitud.fecha_solicitud or not solicitud.fecha_pedida:

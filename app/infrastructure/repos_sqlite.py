@@ -412,6 +412,24 @@ class SolicitudRepositorySQLite(SolicitudRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
 
+    @staticmethod
+    def _row_to_solicitud(row: sqlite3.Row) -> Solicitud:
+        return Solicitud(
+            id=row["id"],
+            persona_id=_int_or_zero(row["persona_id"]),
+            fecha_solicitud=row["fecha_solicitud"],
+            fecha_pedida=row["fecha_pedida"],
+            desde_min=row["desde_min"],
+            hasta_min=row["hasta_min"],
+            completo=bool(row["completo"]),
+            horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
+            observaciones=row["observaciones"],
+            notas=row["notas"],
+            pdf_path=row["pdf_path"],
+            pdf_hash=row["pdf_hash"],
+            generated=bool(row["generated"]),
+        )
+
     def list_by_persona(self, persona_id: int) -> Iterable[Solicitud]:
         cursor = self._connection.cursor()
         cursor.execute(
@@ -426,25 +444,68 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             """,
             (persona_id,),
         )
-        rows = cursor.fetchall()
-        return [
-            Solicitud(
-                id=row["id"],
-                persona_id=row["persona_id"],
-                fecha_solicitud=row["fecha_solicitud"],
-                fecha_pedida=row["fecha_pedida"],
-                desde_min=row["desde_min"],
-                hasta_min=row["hasta_min"],
-                completo=bool(row["completo"]),
-                horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
-                observaciones=row["observaciones"],
-                notas=row["notas"],
-                pdf_path=row["pdf_path"],
-                pdf_hash=row["pdf_hash"],
-                generated=bool(row["generated"]),
-            )
-            for row in rows
-        ]
+        return [self._row_to_solicitud(row) for row in cursor.fetchall()]
+
+    def list_pendientes_by_persona(self, persona_id: int) -> Iterable[Solicitud]:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
+            FROM solicitudes
+            WHERE persona_id = ?
+              AND generated = 0
+              AND (deleted = 0 OR deleted IS NULL)
+            ORDER BY fecha_pedida DESC, id DESC
+            """,
+            (persona_id,),
+        )
+        return [self._row_to_solicitud(row) for row in cursor.fetchall()]
+
+    def list_pendientes_all(self) -> Iterable[Solicitud]:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
+            FROM solicitudes
+            WHERE generated = 0
+              AND (deleted = 0 OR deleted IS NULL)
+            ORDER BY fecha_pedida DESC, id DESC
+            """
+        )
+        return [self._row_to_solicitud(row) for row in cursor.fetchall()]
+
+    def list_pendientes_huerfanas(self) -> Iterable[Solicitud]:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT s.id,
+                   COALESCE(s.persona_id, 0) AS persona_id,
+                   s.fecha_solicitud,
+                   s.fecha_pedida,
+                   s.desde_min,
+                   s.hasta_min,
+                   s.completo,
+                   s.horas_solicitadas_min,
+                   s.observaciones,
+                   s.notas,
+                   s.pdf_path,
+                   s.pdf_hash,
+                   s.generated
+            FROM solicitudes s
+            LEFT JOIN personas p ON p.id = s.persona_id
+            WHERE s.generated = 0
+              AND (s.deleted = 0 OR s.deleted IS NULL)
+              AND (
+                  s.persona_id IS NULL
+                  OR COALESCE(TRIM(CAST(s.persona_id AS TEXT)), '') = ''
+                  OR p.id IS NULL
+              )
+            ORDER BY s.fecha_pedida DESC, s.id DESC
+            """
+        )
+        return [self._row_to_solicitud(row) for row in cursor.fetchall()]
 
     def list_by_persona_and_period(
         self, persona_id: int, year: int, month: int | None = None
@@ -479,25 +540,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 """,
                 (persona_id, f"{year:04d}", f"{month:02d}"),
             )
-        rows = cursor.fetchall()
-        return [
-            Solicitud(
-                id=row["id"],
-                persona_id=row["persona_id"],
-                fecha_solicitud=row["fecha_solicitud"],
-                fecha_pedida=row["fecha_pedida"],
-                desde_min=row["desde_min"],
-                hasta_min=row["hasta_min"],
-                completo=bool(row["completo"]),
-                horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
-                observaciones=row["observaciones"],
-                notas=row["notas"],
-                pdf_path=row["pdf_path"],
-                pdf_hash=row["pdf_hash"],
-                generated=bool(row["generated"]),
-            )
-            for row in rows
-        ]
+        return [self._row_to_solicitud(row) for row in cursor.fetchall()]
 
     def list_by_persona_and_fecha(
         self, persona_id: int, fecha_pedida: str
@@ -516,25 +559,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             """,
             (persona_id, fecha_pedida),
         )
-        rows = cursor.fetchall()
-        return [
-            Solicitud(
-                id=row["id"],
-                persona_id=row["persona_id"],
-                fecha_solicitud=row["fecha_solicitud"],
-                fecha_pedida=row["fecha_pedida"],
-                desde_min=row["desde_min"],
-                hasta_min=row["hasta_min"],
-                completo=bool(row["completo"]),
-                horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
-                observaciones=row["observaciones"],
-                notas=row["notas"],
-                pdf_path=row["pdf_path"],
-                pdf_hash=row["pdf_hash"],
-                generated=bool(row["generated"]),
-            )
-            for row in rows
-        ]
+        return [self._row_to_solicitud(row) for row in cursor.fetchall()]
 
     def get_by_id(self, solicitud_id: int) -> Solicitud | None:
         cursor = self._connection.cursor()
@@ -550,21 +575,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         row = cursor.fetchone()
         if not row:
             return None
-        return Solicitud(
-            id=row["id"],
-            persona_id=row["persona_id"],
-            fecha_solicitud=row["fecha_solicitud"],
-            fecha_pedida=row["fecha_pedida"],
-            desde_min=row["desde_min"],
-            hasta_min=row["hasta_min"],
-            completo=bool(row["completo"]),
-            horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
-            observaciones=row["observaciones"],
-            notas=row["notas"],
-            pdf_path=row["pdf_path"],
-            pdf_hash=row["pdf_hash"],
-            generated=bool(row["generated"]),
-        )
+        return self._row_to_solicitud(row)
 
     def get_by_uuid(self, solicitud_uuid: str) -> Solicitud | None:
         cursor = self._connection.cursor()
@@ -580,12 +591,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         row = cursor.fetchone()
         if not row:
             return None
-        return Solicitud(
-            id=row["id"], persona_id=row["persona_id"], fecha_solicitud=row["fecha_solicitud"], fecha_pedida=row["fecha_pedida"],
-            desde_min=row["desde_min"], hasta_min=row["hasta_min"], completo=bool(row["completo"]),
-            horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]), observaciones=row["observaciones"],
-            notas=row["notas"], pdf_path=row["pdf_path"], pdf_hash=row["pdf_hash"], generated=bool(row["generated"]),
-        )
+        return self._row_to_solicitud(row)
 
     def get_by_unique_key(
         self,
@@ -611,12 +617,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         row = cursor.fetchone()
         if not row:
             return None
-        return Solicitud(
-            id=row["id"], persona_id=row["persona_id"], fecha_solicitud=row["fecha_solicitud"], fecha_pedida=row["fecha_pedida"],
-            desde_min=row["desde_min"], hasta_min=row["hasta_min"], completo=bool(row["completo"]),
-            horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]), observaciones=row["observaciones"],
-            notas=row["notas"], pdf_path=row["pdf_path"], pdf_hash=row["pdf_hash"], generated=bool(row["generated"]),
-        )
+        return self._row_to_solicitud(row)
 
     def exists_duplicate(
         self,
@@ -628,32 +629,45 @@ class SolicitudRepositorySQLite(SolicitudRepository):
     ) -> bool:
         cursor = self._connection.cursor()
         clauses = [
-            "persona_id = ?",
-            "fecha_pedida = ?",
-            "completo = ?",
-            "(deleted = 0 OR deleted IS NULL)",
+            "s.persona_id = ?",
+            "s.fecha_pedida = ?",
+            "s.completo = ?",
+            "(s.deleted = 0 OR s.deleted IS NULL)",
         ]
         params: list[object] = [persona_id, fecha_pedida, int(completo)]
         if desde_min is None:
-            clauses.append("desde_min IS NULL")
+            clauses.append("s.desde_min IS NULL")
         else:
-            clauses.append("desde_min = ?")
+            clauses.append("s.desde_min = ?")
             params.append(desde_min)
         if hasta_min is None:
-            clauses.append("hasta_min IS NULL")
+            clauses.append("s.hasta_min IS NULL")
         else:
-            clauses.append("hasta_min = ?")
+            clauses.append("s.hasta_min = ?")
             params.append(hasta_min)
         cursor.execute(
             f"""
-            SELECT 1
-            FROM solicitudes
+            SELECT s.id, s.uuid, p.uuid AS delegada_uuid
+            FROM solicitudes s
+            LEFT JOIN personas p ON p.id = s.persona_id
             WHERE {' AND '.join(clauses)}
             LIMIT 1
             """,
             params,
         )
-        return cursor.fetchone() is not None
+        duplicate = cursor.fetchone()
+        if duplicate:
+            logger.info(
+                "Duplicado detectado id=%s solicitud_uuid=%s delegada_uuid=%s persona_id=%s fecha=%s completo=%s",
+                duplicate["id"],
+                duplicate["uuid"],
+                duplicate["delegada_uuid"],
+                persona_id,
+                fecha_pedida,
+                completo,
+            )
+            return True
+        return False
 
     def create(self, solicitud: Solicitud) -> Solicitud:
         logger.info(
