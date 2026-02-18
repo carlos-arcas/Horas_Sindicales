@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import gspread
 import pytest
 
-from app.domain.sheets_errors import SheetsRateLimitError
+from app.domain.sheets_errors import SheetsPermissionError, SheetsRateLimitError
 from app.infrastructure.sheets_client import SheetsClient
 from app.infrastructure.sheets_errors import map_gspread_exception
 
@@ -16,10 +16,21 @@ class _Resp:
     text = "RESOURCE_EXHAUSTED: Quota exceeded for read requests"
 
 
+class _ForbiddenResp:
+    status_code = 403
+    text = '{"error": {"code": 403, "message": "The caller does not have permission", "status": "PERMISSION_DENIED"}}'
+
+
 def test_map_gspread_exception_429_to_rate_limit() -> None:
     error = gspread.exceptions.APIError(_Resp())
     mapped = map_gspread_exception(error)
     assert isinstance(mapped, SheetsRateLimitError)
+
+
+def test_map_gspread_exception_403_to_permission_error() -> None:
+    error = gspread.exceptions.APIError(_ForbiddenResp())
+    mapped = map_gspread_exception(error)
+    assert isinstance(mapped, SheetsPermissionError)
 
 
 def test_open_spreadsheet_retries_rate_limit(monkeypatch) -> None:
