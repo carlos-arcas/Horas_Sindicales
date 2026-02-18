@@ -64,6 +64,8 @@ def map_gspread_exception(ex: Exception) -> Exception:
     if isinstance(ex, gspread.exceptions.APIError):
         text = _extract_api_error_text(ex)
         text_lower = text.lower()
+        response = getattr(ex, "response", None)
+        status_code = getattr(response, "status_code", None)
         if _is_rate_limited_api_error(ex, text_lower):
             return SheetsRateLimitError(
                 "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta."
@@ -74,7 +76,7 @@ def map_gspread_exception(ex: Exception) -> Exception:
             )
         if "[404]" in text_lower or "requested entity was not found" in text_lower:
             return SheetsNotFoundError("El Spreadsheet ID/URL no es válido o la hoja no existe.")
-        if "[403]" in text_lower:
+        if status_code == 403 or "[403]" in text_lower or "permission_denied" in text_lower:
             return SheetsPermissionError("La hoja no está compartida con la cuenta de servicio.")
         return SheetsConfigError(text)
     if isinstance(ex, FileNotFoundError):
