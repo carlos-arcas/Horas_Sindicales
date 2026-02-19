@@ -131,6 +131,9 @@ Este proyecto bloquea merges si:
 - Cobertura mínima no se alcanza
 - Lint detecta errores
 
+El umbral actual de cobertura en CI es **61%**, con una rampa progresiva hasta **80%**.
+Consulta la política en `docs/coverage_policy.md`.
+
 Comando local recomendado:
 make lint
 make coverage
