@@ -4,7 +4,7 @@ import json
 import logging
 import sqlite3
 import uuid
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +14,7 @@ from app.application.sheets_service import SHEETS_SCHEMA
 from app.core.errors import InfraError
 from app.application.delegada_resolution import get_or_resolve_delegada_uuid
 from app.application.sync_normalization import normalize_hhmm, solicitud_unique_key
+from app.application.use_cases import sync_sheets_core
 from app.domain.ports import (
     SheetsClientPort,
     SheetsConfigStorePort,
@@ -437,68 +438,11 @@ class SheetsSyncService:
 
 
     def _normalize_remote_solicitud_row(self, row: dict[str, Any], worksheet_name: str) -> dict[str, Any]:
-        payload: dict[str, Any] = {
-            "uuid": row.get("uuid") or "",
-            "delegada_uuid": row.get("delegada_uuid") or "",
-            "delegada_nombre": row.get("delegada_nombre") or row.get("Delegada") or "",
-            "fecha": row.get("fecha") or row.get("fecha_pedida") or "",
-            "desde": row.get("desde") or row.get("hora_desde") or "",
-            "hasta": row.get("hasta") or row.get("hora_hasta") or "",
-            "desde_h": row.get("desde_h") or "",
-            "desde_m": row.get("desde_m") or "",
-            "hasta_h": row.get("hasta_h") or "",
-            "hasta_m": row.get("hasta_m") or "",
-            "completo": row.get("completo") or "",
-            "minutos_total": row.get("minutos_total") or "",
-            "horas": row.get("horas") or "",
-            "notas": row.get("notas") or "",
-            "estado": row.get("estado") or "",
-            "created_at": row.get("created_at") or "",
-            "updated_at": row.get("updated_at") or "",
-            "source_device": row.get("source_device") or "",
-            "deleted": row.get("deleted") or "",
-            "pdf_id": row.get("pdf_id") or "",
-        }
-        payload["fecha"] = self._normalize_date(row.get("fecha") or row.get("fecha_pedida")) or ""
-        payload["created_at"] = self._normalize_date(row.get("created_at")) or payload["fecha"] or ""
-        if row.get("minutos_total") in (None, "") and row.get("horas") not in (None, ""):
-            payload["minutos_total"] = self._int_or_zero(row.get("horas"))
-
-        if row.get("delegada_uuid") in (None, "") and row.get("delegado_uuid") not in (None, ""):
-            payload["delegada_uuid"] = row.get("delegado_uuid")
-        if row.get("delegada_nombre") in (None, ""):
-            payload["delegada_nombre"] = row.get("Delegada") or row.get("delegado_nombre") or row.get("delegada") or row.get("delegado") or ""
-
-        desde_hhmm = self._remote_hhmm(
-            row.get("desde_h"),
-            row.get("desde_m"),
-            row.get("desde") or row.get("hora_desde"),
-        )
-        hasta_hhmm = self._remote_hhmm(
-            row.get("hasta_h"),
-            row.get("hasta_m"),
-            row.get("hasta") or row.get("hora_hasta"),
-        )
-        payload["desde_h"] = int(desde_hhmm.split(":")[0]) if desde_hhmm else ""
-        payload["desde_m"] = int(desde_hhmm.split(":")[1]) if desde_hhmm else ""
-        payload["hasta_h"] = int(hasta_hhmm.split(":")[0]) if hasta_hhmm else ""
-        payload["hasta_m"] = int(hasta_hhmm.split(":")[1]) if hasta_hhmm else ""
-
-        estado = str(row.get("estado", "")).strip().lower()
-        payload["estado"] = estado
-        if not estado and worksheet_name.strip().lower() in {"histórico", "historico"}:
-            payload["estado"] = "historico"
-        return payload
+        return sync_sheets_core.normalize_remote_solicitud_row(row, worksheet_name)
 
     @staticmethod
     def _remote_hhmm(hours: Any, minutes: Any, full_value: Any) -> str | None:
-        full_text = normalize_hhmm(str(full_value).strip()) if full_value not in (None, "") else None
-        if full_text:
-            return full_text
-        if hours in (None, "") and minutes in (None, ""):
-            return None
-        normalized = normalize_hhmm(f"{hours}:{minutes}")
-        return normalized
+        return sync_sheets_core.remote_hhmm(hours, minutes, full_value)
 
     def _pull_cuadrantes(
         self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
@@ -1222,33 +1166,11 @@ class SheetsSyncService:
 
     @staticmethod
     def _normalize_date(value: str | None) -> str | None:
-        if value is None:
-            return None
-        raw = str(value).strip()
-        if not raw:
-            return None
-        for fmt in ("%Y-%m-%d", "%d/%m/%y", "%d/%m/%Y"):
-            try:
-                return datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
-            except ValueError:
-                continue
-        return None
+        return sync_sheets_core.normalize_date(value)
 
     @staticmethod
     def _to_iso_date(value: Any) -> str:
-        if not value:
-            return ""
-        if isinstance(value, datetime):
-            return value.strftime("%Y-%m-%d")
-        if isinstance(value, date):
-            return value.strftime("%Y-%m-%d")
-        text = str(value).strip()
-        normalized = SheetsSyncService._normalize_date(text)
-        if normalized:
-            return normalized
-        if "-" in text:
-            return text
-        return text
+        return sync_sheets_core.to_iso_date(value)
 
     def _minutes_to_hhmm(self, value: Any) -> str:
         hours, minutes = self._split_minutes(value)
@@ -1567,36 +1489,15 @@ class SheetsSyncService:
         )
 
     def _is_after_last_sync(self, updated_at: str | None, last_sync_at: str | None) -> bool:
-        if not updated_at:
-            return False
-        if not last_sync_at:
-            return True
-        parsed_updated = self._parse_iso(updated_at)
-        parsed_last = self._parse_iso(last_sync_at)
-        if not parsed_updated or not parsed_last:
-            return False
-        return parsed_updated > parsed_last
+        return sync_sheets_core.is_after_last_sync(updated_at, last_sync_at)
 
     def _is_conflict(
         self, local_updated_at: str | None, remote_updated_at: datetime | None, last_sync_at: str | None
     ) -> bool:
-        if not local_updated_at or not remote_updated_at or not last_sync_at:
-            return False
-        parsed_local = self._parse_iso(local_updated_at)
-        parsed_last = self._parse_iso(last_sync_at)
-        if not parsed_local or not parsed_last:
-            return False
-        return parsed_local > parsed_last and remote_updated_at > parsed_last
+        return sync_sheets_core.is_conflict(local_updated_at, remote_updated_at, last_sync_at)
 
     def _is_remote_newer(self, local_updated_at: str | None, remote_updated_at: datetime | None) -> bool:
-        if not remote_updated_at:
-            return False
-        if not local_updated_at:
-            return True
-        parsed_local = self._parse_iso(local_updated_at)
-        if not parsed_local:
-            return True
-        return remote_updated_at > parsed_local
+        return sync_sheets_core.is_remote_newer(local_updated_at, remote_updated_at)
 
     @staticmethod
     def _normalize_dia(dia: str) -> str | None:
@@ -1620,57 +1521,26 @@ class SheetsSyncService:
 
     @staticmethod
     def _int_or_zero(value: Any) -> int:
-        try:
-            if value is None or value == "":
-                return 0
-            return int(float(value))
-        except (TypeError, ValueError):
-            return 0
+        return sync_sheets_core.int_or_zero(value)
 
     def _split_minutes(self, value: Any) -> tuple[int, int]:
-        minutes = self._int_or_zero(value)
-        return minutes // 60, minutes % 60
+        return sync_sheets_core.split_minutes(value)
 
     def _join_minutes(self, hours: Any, minutes: Any) -> int | None:
-        if hours is None and minutes is None:
-            return None
-        return self._int_or_zero(hours) * 60 + self._int_or_zero(minutes)
+        return sync_sheets_core.join_minutes(hours, minutes)
 
     def _normalize_total_minutes(self, value: Any) -> int | None:
-        if value is None or value == "":
-            return None
-        return self._int_or_zero(value)
+        return sync_sheets_core.normalize_total_minutes(value)
 
     def _normalize_hm_to_minutes(self, hours: Any, minutes: Any) -> int | None:
-        if hours is None and minutes is None:
-            return None
-        parsed = self._parse_hhmm_to_minutes(hours)
-        if parsed is not None:
-            return parsed
-        return self._int_or_zero(hours) * 60 + self._int_or_zero(minutes)
+        return sync_sheets_core.normalize_hm_to_minutes(hours, minutes)
 
     @staticmethod
     def _parse_hhmm_to_minutes(value: Any) -> int | None:
-        if value is None:
-            return None
-        if isinstance(value, str) and ":" in value:
-            parts = value.strip().split(":")
-            if len(parts) >= 2:
-                try:
-                    hours = int(parts[0])
-                    minutes = int(parts[1])
-                except ValueError:
-                    return None
-                return hours * 60 + minutes
-        return None
+        return sync_sheets_core.parse_hhmm_to_minutes(value)
 
     def _build_delegada_key(self, delegada_uuid: str | None, delegada_id: int | None) -> str | None:
-        uuid_value = (delegada_uuid or "").strip()
-        if uuid_value:
-            return f"uuid:{uuid_value}"
-        if delegada_id is None:
-            return None
-        return f"id:{delegada_id}"
+        return sync_sheets_core.build_delegada_key(delegada_uuid, delegada_id)
 
     def _solicitud_dedupe_key(
         self,
@@ -1688,35 +1558,7 @@ class SheetsSyncService:
         coexistir registros creados en dispositivos distintos para el mismo hecho
         de negocio. Se compara identidad funcional: delegada, fecha y tramo.
         """
-        delegada_key = self._build_delegada_key(delegada_uuid, delegada_id)
-        if not delegada_key or not fecha_pedida:
-            return None
-        minutos_total = self._int_or_zero(horas_min)
-        if completo:
-            return (delegada_key, str(fecha_pedida), True, minutos_total, None, None)
-        desde_value = self._normalize_total_minutes(desde_min)
-        hasta_value = self._normalize_total_minutes(hasta_min)
-        return (
-            delegada_key,
-            str(fecha_pedida),
-            False,
-            minutos_total,
-            desde_value,
-            hasta_value,
-        )
-
-    def _solicitud_dedupe_key_from_remote_row(self, row: dict[str, Any]) -> tuple[object, ...] | None:
-        """Normaliza filas remotas heterogéneas al formato de deduplicación local."""
-        delegada_uuid = str(row.get("delegada_uuid", "")).strip() or None
-        delegada_id = None
-        if row.get("delegada_id") not in (None, ""):
-            delegada_id = self._int_or_zero(row.get("delegada_id"))
-        fecha_pedida = row.get("fecha") or row.get("fecha_pedida")
-        completo = bool(self._int_or_zero(row.get("completo")))
-        horas_min = row.get("minutos_total") or row.get("horas_solicitadas_min")
-        desde_min = self._normalize_hm_to_minutes(row.get("desde_h"), row.get("desde_m"))
-        hasta_min = self._normalize_hm_to_minutes(row.get("hasta_h"), row.get("hasta_m"))
-        return self._solicitud_dedupe_key(
+        return sync_sheets_core.solicitud_dedupe_key(
             delegada_uuid,
             delegada_id,
             fecha_pedida,
@@ -1726,22 +1568,13 @@ class SheetsSyncService:
             hasta_min,
         )
 
+    def _solicitud_dedupe_key_from_remote_row(self, row: dict[str, Any]) -> tuple[object, ...] | None:
+        """Normaliza filas remotas heterogéneas al formato de deduplicación local."""
+        return sync_sheets_core.solicitud_dedupe_key_from_remote_row(row)
+
     def _solicitud_dedupe_key_from_local_row(self, row: dict[str, Any]) -> tuple[object, ...] | None:
         """Deriva la misma clave de deduplicación desde el esquema SQLite local."""
-        delegada_uuid = row.get("delegada_uuid")
-        delegada_id = row.get("persona_id")
-        fecha_pedida = row.get("fecha_pedida")
-        completo = bool(row.get("completo"))
-        horas_min = row.get("horas_solicitadas_min")
-        return self._solicitud_dedupe_key(
-            delegada_uuid,
-            delegada_id,
-            fecha_pedida,
-            completo,
-            horas_min,
-            row.get("desde_min"),
-            row.get("hasta_min"),
-        )
+        return sync_sheets_core.solicitud_dedupe_key_from_local_row(row)
 
     def _is_duplicate_local_solicitud(self, key: tuple[object, ...], exclude_uuid: str | None = None) -> bool:
         """Verifica si ya existe una solicitud equivalente activa en local.
