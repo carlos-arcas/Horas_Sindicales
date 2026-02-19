@@ -1,4 +1,4 @@
-.PHONY: lint coverage test
+.PHONY: lint coverage test arch
 
 lint:
 	ruff check .
@@ -8,3 +8,6 @@ test:
 
 coverage:
 	PYTHONPATH=. pytest --cov=app --cov-report=term --cov-fail-under=80
+
+arch:
+	PYTHONPATH=. pytest -q tests/test_architecture_imports.py

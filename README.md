@@ -154,6 +154,22 @@ El proyecto sigue una separación por capas con responsabilidades claras:
 
 Esta organización facilita evolución, testeo y reemplazo de integraciones externas con impacto mínimo en el núcleo funcional.
 
+## Reglas de arquitectura (imports)
+
+Existe un test de arquitectura (`tests/test_architecture_imports.py`) que valida dependencias entre capas y falla si hay imports prohibidos.
+
+Reglas mínimas aplicadas:
+- `app/domain` no puede importar `app/application`, `app/infrastructure` ni `app/ui`.
+- `app/application` no puede importar `app/ui`, `app/infrastructure` ni librerías técnicas concretas (`sqlite3`, `gspread`, `googleapiclient`).
+- `app/ui` no puede importar `app/infrastructure` directamente.
+- `app/infrastructure` puede depender de `domain` y `application`, pero no de `ui`.
+
+Ejecución local:
+
+```bash
+make arch
+```
+
 ## Licencia
 
 Pendiente de definir. Se recomienda añadir un archivo `LICENSE` (por ejemplo, MIT, Apache-2.0 o licencia interna corporativa).
