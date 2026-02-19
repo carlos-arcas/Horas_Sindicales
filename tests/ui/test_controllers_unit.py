@@ -1,4 +1,7 @@
 from types import SimpleNamespace
+
+import logging
+import uuid
 from unittest.mock import Mock
 
 from app.application.dto import SolicitudDTO
@@ -80,3 +83,48 @@ def test_pdf_controller_delegates_name_generation() -> None:
 
     assert controller.sugerir_nombre_historico(SimpleNamespace()) == "hist.pdf"
     use_cases.sugerir_nombre_pdf_historico.assert_called_once()
+
+
+def test_solicitudes_controller_logs_correlation_id(caplog) -> None:
+    solicitud = SolicitudDTO(
+        id=None,
+        persona_id=1,
+        fecha_solicitud="2024-01-01",
+        fecha_pedida="2024-01-01",
+        desde="10:00",
+        hasta="11:00",
+        completo=False,
+        horas=0,
+        observaciones=None,
+        pdf_path=None,
+        pdf_hash=None,
+        notas=None,
+    )
+    use_cases = Mock()
+    use_cases.calcular_minutos_solicitud.return_value = 60
+    use_cases.minutes_to_hours_float.return_value = 1.0
+    window = SimpleNamespace(
+        _build_preview_solicitud=Mock(return_value=solicitud),
+        _solicitud_use_cases=use_cases,
+        _resolve_backend_conflict=Mock(return_value=True),
+        _reload_pending_views=Mock(),
+        _refresh_historico=Mock(),
+        _refresh_saldos=Mock(),
+        _update_action_state=Mock(),
+        notas_input=SimpleNamespace(toPlainText=Mock(return_value=""), setPlainText=Mock()),
+        toast=Mock(),
+        _show_critical_error=Mock(),
+    )
+
+    controller = SolicitudesController(window)
+    with caplog.at_level(logging.INFO):
+        controller.on_add_pendiente()
+
+    assert use_cases.agregar_solicitud.called
+    kwargs = use_cases.agregar_solicitud.call_args.kwargs
+    correlation_id = kwargs["correlation_id"]
+    uuid.UUID(correlation_id)
+
+    events = [record.msg for record in caplog.records if isinstance(record.msg, dict)]
+    correlation_ids = {event.get("correlation_id") for event in events}
+    assert correlation_id in correlation_ids

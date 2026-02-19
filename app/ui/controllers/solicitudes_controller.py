@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 import logging
 
+from app.core.observability import OperationContext, log_event
 from app.domain.services import BusinessRuleError, ValidacionError
 
 logger = logging.getLogger(__name__)
@@ -41,12 +42,21 @@ class SolicitudesController:
             return
 
         try:
-            w._solicitud_use_cases.agregar_solicitud(solicitud)
+            with OperationContext("agregar_pendiente") as operation:
+                log_event(
+                    logger,
+                    "agregar_pendiente_started",
+                    {"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
+                    operation.correlation_id,
+                )
+                w._solicitud_use_cases.agregar_solicitud(solicitud, correlation_id=operation.correlation_id)
+                log_event(logger, "agregar_pendiente_succeeded", {}, operation.correlation_id)
             w._reload_pending_views()
         except (ValidacionError, BusinessRuleError) as exc:
             w.toast.warning(str(exc), title="Validación")
             return
         except Exception as exc:  # pragma: no cover - fallback
+            log_event(logger, "agregar_pendiente_failed", {"error": str(exc)}, operation.correlation_id)
             logger.error("Error insertando petición en base de datos", exc_info=True)
             w._show_critical_error(exc)
             return
