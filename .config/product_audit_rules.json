@@ -1,0 +1,69 @@
+{
+  "weights": {
+    "Arquitectura estructural": 20,
+    "Testing & cobertura": 20,
+    "Complejidad accidental": 15,
+    "DevEx / CI / Governance": 15,
+    "Observabilidad y resiliencia": 10,
+    "Configuración & seguridad": 10,
+    "Documentación & gobernanza": 10
+  },
+  "caps": {
+    "Arquitectura estructural": 100,
+    "Testing & cobertura": 100,
+    "Complejidad accidental": 100,
+    "DevEx / CI / Governance": 100,
+    "Observabilidad y resiliencia": 100,
+    "Configuración & seguridad": 100,
+    "Documentación & gobernanza": 100
+  },
+  "architecture": {
+    "base": 100,
+    "penalty_per_module_over_500": 5,
+    "penalty_per_module_over_800": 2,
+    "penalty_per_violation": 10,
+    "penalty_whitelist_active": 8
+  },
+  "testing": {
+    "base": 60,
+    "coverage_growth_per_point": 0.9,
+    "tests_count_bonus_threshold": 100,
+    "tests_count_bonus": 5,
+    "coverage_shortfall_penalty_per_point": 1.2
+  },
+  "complexity": {
+    "base": 100,
+    "max_file_lines_penalty_divisor": 120,
+    "penalty_per_module_over_500": 3,
+    "penalty_per_module_over_800": 3
+  },
+  "devex": {
+    "base": 50,
+    "ci_green_bonus": 20,
+    "release_automated_bonus": 15,
+    "threshold_alignment_bonus": 15
+  },
+  "observability": {
+    "base": 60,
+    "correlation_id_bonus": 20,
+    "structured_logs_bonus": 20,
+    "main_window_over_500_penalty": 10
+  },
+  "security": {
+    "base": 55,
+    "secrets_outside_repo_bonus": 35,
+    "db_in_repo_root_penalty": 12,
+    "has_env_example_bonus": 10
+  },
+  "documentation": {
+    "base": 20,
+    "has_contributing_bonus": 30,
+    "has_changelog_bonus": 20,
+    "has_dod_bonus": 20,
+    "has_roadmap_bonus": 10
+  },
+  "calibration": {
+    "enabled": true,
+    "notes": "Ajusta pesos, bases y penalizaciones del score sin tocar scripts/product_audit.py"
+  }
+}

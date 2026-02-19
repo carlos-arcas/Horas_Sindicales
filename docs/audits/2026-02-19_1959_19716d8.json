@@ -1,0 +1,187 @@
+{
+  "timestamp": "2026-02-19 19:59:03",
+  "commit": "19716d8",
+  "metrics": {
+    "warnings": [
+      "No se pudo calcular coverage real porque falta pytest-cov."
+    ],
+    "evidences": {
+      "architecture": [
+        "tests/test_architecture_imports.py:10: ALLOWED_VIOLATIONS: set[tuple[str, str]] = set()",
+        "tests/test_architecture_imports.py:13: \"sqlite3\",",
+        "tests/test_architecture_imports.py:14: \"gspread\",",
+        "tests/test_architecture_imports.py:119: \"Application no debe importar librerías técnicas específicas (sqlite3/gspread/googleapiclient).\",",
+        "tests/test_architecture_imports.py:143: if (record.source_file, record.imported_module) in ALLOWED_VIOLATIONS:",
+        "tests/test_architecture_imports.py:169: forbidden = {\"sqlite3\", \"gspread\", \"googleapiclient\", \"google.auth\", \"google_auth_oauthlib\"}",
+        "tests/test_architecture_imports.py:178: assert not violations, \"application must not import sqlite3/gspread/google-auth libs:\\n\" + \"\\n\".join(violations)",
+        "Comando: PYTHONPATH=. pytest -q tests/test_architecture_imports.py",
+        "..                                                                       [100%]\n2 passed in 0.28s"
+      ],
+      "complexity": [
+        "app/ui/main_window.py -> 1877 líneas",
+        "app/application/use_cases/sync_sheets.py -> 1678 líneas",
+        "app/application/use_cases/__init__.py -> 1063 líneas",
+        "app/infrastructure/repos_sqlite.py -> 845 líneas",
+        "scripts/product_audit.py -> 694 líneas",
+        "tests/application/test_sheets_sync_summary.py -> 539 líneas",
+        "app/infrastructure/repos_conflicts_sqlite.py -> 468 líneas",
+        "app/ui/widgets/toast.py -> 438 líneas",
+        "app/pdf/pdf_builder.py -> 306 líneas",
+        "app/ui/person_dialog.py -> 298 líneas"
+      ],
+      "security": [
+        "No se detectaron secretos en repo root/app",
+        "No se detectaron DB en raíz"
+      ],
+      "coverage": [
+        ".config/quality_gate.json -> coverage_fail_under=63",
+        "Comando: PYTHONPATH=. pytest -q --cov=app --cov-report=term-missing",
+        "ERROR: usage: pytest [options] [file_or_dir] [file_or_dir] [...]\npytest: error: unrecognized arguments: --cov=app --cov-report=term-missing\n  inifile: None\n  rootdir: /workspace/Horas_Sindicales"
+      ]
+    },
+    "max_file_lines": 1877,
+    "max_file_path": "app/ui/main_window.py",
+    "top_10_files": [
+      {
+        "path": "app/ui/main_window.py",
+        "lines": 1877
+      },
+      {
+        "path": "app/application/use_cases/sync_sheets.py",
+        "lines": 1678
+      },
+      {
+        "path": "app/application/use_cases/__init__.py",
+        "lines": 1063
+      },
+      {
+        "path": "app/infrastructure/repos_sqlite.py",
+        "lines": 845
+      },
+      {
+        "path": "scripts/product_audit.py",
+        "lines": 694
+      },
+      {
+        "path": "tests/application/test_sheets_sync_summary.py",
+        "lines": 539
+      },
+      {
+        "path": "app/infrastructure/repos_conflicts_sqlite.py",
+        "lines": 468
+      },
+      {
+        "path": "app/ui/widgets/toast.py",
+        "lines": 438
+      },
+      {
+        "path": "app/pdf/pdf_builder.py",
+        "lines": 306
+      },
+      {
+        "path": "app/ui/person_dialog.py",
+        "lines": 298
+      }
+    ],
+    "critical_modules_over_500": 6,
+    "modules_over_800": 4,
+    "main_window_lines": 0,
+    "use_cases_lines": 0,
+    "coverage_threshold": 63,
+    "coverage_thresholds_aligned": true,
+    "whitelist_active": false,
+    "architecture_violations": 0,
+    "tests_count": 129,
+    "coverage": null,
+    "secrets_outside_repo": true,
+    "secret_paths": [],
+    "db_in_repo_root": false,
+    "db_paths": [],
+    "has_env_example": false,
+    "has_contributing": true,
+    "has_changelog": true,
+    "has_dod": true,
+    "has_roadmap": false,
+    "ci_green": true,
+    "release_automated": true,
+    "correlation_id_implemented": true,
+    "structured_logs": true
+  },
+  "areas": [
+    {
+      "name": "Arquitectura estructural",
+      "weight": 20,
+      "score": 62,
+      "formula": "base 100 - penalties 38"
+    },
+    {
+      "name": "Testing & cobertura",
+      "weight": 20,
+      "score": 0,
+      "formula": "base 60 cov=0.00 threshold=63"
+    },
+    {
+      "name": "Complejidad accidental",
+      "weight": 15,
+      "score": 54,
+      "formula": "base 100 - penalties 46"
+    },
+    {
+      "name": "DevEx / CI / Governance",
+      "weight": 15,
+      "score": 100,
+      "formula": "base 50 + bonuses"
+    },
+    {
+      "name": "Observabilidad y resiliencia",
+      "weight": 10,
+      "score": 100,
+      "formula": "base 60 + bonuses"
+    },
+    {
+      "name": "Configuración & seguridad",
+      "weight": 10,
+      "score": 90,
+      "formula": "base 55 + bonuses/penalties"
+    },
+    {
+      "name": "Documentación & gobernanza",
+      "weight": 10,
+      "score": 90,
+      "formula": "base 20 + bonuses"
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Testing & cobertura",
+      "action": "Cerrar brecha de 100 puntos",
+      "area_gain": 100,
+      "weighted_gain": 20.0
+    },
+    {
+      "area": "Arquitectura estructural",
+      "action": "Cerrar brecha de 38 puntos",
+      "area_gain": 38,
+      "weighted_gain": 7.6000000000000005
+    },
+    {
+      "area": "Complejidad accidental",
+      "action": "Cerrar brecha de 46 puntos",
+      "area_gain": 46,
+      "weighted_gain": 6.8999999999999995
+    },
+    {
+      "area": "Configuración & seguridad",
+      "action": "Cerrar brecha de 10 puntos",
+      "area_gain": 10,
+      "weighted_gain": 1.0
+    },
+    {
+      "area": "Documentación & gobernanza",
+      "action": "Cerrar brecha de 10 puntos",
+      "area_gain": 10,
+      "weighted_gain": 1.0
+    }
+  ],
+  "global_score": 63.5
+}

@@ -177,6 +177,22 @@ rg '"correlation_id": "<ID>"' -n .
 
 Ver `docs/auditoria_senior.md` para el análisis completo, roadmap y scorecard.
 
+## Cómo correr auditoría de producto
+
+Auditoría automática (autodetección de métricas + evidencias + snapshot histórico):
+
+```bash
+python scripts/product_audit.py --auto
+```
+
+Opciones útiles:
+
+```bash
+python scripts/product_audit.py --auto --out docs/auditoria_producto.md --json-out docs/audits/latest.json
+```
+
+Esto genera `docs/auditoria_producto.md` y un snapshot versionado en `docs/audits/`.
+
 ## Arquitectura (resumen por capas)
 
 El proyecto sigue una separación por capas con responsabilidades claras:
