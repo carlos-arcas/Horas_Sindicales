@@ -12,7 +12,7 @@ import gspread
 
 from app.application.sheets_service import SHEETS_SCHEMA
 from app.application.delegada_resolution import get_or_resolve_delegada_uuid
-from app.application.sync_normalization import normalize_date, normalize_hhmm, solicitud_unique_key
+from app.application.sync_normalization import normalize_hhmm, solicitud_unique_key
 from app.domain.ports import (
     SheetsClientPort,
     SheetsConfigStorePort,

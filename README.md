@@ -1,3 +1,5 @@
+[![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+
 # Horas Sindicales
 
 Aplicación de escritorio (PySide6) para la gestión de **horas sindicales**, incluyendo:
@@ -121,6 +123,18 @@ Ejecuta la suite con `pytest`:
 ```bash
 PYTHONPATH=. pytest -q
 ```
+
+## Quality Gate
+
+Este proyecto bloquea merges si:
+- Tests fallan
+- Cobertura mínima no se alcanza
+- Lint detecta errores
+
+Comando local recomendado:
+make lint
+make coverage
+
 
 ## Auditoría técnica
 
