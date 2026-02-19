@@ -1,25 +1,53 @@
 from __future__ import annotations
 
 import traceback
+import logging
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 
 from app.domain.sync_models import SyncSummary
+from app.core.observability import OperationContext, log_event
+
+
+logger = logging.getLogger(__name__)
 
 
 class _SyncWorker(QObject):
     finished = Signal(SyncSummary)
     failed = Signal(object)
 
-    def __init__(self, sync_use_case) -> None:
+    def __init__(self, sync_use_case, correlation_id: str) -> None:
         super().__init__()
         self._sync_use_case = sync_use_case
+        self._correlation_id = correlation_id
 
     @Slot()
     def run(self) -> None:
         try:
+            log_event(
+                logger,
+                "sync_started",
+                {"operation": "sync_bidirectional"},
+                self._correlation_id,
+            )
             summary = self._sync_use_case.sync_bidirectional()
+            log_event(
+                logger,
+                "sync_succeeded",
+                {
+                    "downloaded": summary.downloaded,
+                    "uploaded": summary.uploaded,
+                    "conflicts": summary.conflicts,
+                },
+                self._correlation_id,
+            )
         except Exception as exc:  # pragma: no cover
+            log_event(
+                logger,
+                "sync_failed",
+                {"error": str(exc)},
+                self._correlation_id,
+            )
             self.failed.emit({"error": exc, "details": traceback.format_exc()})
             return
         self.finished.emit(summary)
@@ -36,7 +64,9 @@ class SyncController:
             return
         w._set_sync_in_progress(True)
         w._sync_thread = QThread()
-        w._sync_worker = _SyncWorker(w._sync_service)
+        operation_context = OperationContext("sync_ui")
+        w._sync_operation_context = operation_context
+        w._sync_worker = _SyncWorker(w._sync_service, operation_context.correlation_id)
         w._sync_worker.moveToThread(w._sync_thread)
         w._sync_thread.started.connect(w._sync_worker.run)
         w._sync_worker.finished.connect(w._on_sync_finished)

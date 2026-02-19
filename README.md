@@ -139,6 +139,37 @@ make lint
 make coverage
 
 
+
+## Observabilidad y Correlation ID
+
+La aplicación incorpora trazabilidad transversal para operaciones críticas de UI y casos de uso de escritura:
+
+- Cada operación crea un `correlation_id` único (UUID4).
+- Los eventos se registran en formato estructurado homogéneo:
+
+```json
+{
+  "event": "sync_started",
+  "correlation_id": "...",
+  "timestamp": "...",
+  "payload": {"...": "..."}
+}
+```
+
+Eventos típicos: `*_started`, `*_succeeded`, `*_failed` para sincronización, confirmación de lote, generación de PDF y escrituras críticas.
+
+### Cómo seguir una operación completa en logs
+
+1. Identifica el `correlation_id` en el primer evento (`*_started`).
+2. Filtra logs por ese valor para ver toda la secuencia de eventos asociados.
+3. Revisa `payload` para contexto (ids, totales, rutas de PDF, etc.).
+
+Ejemplo de búsqueda local:
+
+```bash
+rg '"correlation_id": "<ID>"' -n .
+```
+
 ## Auditoría técnica
 
 Ver `docs/auditoria_senior.md` para el análisis completo, roadmap y scorecard.

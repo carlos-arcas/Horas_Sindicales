@@ -68,6 +68,7 @@ from app.ui.controllers.personas_controller import PersonasController
 from app.ui.controllers.solicitudes_controller import SolicitudesController
 from app.ui.controllers.sync_controller import SyncController
 from app.ui.controllers.pdf_controller import PdfController
+from app.core.observability import OperationContext, log_event
 
 try:
     from PySide6.QtPdf import QPdfDocument
@@ -1175,14 +1176,21 @@ class MainWindow(QMainWindow):
         if not self._confirm_conflicto(mensaje):
             return False
         try:
-            if solicitud.completo:
-                self._solicitud_use_cases.sustituir_por_completo(
-                    persona_id, solicitud.fecha_pedida, solicitud
-                )
-            else:
-                self._solicitud_use_cases.sustituir_por_parcial(
-                    persona_id, solicitud.fecha_pedida, solicitud
-                )
+            with OperationContext("sustituir_solicitud") as operation:
+                if solicitud.completo:
+                    self._solicitud_use_cases.sustituir_por_completo(
+                        persona_id,
+                        solicitud.fecha_pedida,
+                        solicitud,
+                        correlation_id=operation.correlation_id,
+                    )
+                else:
+                    self._solicitud_use_cases.sustituir_por_parcial(
+                        persona_id,
+                        solicitud.fecha_pedida,
+                        solicitud,
+                        correlation_id=operation.correlation_id,
+                    )
         except (ValidacionError, BusinessRuleError) as exc:
             self.toast.warning(str(exc), title="Validación")
             return False
@@ -1207,9 +1215,17 @@ class MainWindow(QMainWindow):
             )
             return
 
-        creadas, pendientes_restantes, errores = self._solicitud_use_cases.confirmar_sin_pdf(
-            self._pending_solicitudes
-        )
+        with OperationContext("confirmar_sin_pdf") as operation:
+            log_event(logger, "confirmar_sin_pdf_started", {"count": len(self._pending_solicitudes)}, operation.correlation_id)
+            creadas, pendientes_restantes, errores = self._solicitud_use_cases.confirmar_sin_pdf(
+                self._pending_solicitudes, correlation_id=operation.correlation_id
+            )
+            log_event(
+                logger,
+                "confirmar_sin_pdf_finished",
+                {"creadas": len(creadas), "errores": len(errores)},
+                operation.correlation_id,
+            )
 
         if errores:
             self.toast.warning("\n".join(errores), title="Errores")
@@ -1250,12 +1266,29 @@ class MainWindow(QMainWindow):
         )
         if not pdf_path:
             return
+        correlation_id: str | None = None
         try:
-            creadas, pendientes_restantes, errores, generado = (
-                self._solicitud_use_cases.confirmar_y_generar_pdf(
-                    self._pending_solicitudes, Path(pdf_path)
+            with OperationContext("confirmar_y_generar_pdf") as operation:
+                correlation_id = operation.correlation_id
+                log_event(
+                    logger,
+                    "confirmar_y_generar_pdf_started",
+                    {"count": len(self._pending_solicitudes), "destino": pdf_path},
+                    operation.correlation_id,
                 )
-            )
+                creadas, pendientes_restantes, errores, generado = (
+                    self._solicitud_use_cases.confirmar_y_generar_pdf(
+                        self._pending_solicitudes,
+                        Path(pdf_path),
+                        correlation_id=operation.correlation_id,
+                    )
+                )
+                log_event(
+                    logger,
+                    "confirmar_y_generar_pdf_finished",
+                    {"creadas": len(creadas), "errores": len(errores), "pdf_generado": bool(generado)},
+                    operation.correlation_id,
+                )
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error confirmando solicitudes")
             self._show_critical_error(exc)
@@ -1268,6 +1301,13 @@ class MainWindow(QMainWindow):
             pdf_hash = creadas[0].pdf_hash
             fechas = [solicitud.fecha_pedida for solicitud in creadas]
             self._sync_service.register_pdf_log(persona.id or 0, fechas, pdf_hash)
+            if correlation_id:
+                log_event(
+                    logger,
+                    "register_pdf_log",
+                    {"persona_id": persona.id or 0, "fechas": len(fechas)},
+                    correlation_id,
+                )
             self._ask_push_after_pdf()
             self.toast.success("Exportación PDF OK")
         _ = pendientes_restantes
@@ -1536,7 +1576,18 @@ class MainWindow(QMainWindow):
             self._show_critical_error(exc)
             return
         def _generate_preview(target: Path) -> Path:
-            return self._solicitud_use_cases.exportar_historico_pdf(persona.id or 0, filtro, target)
+            with OperationContext("exportar_historico_pdf") as operation:
+                log_event(
+                    logger,
+                    "exportar_historico_pdf_started",
+                    {"persona_id": persona.id or 0, "modo": filtro.modo},
+                    operation.correlation_id,
+                )
+                pdf = self._solicitud_use_cases.exportar_historico_pdf(
+                    persona.id or 0, filtro, target, correlation_id=operation.correlation_id
+                )
+                log_event(logger, "exportar_historico_pdf_finished", {"path": str(pdf)}, operation.correlation_id)
+                return pdf
 
         try:
             preview = PdfPreviewDialog(_generate_preview, default_name, self)
@@ -1560,7 +1611,10 @@ class MainWindow(QMainWindow):
         if solicitud is None or solicitud.id is None:
             return
         try:
-            self._solicitud_use_cases.eliminar_solicitud(solicitud.id)
+            with OperationContext("eliminar_solicitud") as operation:
+                self._solicitud_use_cases.eliminar_solicitud(
+                    solicitud.id, correlation_id=operation.correlation_id
+                )
         except (ValidacionError, BusinessRuleError) as exc:
             self.toast.warning(str(exc), title="Validación")
             return
@@ -1584,7 +1638,10 @@ class MainWindow(QMainWindow):
                 if solicitud.id is not None:
                     ids_to_delete.append(solicitud.id)
         for solicitud_id in ids_to_delete:
-            self._solicitud_use_cases.eliminar_solicitud(solicitud_id)
+            with OperationContext("eliminar_pendiente") as operation:
+                self._solicitud_use_cases.eliminar_solicitud(
+                    solicitud_id, correlation_id=operation.correlation_id
+                )
         self._reload_pending_views()
         self._refresh_saldos()
 
