@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import sqlite3
+from app.domain.ports import SqlConnectionPort
 
 
 def get_or_resolve_delegada_uuid(
-    connection: sqlite3.Connection,
+    connection: SqlConnectionPort,
     delegada_uuid: str | None,
     delegada_nombre: str | None,
 ) -> str | None:

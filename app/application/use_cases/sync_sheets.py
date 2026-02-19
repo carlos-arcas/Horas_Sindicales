@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
-import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import gspread
 
 from app.application.sheets_service import SHEETS_SCHEMA
 from app.core.errors import InfraError
@@ -19,6 +17,8 @@ from app.domain.ports import (
     SheetsClientPort,
     SheetsConfigStorePort,
     SheetsRepositoryPort,
+    SqlConnectionPort,
+    SqlCursorPort,
 )
 from app.domain.sheets_errors import SheetsConfigError, SheetsRateLimitError
 from app.domain.sync_models import SyncSummary
@@ -47,7 +47,16 @@ HEADER_CANONICO_SOLICITUDES = [
 ]
 
 
-def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: tuple[object, ...], context: str) -> None:
+def _rowcol_to_a1(row: int, col: int) -> str:
+    label = ""
+    current = col
+    while current > 0:
+        current, rem = divmod(current - 1, 26)
+        label = chr(65 + rem) + label
+    return f"{label}{row}"
+
+
+def _execute_with_validation(cursor: SqlCursorPort, sql: str, params: tuple[object, ...], context: str) -> None:
     expected = sql.count("?")
     actual = len(params)
     if expected != actual:
@@ -61,7 +70,7 @@ def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: tuple[obj
 class SheetsSyncService:
     def __init__(
         self,
-        connection: sqlite3.Connection,
+        connection: SqlConnectionPort,
         config_store: SheetsConfigStorePort,
         client: SheetsClientPort,
         repository: SheetsRepositoryPort,
@@ -72,7 +81,7 @@ class SheetsSyncService:
         self._config_store = config_store
         self._client = client
         self._repository = repository
-        self._worksheet_cache: dict[str, gspread.Worksheet] = {}
+        self._worksheet_cache: dict[str, Any] = {}
         self._pending_append_rows: dict[str, list[list[Any]]] = {}
         self._pending_batch_updates: dict[str, list[dict[str, Any]]] = {}
         self._pending_values_batch_updates: dict[str, list[dict[str, Any]]] = {}
@@ -177,7 +186,7 @@ class SheetsSyncService:
         )
         self._connection.commit()
 
-    def _prepare_sync_context(self, spreadsheet: gspread.Spreadsheet) -> None:
+    def _prepare_sync_context(self, spreadsheet: Any) -> None:
         self._worksheet_cache = {}
         try:
             self._worksheet_cache.update(self._client.get_worksheets_by_title())
@@ -186,14 +195,14 @@ class SheetsSyncService:
         except InfraError:
             logger.debug("No se pudo precargar metadata de worksheets; se continuará bajo demanda.", exc_info=True)
 
-    def _get_worksheet(self, spreadsheet: gspread.Spreadsheet, worksheet_name: str) -> gspread.Worksheet:
+    def _get_worksheet(self, spreadsheet: Any, worksheet_name: str) -> Any:
         if worksheet_name in self._worksheet_cache:
             return self._worksheet_cache[worksheet_name]
         worksheet = self._client.get_worksheet(worksheet_name)
         self._worksheet_cache[worksheet_name] = worksheet
         return worksheet
 
-    def _pull_with_spreadsheet(self, spreadsheet: gspread.Spreadsheet) -> SyncSummary:
+    def _pull_with_spreadsheet(self, spreadsheet: Any) -> SyncSummary:
         self._reset_write_batch_state()
         write_calls_before = self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else 0
         last_sync_at = self._get_last_sync_at()
@@ -230,7 +239,7 @@ class SheetsSyncService:
             errors=errors,
         )
 
-    def _push_with_spreadsheet(self, spreadsheet: gspread.Spreadsheet) -> SyncSummary:
+    def _push_with_spreadsheet(self, spreadsheet: Any) -> SyncSummary:
         self._reset_write_batch_state()
         write_calls_before = self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else 0
         last_sync_at = self._get_last_sync_at()
@@ -260,7 +269,7 @@ class SheetsSyncService:
             conflicts_detected=conflicts,
         )
 
-    def _open_spreadsheet(self) -> gspread.Spreadsheet:
+    def _open_spreadsheet(self) -> Any:
         config = self._config_store.load()
         if not config or not config.spreadsheet_id or not config.credentials_path:
             raise SheetsConfigError("No hay configuración de Google Sheets.")
@@ -284,7 +293,7 @@ class SheetsSyncService:
         )
         self._connection.commit()
 
-    def _pull_delegadas(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> tuple[int, int]:
+    def _pull_delegadas(self, spreadsheet: Any, last_sync_at: str | None) -> tuple[int, int]:
         worksheet = self._get_worksheet(spreadsheet, "delegadas")
         headers, rows = self._rows_with_index(worksheet, "delegadas")
         downloaded = 0
@@ -316,7 +325,7 @@ class SheetsSyncService:
         return downloaded, conflicts
 
     def _pull_solicitudes(
-        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None, solicitud_titles: list[str] | None = None
+        self, spreadsheet: Any, last_sync_at: str | None, solicitud_titles: list[str] | None = None
     ) -> tuple[int, int, int, int, int]:
         downloaded = 0
         conflicts = 0
@@ -419,7 +428,7 @@ class SheetsSyncService:
             "notas": ["observaciones", "comentarios"],
         }
 
-    def _solicitudes_pull_source_titles(self, spreadsheet: gspread.Spreadsheet) -> list[str]:
+    def _solicitudes_pull_source_titles(self, spreadsheet: Any) -> list[str]:
         worksheets_by_title = self._client.get_worksheets_by_title()
         self._worksheet_cache.update(worksheets_by_title)
         titles: list[str] = []
@@ -431,8 +440,8 @@ class SheetsSyncService:
         return titles
 
     def _solicitudes_pull_sources(
-        self, spreadsheet: gspread.Spreadsheet, titles: list[str] | None = None
-    ) -> list[tuple[str, gspread.Worksheet]]:
+        self, spreadsheet: Any, titles: list[str] | None = None
+    ) -> list[tuple[str, Any]]:
         selected_titles = titles or self._solicitudes_pull_source_titles(spreadsheet)
         return [(title, self._get_worksheet(spreadsheet, title)) for title in selected_titles]
 
@@ -445,7 +454,7 @@ class SheetsSyncService:
         return sync_sheets_core.remote_hhmm(hours, minutes, full_value)
 
     def _pull_cuadrantes(
-        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
+        self, spreadsheet: Any, last_sync_at: str | None
     ) -> tuple[int, int]:
         worksheet = self._get_worksheet(spreadsheet, "cuadrantes")
         _, rows = self._rows_with_index(worksheet)
@@ -470,7 +479,7 @@ class SheetsSyncService:
                 downloaded += 1
         return downloaded, conflicts
 
-    def _pull_pdf_log(self, spreadsheet: gspread.Spreadsheet) -> int:
+    def _pull_pdf_log(self, spreadsheet: Any) -> int:
         worksheet = self._get_worksheet(spreadsheet, "pdf_log")
         _, rows = self._rows_with_index(worksheet)
         downloaded = 0
@@ -522,7 +531,7 @@ class SheetsSyncService:
         self._connection.commit()
         return downloaded
 
-    def _pull_config(self, spreadsheet: gspread.Spreadsheet) -> int:
+    def _pull_config(self, spreadsheet: Any) -> int:
         worksheet = self._get_worksheet(spreadsheet, "config")
         _, rows = self._rows_with_index(worksheet)
         downloaded = 0
@@ -557,7 +566,7 @@ class SheetsSyncService:
         self._connection.commit()
         return downloaded
 
-    def _push_pdf_log(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> int:
+    def _push_pdf_log(self, spreadsheet: Any, last_sync_at: str | None) -> int:
         worksheet = self._get_worksheet(spreadsheet, "pdf_log")
         headers, rows = self._rows_with_index(worksheet)
         header_map = self._header_map(headers, SHEETS_SCHEMA["pdf_log"])
@@ -598,7 +607,7 @@ class SheetsSyncService:
         self._flush_write_batches(spreadsheet, worksheet)
         return uploaded
 
-    def _push_config(self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None) -> int:
+    def _push_config(self, spreadsheet: Any, last_sync_at: str | None) -> int:
         worksheet = self._get_worksheet(spreadsheet, "config")
         headers, rows = self._rows_with_index(worksheet)
         header_map = self._header_map(headers, SHEETS_SCHEMA["config"])
@@ -637,7 +646,7 @@ class SheetsSyncService:
         return uploaded
 
     def _push_delegadas(
-        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
+        self, spreadsheet: Any, last_sync_at: str | None
     ) -> tuple[int, int]:
         worksheet = self._get_worksheet(spreadsheet, "delegadas")
         headers, rows = self._rows_with_index(worksheet)
@@ -686,7 +695,7 @@ class SheetsSyncService:
         return uploaded, conflicts
 
     def _push_solicitudes(
-        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
+        self, spreadsheet: Any, last_sync_at: str | None
     ) -> tuple[int, int, int]:
         worksheet = self._get_worksheet(spreadsheet, "solicitudes")
         headers, rows = self._rows_with_index(worksheet)
@@ -787,7 +796,7 @@ class SheetsSyncService:
         return uploaded, conflicts, omitted_duplicates
 
     def _push_cuadrantes(
-        self, spreadsheet: gspread.Spreadsheet, last_sync_at: str | None
+        self, spreadsheet: Any, last_sync_at: str | None
     ) -> tuple[int, int]:
         worksheet = self._get_worksheet(spreadsheet, "cuadrantes")
         headers, rows = self._rows_with_index(worksheet)
@@ -837,7 +846,7 @@ class SheetsSyncService:
         self._flush_write_batches(spreadsheet, worksheet)
         return uploaded, conflicts
 
-    def _fetch_persona(self, uuid_value: str) -> sqlite3.Row | None:
+    def _fetch_persona(self, uuid_value: str) -> Any | None:
         cursor = self._connection.cursor()
         cursor.execute(
             """
@@ -854,7 +863,7 @@ class SheetsSyncService:
         )
         return cursor.fetchone()
 
-    def _fetch_persona_by_nombre(self, nombre: str) -> sqlite3.Row | None:
+    def _fetch_persona_by_nombre(self, nombre: str) -> Any | None:
         cursor = self._connection.cursor()
         cursor.execute(
             """
@@ -871,7 +880,7 @@ class SheetsSyncService:
         )
         return cursor.fetchone()
 
-    def _get_or_create_persona(self, row: dict[str, Any]) -> tuple[sqlite3.Row | None, bool, str | None]:
+    def _get_or_create_persona(self, row: dict[str, Any]) -> tuple[Any | None, bool, str | None]:
         persona_uuid = str(row.get("uuid", "")).strip() or None
         nombre = str(row.get("nombre", "")).strip()
 
@@ -916,7 +925,7 @@ class SheetsSyncService:
         self._insert_persona_from_remote(generated_uuid, row)
         return self._fetch_persona(generated_uuid), True, generated_uuid
 
-    def _find_solicitud_by_composite_key(self, row: dict[str, Any]) -> sqlite3.Row | None:
+    def _find_solicitud_by_composite_key(self, row: dict[str, Any]) -> Any | None:
         delegada_uuid = str(row.get("delegada_uuid", "")).strip() or None
         fecha = self._normalize_date(row.get("fecha"))
         completo = bool(self._int_or_zero(row.get("completo")))
@@ -945,7 +954,7 @@ class SheetsSyncService:
         )
         return cursor.fetchone()
 
-    def _backfill_uuid(self, worksheet: gspread.Worksheet, headers: list[str], row_number: int, column: str, value: str) -> None:
+    def _backfill_uuid(self, worksheet: Any, headers: list[str], row_number: int, column: str, value: str) -> None:
         if not self._enable_backfill or not value:
             return
         if column not in headers:
@@ -954,7 +963,7 @@ class SheetsSyncService:
         # Evita write-per-row: acumulamos backfills y se ejecutan en un único values_batch_update por worksheet.
         self._queue_values_batch_update(worksheet, row_number, col_idx, value)
 
-    def _fetch_solicitud(self, uuid_value: str) -> sqlite3.Row | None:
+    def _fetch_solicitud(self, uuid_value: str) -> Any | None:
         cursor = self._connection.cursor()
         cursor.execute(
             """
@@ -967,7 +976,7 @@ class SheetsSyncService:
         )
         return cursor.fetchone()
 
-    def _fetch_cuadrante(self, uuid_value: str) -> sqlite3.Row | None:
+    def _fetch_cuadrante(self, uuid_value: str) -> Any | None:
         cursor = self._connection.cursor()
         cursor.execute(
             """
@@ -1196,11 +1205,11 @@ class SheetsSyncService:
             return ""
         return int(normalized.split(":")[1])
 
-    def _normalize_solicitudes_header(self, worksheet: gspread.Worksheet) -> None:
+    def _normalize_solicitudes_header(self, worksheet: Any) -> None:
         worksheet.update("A1", [HEADER_CANONICO_SOLICITUDES])
         try:
             worksheet.resize(cols=len(HEADER_CANONICO_SOLICITUDES))
-        except (OSError, gspread.exceptions.APIError):
+        except OSError:
             logger.debug("No se pudo ajustar columnas de la worksheet 'solicitudes'.", exc_info=True)
 
     def _insert_cuadrante_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:
@@ -1368,7 +1377,7 @@ class SheetsSyncService:
 
     def _rows_with_index(
         self,
-        worksheet: gspread.Worksheet,
+        worksheet: Any,
         worksheet_name: str | None = None,
         aliases: dict[str, list[str]] | None = None,
     ) -> tuple[list[str], list[tuple[int, dict[str, Any]]]]:
@@ -1425,13 +1434,13 @@ class SheetsSyncService:
                 index[uuid_value] = row
         return index
 
-    def _update_row(self, worksheet: gspread.Worksheet, row_number: int, headers: list[str], payload: dict[str, Any]) -> None:
+    def _update_row(self, worksheet: Any, row_number: int, headers: list[str], payload: dict[str, Any]) -> None:
         # Evita write-per-row: acumulamos updates y se ejecutan en un único batch_update por worksheet.
         row_values = [payload.get(header, "") for header in headers]
-        range_name = f"A{row_number}:{gspread.utils.rowcol_to_a1(row_number, len(headers))}"
+        range_name = f"A{row_number}:{_rowcol_to_a1(row_number, len(headers))}"
         self._pending_batch_updates.setdefault(worksheet.title, []).append({"range": range_name, "values": [row_values]})
 
-    def _append_row(self, worksheet: gspread.Worksheet, headers: list[str], payload: dict[str, Any]) -> None:
+    def _append_row(self, worksheet: Any, headers: list[str], payload: dict[str, Any]) -> None:
         # Evita write-per-row: acumulamos altas y se ejecutan en un único append_rows por worksheet.
         row_values = [payload.get(header, "") for header in headers]
         self._pending_append_rows.setdefault(worksheet.title, []).append(row_values)
@@ -1442,13 +1451,13 @@ class SheetsSyncService:
         self._pending_batch_updates = {}
         self._pending_values_batch_updates = {}
 
-    def _queue_values_batch_update(self, worksheet: gspread.Worksheet, row_number: int, col_idx: int, value: Any) -> None:
-        a1_cell = gspread.utils.rowcol_to_a1(row_number, col_idx)
+    def _queue_values_batch_update(self, worksheet: Any, row_number: int, col_idx: int, value: Any) -> None:
+        a1_cell = _rowcol_to_a1(row_number, col_idx)
         sheet_title = worksheet.title.replace("'", "''")
         range_name = f"'{sheet_title}'!{a1_cell}"
         self._pending_values_batch_updates.setdefault(worksheet.title, []).append({"range": range_name, "values": [[value]]})
 
-    def _flush_write_batches(self, spreadsheet: gspread.Spreadsheet, worksheet: gspread.Worksheet) -> None:
+    def _flush_write_batches(self, spreadsheet: Any, worksheet: Any) -> None:
         worksheet_title = worksheet.title
         appended_rows = self._pending_append_rows.pop(worksheet_title, [])
         updated_rows = self._pending_batch_updates.pop(worksheet_title, [])

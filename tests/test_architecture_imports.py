@@ -7,13 +7,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 APP_ROOT = PROJECT_ROOT / "app"
 
-# TODO(architecture): eliminar estas excepciones temporales moviendo dependencias técnicas
-# (sqlite3/gspread) a infraestructura y exponiendo puertos en application.
-ALLOWED_VIOLATIONS: set[tuple[str, str]] = {
-    ("app/application/delegada_resolution.py", "sqlite3"),
-    ("app/application/use_cases/sync_sheets.py", "sqlite3"),
-    ("app/application/use_cases/sync_sheets.py", "gspread"),
-}
+ALLOWED_VIOLATIONS: set[tuple[str, str]] = set()
 
 TECHNICAL_LIBRARIES_BLOCKED_IN_APPLICATION = {
     "sqlite3",
@@ -169,3 +163,16 @@ def test_architecture_import_rules() -> None:
         "Se detectaron violaciones de arquitectura por imports entre capas:\n\n"
         + "\n\n".join(violations)
     )
+
+
+def test_application_forbidden_technical_imports() -> None:
+    forbidden = {"sqlite3", "gspread", "googleapiclient", "google.auth", "google_auth_oauthlib"}
+    violations: list[str] = []
+
+    for py_file in sorted((APP_ROOT / "application").rglob("*.py")):
+        for record in _iter_imports(py_file):
+            imported = record.imported_module
+            if imported in forbidden or any(imported.startswith(f"{name}.") for name in forbidden):
+                violations.append(f"{record.source_file} -> {imported}")
+
+    assert not violations, "application must not import sqlite3/gspread/google-auth libs:\n" + "\n".join(violations)
