@@ -27,8 +27,5 @@ jobs:
           pip install -r requirements.txt
           pip install pytest-cov ruff
 
-      - name: Lint
-        run: ruff check .
-
-      - name: Tests + coverage
-        run: pytest --cov=app --cov-report=term --cov-fail-under=61
+      - name: Release check (SemVer + changelog + quality gate)
+        run: make release-check
