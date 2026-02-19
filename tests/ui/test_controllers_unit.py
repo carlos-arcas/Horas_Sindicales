@@ -1,0 +1,82 @@
+from types import SimpleNamespace
+from unittest.mock import Mock
+
+from app.application.dto import SolicitudDTO
+from app.ui.controllers.pdf_controller import PdfController
+from app.ui.controllers.personas_controller import PersonasController
+from app.ui.controllers.solicitudes_controller import SolicitudesController
+from app.ui.controllers.sync_controller import SyncController
+
+
+def test_personas_controller_calls_crear() -> None:
+    use_cases = Mock()
+    use_cases.crear.return_value = SimpleNamespace(id=7)
+    window = SimpleNamespace(_persona_use_cases=use_cases, _load_personas=Mock(), toast=Mock())
+
+    controller = PersonasController(window)
+    controller.on_add_persona(SimpleNamespace(nombre="X"))
+
+    use_cases.crear.assert_called_once()
+    window._load_personas.assert_called_once_with(select_id=7)
+
+
+def test_solicitudes_controller_calls_agregar() -> None:
+    solicitud = SolicitudDTO(
+        id=None,
+        persona_id=1,
+        fecha_solicitud="2024-01-01",
+        fecha_pedida="2024-01-01",
+        desde="10:00",
+        hasta="11:00",
+        completo=False,
+        horas=0,
+        observaciones=None,
+        pdf_path=None,
+        pdf_hash=None,
+        notas=None,
+    )
+    use_cases = Mock()
+    use_cases.calcular_minutos_solicitud.return_value = 60
+    use_cases.minutes_to_hours_float.return_value = 1.0
+    window = SimpleNamespace(
+        _build_preview_solicitud=Mock(return_value=solicitud),
+        _solicitud_use_cases=use_cases,
+        _resolve_backend_conflict=Mock(return_value=True),
+        _reload_pending_views=Mock(),
+        _refresh_historico=Mock(),
+        _refresh_saldos=Mock(),
+        _update_action_state=Mock(),
+        notas_input=SimpleNamespace(toPlainText=Mock(return_value=""), setPlainText=Mock()),
+        toast=Mock(),
+        _show_critical_error=Mock(),
+    )
+
+    controller = SolicitudesController(window)
+    controller.on_add_pendiente()
+
+    use_cases.agregar_solicitud.assert_called_once()
+
+
+def test_sync_controller_updates_button_state() -> None:
+    window = SimpleNamespace(
+        _sync_service=SimpleNamespace(is_configured=Mock(return_value=True)),
+        _sync_in_progress=False,
+        sync_button=SimpleNamespace(setEnabled=Mock()),
+        review_conflicts_button=SimpleNamespace(setEnabled=Mock()),
+        _conflicts_service=SimpleNamespace(count_conflicts=Mock(return_value=0)),
+    )
+    controller = SyncController(window)
+
+    controller.update_sync_button_state()
+
+    window.sync_button.setEnabled.assert_called_once_with(True)
+
+
+def test_pdf_controller_delegates_name_generation() -> None:
+    use_cases = Mock()
+    use_cases.sugerir_nombre_pdf_historico.return_value = "hist.pdf"
+
+    controller = PdfController(use_cases)
+
+    assert controller.sugerir_nombre_historico(SimpleNamespace()) == "hist.pdf"
+    use_cases.sugerir_nombre_pdf_historico.assert_called_once()
