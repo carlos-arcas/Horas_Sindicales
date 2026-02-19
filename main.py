@@ -72,7 +72,7 @@ def _install_exception_hook(log_dir: Path) -> None:
     def _handler(exc_type, exc, tb) -> None:
         try:
             _write_crash_log(exc_type, exc, tb, log_dir)
-        except Exception:
+        except OSError:
             pass
         logging.critical("Unhandled exception", exc_info=(exc_type, exc, tb))
 
@@ -113,8 +113,6 @@ def _run_selfcheck(log_dir: Path) -> int:
 
 
 def _run_app() -> int:
-    logger = logging.getLogger(__name__)
-
     from PySide6.QtWidgets import QApplication
 
     from app.application.base_cuadrantes_service import BaseCuadrantesService
@@ -164,18 +162,14 @@ def _run_app() -> int:
     )
 
     app = QApplication([])
-    try:
-        window = MainWindow(
-            persona_use_cases,
-            solicitud_use_cases,
-            grupo_use_cases,
-            sheets_service,
-            sync_service,
-            conflicts_service,
-        )
-    except Exception:
-        logger.exception("Error construyendo MainWindow")
-        raise
+    window = MainWindow(
+        persona_use_cases,
+        solicitud_use_cases,
+        grupo_use_cases,
+        sheets_service,
+        sync_service,
+        conflicts_service,
+    )
     window.show()
     return app.exec()
 
@@ -200,19 +194,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.selfcheck:
         return _run_selfcheck(LOG_DIR)
 
-    try:
-        return _run_app()
-    except Exception:
-        logger.exception("Error en ejecución de la app")
-        raise
+    return _run_app()
 
 
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception:
-        exc_type, exc, tb = sys.exc_info()
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger(__name__).exception("Error no controlado en entrypoint")
+        exc_type, _, tb = sys.exc_info()
         log_dir = LOG_DIR or _resolve_log_dir()
-        if exc_type and exc and tb:
+        if exc_type and tb:
             _write_crash_log(exc_type, exc, tb, log_dir)
+        print("Se produjo un error interno. Revisa el archivo de logs para más detalles.")
         raise

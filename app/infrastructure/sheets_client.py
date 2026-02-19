@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import logging
 import time
 from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 import gspread
+from google.auth.exceptions import DefaultCredentialsError
 
 from app.domain.ports import SheetsClientPort
 from app.domain.sheets_errors import SheetsRateLimitError
@@ -48,7 +50,14 @@ class SheetsClient(SheetsClientPort):
             self._avoided_requests_count = 0
             self._write_calls_count = 0
             return spreadsheet
-        except Exception as exc:
+        except (
+            gspread.exceptions.GSpreadException,
+            FileNotFoundError,
+            json.JSONDecodeError,
+            DefaultCredentialsError,
+            AttributeError,
+            OSError,
+        ) as exc:
             raise map_gspread_exception(exc) from exc
 
     def read_all_values(self, worksheet_name: str) -> list[list[str]]:

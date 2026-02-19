@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from app.core.errors import BusinessError, ValidationError
 from app.domain.models import Persona, SheetsConfig, Solicitud
 
 
-class ValidacionError(ValueError):
+class ValidacionError(ValidationError):
     pass
 
 
-class BusinessRuleError(ValueError):
+class BusinessRuleError(BusinessError):
     pass
 
 
