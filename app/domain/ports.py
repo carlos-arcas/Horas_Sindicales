@@ -93,6 +93,26 @@ class GrupoConfigRepository(Protocol):
         ...
 
 
+
+
+class SqlCursorPort(Protocol):
+    def execute(self, sql: str, params: tuple[object, ...] = ...) -> Any:
+        ...
+
+    def fetchone(self) -> Any:
+        ...
+
+    def fetchall(self) -> list[Any]:
+        ...
+
+
+class SqlConnectionPort(Protocol):
+    def cursor(self) -> SqlCursorPort:
+        ...
+
+    def commit(self) -> None:
+        ...
+
 class SheetsConfigStorePort(Protocol):
     def load(self) -> SheetsConfig | None:
         ...
