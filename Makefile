@@ -1,4 +1,4 @@
-.PHONY: lint coverage test arch
+.PHONY: lint coverage test arch release-check
 
 lint:
 	ruff check .
@@ -11,3 +11,6 @@ coverage:
 
 arch:
 	PYTHONPATH=. pytest -q tests/test_architecture_imports.py
+
+release-check:
+	python scripts/release/release.py
