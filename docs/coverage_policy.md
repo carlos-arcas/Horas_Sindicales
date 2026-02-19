@@ -2,20 +2,18 @@
 
 ## Baseline actual
 
-El baseline de cobertura actual del proyecto se fija en **61%**.
+El baseline de cobertura actual del proyecto se fija en **63%**.
 
-Este valor refleja el estado real de la base de código a día de hoy, especialmente en áreas con mayor complejidad y superficie funcional pendiente de cubrir completamente con pruebas automatizadas, como componentes de UI y flujos de sincronización.
+La subida registrada en este ciclo corresponde al PR **`raise-coverage-sync-normalization`**, elevando el total desde **61% → 63%** al cubrir con tests unitarios módulos de normalización y servicio de configuración de Sheets.
 
 ## Política de rampa hacia 80%
 
 Para mejorar de forma sostenida y verificable, el umbral mínimo de cobertura seguirá esta rampa:
 
-- **Semana/iteración 1:** 61 → 65
-- **Iteración 2:** 65 → 70
+- **Iteración actual:** 63 → 66
+- **Iteración 2:** 66 → 70
 - **Iteración 3:** 70 → 75
 - **Iteración 4:** 75 → 80
-
-- **PR `raise-coverage-pdf-builder` (actual):** se añaden tests unitarios para `app/pdf/pdf_builder.py` para habilitar una subida medible del baseline en CI.
 
 ## Reglas
 
@@ -26,6 +24,6 @@ Para mejorar de forma sostenida y verificable, el umbral mínimo de cobertura se
 
 Los esfuerzos para subir cobertura se enfocan primero en:
 
-- `use_cases/sync_sheets.py`
-- `pdf_builder`
-- `sheets_client`
+- `app/application/sync.py`
+- `app/infrastructure/sheets_client.py`
+- `app/application/use_cases/sync_sheets.py`
