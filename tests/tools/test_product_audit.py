@@ -96,3 +96,68 @@ def test_render_markdown_contains_sections() -> None:
     assert "### Arquitectura" in md
     assert "## Tendencia" in md
     assert "## Score global ponderado" in md
+
+
+def test_detect_whitelist_marks_active_when_used_even_empty(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(pa, "ROOT", tmp_path)
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir(parents=True)
+    (tests_dir / "test_architecture_imports.py").write_text(
+        "ALLOWED_VIOLATIONS: set[tuple[str, str]] = set()\n"
+        "if ('a', 'b') in ALLOWED_VIOLATIONS:\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+
+    active, evidence = pa.detect_whitelist_evidence()
+    assert active is True
+    assert evidence
+
+
+def test_score_and_markdown_with_unavailable_coverage() -> None:
+    rules = pa.default_rules()
+    metrics = {
+        "coverage": None,
+        "coverage_status": "unavailable",
+        "coverage_threshold": 63,
+        "max_file_lines": 0,
+        "main_window_lines": 0,
+        "use_cases_lines": 0,
+        "architecture_violations": 0,
+        "ci_green": True,
+        "release_automated": True,
+        "whitelist_active": False,
+        "tests_count": 10,
+        "critical_modules_over_500": 0,
+        "modules_over_800": 0,
+        "coverage_thresholds_aligned": True,
+        "correlation_id_implemented": True,
+        "structured_logs": True,
+        "secrets_outside_repo": True,
+        "db_in_repo_root": False,
+        "has_env_example": True,
+        "has_contributing": True,
+        "has_changelog": True,
+        "has_dod": True,
+        "has_roadmap": True,
+        "warnings": [],
+        "top_10_files": [],
+        "evidences": {"architecture": [], "complexity": [], "security": [], "coverage": ["--cov no encontrado"]},
+    }
+    areas, _, _ = pa.score_areas(metrics, rules)
+    by_name = {a.name: a.score for a in areas}
+    assert by_name["Testing & cobertura"] == rules["testing"]["base"]
+
+    snapshot = {
+        "timestamp": "2026-01-01 00:00:00",
+        "commit": "abc123",
+        "metrics": metrics,
+        "areas": [a.__dict__ for a in areas],
+        "improvements": [],
+        "global_score": 80.0,
+    }
+    trend = {"message": "ok", "delta": None, "improvements": [], "regressions": []}
+
+    md = pa.render_markdown(snapshot, trend)
+    assert "| Testing & cobertura | 20% | N/A |" in md
+    assert "install -r requirements-dev.txt" in md

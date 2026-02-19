@@ -252,11 +252,20 @@ def detect_whitelist_evidence() -> tuple[bool, list[str]]:
     content = test_file.read_text(encoding="utf-8", errors="ignore").splitlines()
     whitelist_active = False
     for idx, line in enumerate(content, start=1):
+        normalized = line.replace(" ", "")
+        if "inALLOWED_VIOLATIONS" in normalized:
+            whitelist_active = True
         if "ALLOWED_VIOLATIONS" in line and "=" in line:
-            whitelist_active = "set()" not in line.replace(" ", "")
+            whitelist_active = True
         if any(p.lower() in line.lower() for p in patterns):
             evidences.append(f"tests/test_architecture_imports.py:{idx}: {line.strip()}")
     return whitelist_active, evidences
+
+
+def count_python_lines(path: Path) -> int:
+    if not path.exists() or not path.is_file():
+        return 0
+    return len(path.read_text(encoding="utf-8", errors="ignore").splitlines())
 
 
 def parse_architecture_violations(output: str) -> int:
@@ -325,10 +334,14 @@ def auto_collect(args: argparse.Namespace) -> dict[str, Any]:
             "top_10_files": top10,
             "critical_modules_over_500": over500,
             "modules_over_800": over800,
-            "main_window_lines": 0,
-            "use_cases_lines": 0,
+            "main_window_lines": count_python_lines(ROOT / "app" / "ui" / "main_window.py"),
         }
     )
+    use_cases_files = [p for p in (ROOT / "app" / "application" / "use_cases").glob("*.py") if p.is_file()]
+    use_cases_lengths = [count_python_lines(path) for path in use_cases_files]
+    metrics["use_cases_max_lines"] = max(use_cases_lengths, default=0)
+    metrics["use_cases_total_lines"] = sum(use_cases_lengths)
+    metrics["use_cases_lines"] = metrics["use_cases_total_lines"]
     metrics["evidences"]["complexity"] = [f"{item['path']} -> {item['lines']} líneas" for item in top10]
 
     threshold, threshold_evidences, aligned = read_coverage_threshold()
@@ -356,17 +369,31 @@ def auto_collect(args: argparse.Namespace) -> dict[str, Any]:
     collected_output = f"{collected.stdout}\n{collected.stderr}"
     metrics["tests_count"] = parse_test_count(collected_output)
 
-    cov_cmd = ["pytest", "-q", "--cov=app", "--cov-report=term-missing"]
-    cov_result = run_command(cov_cmd)
-    cov_out = f"{cov_result.stdout}\n{cov_result.stderr}"
-    coverage = parse_total_coverage(cov_out)
-    if coverage is None and ("unrecognized arguments" in cov_out.lower() or "--cov" in cov_out.lower()):
-        metrics["warnings"].append("No se pudo calcular coverage real porque falta pytest-cov.")
-    elif coverage is None:
-        metrics["warnings"].append("No se pudo parsear el TOTAL de cobertura.")
-    metrics["coverage"] = coverage
-    metrics["evidences"]["coverage"].append(f"Comando: PYTHONPATH=. {' '.join(cov_cmd)}")
-    metrics["evidences"]["coverage"].append(cov_out.strip() or "Sin salida")
+    help_cmd = ["pytest", "--help"]
+    help_result = run_command(help_cmd)
+    help_output = f"{help_result.stdout}\n{help_result.stderr}"
+    has_cov_support = "--cov" in help_output
+    metrics["pytest_has_cov"] = has_cov_support
+    help_snippet = "\n".join(line for line in help_output.splitlines() if "--cov" in line) or "--cov no encontrado"
+    metrics["pytest_help_cov_snippet"] = help_snippet
+    metrics["evidences"]["coverage"].append(f"Comando: PYTHONPATH=. {' '.join(help_cmd)}")
+    metrics["evidences"]["coverage"].append(help_snippet)
+
+    if has_cov_support:
+        cov_cmd = ["pytest", "-q", "--cov=app", "--cov-report=term-missing"]
+        cov_result = run_command(cov_cmd)
+        cov_out = f"{cov_result.stdout}\n{cov_result.stderr}"
+        coverage = parse_total_coverage(cov_out)
+        if coverage is None:
+            metrics["warnings"].append("No se pudo parsear el TOTAL de cobertura.")
+        metrics["coverage"] = coverage
+        metrics["coverage_status"] = "available"
+        metrics["evidences"]["coverage"].append(f"Comando: PYTHONPATH=. {' '.join(cov_cmd)}")
+        metrics["evidences"]["coverage"].append(cov_out.strip() or "Sin salida")
+    else:
+        metrics["coverage"] = None
+        metrics["coverage_status"] = "unavailable"
+        metrics["warnings"].append("Coverage no disponible: pytest no expone --cov. Ejecuta install -r requirements-dev.txt.")
 
     secret_files = find_secret_files()
     metrics["secrets_outside_repo"] = len(secret_files) == 0
@@ -408,14 +435,18 @@ def score_areas(metrics: dict[str, Any], rules: dict[str, Any]) -> tuple[list[Ar
     architecture_score = clamp_to_score(a["base"] - arch_penalty, caps["Arquitectura estructural"])
 
     t = rules["testing"]
+    coverage_status = metrics.get("coverage_status", "available")
     coverage = metrics.get("coverage") or 0.0
     threshold = metrics.get("coverage_threshold") or 0
-    testing_score = t["base"] + max(0.0, coverage - threshold) * t["coverage_growth_per_point"]
-    if coverage < threshold:
-        testing_score -= (threshold - coverage) * t["coverage_shortfall_penalty_per_point"]
-    if metrics["tests_count"] >= t["tests_count_bonus_threshold"]:
-        testing_score += t["tests_count_bonus"]
-    testing_score = clamp_to_score(testing_score, caps["Testing & cobertura"])
+    if coverage_status == "unavailable":
+        testing_score = clamp_to_score(float(t["base"]), caps["Testing & cobertura"])
+    else:
+        testing_score = t["base"] + max(0.0, coverage - threshold) * t["coverage_growth_per_point"]
+        if coverage < threshold:
+            testing_score -= (threshold - coverage) * t["coverage_shortfall_penalty_per_point"]
+        if metrics["tests_count"] >= t["tests_count_bonus_threshold"]:
+            testing_score += t["tests_count_bonus"]
+        testing_score = clamp_to_score(testing_score, caps["Testing & cobertura"])
 
     c = rules["complexity"]
     complexity_penalty = round(metrics["max_file_lines"] / c["max_file_lines_penalty_divisor"]) + (
@@ -456,7 +487,12 @@ def score_areas(metrics: dict[str, Any], rules: dict[str, Any]) -> tuple[list[Ar
 
     area_scores = {
         "Arquitectura estructural": (architecture_score, f"base {a['base']} - penalties {arch_penalty}"),
-        "Testing & cobertura": (testing_score, f"base {t['base']} cov={coverage:.2f} threshold={threshold}"),
+        "Testing & cobertura": (
+            testing_score,
+            "N/A (coverage unavailable; neutral base aplicado)"
+            if coverage_status == "unavailable"
+            else f"base {t['base']} cov={coverage:.2f} threshold={threshold}",
+        ),
         "Complejidad accidental": (complexity_score, f"base {c['base']} - penalties {complexity_penalty}"),
         "DevEx / CI / Governance": (devex_score, f"base {d['base']} + bonuses"),
         "Observabilidad y resiliencia": (observability_score, f"base {o['base']} + bonuses"),
@@ -516,10 +552,14 @@ def render_markdown(snapshot: dict[str, Any], trend: dict[str, Any]) -> str:
     evidences = metrics.get("evidences", {})
 
     metrics_rows = "\n".join(f"| `{k}` | `{v}` |" for k, v in metrics.items() if k not in {"evidences", "warnings", "top_10_files"})
-    scores_rows = "\n".join(
-        f"| {a['name']} | {a['weight']}% | {a['score']} | {a['score'] * (a['weight'] / 100):.2f} | {a['formula']} |"
-        for a in areas
-    )
+    coverage_unavailable = metrics.get("coverage_status") == "unavailable"
+    scores_rows_parts: list[str] = []
+    for a in areas:
+        display_score = "N/A" if coverage_unavailable and a["name"] == "Testing & cobertura" else str(a["score"])
+        scores_rows_parts.append(
+            f"| {a['name']} | {a['weight']}% | {display_score} | {a['score'] * (a['weight'] / 100):.2f} | {a['formula']} |"
+        )
+    scores_rows = "\n".join(scores_rows_parts)
     top_files = "\n".join(f"- `{item['path']}`: {item['lines']} líneas" for item in metrics.get("top_10_files", []))
     if not top_files:
         top_files = "- Sin datos"
@@ -568,7 +608,7 @@ def render_markdown(snapshot: dict[str, Any], trend: dict[str, Any]) -> str:
 {chr(10).join(f'- {e}' for e in evidences.get('security', [])) or '- Sin evidencia'}
 
 ### Coverage
-{chr(10).join(f'- {e}' for e in evidences.get('coverage', [])) or '- Sin evidencia'}
+{(chr(10).join(f'- {e}' for e in evidences.get('coverage', [])) + chr(10) + '- Guidance: install -r requirements-dev.txt') if coverage_unavailable else (chr(10).join(f'- {e}' for e in evidences.get('coverage', [])) or '- Sin evidencia')}
 
 ## Tendencia
 - {trend.get('message')}
@@ -589,9 +629,12 @@ def build_snapshot(args: argparse.Namespace, rules: dict[str, Any]) -> dict[str,
     else:
         metrics = {
             "coverage": args.coverage,
+            "coverage_status": "available",
             "max_file_lines": args.max_file_lines,
             "main_window_lines": args.main_window_lines,
             "use_cases_lines": args.use_cases_lines,
+            "use_cases_max_lines": args.use_cases_lines,
+            "use_cases_total_lines": args.use_cases_lines,
             "architecture_violations": args.architecture_violations,
             "ci_green": args.ci_green,
             "release_automated": args.release_automated,
