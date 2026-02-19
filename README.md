@@ -201,6 +201,13 @@ Ejecución local:
 make arch
 ```
 
+## Contribución y estándares
+
+Para contribuir siguiendo el proceso formal del proyecto, consulta:
+
+- [Guía de contribución](CONTRIBUTING.md)
+- [Definition of Done técnico](docs/definition_of_done.md)
+
 ## Licencia
 
 Pendiente de definir. Se recomienda añadir un archivo `LICENSE` (por ejemplo, MIT, Apache-2.0 o licencia interna corporativa).
