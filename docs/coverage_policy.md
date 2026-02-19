@@ -1,40 +1,35 @@
 # Política de cobertura
 
-## Baseline actual
+## Fuente única de verdad
 
-El baseline de cobertura actual del proyecto se fija en **63%**.
+El umbral de cobertura del proyecto vive únicamente en `.config/quality_gate.json` bajo la clave `coverage_fail_under`.
 
-La subida registrada en este ciclo corresponde al PR **`raise-coverage-sync-normalization`**, elevando el total desde **61% → 63%** al cubrir con tests unitarios módulos de normalización y servicio de configuración de Sheets.
+Umbral actual: **63%**.
 
-## Estado del ciclo `raise-coverage-sync-sheets-use-case`
+## Ejecución del gate
 
-En este ciclo se añadieron tests de escenarios para `app/application/sync_sheets_use_case.py`.
+El gate de calidad se ejecuta con:
 
-> Nota: en este entorno local no está disponible `pytest-cov`, por lo que la medición de porcentaje total y del módulo se valida en CI.
+```bash
+python scripts/quality_gate.py
+```
 
-Regla aplicada para este PR:
+Este script:
 
-- Si CI reporta subida del total, actualizar `--cov-fail-under` al nuevo baseline redondeado hacia abajo en el mismo PR.
-- Si CI no reporta subida, mantener baseline y umbral vigentes.
+- Lee el umbral desde `.config/quality_gate.json`.
+- Ejecuta `ruff check .`.
+- Ejecuta `pytest -q --cov=app --cov-report=term-missing --cov-fail-under=<valor>`.
 
-## Política de rampa hacia 80%
+## Cómo subir el umbral
 
-Para mejorar de forma sostenida y verificable, el umbral mínimo de cobertura seguirá esta rampa:
+Para elevar cobertura mínima:
 
-- **Iteración actual:** 63 → 66
-- **Iteración 2:** 66 → 70
-- **Iteración 3:** 70 → 75
-- **Iteración 4:** 75 → 80
+1. Sube cobertura real en CI con nuevos tests.
+2. Redondea hacia abajo el total reportado (ej: `67.3 -> 67`).
+3. Abre un PR que incremente `coverage_fail_under` en `.config/quality_gate.json`.
 
 ## Reglas
 
-- **No se bajará el umbral** de cobertura una vez incrementado.
-- **Todo código nuevo debe incluir tests** y no puede reducir la cobertura global.
-
-## Módulos prioritarios
-
-Los esfuerzos para subir cobertura se enfocan primero en:
-
-- `app/application/sync.py`
-- `app/infrastructure/sheets_client.py`
-- `app/application/use_cases/sync_sheets.py`
+- Prohibido hardcodear `--cov-fail-under` en CI, Makefile o scripts de release.
+- El valor solo puede definirse en `.config/quality_gate.json`.
+- No se baja el umbral una vez incrementado.

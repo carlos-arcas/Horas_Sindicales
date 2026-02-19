@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import re
 import subprocess
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -61,20 +60,6 @@ def main() -> None:
 
     print("==> Verifying changelog entry")
     ensure_changelog_version(version)
-
-    print("==> Running quality gates")
-    run(["ruff", "check", "."])
-    run([sys.executable, "-m", "pytest", "-q"])
-    run(
-        [
-            sys.executable,
-            "-m",
-            "pytest",
-            "--cov=app",
-            "--cov-report=term",
-            "--cov-fail-under=61",
-        ]
-    )
 
     print("\nRelease checks passed.")
     print("Next steps:")
