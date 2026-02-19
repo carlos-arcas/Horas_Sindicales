@@ -131,12 +131,15 @@ Este proyecto bloquea merges si:
 - Cobertura mínima no se alcanza
 - Lint detecta errores
 
-El umbral actual de cobertura en CI es **61%**, con una rampa progresiva hasta **80%**.
+El umbral actual de cobertura se define en `.config/quality_gate.json` (clave `coverage_fail_under`) y hoy es **63%**.
 Consulta la política en `docs/coverage_policy.md`.
 
 Comando local recomendado:
-make lint
-make coverage
+```bash
+make gate
+```
+
+Para subir el umbral, crea un PR que aumente `coverage_fail_under` tras validar una cobertura total mayor en CI (redondeada hacia abajo).
 
 
 

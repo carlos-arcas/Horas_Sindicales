@@ -35,7 +35,7 @@ Este comando ejecuta `scripts/release/release.py`, que valida:
 - Árbol de git limpio.
 - `__version__` con formato SemVer.
 - Sección de versión en `CHANGELOG.md`.
-- Calidad mínima: `ruff check .`, `pytest -q`, y cobertura con gate (`--cov-fail-under=61`).
+- Calidad mínima: ejecutar `python scripts/quality_gate.py` (lee el umbral desde `.config/quality_gate.json`).
 
 ## 4) Crear tag de versión
 
