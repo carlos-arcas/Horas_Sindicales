@@ -122,6 +122,10 @@ Ejecuta la suite con `pytest`:
 PYTHONPATH=. pytest -q
 ```
 
+## Auditoría técnica
+
+Ver `docs/auditoria_senior.md` para el análisis completo, roadmap y scorecard.
+
 ## Arquitectura (resumen por capas)
 
 El proyecto sigue una separación por capas con responsabilidades claras:
