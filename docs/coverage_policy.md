@@ -15,6 +15,8 @@ Para mejorar de forma sostenida y verificable, el umbral mínimo de cobertura se
 - **Iteración 3:** 70 → 75
 - **Iteración 4:** 75 → 80
 
+- **PR `raise-coverage-pdf-builder` (actual):** se añaden tests unitarios para `app/pdf/pdf_builder.py` para habilitar una subida medible del baseline en CI.
+
 ## Reglas
 
 - **No se bajará el umbral** de cobertura una vez incrementado.
