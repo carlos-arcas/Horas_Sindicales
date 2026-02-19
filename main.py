@@ -122,6 +122,7 @@ def _run_app() -> int:
     from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
     from app.infrastructure.db import get_connection
     from app.infrastructure.local_config_store import LocalConfigStore
+    from app.infrastructure.repos_conflicts_sqlite import SQLiteConflictsRepository
     from app.infrastructure.migrations import run_migrations
     from app.infrastructure.repos_sqlite import (
         CuadranteRepositorySQLite,
@@ -157,8 +158,10 @@ def _run_app() -> int:
     sheets_service = SheetsService(config_store, sheets_gateway)
     sync_port = SyncSheetsAdapter(get_connection, config_store, sheets_client, sheets_repository)
     sync_service = SyncSheetsUseCase(sync_port)
+    conflicts_repository = SQLiteConflictsRepository(connection)
     conflicts_service = ConflictsService(
-        connection, lambda: config_store.load().device_id if config_store.load() else ""
+        conflicts_repository,
+        lambda: config_store.load().device_id if config_store.load() else "",
     )
 
     app = QApplication([])

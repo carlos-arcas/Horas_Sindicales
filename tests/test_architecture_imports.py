@@ -10,7 +10,6 @@ APP_ROOT = PROJECT_ROOT / "app"
 # TODO(architecture): eliminar estas excepciones temporales moviendo dependencias técnicas
 # (sqlite3/gspread) a infraestructura y exponiendo puertos en application.
 ALLOWED_VIOLATIONS: set[tuple[str, str]] = {
-    ("app/application/conflicts_service.py", "sqlite3"),
     ("app/application/delegada_resolution.py", "sqlite3"),
     ("app/application/use_cases/sync_sheets.py", "sqlite3"),
     ("app/application/use_cases/sync_sheets.py", "gspread"),
