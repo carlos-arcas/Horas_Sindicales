@@ -61,6 +61,7 @@ from app.ui.models_qt import SolicitudesTableModel
 from app.ui.dialog_opciones import OpcionesDialog
 from app.ui.conflicts_dialog import ConflictsDialog
 from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
+from app.ui.error_mapping import map_error_to_user_message
 from app.ui.person_dialog import PersonaDialog
 from app.ui.style import apply_theme
 from app.ui.widgets.header import HeaderWidget
@@ -1098,7 +1099,7 @@ class MainWindow(QMainWindow):
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error creando persona")
-            self._show_critical_error(str(exc))
+            self._show_critical_error(exc)
             return
         self._load_personas(select_id=creada.id)
 
@@ -1125,7 +1126,7 @@ class MainWindow(QMainWindow):
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error editando persona")
-            self._show_critical_error(str(exc))
+            self._show_critical_error(exc)
             return
         self._load_personas(select_id=actualizada.id)
 
@@ -1147,7 +1148,7 @@ class MainWindow(QMainWindow):
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error deshabilitando delegado")
-            self._show_critical_error(str(exc))
+            self._show_critical_error(exc)
             return
         self._load_personas()
 
@@ -1165,7 +1166,7 @@ class MainWindow(QMainWindow):
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.error("Error calculando minutos de la petición", exc_info=True)
-            self._show_critical_error(str(exc))
+            self._show_critical_error(exc)
             return
 
         notas_text = self.notas_input.toPlainText().strip()
@@ -1196,7 +1197,7 @@ class MainWindow(QMainWindow):
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.error("Error insertando petición en base de datos", exc_info=True)
-            self._show_critical_error(str(exc))
+            self._show_critical_error(exc)
             return
 
         self.notas_input.setPlainText("")
@@ -1256,7 +1257,7 @@ class MainWindow(QMainWindow):
             return False
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error sustituyendo solicitud")
-            self._show_critical_error(str(exc))
+            self._show_critical_error(exc)
             return False
         self._refresh_historico()
         self._refresh_saldos()
@@ -1307,7 +1308,7 @@ class MainWindow(QMainWindow):
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error preparando PDF")
-            self._show_critical_error(str(exc))
+            self._show_critical_error(exc)
             return
         default_path = str(Path.home() / default_name)
         pdf_path, _ = QFileDialog.getSaveFileName(
@@ -1326,7 +1327,7 @@ class MainWindow(QMainWindow):
             )
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error confirmando solicitudes")
-            self._show_critical_error(str(exc))
+            self._show_critical_error(exc)
             return
         if generado and self.abrir_pdf_check.isChecked():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(generado)))
@@ -1455,7 +1456,8 @@ class MainWindow(QMainWindow):
                 QMessageBox.Warning,
             )
             return
-        self._show_message_with_details(title, str(error), details, icon)
+        fallback_message = map_error_to_user_message(error)
+        self._show_message_with_details(title, fallback_message, details, icon)
 
     def _show_sync_summary_dialog(self, title: str, summary: SyncSummary) -> None:
         last_sync = self._sync_service.get_last_sync_at()
@@ -1534,7 +1536,8 @@ class MainWindow(QMainWindow):
         else:
             self.statusBar().clearMessage()
 
-    def _show_critical_error(self, message: str) -> None:
+    def _show_critical_error(self, error: Exception | str) -> None:
+        message = error if isinstance(error, str) else map_error_to_user_message(error)
         self.toast.error(message, title="Error")
         QMessageBox.critical(self, "Error", message)
 
@@ -1603,7 +1606,7 @@ class MainWindow(QMainWindow):
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error preparando PDF histórico")
-            self._show_critical_error(str(exc))
+            self._show_critical_error(exc)
             return
         def _generate_preview(target: Path) -> Path:
             return self._solicitud_use_cases.exportar_historico_pdf(persona.id or 0, filtro, target)
@@ -1616,7 +1619,7 @@ class MainWindow(QMainWindow):
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error generando previsualización de PDF histórico")
-            self._show_critical_error(str(exc))
+            self._show_critical_error(exc)
             return
         if result == QDialog.DialogCode.Accepted:
             self._show_optional_notice(
@@ -1636,7 +1639,7 @@ class MainWindow(QMainWindow):
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error eliminando solicitud")
-            self._show_critical_error(str(exc))
+            self._show_critical_error(exc)
             return
         self._refresh_historico()
         self._refresh_saldos()

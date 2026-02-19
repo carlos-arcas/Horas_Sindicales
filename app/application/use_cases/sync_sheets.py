@@ -11,6 +11,7 @@ from typing import Any
 import gspread
 
 from app.application.sheets_service import SHEETS_SCHEMA
+from app.core.errors import InfraError
 from app.application.delegada_resolution import get_or_resolve_delegada_uuid
 from app.application.sync_normalization import normalize_hhmm, solicitud_unique_key
 from app.domain.ports import (
@@ -181,7 +182,7 @@ class SheetsSyncService:
             self._worksheet_cache.update(self._client.get_worksheets_by_title())
         except SheetsRateLimitError:
             raise
-        except Exception:
+        except InfraError:
             logger.debug("No se pudo precargar metadata de worksheets; se continuará bajo demanda.", exc_info=True)
 
     def _get_worksheet(self, spreadsheet: gspread.Spreadsheet, worksheet_name: str) -> gspread.Worksheet:
@@ -1277,7 +1278,7 @@ class SheetsSyncService:
         worksheet.update("A1", [HEADER_CANONICO_SOLICITUDES])
         try:
             worksheet.resize(cols=len(HEADER_CANONICO_SOLICITUDES))
-        except Exception:
+        except (OSError, gspread.exceptions.APIError):
             logger.debug("No se pudo ajustar columnas de la worksheet 'solicitudes'.", exc_info=True)
 
     def _insert_cuadrante_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:

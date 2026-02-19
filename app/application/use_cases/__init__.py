@@ -9,6 +9,7 @@ from typing import Iterable
 
 from app.application.base_cuadrantes_service import BaseCuadrantesService
 from app.application.pending_conflicts import detect_pending_time_conflicts
+from app.core.errors import InfraError, PersistenceError
 from app.application.dto import (
     ConflictoDiaDTO,
     PeriodoFiltro,
@@ -595,9 +596,11 @@ class SolicitudUseCases:
             except (ValidacionError, BusinessRuleError) as exc:
                 errores.append(str(exc))
                 pendientes.append(solicitud)
-            except Exception as exc:  # pragma: no cover - fallback
-                logger.exception("Error creando solicitud")
-                errores.append(str(exc))
+            except PersistenceError:
+                raise
+            except InfraError:  # pragma: no cover - fallback
+                logger.exception("Error técnico creando solicitud")
+                errores.append("Se produjo un error técnico al guardar la solicitud.")
                 pendientes.append(solicitud)
 
         pdf_path: Path | None = None
@@ -622,9 +625,11 @@ class SolicitudUseCases:
                     _actualizar_pdf_en_repo(self._repo, solicitud, pdf_path, pdf_hash)
                     for solicitud in creadas
                 ]
-            except Exception as exc:  # pragma: no cover - fallback
-                logger.exception("Error generando PDF")
-                errores.append(f"No se pudo generar el PDF: {exc}")
+            except PersistenceError:
+                raise
+            except InfraError:  # pragma: no cover - fallback
+                logger.exception("Error técnico generando PDF")
+                errores.append("No se pudo generar el PDF por un error técnico.")
                 pdf_path = None
 
         return creadas, pendientes, errores, pdf_path
@@ -653,9 +658,11 @@ class SolicitudUseCases:
             except (ValidacionError, BusinessRuleError) as exc:
                 errores.append(str(exc))
                 pendientes_restantes.append(solicitud)
-            except Exception as exc:  # pragma: no cover - fallback
-                logger.exception("Error confirmando solicitud sin PDF")
-                errores.append(str(exc))
+            except PersistenceError:
+                raise
+            except InfraError:  # pragma: no cover - fallback
+                logger.exception("Error técnico confirmando solicitud sin PDF")
+                errores.append("Se produjo un error técnico al confirmar la solicitud.")
                 pendientes_restantes.append(solicitud)
 
         return creadas_confirmadas, pendientes_restantes, errores

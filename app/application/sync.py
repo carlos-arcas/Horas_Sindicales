@@ -11,6 +11,7 @@ import time
 from typing import Callable, Literal
 
 from app.application.sync_sheets_use_case import SyncSheetsUseCase
+from app.core.errors import InfraError
 from app.domain.sync_models import SyncSummary
 
 logger = logging.getLogger(__name__)
@@ -147,7 +148,7 @@ class GoogleSheetsSyncModule:
                 return report
             except SyncCancelledError:
                 raise
-            except Exception as exc:  # noqa: BLE001
+            except (InfraError, TimeoutError, ConnectionError, OSError) as exc:
                 errors.append(str(exc))
                 self._log("sync_attempt_failed", attempt=attempts, error=str(exc))
                 if attempts >= retry.max_attempts or not self._is_retryable(exc):

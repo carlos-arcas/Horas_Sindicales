@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from app.core.errors import InfraError, TransientExternalError
 
-class SheetsConfigError(Exception):
+
+class SheetsConfigError(InfraError):
     pass
 
 
@@ -21,5 +23,5 @@ class SheetsCredentialsError(SheetsConfigError):
     pass
 
 
-class SheetsRateLimitError(Exception):
+class SheetsRateLimitError(TransientExternalError):
     pass
