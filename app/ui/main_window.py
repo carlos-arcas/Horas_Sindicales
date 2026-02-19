@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import json
 import traceback
-from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -58,7 +57,6 @@ from app.domain.sheets_errors import (
     SheetsRateLimitError,
 )
 from app.ui.models_qt import SolicitudesTableModel
-from app.ui.dialog_opciones import OpcionesDialog
 from app.ui.conflicts_dialog import ConflictsDialog
 from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
 from app.ui.error_mapping import map_error_to_user_message
@@ -66,6 +64,10 @@ from app.ui.person_dialog import PersonaDialog
 from app.ui.style import apply_theme
 from app.ui.widgets.header import HeaderWidget
 from app.ui.widgets.toast import ToastManager
+from app.ui.controllers.personas_controller import PersonasController
+from app.ui.controllers.solicitudes_controller import SolicitudesController
+from app.ui.controllers.sync_controller import SyncController
+from app.ui.controllers.pdf_controller import PdfController
 
 try:
     from PySide6.QtPdf import QPdfDocument
@@ -255,6 +257,10 @@ class MainWindow(QMainWindow):
         self._orphan_pendientes: list[SolicitudDTO] = []
         self._sync_in_progress = False
         self.toast = ToastManager()
+        self._personas_controller = PersonasController(self)
+        self._solicitudes_controller = SolicitudesController(self)
+        self._sync_controller = SyncController(self)
+        self._pdf_controller = PdfController(self._solicitud_use_cases)
         self.setWindowTitle("Horas Sindicales")
         self._build_ui()
         self.toast.attach_to(self)
@@ -903,20 +909,7 @@ class MainWindow(QMainWindow):
             self._refresh_saldos()
 
     def _on_sync(self) -> None:
-        if not self._sync_service.is_configured():
-            self.toast.warning("No hay configuración de Google Sheets. Abre Opciones para configurarlo.", title="Sin configuración")
-            return
-        self._set_sync_in_progress(True)
-        self._sync_thread = QThread()
-        self._sync_worker = SyncWorker(self._sync_service)
-        self._sync_worker.moveToThread(self._sync_thread)
-        self._sync_thread.started.connect(self._sync_worker.run)
-        self._sync_worker.finished.connect(self._on_sync_finished)
-        self._sync_worker.failed.connect(self._on_sync_failed)
-        self._sync_worker.finished.connect(self._sync_thread.quit)
-        self._sync_worker.finished.connect(self._sync_worker.deleteLater)
-        self._sync_thread.finished.connect(self._sync_thread.deleteLater)
-        self._sync_thread.start()
+        self._sync_controller.on_sync()
 
     def _on_sync_finished(self, summary: SyncSummary) -> None:
         self._set_sync_in_progress(False)
@@ -955,9 +948,7 @@ class MainWindow(QMainWindow):
         self.review_conflicts_button.setEnabled(self._conflicts_service.count_conflicts() > 0)
 
     def _on_open_opciones(self) -> None:
-        dialog = OpcionesDialog(self._sheets_service, self)
-        dialog.exec()
-        self._update_sync_button_state()
+        self._sync_controller.on_open_opciones()
 
     def _on_edit_pdf(self) -> None:
         dialog = PdfConfigDialog(self._grupo_use_cases, self._sync_service, self)
@@ -1092,16 +1083,7 @@ class MainWindow(QMainWindow):
         if persona_dto is None:
             logger.info("Creación de persona cancelada")
             return
-        try:
-            creada = self._persona_use_cases.crear(persona_dto)
-        except ValidacionError as exc:
-            self.toast.warning(str(exc), title="Validación")
-            return
-        except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error creando persona")
-            self._show_critical_error(exc)
-            return
-        self._load_personas(select_id=creada.id)
+        self._personas_controller.on_add_persona(persona_dto)
 
     def _on_edit_persona(self) -> None:
         persona = self._current_persona()
@@ -1153,58 +1135,7 @@ class MainWindow(QMainWindow):
         self._load_personas()
 
     def _on_add_pendiente(self) -> None:
-        logger.info("Botón Agregar pulsado en pantalla de Peticiones")
-        solicitud = self._build_preview_solicitud()
-        if solicitud is None:
-            self.toast.warning("Selecciona una delegada antes de agregar una petición.", title="Validación")
-            return
-
-        try:
-            minutos = self._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
-        except (ValidacionError, BusinessRuleError) as exc:
-            self.toast.warning(str(exc), title="Validación")
-            return
-        except Exception as exc:  # pragma: no cover - fallback
-            logger.error("Error calculando minutos de la petición", exc_info=True)
-            self._show_critical_error(exc)
-            return
-
-        notas_text = self.notas_input.toPlainText().strip()
-        solicitud = replace(
-            solicitud,
-            horas=self._solicitud_use_cases.minutes_to_hours_float(minutos),
-            notas=notas_text or None,
-        )
-        logger.info(
-            "Intentando insertar petición persona_id=%s fecha_pedida=%s completo=%s desde=%s hasta=%s horas=%s notas=%s",
-            solicitud.persona_id,
-            solicitud.fecha_pedida,
-            solicitud.completo,
-            solicitud.desde,
-            solicitud.hasta,
-            solicitud.horas,
-            bool(solicitud.notas),
-        )
-
-        if not self._resolve_backend_conflict(solicitud.persona_id, solicitud):
-            return
-
-        try:
-            self._solicitud_use_cases.agregar_solicitud(solicitud)
-            self._reload_pending_views()
-        except (ValidacionError, BusinessRuleError) as exc:
-            self.toast.warning(str(exc), title="Validación")
-            return
-        except Exception as exc:  # pragma: no cover - fallback
-            logger.error("Error insertando petición en base de datos", exc_info=True)
-            self._show_critical_error(exc)
-            return
-
-        self.notas_input.setPlainText("")
-        self._refresh_historico()
-        self._refresh_saldos()
-        self._update_action_state()
-        self.toast.success("Petición añadida a pendientes")
+        self._solicitudes_controller.on_add_pendiente()
 
     def _resolve_pending_conflict(self, fecha_pedida: str, completo: bool) -> bool:
         conflictos = [
@@ -1388,11 +1319,7 @@ class MainWindow(QMainWindow):
         self._show_sync_error_dialog(error, details)
 
     def _update_sync_button_state(self) -> None:
-        configured = self._sync_service.is_configured()
-        self.sync_button.setEnabled(configured and not self._sync_in_progress)
-        self.review_conflicts_button.setEnabled(
-            not self._sync_in_progress and self._conflicts_service.count_conflicts() > 0
-        )
+        self._sync_controller.update_sync_button_state()
 
     def _show_sync_error_dialog(self, error: Exception, details: str | None) -> None:
         title = "Error de sincronización"
@@ -1600,7 +1527,7 @@ class MainWindow(QMainWindow):
             self.toast.info("No hay solicitudes para exportar.", title="Histórico")
             return
         try:
-            default_name = self._solicitud_use_cases.sugerir_nombre_pdf_historico(filtro)
+            default_name = self._pdf_controller.sugerir_nombre_historico(filtro)
         except (ValidacionError, BusinessRuleError) as exc:
             self.toast.warning(str(exc), title="Validación")
             return
