@@ -25,8 +25,8 @@ class SolicitudesController:
             )
             return
 
-        duplicate_row = w._find_pending_duplicate_row(solicitud)
-        if duplicate_row is not None and not w._handle_duplicate_before_add(duplicate_row):
+        duplicate = w._solicitud_use_cases.buscar_duplicado(solicitud)
+        if duplicate is not None and not w._handle_duplicate_detected(duplicate):
             return
 
         try:
