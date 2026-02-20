@@ -355,8 +355,35 @@ class MainWindow(QMainWindow):
         card_layout.addWidget(separator)
         return card, card_layout
 
+    def _configure_disclosure(
+        self,
+        button: QPushButton,
+        content: QWidget,
+        *,
+        collapsed_text: str = "Ver detalles",
+        expanded_text: str = "Ocultar detalles",
+    ) -> None:
+        content.setVisible(False)
+        button.setCheckable(True)
+
+        def _toggle(checked: bool) -> None:
+            content.setVisible(checked)
+            button.setText(expanded_text if checked else collapsed_text)
+
+        button.toggled.connect(_toggle)
+        _toggle(False)
+
     def _build_saldos_card(self) -> QFrame:
         saldos_card, saldos_layout = self._create_card("Saldos detallados")
+        self.saldos_details_button = QPushButton("Ver detalles")
+        self.saldos_details_button.setProperty("variant", "secondary")
+        saldos_layout.addWidget(self.saldos_details_button)
+
+        self.saldos_details_content = QWidget()
+        saldos_details_layout = QVBoxLayout(self.saldos_details_content)
+        saldos_details_layout.setContentsMargins(0, 0, 0, 0)
+        saldos_details_layout.setSpacing(8)
+
         saldos_grid = QGridLayout()
         saldos_grid.setHorizontalSpacing(10)
         saldos_grid.setVerticalSpacing(8)
@@ -388,7 +415,7 @@ class MainWindow(QMainWindow):
         saldos_grid.addWidget(QLabel("Anual grupo"), 3, 0)
         saldos_grid.addWidget(self.saldo_grupo_consumidas, 3, 1)
         saldos_grid.addWidget(self.saldo_grupo_restantes, 3, 2)
-        saldos_layout.addLayout(saldos_grid)
+        saldos_details_layout.addLayout(saldos_grid)
 
         self.exceso_badge = QLabel("")
         self.exceso_badge.setProperty("role", "badge")
@@ -396,12 +423,12 @@ class MainWindow(QMainWindow):
         exceso_row = QHBoxLayout()
         exceso_row.addStretch(1)
         exceso_row.addWidget(self.exceso_badge)
-        saldos_layout.addLayout(exceso_row)
+        saldos_details_layout.addLayout(exceso_row)
 
         bolsas_separator = QFrame()
         bolsas_separator.setProperty("role", "subtleSeparator")
         bolsas_separator.setFixedHeight(1)
-        saldos_layout.addWidget(bolsas_separator)
+        saldos_details_layout.addWidget(bolsas_separator)
 
         bolsas_grid = QGridLayout()
         bolsas_grid.setHorizontalSpacing(8)
@@ -418,7 +445,9 @@ class MainWindow(QMainWindow):
         self.bolsa_grupo_label = QLabel("00:00")
         self.bolsa_grupo_label.setProperty("role", "secondary")
         bolsas_grid.addWidget(self.bolsa_grupo_label, 2, 1)
-        saldos_layout.addLayout(bolsas_grid)
+        saldos_details_layout.addLayout(bolsas_grid)
+        saldos_layout.addWidget(self.saldos_details_content)
+        self._configure_disclosure(self.saldos_details_button, self.saldos_details_content)
         return saldos_card
 
     def _build_ui(self) -> None:
@@ -458,9 +487,7 @@ class MainWindow(QMainWindow):
         operativa_layout = QVBoxLayout(operativa_tab)
         operativa_layout.setContentsMargins(0, 0, 0, 0)
         operativa_layout.setSpacing(12)
-        operativa_help = QLabel(
-            "Registra solicitudes y confirma las pendientes en el mismo flujo operativo."
-        )
+        operativa_help = QLabel("Completa la solicitud y confirma solo cuando estés lista.")
         operativa_help.setWordWrap(True)
         operativa_help.setProperty("role", "secondary")
         operativa_layout.addWidget(operativa_help)
@@ -538,6 +565,10 @@ class MainWindow(QMainWindow):
         self.pending_errors_frame.setVisible(False)
         solicitud_layout.addWidget(self.pending_errors_frame)
 
+        datos_basicos_label = QLabel("Datos básicos")
+        datos_basicos_label.setProperty("role", "sectionTitle")
+        solicitud_layout.addWidget(datos_basicos_label)
+
         solicitud_row = QHBoxLayout()
         solicitud_row.setSpacing(10)
         solicitud_row.addWidget(QLabel("Fecha"))
@@ -580,7 +611,7 @@ class MainWindow(QMainWindow):
         self.completo_check.toggled.connect(self._on_completo_changed)
         solicitud_row.addWidget(self.completo_check)
 
-        self.total_preview_label = QLabel("Total petición")
+        self.total_preview_label = QLabel("Información de saldo")
         self.total_preview_label.setProperty("role", "secondary")
         solicitud_row.addWidget(self.total_preview_label)
 
@@ -589,6 +620,10 @@ class MainWindow(QMainWindow):
         self.total_preview_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.total_preview_input.setMaximumWidth(84)
         solicitud_row.addWidget(self.total_preview_input)
+
+        self.consequence_microcopy_label = QLabel("Esta acción consumirá 0 horas del saldo disponible.")
+        self.consequence_microcopy_label.setProperty("role", "secondary")
+        solicitud_row.addWidget(self.consequence_microcopy_label)
 
         self.cuadrante_warning_label = QLabel("")
         self.cuadrante_warning_label.setProperty("role", "secondary")
@@ -604,6 +639,10 @@ class MainWindow(QMainWindow):
         solicitud_row.addWidget(self.agregar_button)
         solicitud_row.addStretch(1)
         solicitud_layout.addLayout(solicitud_row)
+
+        validacion_label = QLabel("Validación")
+        validacion_label.setProperty("role", "sectionTitle")
+        solicitud_layout.addWidget(validacion_label)
 
         self.solicitud_inline_error = QLabel("")
         self.solicitud_inline_error.setProperty("role", "error")
@@ -624,6 +663,10 @@ class MainWindow(QMainWindow):
         self.tramo_field_error.setProperty("role", "error")
         self.tramo_field_error.setVisible(False)
         solicitud_layout.addWidget(self.tramo_field_error)
+
+        observaciones_label = QLabel("Observaciones")
+        observaciones_label.setProperty("role", "sectionTitle")
+        solicitud_layout.addWidget(observaciones_label)
 
         notas_row = QHBoxLayout()
         notas_row.setSpacing(8)
@@ -651,12 +694,20 @@ class MainWindow(QMainWindow):
         self.revisar_ocultas_button.setVisible(False)
         self.revisar_ocultas_button.clicked.connect(self._on_review_hidden_pendientes)
         pending_tools.addWidget(self.revisar_ocultas_button)
+        self.pending_details_button = QPushButton("Ver detalles")
+        self.pending_details_button.setProperty("variant", "tertiary")
+        pending_tools.addWidget(self.pending_details_button)
         self.pending_filter_warning = QLabel("")
         self.pending_filter_warning.setProperty("role", "secondary")
         self.pending_filter_warning.setVisible(False)
         pending_tools.addWidget(self.pending_filter_warning)
         pending_tools.addStretch(1)
         pendientes_layout.addLayout(pending_tools)
+
+        self.pending_details_content = QWidget()
+        pending_details_layout = QVBoxLayout(self.pending_details_content)
+        pending_details_layout.setContentsMargins(0, 0, 0, 0)
+        pending_details_layout.setSpacing(8)
 
         self.pendientes_table = QTableView()
         self.pendientes_model = SolicitudesTableModel([])
@@ -669,12 +720,12 @@ class MainWindow(QMainWindow):
         self.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.pendientes_table.setMinimumHeight(220)
         self._configure_solicitudes_table(self.pendientes_table)
-        pendientes_layout.addWidget(self.pendientes_table, 1)
+        pending_details_layout.addWidget(self.pendientes_table, 1)
 
         self.huerfanas_label = QLabel("Reparar · Pendientes huérfanas")
         self.huerfanas_label.setProperty("role", "sectionTitle")
         self.huerfanas_label.setVisible(False)
-        pendientes_layout.addWidget(self.huerfanas_label)
+        pending_details_layout.addWidget(self.huerfanas_label)
 
         self.huerfanas_table = QTableView()
         self.huerfanas_model = SolicitudesTableModel([])
@@ -686,12 +737,12 @@ class MainWindow(QMainWindow):
         self.huerfanas_table.setMinimumHeight(120)
         self._configure_solicitudes_table(self.huerfanas_table)
         self.huerfanas_table.setVisible(False)
-        pendientes_layout.addWidget(self.huerfanas_table)
+        pending_details_layout.addWidget(self.huerfanas_table)
 
         footer_separator = QFrame()
         footer_separator.setProperty("role", "subtleSeparator")
         footer_separator.setFixedHeight(1)
-        pendientes_layout.addWidget(footer_separator)
+        pending_details_layout.addWidget(footer_separator)
 
         pendientes_footer = QHBoxLayout()
         pendientes_footer.setSpacing(10)
@@ -743,7 +794,9 @@ class MainWindow(QMainWindow):
         right_actions.addWidget(self.primary_cta_hint)
 
         pendientes_footer.addLayout(right_actions)
-        pendientes_layout.addLayout(pendientes_footer)
+        pending_details_layout.addLayout(pendientes_footer)
+        pendientes_layout.addWidget(self.pending_details_content, 1)
+        self._configure_disclosure(self.pending_details_button, self.pending_details_content)
         left_column.addWidget(pendientes_card, 1)
 
         self.main_tabs.addTab(operativa_tab, "Operativa")
@@ -752,9 +805,7 @@ class MainWindow(QMainWindow):
         historico_tab_layout = QVBoxLayout(historico_tab)
         historico_tab_layout.setContentsMargins(0, 0, 0, 0)
         historico_tab_layout.setSpacing(12)
-        historico_help = QLabel(
-            "Consulta histórico completo, filtra por criterios clave y revisa saldos detallados sin distraer la captura."
-        )
+        historico_help = QLabel("Consulta histórico y saldos solo cuando necesites más contexto.")
         historico_help.setWordWrap(True)
         historico_help.setProperty("role", "secondary")
         historico_tab_layout.addWidget(historico_help)
@@ -764,6 +815,13 @@ class MainWindow(QMainWindow):
 
         # UX: el histórico se separa para inspección y reporting sin contaminar el flujo operativo.
         historico_card, historico_layout = self._create_card("Histórico")
+        self.historico_details_button = QPushButton("Más información")
+        self.historico_details_button.setProperty("variant", "secondary")
+        historico_layout.addWidget(self.historico_details_button)
+        self.historico_details_content = QWidget()
+        historico_details_layout = QVBoxLayout(self.historico_details_content)
+        historico_details_layout.setContentsMargins(0, 0, 0, 0)
+        historico_details_layout.setSpacing(8)
         self._historico_group = historico_card
         historico_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -815,7 +873,7 @@ class MainWindow(QMainWindow):
         filtros_row_2.addWidget(self.historico_clear_filters_button)
         filtros_row_2.addStretch(1)
         filtros_layout.addLayout(filtros_row_2)
-        historico_layout.addLayout(filtros_layout)
+        historico_details_layout.addLayout(filtros_layout)
 
         self.historico_table = QTableView()
         self.historico_view_model = HistoricalViewModel([])
@@ -838,7 +896,7 @@ class MainWindow(QMainWindow):
         historico_header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         historico_header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         historico_header.setSectionResizeMode(5, QHeaderView.Stretch)
-        historico_layout.addWidget(self.historico_table, 1)
+        historico_details_layout.addWidget(self.historico_table, 1)
 
         historico_actions = QHBoxLayout()
         historico_actions.setSpacing(10)
@@ -862,7 +920,14 @@ class MainWindow(QMainWindow):
         self.generar_pdf_button.setProperty("variant", "secondary")
         self.generar_pdf_button.clicked.connect(self._on_generar_pdf_historico)
         historico_actions.addWidget(self.generar_pdf_button)
-        historico_layout.addLayout(historico_actions)
+        historico_details_layout.addLayout(historico_actions)
+        historico_layout.addWidget(self.historico_details_content, 1)
+        self._configure_disclosure(
+            self.historico_details_button,
+            self.historico_details_content,
+            collapsed_text="Más información",
+            expanded_text="Ocultar información",
+        )
         historico_tab_layout.addWidget(historico_card, 1)
 
         self.main_tabs.addTab(historico_tab, "Consulta")
@@ -1739,6 +1804,12 @@ class MainWindow(QMainWindow):
         minutos, warning = self._calculate_preview_minutes()
         total_txt = "—" if minutos is None or not valid else self._format_minutes(minutos)
         self.total_preview_input.setText(total_txt)
+        if minutos is None or not valid:
+            self.consequence_microcopy_label.setText("Esta acción consumirá 0 horas del saldo disponible.")
+        else:
+            self.consequence_microcopy_label.setText(
+                f"Esta acción consumirá {self._format_minutes(minutos)} del saldo disponible."
+            )
         self.cuadrante_warning_label.setVisible(warning)
         self.cuadrante_warning_label.setText("Cuadrante no configurado" if warning else "")
         self.solicitud_inline_error.setVisible(False)
