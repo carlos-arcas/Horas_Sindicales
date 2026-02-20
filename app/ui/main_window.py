@@ -312,6 +312,10 @@ class MainWindow(QMainWindow):
         self._sync_attempts: list[dict[str, object]] = []
         self._active_sync_id: str | None = None
         self._attempt_history: tuple[SyncAttemptReport, ...] = ()
+        self._field_touched: set[str] = set()
+        self._blocking_errors: dict[str, str] = {}
+        self._warnings: dict[str, str] = {}
+        self._duplicate_target: SolicitudDTO | None = None
         self.toast = ToastManager()
         self.notifications = NotificationService(self.toast, self)
         self._personas_controller = PersonasController(self)
@@ -449,6 +453,25 @@ class MainWindow(QMainWindow):
         self.confirmation_summary_label.setWordWrap(True)
         solicitud_layout.addWidget(self.confirmation_summary_label)
 
+        self.pending_errors_frame = QFrame()
+        self.pending_errors_frame.setProperty("role", "error")
+        pending_errors_layout = QVBoxLayout(self.pending_errors_frame)
+        pending_errors_layout.setContentsMargins(10, 8, 10, 8)
+        pending_errors_layout.setSpacing(6)
+        self.pending_errors_title = QLabel("Errores pendientes")
+        self.pending_errors_title.setProperty("role", "sectionTitle")
+        pending_errors_layout.addWidget(self.pending_errors_title)
+        self.pending_errors_summary = QLabel("")
+        self.pending_errors_summary.setWordWrap(True)
+        pending_errors_layout.addWidget(self.pending_errors_summary)
+        self.goto_existing_button = QPushButton("Ir a la existente")
+        self.goto_existing_button.setProperty("variant", "tertiary")
+        self.goto_existing_button.clicked.connect(self._on_go_to_existing_duplicate)
+        self.goto_existing_button.setVisible(False)
+        pending_errors_layout.addWidget(self.goto_existing_button)
+        self.pending_errors_frame.setVisible(False)
+        solicitud_layout.addWidget(self.pending_errors_frame)
+
         solicitud_row = QHBoxLayout()
         solicitud_row.setSpacing(10)
         solicitud_row.addWidget(QLabel("Fecha"))
@@ -520,6 +543,21 @@ class MainWindow(QMainWindow):
         self.solicitud_inline_error.setProperty("role", "error")
         self.solicitud_inline_error.setVisible(False)
         solicitud_layout.addWidget(self.solicitud_inline_error)
+
+        self.delegada_field_error = QLabel("")
+        self.delegada_field_error.setProperty("role", "error")
+        self.delegada_field_error.setVisible(False)
+        solicitud_layout.addWidget(self.delegada_field_error)
+
+        self.fecha_field_error = QLabel("")
+        self.fecha_field_error.setProperty("role", "error")
+        self.fecha_field_error.setVisible(False)
+        solicitud_layout.addWidget(self.fecha_field_error)
+
+        self.tramo_field_error = QLabel("")
+        self.tramo_field_error.setProperty("role", "error")
+        self.tramo_field_error.setVisible(False)
+        solicitud_layout.addWidget(self.tramo_field_error)
 
         notas_row = QHBoxLayout()
         notas_row.setSpacing(8)
@@ -1049,6 +1087,7 @@ class MainWindow(QMainWindow):
         self._update_responsive_columns()
         self._configure_time_placeholders()
         self._configure_operativa_focus_order()
+        self._bind_preventive_validation_events()
         self._historico_search_timer = QTimer(self)
         self._historico_search_timer.setSingleShot(True)
         self._historico_search_timer.setInterval(250)
@@ -1266,6 +1305,134 @@ class MainWindow(QMainWindow):
         self.hasta_placeholder.setFixedSize(hasta_hint)
         self._sync_completo_visibility(self.completo_check.isChecked())
         self._bind_manual_hours_preview_refresh()
+
+    def _bind_preventive_validation_events(self) -> None:
+        self.persona_combo.currentIndexChanged.connect(lambda _: self._mark_field_touched("delegada"))
+        self.fecha_input.editingFinished.connect(lambda: self._mark_field_touched("fecha"))
+        self.desde_input.editingFinished.connect(lambda: self._mark_field_touched("tramo"))
+        self.hasta_input.editingFinished.connect(lambda: self._mark_field_touched("tramo"))
+        self.completo_check.toggled.connect(lambda _: self._mark_field_touched("tramo"))
+
+    def _mark_field_touched(self, field: str) -> None:
+        self._field_touched.add(field)
+        self._run_preventive_validation()
+
+    def _run_preventive_validation(self) -> None:
+        blocking, warnings = self._collect_preventive_validation()
+        self._blocking_errors = blocking
+        self._warnings = warnings
+        self._render_preventive_validation()
+
+    def _collect_preventive_validation(self) -> tuple[dict[str, str], dict[str, str]]:
+        blocking: dict[str, str] = {}
+        warnings: dict[str, str] = {}
+        self._duplicate_target = None
+
+        persona = self._current_persona()
+        if persona is None:
+            blocking["delegada"] = "⚠ Selecciona una delegada."
+
+        fecha_pedida = self.fecha_input.date().toString("yyyy-MM-dd")
+        try:
+            datetime.strptime(fecha_pedida, "%Y-%m-%d")
+        except ValueError:
+            blocking["fecha"] = "⚠ Introduce una fecha válida."
+
+        completo = self.completo_check.isChecked()
+        tramo_errors = validate_request_inputs(
+            None if completo else self.desde_input.time().toString("HH:mm"),
+            None if completo else self.hasta_input.time().toString("HH:mm"),
+            completo,
+        )
+        if tramo_errors:
+            blocking["tramo"] = f"⚠ {next(iter(tramo_errors.values()))}"
+
+        solicitud = self._build_preview_solicitud()
+        if solicitud is None or blocking:
+            return blocking, warnings
+
+        try:
+            minutos = self._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
+            year, month, _ = (int(part) for part in solicitud.fecha_pedida.split("-"))
+            saldos = self._solicitud_use_cases.calcular_saldos(solicitud.persona_id, year, month)
+            if saldos.restantes_mes < minutos or saldos.restantes_ano < minutos:
+                blocking["saldo"] = "⚠ Saldo insuficiente para esta solicitud."
+
+            duplicate = self._solicitud_use_cases.buscar_duplicado(solicitud)
+            if duplicate is not None:
+                blocking["duplicado"] = "⚠ Ya existe una solicitud similar."
+                self._duplicate_target = duplicate
+
+            pending_duplicate_row = self._find_pending_duplicate_row(solicitud)
+            if pending_duplicate_row is not None:
+                blocking["duplicado"] = "⚠ Ya existe una solicitud similar."
+                self._duplicate_target = self._pending_solicitudes[pending_duplicate_row]
+
+            conflicto = self._solicitud_use_cases.validar_conflicto_dia(
+                solicitud.persona_id, solicitud.fecha_pedida, solicitud.completo
+            )
+            if not conflicto.ok:
+                blocking["conflicto"] = "⚠ Hay un conflicto activo pendiente en esa fecha."
+
+            if solicitud.completo and self.cuadrante_warning_label.isVisible():
+                warnings["cuadrante"] = "⚠ El cuadrante no está configurado y puede alterar el cálculo final."
+        except (ValidacionError, BusinessRuleError) as exc:
+            blocking.setdefault("tramo", f"⚠ {str(exc)}")
+
+        return blocking, warnings
+
+    def _render_preventive_validation(self) -> None:
+        delegada_error = self._blocking_errors.get("delegada", "") if "delegada" in self._field_touched else ""
+        fecha_error = self._blocking_errors.get("fecha", "") if "fecha" in self._field_touched else ""
+        tramo_error = self._blocking_errors.get("tramo", "") if "tramo" in self._field_touched else ""
+
+        self.delegada_field_error.setVisible(bool(delegada_error))
+        self.delegada_field_error.setText(delegada_error)
+        self.fecha_field_error.setVisible(bool(fecha_error))
+        self.fecha_field_error.setText(fecha_error)
+        self.tramo_field_error.setVisible(bool(tramo_error))
+        self.tramo_field_error.setText(tramo_error)
+
+        summary_items = [
+            message for key, message in self._blocking_errors.items() if key not in {"delegada", "fecha", "tramo"} or key in self._field_touched
+        ]
+        if not summary_items:
+            summary_items = list(self._blocking_errors.values())
+
+        self.pending_errors_frame.setVisible(bool(summary_items))
+        self.pending_errors_summary.setText("\n".join(f"• {message}" for message in summary_items))
+        show_duplicate_cta = "duplicado" in self._blocking_errors and self._duplicate_target is not None
+        self.goto_existing_button.setVisible(show_duplicate_cta)
+
+    def _on_go_to_existing_duplicate(self) -> None:
+        duplicate = self._duplicate_target
+        if duplicate is None:
+            return
+        if not duplicate.generated:
+            if self._focus_pending_by_id(duplicate.id):
+                return
+            duplicate_row = self._find_pending_duplicate_row(duplicate)
+            if duplicate_row is not None:
+                self._focus_pending_row(duplicate_row)
+                return
+        self._focus_historico_duplicate(duplicate)
+
+    def _run_preconfirm_checks(self) -> bool:
+        self._field_touched.update({"delegada", "fecha", "tramo"})
+        self._run_preventive_validation()
+        if self._blocking_errors:
+            self.toast.warning("Corrige los errores pendientes antes de confirmar.", title="Validación preventiva")
+            return False
+        if self._warnings:
+            warning_text = "\n".join(f"• {msg}" for msg in self._warnings.values())
+            result = QMessageBox.question(
+                self,
+                "Advertencias",
+                f"Se detectaron advertencias no bloqueantes:\n\n{warning_text}\n\n¿Deseas continuar?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            return result == QMessageBox.StandardButton.Yes
+        return True
 
     def _bind_manual_hours_preview_refresh(self) -> None:
         if not hasattr(self, "horas_input"):
@@ -1559,8 +1726,9 @@ class MainWindow(QMainWindow):
         self.total_preview_input.setText(total_txt)
         self.cuadrante_warning_label.setVisible(warning)
         self.cuadrante_warning_label.setText("Cuadrante no configurado" if warning else "")
-        self.solicitud_inline_error.setVisible(not valid)
-        self.solicitud_inline_error.setText(message)
+        self.solicitud_inline_error.setVisible(False)
+        self.solicitud_inline_error.setText("")
+        self._run_preventive_validation()
         self._update_action_state()
 
     def _validate_solicitud_form(self) -> tuple[bool, str]:
@@ -1577,11 +1745,16 @@ class MainWindow(QMainWindow):
         return True, ""
 
     def _update_action_state(self) -> None:
+        if hasattr(self, "_run_preventive_validation"):
+            self._run_preventive_validation()
         persona_selected = self._current_persona() is not None
         form_valid, form_message = self._validate_solicitud_form()
-        self.agregar_button.setEnabled(persona_selected and form_valid)
+        blocking_errors = getattr(self, "_blocking_errors", {})
+        has_blocking_errors = bool(blocking_errors)
+        first_blocking_error = next(iter(blocking_errors.values()), "")
+        self.agregar_button.setEnabled(persona_selected and form_valid and not has_blocking_errors)
         has_pending = bool(self._pending_solicitudes)
-        can_confirm = has_pending and not self._pending_conflict_rows and not self._pending_view_all
+        can_confirm = has_pending and not self._pending_conflict_rows and not self._pending_view_all and not has_blocking_errors
         self.insertar_sin_pdf_button.setEnabled(persona_selected and can_confirm)
         selected_pending = self._selected_pending_solicitudes()
         self.confirmar_button.setEnabled(persona_selected and can_confirm and bool(selected_pending))
@@ -1601,17 +1774,22 @@ class MainWindow(QMainWindow):
         self.resync_historico_button.setText(f"Re-sincronizar ({selected_count})")
         self.generar_pdf_button.setText(f"Generar PDF ({selected_count})")
 
-        self.stepper_labels[1].setEnabled(form_valid)
-        self.stepper_labels[1].setToolTip("" if form_valid else form_message or "Completa la solicitud para poder añadirla")
+        form_step_valid = form_valid and not has_blocking_errors
+        self.stepper_labels[1].setEnabled(form_step_valid)
+        stepper_message = first_blocking_error or form_message or "Completa la solicitud para poder añadirla"
+        self.stepper_labels[1].setToolTip("" if form_step_valid else stepper_message)
 
-        active_step = self._resolve_operativa_step(form_valid, has_pending, selected_pending, can_confirm)
+        active_step = self._resolve_operativa_step(form_step_valid, has_pending, selected_pending, can_confirm)
         self._set_operativa_step(active_step)
         self._update_step_context(active_step)
         self._update_confirmation_summary(selected_pending)
 
         cta_text = "Confirmar seleccionadas" if selected_pending and can_confirm else "Añadir a pendientes"
         self.primary_cta_button.setText(cta_text)
-        if not form_valid:
+        if has_blocking_errors:
+            self.primary_cta_button.setEnabled(False)
+            self.primary_cta_hint.setText(first_blocking_error)
+        elif not form_valid:
             self.primary_cta_button.setEnabled(False)
             self.primary_cta_hint.setText(form_message)
         elif selected_pending and can_confirm:
@@ -1833,6 +2011,11 @@ class MainWindow(QMainWindow):
         self._load_personas()
 
     def _on_add_pendiente(self) -> None:
+        self._field_touched.update({"delegada", "fecha", "tramo"})
+        self._run_preventive_validation()
+        if self._blocking_errors:
+            self.toast.warning("Corrige los errores pendientes antes de añadir.", title="Validación preventiva")
+            return
         self._solicitudes_controller.on_add_pendiente()
 
     def _find_pending_duplicate_row(self, solicitud: SolicitudDTO) -> int | None:
@@ -2005,6 +2188,8 @@ class MainWindow(QMainWindow):
         return True
 
     def _on_insertar_sin_pdf(self) -> None:
+        if not self._run_preconfirm_checks():
+            return
         persona = self._current_persona()
         selected = self._selected_pending_solicitudes()
         if persona is None or not selected:
@@ -2045,6 +2230,8 @@ class MainWindow(QMainWindow):
         self._notify_historico_filter_if_hidden(creadas)
 
     def _on_confirmar(self) -> None:
+        if not self._run_preconfirm_checks():
+            return
         persona = self._current_persona()
         selected = self._selected_pending_solicitudes()
         if persona is None or not selected:
