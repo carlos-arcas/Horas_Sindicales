@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QScrollArea,
     QStatusBar,
+    QTabWidget,
     QTableView,
     QTimeEdit,
     QVBoxLayout,
@@ -293,7 +294,7 @@ class MainWindow(QMainWindow):
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(True)
         self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
         content = QWidget()
         content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -306,113 +307,42 @@ class MainWindow(QMainWindow):
         header_layout = QVBoxLayout(header_frame)
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(4)
-        header_top = QHBoxLayout()
-        header_top.setContentsMargins(0, 0, 16, 0)
-        header_top.setSpacing(12)
+
         header = HeaderWidget()
         header.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        header_top.addWidget(header, 1)
+        header_layout.addWidget(header)
 
-        header_actions = QHBoxLayout()
-        header_actions.setSpacing(8)
-        self.edit_grupo_button = QPushButton("Editar grupo")
-        self.edit_grupo_button.setProperty("variant", "secondary")
-        self.edit_grupo_button.clicked.connect(self._on_edit_grupo)
-        header_actions.addWidget(self.edit_grupo_button)
-
-        self.editar_pdf_button = QPushButton("Opciones (PDF)")
-        self.editar_pdf_button.setProperty("variant", "secondary")
-        self.editar_pdf_button.clicked.connect(self._on_edit_pdf)
-        header_actions.addWidget(self.editar_pdf_button)
-
-        self.opciones_button = QPushButton("Sincronización Google Sheets")
-        self.opciones_button.setProperty("variant", "secondary")
-        self.opciones_button.clicked.connect(self._on_open_opciones)
-        header_actions.addWidget(self.opciones_button)
-        header_top.setAlignment(header_actions, Qt.AlignVCenter | Qt.AlignRight)
-        header_top.addLayout(header_actions)
-        header_layout.addLayout(header_top)
         header_separator = QFrame()
         header_separator.setObjectName("headerSeparator")
         header_separator.setFixedHeight(3)
         header_layout.addWidget(header_separator)
         layout.addWidget(header_frame)
 
+        self.main_tabs = QTabWidget()
+        self.main_tabs.setObjectName("mainTabs")
+        self.main_tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        layout.addWidget(self.main_tabs, 1)
+
+        operativa_tab = QWidget()
+        operativa_layout = QVBoxLayout(operativa_tab)
+        operativa_layout.setContentsMargins(0, 0, 0, 0)
+        operativa_layout.setSpacing(12)
+        operativa_help = QLabel(
+            "Registra solicitudes y confirma las pendientes en el mismo flujo operativo."
+        )
+        operativa_help.setWordWrap(True)
+        operativa_help.setProperty("role", "secondary")
+        operativa_layout.addWidget(operativa_help)
+
+        # UX: Operativa concentra solo tareas diarias (alta + pendientes + confirmación)
+        # para reducir cambios de contexto y evitar mezclar navegación histórica.
         self._content_row = QBoxLayout(QBoxLayout.LeftToRight)
         self._content_row.setSpacing(14)
-        layout.addLayout(self._content_row, 1)
+        operativa_layout.addLayout(self._content_row, 1)
 
         left_column = QVBoxLayout()
         left_column.setSpacing(14)
         self._content_row.addLayout(left_column, 3)
-
-        sync_card, sync_layout = self._create_card("Sincronización")
-        sync_heading = QLabel("Google Sheets")
-        sync_heading.setProperty("role", "sectionTitle")
-        sync_layout.addWidget(sync_heading)
-        sync_actions = QHBoxLayout()
-        sync_actions.setSpacing(8)
-        self.sync_button = QPushButton("Sincronizar")
-        self.sync_button.setProperty("variant", "primary")
-        self.sync_button.clicked.connect(self._on_sync)
-        sync_actions.addWidget(self.sync_button)
-
-        self.review_conflicts_button = QPushButton("Revisar discrepancias")
-        self.review_conflicts_button.setProperty("variant", "secondary")
-        self.review_conflicts_button.setEnabled(False)
-        self.review_conflicts_button.clicked.connect(self._on_review_conflicts)
-        sync_actions.addWidget(self.review_conflicts_button)
-        sync_layout.addLayout(sync_actions)
-
-        self.last_sync_label = QLabel("Última sync: --")
-        self.last_sync_label.setProperty("role", "secondary")
-        sync_layout.addWidget(self.last_sync_label)
-
-        self.sync_status_label = QLabel("Sincronizando con Google Sheets…")
-        self.sync_status_label.setProperty("role", "secondary")
-        self.sync_status_label.setVisible(False)
-        self.sync_progress = QProgressBar()
-        self.sync_progress.setRange(0, 0)
-        self.sync_progress.setTextVisible(False)
-        self.sync_progress.setVisible(False)
-        sync_status_row = QHBoxLayout()
-        sync_status_row.setSpacing(8)
-        sync_status_row.addWidget(self.sync_status_label)
-        sync_status_row.addWidget(self.sync_progress, 1)
-        sync_layout.addLayout(sync_status_row)
-        persona_card, persona_layout = self._create_card("Delegado")
-
-        persona_actions = QHBoxLayout()
-        persona_actions.setSpacing(8)
-        self.add_persona_button = QPushButton("Nuevo delegado")
-        self.add_persona_button.setProperty("variant", "secondary")
-        self.add_persona_button.clicked.connect(self._on_add_persona)
-        persona_actions.addWidget(self.add_persona_button)
-
-        self.edit_persona_button = QPushButton("Editar delegado")
-        self.edit_persona_button.setProperty("variant", "secondary")
-        self.edit_persona_button.clicked.connect(self._on_edit_persona)
-        persona_actions.addWidget(self.edit_persona_button)
-        persona_layout.addLayout(persona_actions)
-
-        persona_selector = QHBoxLayout()
-        persona_selector.setSpacing(8)
-        persona_label = QLabel("Delegado")
-        persona_label.setProperty("role", "sectionTitle")
-        persona_selector.addWidget(persona_label)
-        self.persona_combo = QComboBox()
-        self.persona_combo.currentIndexChanged.connect(self._on_persona_changed)
-        persona_selector.addWidget(self.persona_combo, 1)
-        persona_layout.addLayout(persona_selector)
-
-        persona_delete = QHBoxLayout()
-        self.delete_persona_button = QPushButton("Eliminar delegado")
-        self.delete_persona_button.setProperty("variant", "danger")
-        self.delete_persona_button.clicked.connect(self._on_delete_persona)
-        persona_delete.addWidget(self.delete_persona_button)
-        persona_delete.addStretch(1)
-        persona_layout.addLayout(persona_delete)
-        left_column.addWidget(persona_card)
 
         solicitud_card, solicitud_layout = self._create_card("Alta de solicitud")
 
@@ -656,7 +586,22 @@ class MainWindow(QMainWindow):
         bolsas_grid.addWidget(self.bolsa_grupo_label, 2, 1)
         saldos_layout.addLayout(bolsas_grid)
         right_column.addWidget(saldos_card)
+        right_column.addStretch(1)
 
+        self.main_tabs.addTab(operativa_tab, "Operativa")
+
+        historico_tab = QWidget()
+        historico_tab_layout = QVBoxLayout(historico_tab)
+        historico_tab_layout.setContentsMargins(0, 0, 0, 0)
+        historico_tab_layout.setSpacing(12)
+        historico_help = QLabel(
+            "Consulta y depura solicitudes confirmadas aplicando filtros por periodo y año."
+        )
+        historico_help.setWordWrap(True)
+        historico_help.setProperty("role", "secondary")
+        historico_tab_layout.addWidget(historico_help)
+
+        # UX: el histórico se separa para inspección y reporting sin contaminar el flujo operativo.
         historico_card, historico_layout = self._create_card("Histórico")
         self._historico_group = historico_card
         historico_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -727,9 +672,121 @@ class MainWindow(QMainWindow):
         self.generar_pdf_button.clicked.connect(self._on_generar_pdf_historico)
         historico_actions.addWidget(self.generar_pdf_button)
         historico_layout.addLayout(historico_actions)
+        historico_tab_layout.addWidget(historico_card, 1)
 
-        right_column.addWidget(historico_card, 1)
-        right_column.addWidget(sync_card)
+        self.main_tabs.addTab(historico_tab, "Histórico")
+
+        config_tab = QWidget()
+        config_layout = QVBoxLayout(config_tab)
+        config_layout.setContentsMargins(0, 0, 0, 0)
+        config_layout.setSpacing(12)
+        config_help = QLabel(
+            "Gestiona delegado, parámetros del grupo y sincronización avanzada desde un único bloque."
+        )
+        config_help.setWordWrap(True)
+        config_help.setProperty("role", "secondary")
+        config_layout.addWidget(config_help)
+
+        # UX: Configuración reúne controles avanzados (delegado + ajustes + sync)
+        # para que el uso diario no se distraiga con opciones administrativas.
+        persona_card, persona_layout = self._create_card("Delegado")
+
+        persona_actions = QHBoxLayout()
+        persona_actions.setSpacing(8)
+        self.add_persona_button = QPushButton("Nuevo delegado")
+        self.add_persona_button.setProperty("variant", "secondary")
+        self.add_persona_button.clicked.connect(self._on_add_persona)
+        persona_actions.addWidget(self.add_persona_button)
+
+        self.edit_persona_button = QPushButton("Editar delegado")
+        self.edit_persona_button.setProperty("variant", "secondary")
+        self.edit_persona_button.clicked.connect(self._on_edit_persona)
+        persona_actions.addWidget(self.edit_persona_button)
+        persona_layout.addLayout(persona_actions)
+
+        persona_selector = QHBoxLayout()
+        persona_selector.setSpacing(8)
+        persona_label = QLabel("Delegado")
+        persona_label.setProperty("role", "sectionTitle")
+        persona_selector.addWidget(persona_label)
+        self.persona_combo = QComboBox()
+        self.persona_combo.currentIndexChanged.connect(self._on_persona_changed)
+        persona_selector.addWidget(self.persona_combo, 1)
+        persona_layout.addLayout(persona_selector)
+
+        persona_delete = QHBoxLayout()
+        self.delete_persona_button = QPushButton("Eliminar delegado")
+        self.delete_persona_button.setProperty("variant", "danger")
+        self.delete_persona_button.clicked.connect(self._on_delete_persona)
+        persona_delete.addWidget(self.delete_persona_button)
+        persona_delete.addStretch(1)
+        persona_layout.addLayout(persona_delete)
+        config_layout.addWidget(persona_card)
+
+        ajustes_card, ajustes_layout = self._create_card("Opciones avanzadas")
+        ajustes_help = QLabel("Configura grupo, PDF y credenciales de sincronización.")
+        ajustes_help.setWordWrap(True)
+        ajustes_help.setProperty("role", "secondary")
+        ajustes_layout.addWidget(ajustes_help)
+
+        ajustes_actions = QHBoxLayout()
+        ajustes_actions.setSpacing(8)
+        self.edit_grupo_button = QPushButton("Editar grupo")
+        self.edit_grupo_button.setProperty("variant", "secondary")
+        self.edit_grupo_button.clicked.connect(self._on_edit_grupo)
+        ajustes_actions.addWidget(self.edit_grupo_button)
+
+        self.editar_pdf_button = QPushButton("Opciones (PDF)")
+        self.editar_pdf_button.setProperty("variant", "secondary")
+        self.editar_pdf_button.clicked.connect(self._on_edit_pdf)
+        ajustes_actions.addWidget(self.editar_pdf_button)
+
+        self.opciones_button = QPushButton("Sincronización Google Sheets")
+        self.opciones_button.setProperty("variant", "secondary")
+        self.opciones_button.clicked.connect(self._on_open_opciones)
+        ajustes_actions.addWidget(self.opciones_button)
+        ajustes_actions.addStretch(1)
+        ajustes_layout.addLayout(ajustes_actions)
+        config_layout.addWidget(ajustes_card)
+
+        sync_card, sync_layout = self._create_card("Sincronización")
+        sync_heading = QLabel("Google Sheets")
+        sync_heading.setProperty("role", "sectionTitle")
+        sync_layout.addWidget(sync_heading)
+        sync_actions = QHBoxLayout()
+        sync_actions.setSpacing(8)
+        self.sync_button = QPushButton("Sincronizar")
+        self.sync_button.setProperty("variant", "primary")
+        self.sync_button.clicked.connect(self._on_sync)
+        sync_actions.addWidget(self.sync_button)
+
+        self.review_conflicts_button = QPushButton("Revisar discrepancias")
+        self.review_conflicts_button.setProperty("variant", "secondary")
+        self.review_conflicts_button.setEnabled(False)
+        self.review_conflicts_button.clicked.connect(self._on_review_conflicts)
+        sync_actions.addWidget(self.review_conflicts_button)
+        sync_layout.addLayout(sync_actions)
+
+        self.last_sync_label = QLabel("Última sync: --")
+        self.last_sync_label.setProperty("role", "secondary")
+        sync_layout.addWidget(self.last_sync_label)
+
+        self.sync_status_label = QLabel("Sincronizando con Google Sheets…")
+        self.sync_status_label.setProperty("role", "secondary")
+        self.sync_status_label.setVisible(False)
+        self.sync_progress = QProgressBar()
+        self.sync_progress.setRange(0, 0)
+        self.sync_progress.setTextVisible(False)
+        self.sync_progress.setVisible(False)
+        sync_status_row = QHBoxLayout()
+        sync_status_row.setSpacing(8)
+        sync_status_row.addWidget(self.sync_status_label)
+        sync_status_row.addWidget(self.sync_progress, 1)
+        sync_layout.addLayout(sync_status_row)
+
+        config_layout.addWidget(sync_card)
+        config_layout.addStretch(1)
+        self.main_tabs.addTab(config_tab, "Configuración")
 
         self._scroll_area.setWidget(content)
         self.setCentralWidget(self._scroll_area)
