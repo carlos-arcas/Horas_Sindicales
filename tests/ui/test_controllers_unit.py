@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from dataclasses import replace
 
 import logging
 import uuid
@@ -9,6 +10,31 @@ from app.ui.controllers.pdf_controller import PdfController
 from app.ui.controllers.personas_controller import PersonasController
 from app.ui.controllers.solicitudes_controller import SolicitudesController
 from app.ui.controllers.sync_controller import SyncController
+
+
+def _build_window_for_solicitudes(solicitud: SolicitudDTO | None) -> SimpleNamespace:
+    use_cases = Mock()
+    use_cases.calcular_minutos_solicitud.return_value = 60
+    use_cases.minutes_to_hours_float.return_value = 1.0
+    creada = replace(solicitud, id=55) if solicitud else None
+    use_cases.agregar_solicitud.return_value = (creada, None)
+    return SimpleNamespace(
+        _build_preview_solicitud=Mock(return_value=solicitud),
+        _solicitud_use_cases=use_cases,
+        _resolve_backend_conflict=Mock(return_value=True),
+        _reload_pending_views=Mock(),
+        _refresh_historico=Mock(),
+        _refresh_saldos=Mock(),
+        _update_action_state=Mock(),
+        _find_pending_duplicate_row=Mock(return_value=None),
+        _handle_duplicate_before_add=Mock(return_value=False),
+        _undo_last_added_pending=Mock(),
+        notas_input=SimpleNamespace(toPlainText=Mock(return_value=""), setPlainText=Mock()),
+        notifications=Mock(),
+        toast=Mock(),
+        desde_input=SimpleNamespace(setFocus=Mock()),
+        _show_critical_error=Mock(),
+    )
 
 
 def test_personas_controller_calls_crear() -> None:
@@ -38,26 +64,48 @@ def test_solicitudes_controller_calls_agregar() -> None:
         pdf_hash=None,
         notas=None,
     )
-    use_cases = Mock()
-    use_cases.calcular_minutos_solicitud.return_value = 60
-    use_cases.minutes_to_hours_float.return_value = 1.0
-    window = SimpleNamespace(
-        _build_preview_solicitud=Mock(return_value=solicitud),
-        _solicitud_use_cases=use_cases,
-        _resolve_backend_conflict=Mock(return_value=True),
-        _reload_pending_views=Mock(),
-        _refresh_historico=Mock(),
-        _refresh_saldos=Mock(),
-        _update_action_state=Mock(),
-        notas_input=SimpleNamespace(toPlainText=Mock(return_value=""), setPlainText=Mock()),
-        toast=Mock(),
-        _show_critical_error=Mock(),
-    )
+    window = _build_window_for_solicitudes(solicitud)
 
     controller = SolicitudesController(window)
     controller.on_add_pendiente()
 
-    use_cases.agregar_solicitud.assert_called_once()
+    window._solicitud_use_cases.agregar_solicitud.assert_called_once()
+
+
+def test_solicitudes_controller_no_permite_anadir_sin_delegada() -> None:
+    window = _build_window_for_solicitudes(None)
+
+    controller = SolicitudesController(window)
+    controller.on_add_pendiente()
+
+    window.notifications.notify_validation_error.assert_called_once()
+    window._solicitud_use_cases.agregar_solicitud.assert_not_called()
+
+
+def test_solicitudes_controller_duplicate_guides_to_existing() -> None:
+    solicitud = SolicitudDTO(
+        id=None,
+        persona_id=1,
+        fecha_solicitud="2024-01-01",
+        fecha_pedida="2024-01-01",
+        desde="10:00",
+        hasta="11:00",
+        completo=False,
+        horas=0,
+        observaciones=None,
+        pdf_path=None,
+        pdf_hash=None,
+        notas=None,
+    )
+    window = _build_window_for_solicitudes(solicitud)
+    window._find_pending_duplicate_row.return_value = 3
+    window._handle_duplicate_before_add.return_value = False
+
+    controller = SolicitudesController(window)
+    controller.on_add_pendiente()
+
+    window._handle_duplicate_before_add.assert_called_once_with(3)
+    window._solicitud_use_cases.agregar_solicitud.assert_not_called()
 
 
 def test_sync_controller_updates_button_state() -> None:
@@ -100,28 +148,14 @@ def test_solicitudes_controller_logs_correlation_id(caplog) -> None:
         pdf_hash=None,
         notas=None,
     )
-    use_cases = Mock()
-    use_cases.calcular_minutos_solicitud.return_value = 60
-    use_cases.minutes_to_hours_float.return_value = 1.0
-    window = SimpleNamespace(
-        _build_preview_solicitud=Mock(return_value=solicitud),
-        _solicitud_use_cases=use_cases,
-        _resolve_backend_conflict=Mock(return_value=True),
-        _reload_pending_views=Mock(),
-        _refresh_historico=Mock(),
-        _refresh_saldos=Mock(),
-        _update_action_state=Mock(),
-        notas_input=SimpleNamespace(toPlainText=Mock(return_value=""), setPlainText=Mock()),
-        toast=Mock(),
-        _show_critical_error=Mock(),
-    )
+    window = _build_window_for_solicitudes(solicitud)
 
     controller = SolicitudesController(window)
     with caplog.at_level(logging.INFO):
         controller.on_add_pendiente()
 
-    assert use_cases.agregar_solicitud.called
-    kwargs = use_cases.agregar_solicitud.call_args.kwargs
+    assert window._solicitud_use_cases.agregar_solicitud.called
+    kwargs = window._solicitud_use_cases.agregar_solicitud.call_args.kwargs
     correlation_id = kwargs["correlation_id"]
     uuid.UUID(correlation_id)
 

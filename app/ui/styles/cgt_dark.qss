@@ -38,6 +38,16 @@ QLabel[role="sectionTitle"] { font-weight: 600; color: #ececec; }
 QLabel[role="warning"] { color: #d08c2f; font-weight: 600; }
 QLabel[role="error"] { color: #ff8e8e; font-size: 12px; font-weight: 600; padding-left: 2px; }
 
+QLabel[role="stepIdle"] { color: #9d9d9d; font-size: 12px; }
+QLabel[role="stepActive"] {
+    color: #ffe2e2;
+    font-weight: 700;
+    border: 1px solid #8f2d2d;
+    border-radius: 7px;
+    padding: 2px 8px;
+    background-color: #2a1a1a;
+}
+
 QFrame[card="true"] {
     background-color: #1c1c1c;
     border: 1px solid #2c2c2c;

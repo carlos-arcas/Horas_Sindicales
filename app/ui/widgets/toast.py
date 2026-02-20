@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 import logging
 
@@ -51,6 +52,8 @@ class ToastRequest:
     title: str | None = None
     duration_ms: int = 3000
     close_on_click: bool = True
+    action_label: str | None = None
+    action_callback: Callable[[], None] | None = None
 
 
 class ToastWidget(QFrame):
@@ -63,6 +66,8 @@ class ToastWidget(QFrame):
         title: str | None = None,
         duration_ms: int | None = None,
         close_on_click: bool = True,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -82,7 +87,8 @@ class ToastWidget(QFrame):
         self.setGraphicsEffect(self._opacity)
         self._opacity.setOpacity(0.0)
 
-        self._build_ui(message, title)
+        self._action_callback = action_callback
+        self._build_ui(message, title, action_label)
         self._apply_style()
 
         self._auto_hide_timer = QTimer(self)
@@ -101,7 +107,7 @@ class ToastWidget(QFrame):
         if self._duration_ms > 0:
             self._start_timer(self._duration_ms)
 
-    def _build_ui(self, message: str, title: str | None) -> None:
+    def _build_ui(self, message: str, title: str | None, action_label: str | None) -> None:
         root = QHBoxLayout(self)
         root.setContentsMargins(10, 8, 8, 8)
         root.setSpacing(10)
@@ -121,6 +127,12 @@ class ToastWidget(QFrame):
         message_label.setProperty("role", "toastMessage")
         text_col.addWidget(message_label)
         root.addLayout(text_col, 1)
+
+        if action_label and self._action_callback is not None:
+            action_button = QPushButton(action_label)
+            action_button.setObjectName("toastActionButton")
+            action_button.clicked.connect(self._on_action_clicked)
+            root.addWidget(action_button, 0, Qt.AlignmentFlag.AlignTop)
 
         close_button = QPushButton("×")
         close_button.setObjectName("toastCloseButton")
@@ -169,8 +181,21 @@ class ToastWidget(QFrame):
             QPushButton#toastCloseButton:hover {{
                 color: {hover};
             }}
+            QPushButton#toastActionButton {{
+                background-color: transparent;
+                border: 1px solid {accent};
+                border-radius: 6px;
+                padding: 2px 8px;
+                color: {text};
+                font-weight: 600;
+            }}
             """
         )
+
+    def _on_action_clicked(self) -> None:
+        if self._action_callback is not None:
+            self._action_callback()
+        self.close_animated()
 
     def _start_timer(self, timeout_ms: int) -> None:
         self._remaining_ms = max(0, timeout_ms)
@@ -275,6 +300,8 @@ class ToastManager(QWidget):
             title=title,
             duration_ms=duration_value,
             close_on_click=bool(opts.get("close_on_click", True)),
+            action_label=opts.get("action_label") if isinstance(opts.get("action_label"), str) else None,
+            action_callback=opts.get("action_callback") if callable(opts.get("action_callback")) else None,
         )
         self._enqueue_or_spawn(req)
 
@@ -348,6 +375,8 @@ class ToastManager(QWidget):
             title=request.title,
             duration_ms=request.duration_ms,
             close_on_click=request.close_on_click,
+            action_label=request.action_label,
+            action_callback=request.action_callback,
             parent=self,
         )
         toast.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)

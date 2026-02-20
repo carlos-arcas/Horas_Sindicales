@@ -7,8 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from PySide6.QtCore import QDate, QSettings, QTime, QUrl, Qt, QObject, Signal, Slot, QThread
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QUrl, Qt, QObject, Signal, Slot, QThread
+from PySide6.QtGui import QDesktopServices, QKeyEvent
 from PySide6.QtWidgets import (
     QBoxLayout,
     QCheckBox,
@@ -69,6 +69,7 @@ from app.ui.controllers.personas_controller import PersonasController
 from app.ui.controllers.solicitudes_controller import SolicitudesController
 from app.ui.controllers.sync_controller import SyncController
 from app.ui.controllers.pdf_controller import PdfController
+from app.ui.notification_service import NotificationService
 from app.core.observability import OperationContext, log_event
 
 try:
@@ -259,6 +260,7 @@ class MainWindow(QMainWindow):
         self._orphan_pendientes: list[SolicitudDTO] = []
         self._sync_in_progress = False
         self.toast = ToastManager()
+        self.notifications = NotificationService(self.toast, self)
         self._personas_controller = PersonasController(self)
         self._solicitudes_controller = SolicitudesController(self)
         self._sync_controller = SyncController(self)
@@ -346,6 +348,21 @@ class MainWindow(QMainWindow):
 
         solicitud_card, solicitud_layout = self._create_card("Alta de solicitud")
 
+        self.stepper_labels: list[QLabel] = []
+        stepper_layout = QHBoxLayout()
+        stepper_layout.setSpacing(8)
+        for step_text in [
+            "1) Rellena la solicitud",
+            "2) Añade a pendientes",
+            "3) Confirma (y genera PDF si aplica)",
+        ]:
+            step_label = QLabel(step_text)
+            step_label.setProperty("role", "stepIdle")
+            self.stepper_labels.append(step_label)
+            stepper_layout.addWidget(step_label)
+        stepper_layout.addStretch(1)
+        solicitud_layout.addLayout(stepper_layout)
+
         solicitud_row = QHBoxLayout()
         solicitud_row.setSpacing(10)
         solicitud_row.addWidget(QLabel("Fecha"))
@@ -403,8 +420,8 @@ class MainWindow(QMainWindow):
         self.cuadrante_warning_label.setVisible(False)
         solicitud_row.addWidget(self.cuadrante_warning_label)
 
-        self.agregar_button = QPushButton("Agregar")
-        self.agregar_button.setProperty("variant", "primary")
+        self.agregar_button = QPushButton("Añadir a pendientes")
+        self.agregar_button.setProperty("variant", "secondary")
         self.agregar_button.clicked.connect(
             self._on_add_pendiente,
             Qt.ConnectionType.UniqueConnection,
@@ -424,6 +441,7 @@ class MainWindow(QMainWindow):
         self.notas_input = QPlainTextEdit()
         self.notas_input.setPlaceholderText("Notas para la solicitud")
         self.notas_input.setMinimumHeight(74)
+        self.notas_input.installEventFilter(self)
         self.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         notas_row.addWidget(self.notas_input, 1)
         solicitud_layout.addLayout(notas_row)
@@ -445,7 +463,8 @@ class MainWindow(QMainWindow):
         self.pendientes_model = SolicitudesTableModel([])
         self.pendientes_table.setModel(self.pendientes_model)
         self.pendientes_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.pendientes_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.pendientes_table.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.pendientes_table.selectionModel().selectionChanged.connect(self._update_action_state)
         self.pendientes_table.setShowGrid(False)
         self.pendientes_table.setAlternatingRowColors(True)
         self.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -510,9 +529,18 @@ class MainWindow(QMainWindow):
         right_actions.addWidget(self.abrir_pdf_check)
 
         self.confirmar_button = QPushButton("Confirmar y generar")
-        self.confirmar_button.setProperty("variant", "primary")
+        self.confirmar_button.setProperty("variant", "secondary")
         self.confirmar_button.clicked.connect(self._on_confirmar)
         right_actions.addWidget(self.confirmar_button)
+
+        self.primary_cta_button = QPushButton("Añadir a pendientes")
+        self.primary_cta_button.setProperty("variant", "primary")
+        self.primary_cta_button.clicked.connect(self._on_primary_cta_clicked)
+        right_actions.addWidget(self.primary_cta_button)
+
+        self.primary_cta_hint = QLabel("")
+        self.primary_cta_hint.setProperty("role", "secondary")
+        right_actions.addWidget(self.primary_cta_hint)
 
         pendientes_footer.addLayout(right_actions)
         pendientes_layout.addLayout(pendientes_footer)
@@ -795,6 +823,7 @@ class MainWindow(QMainWindow):
         self._normalize_input_heights()
         self._update_responsive_columns()
         self._configure_time_placeholders()
+        self._configure_operativa_focus_order()
         self._on_period_mode_changed()
         self._update_solicitud_preview()
         self._update_action_state()
@@ -831,6 +860,14 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         self._update_responsive_columns()
 
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
+        if watched is self.notas_input and isinstance(event, QKeyEvent):
+            if event.key() in (Qt.Key_Return, Qt.Key_Enter) and event.modifiers() == Qt.NoModifier:
+                if self.primary_cta_button.isEnabled():
+                    self.primary_cta_button.click()
+                    return True
+        return super().eventFilter(watched, event)
+
     def _normalize_input_heights(self) -> None:
         controls = [
             self.persona_combo,
@@ -850,11 +887,19 @@ class MainWindow(QMainWindow):
             self.editar_pdf_button,
             self.insertar_sin_pdf_button,
             self.confirmar_button,
+            self.primary_cta_button,
             self.eliminar_button,
             self.generar_pdf_button,
         ]
         for control in controls:
             control.setMinimumHeight(34)
+
+    def _configure_operativa_focus_order(self) -> None:
+        self.setTabOrder(self.fecha_input, self.desde_input)
+        self.setTabOrder(self.desde_input, self.hasta_input)
+        self.setTabOrder(self.hasta_input, self.completo_check)
+        self.setTabOrder(self.completo_check, self.notas_input)
+        self.setTabOrder(self.notas_input, self.primary_cta_button)
 
     def _update_responsive_columns(self) -> None:
         if not hasattr(self, "_content_row"):
@@ -1087,12 +1132,13 @@ class MainWindow(QMainWindow):
 
     def _update_action_state(self) -> None:
         persona_selected = self._current_persona() is not None
-        form_valid, _ = self._validate_solicitud_form()
+        form_valid, form_message = self._validate_solicitud_form()
         self.agregar_button.setEnabled(persona_selected and form_valid)
         has_pending = bool(self._pending_solicitudes)
         can_confirm = has_pending and not self._pending_conflict_rows and not self._pending_view_all
         self.insertar_sin_pdf_button.setEnabled(persona_selected and can_confirm)
-        self.confirmar_button.setEnabled(persona_selected and can_confirm)
+        selected_pending = self._selected_pending_solicitudes()
+        self.confirmar_button.setEnabled(persona_selected and can_confirm and bool(selected_pending))
         self.edit_persona_button.setEnabled(persona_selected)
         self.delete_persona_button.setEnabled(persona_selected)
         self.edit_grupo_button.setEnabled(True)
@@ -1102,6 +1148,73 @@ class MainWindow(QMainWindow):
         self.generar_pdf_button.setEnabled(
             persona_selected and self.historico_model.rowCount() > 0
         )
+
+        self.stepper_labels[1].setEnabled(form_valid)
+        self.stepper_labels[1].setToolTip("" if form_valid else form_message or "Completa la solicitud para poder añadirla")
+
+        if persona_selected and form_valid:
+            self._set_operativa_step(2)
+        else:
+            self._set_operativa_step(1)
+        if selected_pending and can_confirm:
+            self._set_operativa_step(3)
+
+        if selected_pending and can_confirm:
+            self.primary_cta_button.setText("Confirmar seleccionadas")
+            self.primary_cta_button.setEnabled(True)
+            self.primary_cta_hint.setText("")
+        elif persona_selected and form_valid:
+            self.primary_cta_button.setText("Añadir a pendientes")
+            self.primary_cta_button.setEnabled(True)
+            self.primary_cta_hint.setText("")
+        elif has_pending:
+            self.primary_cta_button.setText("Confirmar seleccionadas")
+            self.primary_cta_button.setEnabled(False)
+            self.primary_cta_hint.setText("Selecciona al menos una pendiente")
+        else:
+            self.primary_cta_button.setText("Añadir a pendientes")
+            self.primary_cta_button.setEnabled(False)
+            self.primary_cta_hint.setText(form_message or "Completa el formulario para continuar")
+
+    def _set_operativa_step(self, active_step: int) -> None:
+        for index, label in enumerate(self.stepper_labels, start=1):
+            label.setProperty("role", "stepActive" if index == active_step else "stepIdle")
+            label.style().unpolish(label)
+            label.style().polish(label)
+
+    def _selected_pending_solicitudes(self) -> list[SolicitudDTO]:
+        selection_model = self.pendientes_table.selectionModel()
+        if selection_model is None:
+            return []
+        selected_rows = sorted({index.row() for index in selection_model.selectedRows()})
+        return [
+            self._pending_solicitudes[row]
+            for row in selected_rows
+            if 0 <= row < len(self._pending_solicitudes)
+        ]
+
+    def _on_primary_cta_clicked(self) -> None:
+        if self.primary_cta_button.text() == "Confirmar seleccionadas":
+            self._on_confirmar()
+            return
+        self._on_add_pendiente()
+
+    def _undo_last_added_pending(self, solicitud_id: int | None) -> None:
+        if solicitud_id is None:
+            return
+        try:
+            with OperationContext("deshacer_pendiente") as operation:
+                self._solicitud_use_cases.eliminar_solicitud(
+                    solicitud_id,
+                    correlation_id=operation.correlation_id,
+                )
+        except Exception as exc:  # pragma: no cover - fallback
+            logger.exception("Error al deshacer pendiente")
+            self._show_critical_error(exc)
+            return
+        self._reload_pending_views()
+        self._refresh_saldos()
+        self.toast.info("Pendiente deshecha")
 
     def _refresh_pending_conflicts(self) -> None:
         conflict_rows: set[int] = set()
@@ -1195,6 +1308,47 @@ class MainWindow(QMainWindow):
     def _on_add_pendiente(self) -> None:
         self._solicitudes_controller.on_add_pendiente()
 
+    def _find_pending_duplicate_row(self, solicitud: SolicitudDTO) -> int | None:
+        for row, pending in enumerate(self._pending_solicitudes):
+            if pending.persona_id != solicitud.persona_id:
+                continue
+            if pending.fecha_pedida != solicitud.fecha_pedida:
+                continue
+            if pending.completo != solicitud.completo:
+                continue
+            if pending.desde == solicitud.desde and pending.hasta == solicitud.hasta:
+                return row
+        return None
+
+    def _handle_duplicate_before_add(self, duplicate_row: int) -> bool:
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("Pendiente duplicada")
+        dialog.setText("Ya existe una pendiente igual para esta delegada, fecha y tramo horario.")
+        dialog.setInformativeText("Puedes ir a la existente o crear igualmente.")
+        goto_button = dialog.addButton("Ir a la pendiente existente", QMessageBox.AcceptRole)
+        create_button = dialog.addButton("Crear igualmente", QMessageBox.ActionRole)
+        cancel_button = dialog.addButton("Cancelar", QMessageBox.RejectRole)
+        create_button.setEnabled(False)
+        create_button.setToolTip("No permitido por la regla de negocio de duplicados.")
+        dialog.exec()
+        clicked = dialog.clickedButton()
+        if clicked is goto_button:
+            self._focus_pending_row(duplicate_row)
+            return False
+        if clicked is create_button:
+            return True
+        if clicked is cancel_button:
+            return False
+        return False
+
+    def _focus_pending_row(self, row: int) -> None:
+        if row < 0 or row >= self.pendientes_model.rowCount():
+            return
+        self.pendientes_table.selectRow(row)
+        model_index = self.pendientes_model.index(row, 0)
+        self.pendientes_table.scrollTo(model_index, QAbstractItemView.PositionAtCenter)
+        self.pendientes_table.setFocus()
+
     def _resolve_pending_conflict(self, fecha_pedida: str, completo: bool) -> bool:
         conflictos = [
             index
@@ -1263,7 +1417,8 @@ class MainWindow(QMainWindow):
 
     def _on_insertar_sin_pdf(self) -> None:
         persona = self._current_persona()
-        if persona is None or not self._pending_solicitudes:
+        selected = self._selected_pending_solicitudes()
+        if persona is None or not selected:
             return
         if self._pending_conflict_rows:
             self.toast.warning(
@@ -1273,9 +1428,9 @@ class MainWindow(QMainWindow):
             return
 
         with OperationContext("confirmar_sin_pdf") as operation:
-            log_event(logger, "confirmar_sin_pdf_started", {"count": len(self._pending_solicitudes)}, operation.correlation_id)
+            log_event(logger, "confirmar_sin_pdf_started", {"count": len(selected)}, operation.correlation_id)
             creadas, pendientes_restantes, errores = self._solicitud_use_cases.confirmar_sin_pdf(
-                self._pending_solicitudes, correlation_id=operation.correlation_id
+                selected, correlation_id=operation.correlation_id
             )
             log_event(
                 logger,
@@ -1287,7 +1442,10 @@ class MainWindow(QMainWindow):
         if errores:
             self.toast.warning("\n".join(errores), title="Errores")
         if creadas:
-            self.toast.success("Solicitudes confirmadas (sin PDF)")
+            self.notifications.show_confirmation_summary(
+                count=len(creadas),
+                total_minutes=self._sum_solicitudes_minutes(creadas),
+            )
 
         _ = pendientes_restantes
         self._reload_pending_views()
@@ -1297,7 +1455,8 @@ class MainWindow(QMainWindow):
 
     def _on_confirmar(self) -> None:
         persona = self._current_persona()
-        if persona is None or not self._pending_solicitudes:
+        selected = self._selected_pending_solicitudes()
+        if persona is None or not selected:
             return
         if self._pending_conflict_rows:
             self.toast.warning(
@@ -1306,7 +1465,7 @@ class MainWindow(QMainWindow):
             )
             return
         try:
-            default_name = self._solicitud_use_cases.sugerir_nombre_pdf(self._pending_solicitudes)
+            default_name = self._solicitud_use_cases.sugerir_nombre_pdf(selected)
         except (ValidacionError, BusinessRuleError) as exc:
             self.toast.warning(str(exc), title="Validación")
             return
@@ -1330,12 +1489,12 @@ class MainWindow(QMainWindow):
                 log_event(
                     logger,
                     "confirmar_y_generar_pdf_started",
-                    {"count": len(self._pending_solicitudes), "destino": pdf_path},
+                    {"count": len(selected), "destino": pdf_path},
                     operation.correlation_id,
                 )
                 creadas, pendientes_restantes, errores, generado = (
                     self._solicitud_use_cases.confirmar_y_generar_pdf(
-                        self._pending_solicitudes,
+                        selected,
                         Path(pdf_path),
                         correlation_id=operation.correlation_id,
                     )
@@ -1366,12 +1525,19 @@ class MainWindow(QMainWindow):
                     correlation_id,
                 )
             self._ask_push_after_pdf()
+            self.notifications.show_confirmation_summary(
+                count=len(creadas),
+                total_minutes=self._sum_solicitudes_minutes(creadas),
+            )
             self.toast.success("Exportación PDF OK")
         _ = pendientes_restantes
         self._reload_pending_views()
         self._refresh_historico()
         self._refresh_saldos()
         self._notify_historico_filter_if_hidden(creadas)
+
+    def _sum_solicitudes_minutes(self, solicitudes: list[SolicitudDTO]) -> int:
+        return sum(int(round(solicitud.horas * 60)) for solicitud in solicitudes)
 
     def _ask_push_after_pdf(self) -> None:
         dialog = QMessageBox(self)
