@@ -107,6 +107,8 @@ class SyncController:
         conflicts_total = w._conflicts_service.count_conflicts()
         w.review_conflicts_button.setText("Ver conflictos" if conflicts_total > 0 else "Ver conflictos (sin pendientes)")
         w.review_conflicts_button.setEnabled(not w._sync_in_progress and conflicts_total > 0)
+        if hasattr(w, "_update_conflicts_reminder"):
+            w._update_conflicts_reminder()
         if hasattr(w, "sync_details_button"):
             w.sync_details_button.setEnabled(not w._sync_in_progress and w._last_sync_report is not None)
         if hasattr(w, "copy_sync_report_button"):

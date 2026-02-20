@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
@@ -10,6 +9,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMessageBox,
+    QRadioButton,
     QPushButton,
     QPlainTextEdit,
     QTableView,
@@ -18,6 +18,13 @@ from PySide6.QtWidgets import (
 )
 
 from app.application.conflicts_service import ConflictsService, ConflictRecord
+from app.ui.conflict_guidance import (
+    build_what_happened,
+    build_why_happened,
+    classify_conflict,
+    delegada_name,
+    recommended_action,
+)
 
 
 @dataclass(frozen=True)
@@ -84,13 +91,18 @@ class ConflictsTableModel(QAbstractTableModel):
         self._rows = rows
         self.endResetModel()
 
+    def rows(self) -> list[ConflictRow]:
+        return list(self._rows)
+
 
 class ConflictsDialog(QDialog):
     def __init__(self, conflicts_service: ConflictsService, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._conflicts_service = conflicts_service
+        self._manual_review_ids: set[int] = set()
+        self._resolved_count = 0
         self._table_model = ConflictsTableModel([])
-        self.setWindowTitle("Revisar discrepancias")
+        self.setWindowTitle("Resolver conflictos de sincronización")
         self._build_ui()
         self._load_conflicts()
 
@@ -99,9 +111,14 @@ class ConflictsDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        title = QLabel("Discrepancias detectadas")
+        title = QLabel("Conflictos detectados")
         title.setProperty("role", "subtitle")
         layout.addWidget(title)
+
+        self.summary_label = QLabel("Sin conflictos pendientes.")
+        self.summary_label.setProperty("role", "secondary")
+        self.summary_label.setWordWrap(True)
+        layout.addWidget(self.summary_label)
 
         self.table = QTableView()
         self.table.setModel(self._table_model)
@@ -117,10 +134,10 @@ class ConflictsDialog(QDialog):
         compare_layout.setContentsMargins(0, 0, 0, 0)
         compare_layout.setSpacing(8)
 
-        local_label = QLabel("Local")
+        local_label = QLabel("Qué pasó")
         local_label.setProperty("role", "sectionTitle")
         compare_layout.addWidget(local_label, 0, 0)
-        remote_label = QLabel("Remoto")
+        remote_label = QLabel("Por qué puede haber ocurrido")
         remote_label.setProperty("role", "sectionTitle")
         compare_layout.addWidget(remote_label, 0, 1)
 
@@ -133,28 +150,52 @@ class ConflictsDialog(QDialog):
         compare_layout.addWidget(self.remote_view, 1, 1)
         layout.addWidget(compare_container, 2)
 
+        options_label = QLabel("Opciones para este conflicto")
+        options_label.setProperty("role", "sectionTitle")
+        layout.addWidget(options_label)
+
+        options_row = QHBoxLayout()
+        self.option_keep_local = QRadioButton("Mantener local")
+        self.option_keep_remote = QRadioButton("Aceptar remoto")
+        self.option_manual_review = QRadioButton("Revisar manualmente")
+        self.option_retry = QRadioButton("Reintentar")
+        self.option_keep_local.setChecked(True)
+        for radio in (
+            self.option_keep_local,
+            self.option_keep_remote,
+            self.option_manual_review,
+            self.option_retry,
+        ):
+            options_row.addWidget(radio)
+        options_row.addStretch(1)
+        layout.addLayout(options_row)
+
         actions = QHBoxLayout()
         actions.addStretch(1)
 
-        self.keep_local_button = QPushButton("Conservar LOCAL")
-        self.keep_local_button.setProperty("variant", "primary")
-        self.keep_local_button.clicked.connect(self._on_keep_local)
-        actions.addWidget(self.keep_local_button)
+        self.apply_selected_button = QPushButton("Aplicar opción seleccionada")
+        self.apply_selected_button.setProperty("variant", "primary")
+        self.apply_selected_button.clicked.connect(self._on_apply_selected)
+        actions.addWidget(self.apply_selected_button)
 
-        self.keep_remote_button = QPushButton("Conservar REMOTO")
-        self.keep_remote_button.setProperty("variant", "secondary")
-        self.keep_remote_button.clicked.connect(self._on_keep_remote)
-        actions.addWidget(self.keep_remote_button)
-
-        self.skip_button = QPushButton("Saltar")
+        self.skip_button = QPushButton("Siguiente conflicto")
         self.skip_button.setProperty("variant", "secondary")
         self.skip_button.clicked.connect(self._on_skip)
         actions.addWidget(self.skip_button)
 
-        self.apply_all_button = QPushButton("Aplicar a todos (más reciente)")
+        self.apply_all_button = QPushButton("Resolver todos automáticamente (según política por defecto)")
         self.apply_all_button.setProperty("variant", "secondary")
         self.apply_all_button.clicked.connect(self._on_apply_all)
         actions.addWidget(self.apply_all_button)
+
+        self.policy_label = QLabel("Política activa: gana el cambio más reciente; si hay empate, se mantiene el dato local.")
+        self.policy_label.setWordWrap(True)
+        self.policy_label.setProperty("role", "secondary")
+        layout.addWidget(self.policy_label)
+
+        self.resolution_summary_label = QLabel("Resumen: Conflictos resueltos 0 · Pendientes 0 · Requieren revisión manual 0")
+        self.resolution_summary_label.setProperty("role", "secondary")
+        layout.addWidget(self.resolution_summary_label)
 
         layout.addLayout(actions)
 
@@ -164,10 +205,11 @@ class ConflictsDialog(QDialog):
         self._table_model.set_rows(rows)
         self._select_first()
         has_rows = bool(rows)
-        self.keep_local_button.setEnabled(has_rows)
-        self.keep_remote_button.setEnabled(has_rows)
+        self.apply_selected_button.setEnabled(has_rows)
         self.skip_button.setEnabled(has_rows)
         self.apply_all_button.setEnabled(has_rows)
+        self._refresh_panel_summary(rows)
+        self._refresh_resolution_summary(rows)
 
     def _build_row(self, conflict: ConflictRecord) -> ConflictRow:
         tipo = self._format_tipo(conflict.entity_type)
@@ -234,14 +276,34 @@ class ConflictsDialog(QDialog):
         conflict = self._table_model.conflict_at(selection[0].row())
         if not conflict:
             return
-        self.local_view.setPlainText(self._pretty_json(conflict.local_snapshot))
-        self.remote_view.setPlainText(self._pretty_json(conflict.remote_snapshot))
+        self.local_view.setPlainText(build_what_happened(conflict))
+        self.remote_view.setPlainText(build_why_happened(conflict))
 
-    @staticmethod
-    def _pretty_json(payload: dict) -> str:
-        if not payload:
-            return ""
-        return json.dumps(payload, indent=2, ensure_ascii=False)
+    def _refresh_panel_summary(self, rows: list[ConflictRow]) -> None:
+        if not rows:
+            self.summary_label.setText("Sin conflictos pendientes.")
+            return
+        first = rows[0].record
+        self.summary_label.setText(
+            "[Conflictos detectados]\n"
+            f"- Nº total: {len(rows)}\n"
+            f"- Tipo de conflicto: {classify_conflict(first)}\n"
+            f"- Delegada afectada: {delegada_name(first)}\n"
+            f"- Acción recomendada: {recommended_action(classify_conflict(first))}"
+        )
+
+    def _refresh_resolution_summary(self, rows: list[ConflictRow]) -> None:
+        pending_ids = {row.record.id for row in rows}
+        manual_pending = len(self._manual_review_ids & pending_ids)
+        self.resolution_summary_label.setText(
+            "Resumen: "
+            f"Conflictos resueltos {self._resolved_count} · "
+            f"Pendientes {len(rows)} · "
+            f"Requieren revisión manual {manual_pending}"
+        )
+
+    def _current_rows(self) -> list[ConflictRow]:
+        return self._table_model.rows()
 
     def _resolve_selected(self, keep: str) -> None:
         selection = self.table.selectionModel().selectedRows()
@@ -255,13 +317,31 @@ class ConflictsDialog(QDialog):
         except Exception as exc:  # pragma: no cover - fallback
             QMessageBox.critical(self, "Error", str(exc))
             return
+        self._resolved_count += 1
+        self._manual_review_ids.discard(conflict.id)
         self._load_conflicts()
 
-    def _on_keep_local(self) -> None:
-        self._resolve_selected("local")
-
-    def _on_keep_remote(self) -> None:
-        self._resolve_selected("remote")
+    def _on_apply_selected(self) -> None:
+        if self.option_keep_local.isChecked():
+            self._resolve_selected("local")
+            return
+        if self.option_keep_remote.isChecked():
+            self._resolve_selected("remote")
+            return
+        selection = self.table.selectionModel().selectedRows()
+        if not selection:
+            return
+        conflict = self._table_model.conflict_at(selection[0].row())
+        if not conflict:
+            return
+        if self.option_manual_review.isChecked():
+            self._manual_review_ids.add(conflict.id)
+            self._on_skip()
+            self._refresh_resolution_summary(self._current_rows())
+            return
+        if self.option_retry.isChecked():
+            QMessageBox.information(self, "Reintentar", "Puedes volver a sincronizar para reintentar este conflicto.")
+            self._on_skip()
 
     def _on_skip(self) -> None:
         row = self._next_row_index()
@@ -274,15 +354,17 @@ class ConflictsDialog(QDialog):
         confirm = QMessageBox.question(
             self,
             "Aplicar a todos",
-            "Se resolverán todas las discrepancias usando el dato más reciente. ¿Continuar?",
+            "Se resolverán todos los conflictos con la política por defecto (gana el cambio más reciente). ¿Continuar?",
         )
         if confirm != QMessageBox.StandardButton.Yes:
             return
         try:
-            self._conflicts_service.resolve_all_latest()
+            resolved = self._conflicts_service.resolve_all_latest()
         except Exception as exc:  # pragma: no cover - fallback
             QMessageBox.critical(self, "Error", str(exc))
             return
+        self._resolved_count += resolved
+        self._manual_review_ids.clear()
         self._load_conflicts()
 
     def _next_row_index(self) -> int | None:
