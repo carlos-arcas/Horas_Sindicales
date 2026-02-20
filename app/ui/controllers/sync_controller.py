@@ -98,7 +98,12 @@ class SyncController:
         if hasattr(w, "confirm_sync_button"):
             pending_plan = getattr(w, "_pending_sync_plan", None)
             has_plan_changes = bool(pending_plan is not None and pending_plan.has_changes)
-            w.confirm_sync_button.setEnabled(enabled and has_plan_changes)
+            has_unresolved_conflicts = bool(pending_plan is not None and pending_plan.conflicts)
+            w.confirm_sync_button.setEnabled(enabled and has_plan_changes and not has_unresolved_conflicts)
+        if hasattr(w, "retry_failed_button"):
+            report = getattr(w, "_last_sync_report", None)
+            has_failures = bool(report and (report.errors or report.conflicts))
+            w.retry_failed_button.setEnabled(not w._sync_in_progress and has_failures)
         w.review_conflicts_button.setEnabled(not w._sync_in_progress and w._conflicts_service.count_conflicts() > 0)
         if hasattr(w, "sync_details_button"):
             w.sync_details_button.setEnabled(not w._sync_in_progress and w._last_sync_report is not None)

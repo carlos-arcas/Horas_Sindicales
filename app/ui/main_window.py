@@ -47,11 +47,13 @@ from app.application.conflicts_service import ConflictsService
 from app.application.dto import PeriodoFiltro, PersonaDTO, SolicitudDTO
 from app.application.sheets_service import SheetsService
 from app.application.sync_sheets_use_case import SyncSheetsUseCase
+from app.application.use_cases.conflict_resolution_policy import ConflictResolutionPolicy
+from app.application.use_cases.retry_sync_use_case import RetrySyncUseCase
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.time_utils import minutes_to_hhmm
 from app.domain.request_time import validate_request_inputs
-from app.domain.sync_models import SyncExecutionPlan, SyncSummary
+from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
 from app.domain.sheets_errors import (
     SheetsApiDisabledError,
     SheetsConfigError,
@@ -79,6 +81,8 @@ from app.ui.sync_reporting import (
     build_failed_report,
     build_simulation_report,
     build_sync_report,
+    list_sync_history,
+    load_sync_report,
     persist_report,
     to_markdown,
 )
@@ -296,6 +300,11 @@ class MainWindow(QMainWindow):
         self._pending_sync_plan: SyncExecutionPlan | None = None
         self._sync_started_at: str | None = None
         self._logs_dir = Path.cwd() / "logs"
+        self._retry_sync_use_case = RetrySyncUseCase()
+        self._conflict_resolution_policy = ConflictResolutionPolicy(Path.cwd())
+        self._sync_attempts: list[dict[str, object]] = []
+        self._active_sync_id: str | None = None
+        self._attempt_history: tuple[SyncAttemptReport, ...] = ()
         self.toast = ToastManager()
         self.notifications = NotificationService(self.toast, self)
         self._personas_controller = PersonasController(self)
@@ -880,6 +889,12 @@ class MainWindow(QMainWindow):
         self.confirm_sync_button.clicked.connect(self._on_confirm_sync)
         sync_actions.addWidget(self.confirm_sync_button)
 
+        self.retry_failed_button = QPushButton("Reintentar solo fallidos")
+        self.retry_failed_button.setProperty("variant", "secondary")
+        self.retry_failed_button.setEnabled(False)
+        self.retry_failed_button.clicked.connect(self._on_retry_failed)
+        sync_actions.addWidget(self.retry_failed_button)
+
         self.sync_details_button = QPushButton("Ver detalles")
         self.sync_details_button.setProperty("variant", "secondary")
         self.sync_details_button.setEnabled(False)
@@ -896,6 +911,11 @@ class MainWindow(QMainWindow):
         self.open_sync_logs_button.setProperty("variant", "secondary")
         self.open_sync_logs_button.clicked.connect(self._on_open_sync_logs)
         sync_actions.addWidget(self.open_sync_logs_button)
+
+        self.sync_history_button = QPushButton("Ver historial")
+        self.sync_history_button.setProperty("variant", "secondary")
+        self.sync_history_button.clicked.connect(self._on_show_sync_history)
+        sync_actions.addWidget(self.sync_history_button)
 
         self.review_conflicts_button = QPushButton("Revisar discrepancias")
         self.review_conflicts_button.setProperty("variant", "secondary")
@@ -1203,6 +1223,9 @@ class MainWindow(QMainWindow):
 
     def _on_sync(self) -> None:
         self._pending_sync_plan = None
+        self._active_sync_id = None
+        self._attempt_history = ()
+        self._sync_attempts = []
         self.confirm_sync_button.setEnabled(False)
         self._sync_controller.on_sync()
 
@@ -1210,6 +1233,21 @@ class MainWindow(QMainWindow):
         self._sync_controller.on_simulate_sync()
 
     def _on_confirm_sync(self) -> None:
+        if self._pending_sync_plan is not None and self._pending_sync_plan.conflicts:
+            self.toast.warning("Conflictos pendientes de decisión", title="Sincronización bloqueada")
+            return
+        self._sync_controller.on_confirm_sync()
+
+    def _on_retry_failed(self) -> None:
+        if self._pending_sync_plan is None or self._last_sync_report is None:
+            self.toast.info("No hay plan fallido para reintentar.", title="Reintento")
+            return
+        item_status = {
+            item.uuid: ("CONFLICT" if item in self._pending_sync_plan.conflicts else "ERROR")
+            for item in [*self._pending_sync_plan.to_create, *self._pending_sync_plan.to_update, *self._pending_sync_plan.conflicts]
+        }
+        retry_result = self._retry_sync_use_case.build_retry_plan(self._pending_sync_plan, item_status=item_status)
+        self._pending_sync_plan = retry_result.plan
         self._sync_controller.on_confirm_sync()
 
     def _on_show_sync_details(self) -> None:
@@ -1234,6 +1272,19 @@ class MainWindow(QMainWindow):
         self._set_sync_in_progress(False)
         self._update_sync_button_state()
         self._refresh_last_sync_label()
+        next_attempt_history = tuple(
+            [
+                *self._attempt_history,
+                SyncAttemptReport(
+                    attempt_number=len(self._attempt_history) + 1,
+                    status=self._status_from_summary(summary),
+                    created=summary.inserted_local + summary.inserted_remote,
+                    updated=summary.updated_local + summary.updated_remote,
+                    conflicts=summary.conflicts_detected,
+                    errors=summary.errors,
+                ),
+            ]
+        )
         report = build_sync_report(
             summary,
             status=self._status_from_summary(summary),
@@ -1241,7 +1292,11 @@ class MainWindow(QMainWindow):
             scope=self._sync_scope_text(),
             actor=self._sync_actor_text(),
             started_at=self._sync_started_at,
+            sync_id=self._active_sync_id,
+            attempt_history=next_attempt_history,
         )
+        self._active_sync_id = report.sync_id
+        self._attempt_history = next_attempt_history
         self._apply_sync_report(report)
         self._refresh_after_sync(summary)
         self._show_sync_summary_dialog("Sincronización completada", summary)
@@ -1255,10 +1310,13 @@ class MainWindow(QMainWindow):
             source=self._sync_source_text(),
             scope=self._sync_scope_text(),
             actor=self._sync_actor_text(),
+            sync_id=self._active_sync_id,
+            attempt_history=self._attempt_history,
         )
         self._apply_sync_report(report)
         has_changes = plan.has_changes
-        self.confirm_sync_button.setEnabled(has_changes)
+        self.confirm_sync_button.setEnabled(has_changes and not bool(plan.conflicts))
+        self.retry_failed_button.setEnabled(bool(plan.conflicts or plan.potential_errors))
         if has_changes:
             self.toast.info(
                 f"Se crearán: {len(plan.to_create)} · Se actualizarán: {len(plan.to_update)} · Sin cambios: {len(plan.unchanged)} · Conflictos detectados: {len(plan.conflicts)}",
@@ -1297,6 +1355,8 @@ class MainWindow(QMainWindow):
             actor=self._sync_actor_text(),
             details=details,
             started_at=self._sync_started_at,
+            sync_id=self._active_sync_id,
+            attempt_history=self._attempt_history,
         )
         self._apply_sync_report(report)
         self._show_sync_error_dialog(error, details)
@@ -1996,6 +2056,7 @@ class MainWindow(QMainWindow):
 
     def _apply_sync_report(self, report) -> None:
         self._last_sync_report = report
+        self._sync_attempts.append({"status": report.status, "counts": report.counts})
         counts = report.counts
         self.sync_panel_status.setText(f"Estado: {self._status_to_label(report.status)}")
         self.sync_source_label.setText(f"Fuente: {report.source}")
@@ -2009,10 +2070,51 @@ class MainWindow(QMainWindow):
             f"Conflictos detectados: {counts.get('conflicts', 0)} · "
             f"Errores potenciales: {counts.get('errors', 0)}"
         )
+        self.sync_panel_status.setText(
+            f"Estado: {self._status_to_label(report.status)} · Intento #{len(self._sync_attempts)} · Consolidado: {self._status_to_label(report.final_status)}"
+        )
         self.go_to_sync_config_button.setVisible(report.status == "CONFIG_INCOMPLETE")
         self.sync_details_button.setEnabled(True)
         self.copy_sync_report_button.setEnabled(True)
+        self.retry_failed_button.setEnabled(bool(report.errors or report.conflicts))
         persist_report(report, Path.cwd())
+
+    def _on_show_sync_history(self) -> None:
+        history = list_sync_history(Path.cwd())
+        if not history:
+            self.toast.info("No hay sincronizaciones históricas disponibles.", title="Histórico")
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Histórico de sincronizaciones")
+        dialog.resize(800, 420)
+        layout = QVBoxLayout(dialog)
+        table = QTreeWidget(dialog)
+        table.setColumnCount(4)
+        table.setHeaderLabels(["Archivo", "Sync ID", "Estado", "Intentos"])
+        for path in history:
+            report = load_sync_report(path)
+            item = QTreeWidgetItem([path.name, report.sync_id, report.final_status, str(report.attempts)])
+            item.setData(0, Qt.UserRole, str(path))
+            table.addTopLevelItem(item)
+        layout.addWidget(table)
+
+        def _open_selected() -> None:
+            selected = table.selectedItems()
+            if not selected:
+                return
+            report_path = Path(selected[0].data(0, Qt.UserRole))
+            self._last_sync_report = load_sync_report(report_path)
+            self._show_sync_details_dialog()
+
+        actions = QHBoxLayout()
+        open_btn = QPushButton("Abrir detalle")
+        open_btn.clicked.connect(_open_selected)
+        copy_btn = QPushButton("Copiar informe")
+        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(to_markdown(load_sync_report(Path(table.selectedItems()[0].data(0, Qt.UserRole))))) if table.selectedItems() else None)
+        actions.addWidget(open_btn)
+        actions.addWidget(copy_btn)
+        layout.addLayout(actions)
+        dialog.exec()
 
     def _show_sync_details_dialog(self) -> None:
         report = self._last_sync_report
@@ -2048,8 +2150,8 @@ class MainWindow(QMainWindow):
 
         retry_failed = QPushButton("Reintentar solo fallidos")
         retry_failed.setProperty("variant", "secondary")
-        retry_failed.setEnabled(report.counts.get("errors", 0) > 0)
-        retry_failed.clicked.connect(self._on_sync)
+        retry_failed.setEnabled(bool(report.errors or report.conflicts))
+        retry_failed.clicked.connect(self._on_retry_failed)
         actions.addWidget(retry_failed)
 
         export_detail = QPushButton("Exportar detalle")
