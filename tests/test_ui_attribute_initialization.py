@@ -4,7 +4,7 @@ import ast
 from pathlib import Path
 
 
-MAIN_WINDOW_FILE = Path(__file__).resolve().parents[1] / "app/ui/main_window.py"
+MAIN_WINDOW_FILE = Path(__file__).resolve().parents[1] / "app/ui/vistas/main_window_vista.py"
 INIT_METHODS = {"__init__", "_create_widgets", "_build_ui"}
 
 
