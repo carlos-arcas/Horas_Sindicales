@@ -7,7 +7,9 @@ from app.application.base_cuadrantes_service import BaseCuadrantesService
 from app.application.conflicts_service import ConflictsService
 from app.application.sheets_service import SheetsService
 from app.application.sync_sheets_use_case import SyncSheetsUseCase
-from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
+from app.application.use_cases.grupos_config import GrupoConfigUseCases
+from app.application.use_cases.personas import PersonaUseCases
+from app.application.use_cases.solicitudes import SolicitudUseCases
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.infrastructure.db import get_connection
