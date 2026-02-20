@@ -310,6 +310,8 @@ class MainWindow(QMainWindow):
         self._pending_view_all = False
         self._orphan_pendientes: list[SolicitudDTO] = []
         self._sync_in_progress = False
+        self._sync_thread: QThread | None = None
+        self._sync_worker: PushWorker | None = None
         self._last_sync_report = None
         self._pending_sync_plan: SyncExecutionPlan | None = None
         self._sync_started_at: str | None = None
@@ -323,6 +325,23 @@ class MainWindow(QMainWindow):
         self._blocking_errors: dict[str, str] = {}
         self._warnings: dict[str, str] = {}
         self._duplicate_target: SolicitudDTO | None = None
+        self.status_sync_label: QLabel | None = None
+        self.status_sync_progress: QProgressBar | None = None
+        self.status_pending_label: QLabel | None = None
+        self.saldos_details_button: QPushButton | None = None
+        self.saldos_details_content: QWidget | None = None
+        self.saldo_periodo_label: QLabel | None = None
+        self.saldo_periodo_consumidas: QLabel | None = None
+        self.saldo_periodo_restantes: QLabel | None = None
+        self.saldo_grupo_consumidas: QLabel | None = None
+        self.saldo_grupo_restantes: QLabel | None = None
+        self.saldo_anual_consumidas: QLabel | None = None
+        self.saldo_anual_restantes: QLabel | None = None
+        self.exceso_badge: QLabel | None = None
+        self.bolsa_mensual_label: QLabel | None = None
+        self.bolsa_delegada_label: QLabel | None = None
+        self.bolsa_grupo_label: QLabel | None = None
+        self.horas_input: object | None = None
         self.toast = ToastManager()
         self.notifications = NotificationService(self.toast, self)
         self._personas_controller = PersonasController(self)
@@ -2933,8 +2952,10 @@ class MainWindow(QMainWindow):
         self._sync_in_progress = in_progress
         self.sync_status_label.setVisible(in_progress)
         self.sync_progress.setVisible(in_progress)
-        self.status_sync_label.setVisible(in_progress)
-        self.status_sync_progress.setVisible(in_progress)
+        if self.status_sync_label is not None:
+            self.status_sync_label.setVisible(in_progress)
+        if self.status_sync_progress is not None:
+            self.status_sync_progress.setVisible(in_progress)
         if in_progress:
             self._sync_started_at = datetime.now().isoformat()
             self.statusBar().showMessage("Sincronizando con Google Sheets…")
@@ -3017,7 +3038,8 @@ class MainWindow(QMainWindow):
                 total_min = 0
         formatted = self._format_minutes(total_min)
         self.total_pendientes_label.setText(f"Total: {formatted}")
-        self.status_pending_label.setText(f"Pendiente: {formatted}")
+        if self.status_pending_label is not None:
+            self.status_pending_label.setText(f"Pendiente: {formatted}")
         self.statusBar().showMessage(f"Pendiente: {formatted}", 4000)
 
     def _service_account_email(self) -> str | None:
