@@ -1,5 +1,64 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+
+# =========================
+# Entornos virtuales
+# =========================
+.venv/
+venv/
+env/
+
+# =========================
+# Cachés y temporales
+# =========================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Bases de datos locales
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# =========================
+# Secretos y credenciales
+# =========================
+.env
+.env.*
+credentials*.json
+token*.json
+client_secret*.json
+
+# =========================
+# Build y artefactos
+# =========================
 dist/
 build/
 output/
-*.log
-.venv/
+*.pdf
+*.csv
+
+# =========================
+# Qt / PySide
+# =========================
+*.spec
+*.qmlc
+*.pyd
+*.dll
+
+# =========================
+# IDE
+# =========================
+.idea/
+.vscode/
