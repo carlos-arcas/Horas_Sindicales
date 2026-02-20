@@ -1,36 +1,34 @@
-# Decisiones técnicas de dependencias
+# Decisiones técnicas
 
-## Por qué pinneamos dependencias
+## Registro de decisiones relevantes
 
-Para asegurar builds reproducibles en local, CI y Windows (`.bat` canónicos), las instalaciones se realizan desde archivos pinneados con versión exacta (`==`). Esto evita variaciones por resolución de dependencias cuando se usan rangos (`>=`, `<`).
+> Formato: `Fecha — Decisión — Estado — Justificación`.
 
-## Fuente humana vs. lock reproducible
+- **2026-02-20 — Lockfiles pinneados (`requirements.txt` y `requirements-dev.txt`) — Vigente**  
+  Se mantiene instalación reproducible entre local, CI y scripts de Windows.
 
-- `requirements.in`: fuente humana de dependencias runtime (con intención/rango).
-- `requirements-dev.in`: fuente humana de dependencias de desarrollo y testing.
-- `requirements.txt`: salida pinneada para instalación runtime.
-- `requirements-dev.txt`: salida pinneada para desarrollo/testing.
+- **2026-02-20 — Fuentes editables separadas (`requirements.in` / `requirements-dev.in`) — Vigente**  
+  La edición se hace en `.in`; los `.txt` se regeneran con `pip-compile`.
 
-En este repositorio usamos **pip-tools** como herramienta estándar de compilación.
+- **2026-02-20 — Logging estructurado JSONL con trazabilidad (`correlation_id`) — Vigente**  
+  Facilita auditoría y seguimiento extremo a extremo de operaciones críticas.
 
-## Cómo actualizar dependencias
+- **2026-02-20 — Estrategia de pruebas con `pytest` y cobertura (`--cov`) — Vigente**  
+  Se estandariza ejecución local, en Windows y en pipelines con umbral de cobertura.
 
-1. Editar únicamente `requirements.in` y/o `requirements-dev.in`.
-2. Regenerar lockfiles con:
+- **2026-02-20 — Normalización documental: canonical en `/docs` para arquitectura — Vigente**  
+  `arquitectura.md` de raíz pasa a stub de redirección para evitar duplicidad confusa.
 
-```bash
-pip-compile requirements.in -o requirements.txt
-pip-compile requirements-dev.in -o requirements-dev.txt
-```
+- **2026-02-20 — Duplicidad de changelog: canonical en raíz (`CHANGELOG.md`) — Vigente**  
+  `docs/CHANGELOG.md` queda como stub/enlace de compatibilidad para consulta rápida.
 
-3. Ejecutar tests:
+## Procedimiento de actualización
 
-```bash
-pytest -q
-```
+1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).
+2. Indicar estado (`Vigente`, `Revisar`, `Deprecada`).
+3. Resumir impacto técnico (build, runtime, calidad o trazabilidad).
+4. Referenciar docs complementarias cuando aplique (`guia_pruebas`, `guia_logging`, arquitectura).
 
-4. Commit de los cuatro archivos de dependencias (`.in` y `.txt`).
+## Pendiente de completar
 
-## Nota de plataforma
-
-No se ha separado por plataforma porque las dependencias actuales son compatibles con el flujo objetivo. Si en el futuro aparece una dependencia específica de SO, se deberá declarar con markers de entorno (`; sys_platform == ...`) y documentar el motivo.
+- Pendiente de completar un ADR formal por cada integración externa crítica si auditoría lo exige.
