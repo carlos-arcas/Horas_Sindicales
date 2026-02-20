@@ -1,0 +1,776 @@
+{
+  "metadatos": {
+    "version_auditoria": "v1",
+    "fecha_iso": "2026-02-20",
+    "estado_global": "APROBADO_CON_RIESGOS",
+    "nota_global": 6.2,
+    "repo": {
+      "nombre": "Horas_Sindicales",
+      "branch": "work",
+      "commit": "1a56083aa4b01648d90e7485d01d4959662ba59f"
+    }
+  },
+  "scorecard": {
+    "A": {
+      "nota": 7.5,
+      "resumen": "Separación por capas funcional con controles de imports; aún no Clean estricta por frontera PDF transversal.",
+      "evidencias": [
+        {
+          "ruta": "tests/test_architecture_imports.py",
+          "simbolo": "test_architecture_import_rules"
+        },
+        {
+          "ruta": "tests/test_architecture_imports.py",
+          "simbolo": "test_application_forbidden_technical_imports"
+        },
+        {
+          "ruta": "app/bootstrap/container.py",
+          "simbolo": "build_container"
+        },
+        {
+          "ruta": "app/application/use_cases/__init__.py",
+          "simbolo": "import app.pdf.pdf_builder"
+        }
+      ],
+      "recomendaciones": [
+        "Definir puerto PDF y mover implementación a infraestructura.",
+        "Extender test de arquitectura para módulos transversales."
+      ]
+    },
+    "B": {
+      "nota": 4.5,
+      "resumen": "Exceso de tamaño y responsabilidades en módulos críticos, SRP comprometido.",
+      "evidencias": [
+        {
+          "ruta": "app/ui/main_window.py",
+          "simbolo": "MainWindow"
+        },
+        {
+          "ruta": "app/application/use_cases/sync_sheets/use_case.py",
+          "simbolo": "SyncSheetsUseCase"
+        },
+        {
+          "ruta": "app/application/use_cases/__init__.py",
+          "simbolo": "PersonaUseCases/SolicitudUseCases/GrupoConfigUseCases"
+        }
+      ],
+      "recomendaciones": [
+        "Trocear por responsabilidades y límites de archivo.",
+        "Agregar control de complejidad en CI."
+      ]
+    },
+    "C": {
+      "nota": 7.0,
+      "resumen": "Suite amplia por capas; cobertura real no evaluable en este entorno.",
+      "evidencias": [
+        {
+          "ruta": "tests",
+          "simbolo": "suite_por_capas"
+        },
+        {
+          "ruta": "tests/test_architecture_imports.py",
+          "simbolo": "test_architecture_import_rules"
+        },
+        {
+          "ruta": "tests/bootstrap/test_logging_smoke.py",
+          "simbolo": "smoke_logging"
+        }
+      ],
+      "recomendaciones": [
+        "Asegurar instalación de pytest-cov en flujo estándar.",
+        "Documentar prerequisitos UI headless para test."
+      ]
+    },
+    "D": {
+      "nota": 4.0,
+      "resumen": "Crash log presente, pero sin rotación y con prints en rutas activas.",
+      "evidencias": [
+        {
+          "ruta": "app/bootstrap/logging.py",
+          "simbolo": "configure_logging"
+        },
+        {
+          "ruta": "app/bootstrap/logging.py",
+          "simbolo": "write_crash_log"
+        },
+        {
+          "ruta": "main.py",
+          "simbolo": "__main__"
+        },
+        {
+          "ruta": "app/infrastructure/migrations.py",
+          "simbolo": "main"
+        }
+      ],
+      "recomendaciones": [
+        "Sustituir prints por logger estructurado.",
+        "Añadir rotación de logs y retención."
+      ]
+    },
+    "E": {
+      "nota": 5.5,
+      "resumen": "Hay launcher Windows, pero falta estándar de testing y pin determinista.",
+      "evidencias": [
+        {
+          "ruta": "launch.bat",
+          "simbolo": "script_principal"
+        },
+        {
+          "ruta": "requirements.txt",
+          "simbolo": "dependencias_rango"
+        },
+        {
+          "ruta": "requirements-dev.txt",
+          "simbolo": "dependencias_dev_rango"
+        }
+      ],
+      "recomendaciones": [
+        "Crear lanzar_app.bat y ejecutar_tests.bat canónicos.",
+        "Adoptar lockfile/pin exacto."
+      ]
+    },
+    "F": {
+      "nota": 6.5,
+      "resumen": "UI usa QThread en sync y feedback visual; trazabilidad de error usuario-técnico parcial.",
+      "evidencias": [
+        {
+          "ruta": "app/ui/main_window.py",
+          "simbolo": "SyncWorker"
+        },
+        {
+          "ruta": "app/ui/main_window.py",
+          "simbolo": "PushWorker"
+        },
+        {
+          "ruta": "app/ui/error_mapping.py",
+          "simbolo": "map_error_to_ui_message"
+        },
+        {
+          "ruta": "app/ui/notification_service.py",
+          "simbolo": "NotificationService._next_result_id"
+        }
+      ],
+      "recomendaciones": [
+        "Propagar correlation_id técnico a mensajes UI.",
+        "Probar explícitamente no-bloqueo en operaciones largas."
+      ]
+    },
+    "G": {
+      "nota": 5.0,
+      "resumen": "Manejo básico de rutas de credenciales; faltan controles de secretos y permisos.",
+      "evidencias": [
+        {
+          "ruta": "app/infrastructure/local_config.py",
+          "simbolo": "SheetsConfigStore"
+        },
+        {
+          "ruta": ".gitignore",
+          "simbolo": "patrones_actuales"
+        }
+      ],
+      "recomendaciones": [
+        "Ampliar gitignore para secretos/DB.",
+        "Aplicar validaciones y permisos en archivos de configuración."
+      ]
+    },
+    "H": {
+      "nota": 7.0,
+      "resumen": "Documentación abundante; falta VERSION canónico.",
+      "evidencias": [
+        {
+          "ruta": "README.md",
+          "simbolo": "documentacion_principal"
+        },
+        {
+          "ruta": "arquitectura.md",
+          "simbolo": "arquitectura_capas"
+        },
+        {
+          "ruta": "CHANGELOG.md",
+          "simbolo": "historial_cambios"
+        }
+      ],
+      "recomendaciones": [
+        "Incorporar VERSION en raíz y validación en release.",
+        "Unificar changelog fuente única."
+      ]
+    },
+    "I": {
+      "nota": 5.0,
+      "resumen": "Base escalable por capas, penalizada por hotspots monolíticos.",
+      "evidencias": [
+        {
+          "ruta": "app/ui/main_window.py",
+          "simbolo": "MainWindow"
+        },
+        {
+          "ruta": "app/application/use_cases/__init__.py",
+          "simbolo": "modulo_use_cases"
+        },
+        {
+          "ruta": "tests/test_architecture_imports.py",
+          "simbolo": "guardas_de_capas"
+        }
+      ],
+      "recomendaciones": [
+        "Modularizar por contextos funcionales.",
+        "Añadir métricas de complejidad en quality gate."
+      ]
+    },
+    "J": {
+      "nota": 6.0,
+      "resumen": "Repositorio ordenado pero con consistencia de naming irregular.",
+      "evidencias": [
+        {
+          "ruta": "app",
+          "simbolo": "estructura_capas"
+        },
+        {
+          "ruta": "scripts/release",
+          "simbolo": "automatizacion_release"
+        },
+        {
+          "ruta": "README.md",
+          "simbolo": "naming_mixto"
+        }
+      ],
+      "recomendaciones": [
+        "Definir guía formal de naming.",
+        "Normalizar nombres de scripts operativos."
+      ]
+    }
+  },
+  "hallazgos": [
+    {
+      "id": "H-001",
+      "severidad": "ALTO",
+      "titulo": "MainWindow monolítico",
+      "impacto": "Alta probabilidad de regresión y coste de cambio elevado.",
+      "descripcion": "La ventana principal concentra construcción UI, estado, eventos, sincronización y flujos de negocio en un único módulo de gran tamaño.",
+      "evidencias": [
+        {
+          "ruta": "app/ui/main_window.py",
+          "simbolo": "MainWindow",
+          "detalle": "~3363 líneas en un archivo"
+        }
+      ],
+      "recomendacion": "Separar en módulos de estado, vistas parciales y handlers; mantener contratos explícitos.",
+      "prioridad": "P0"
+    },
+    {
+      "id": "H-002",
+      "severidad": "ALTO",
+      "titulo": "Use cases sobredimensionados",
+      "impacto": "Dificulta extender reglas de negocio sin efectos colaterales.",
+      "descripcion": "El módulo principal de casos de uso y sync concentra múltiples responsabilidades y utilidades heterogéneas.",
+      "evidencias": [
+        {
+          "ruta": "app/application/use_cases/__init__.py",
+          "simbolo": "PersonaUseCases/SolicitudUseCases/GrupoConfigUseCases",
+          "detalle": "~1072 líneas"
+        },
+        {
+          "ruta": "app/application/use_cases/sync_sheets/use_case.py",
+          "simbolo": "SyncSheetsUseCase",
+          "detalle": "~1819 líneas"
+        }
+      ],
+      "recomendacion": "Extraer por agregado/caso de uso y reducir acoplamiento interno.",
+      "prioridad": "P0"
+    },
+    {
+      "id": "H-003",
+      "severidad": "ALTO",
+      "titulo": "Frontera de capas no estricta con PDF",
+      "impacto": "Complica evolución a Clean Architecture estricta.",
+      "descripcion": "Application importa directamente app.pdf, módulo transversal no modelado como puerto.",
+      "evidencias": [
+        {
+          "ruta": "app/application/use_cases/__init__.py",
+          "simbolo": "import app.pdf.pdf_builder",
+          "detalle": "Dependencia directa desde application"
+        }
+      ],
+      "recomendacion": "Introducir puerto de generación PDF en domain/application y adaptar implementación en infraestructura.",
+      "prioridad": "P0"
+    },
+    {
+      "id": "H-004",
+      "severidad": "MEDIO",
+      "titulo": "Logging sin rotación",
+      "impacto": "Riesgo operativo por crecimiento indefinido de logs.",
+      "descripcion": "La configuración actual usa FileHandler único sin política de rotación ni retención.",
+      "evidencias": [
+        {
+          "ruta": "app/bootstrap/logging.py",
+          "simbolo": "configure_logging",
+          "detalle": "handlers=[logging.FileHandler(...)]"
+        }
+      ],
+      "recomendacion": "Cambiar a Rotating/TimedRotatingFileHandler con límites de tamaño y backups.",
+      "prioridad": "P0"
+    },
+    {
+      "id": "H-005",
+      "severidad": "MEDIO",
+      "titulo": "Uso de print en rutas activas",
+      "impacto": "Rompe trazabilidad centralizada y dificulta soporte.",
+      "descripcion": "Se detecta salida directa por consola en entrypoint y CLI de migraciones.",
+      "evidencias": [
+        {
+          "ruta": "main.py",
+          "simbolo": "__main__",
+          "detalle": "print ante error fatal"
+        },
+        {
+          "ruta": "app/infrastructure/migrations.py",
+          "simbolo": "main",
+          "detalle": "print de estado de migraciones"
+        }
+      ],
+      "recomendacion": "Reemplazar por logger con contexto y nivel adecuado.",
+      "prioridad": "P0"
+    },
+    {
+      "id": "H-006",
+      "severidad": "MEDIO",
+      "titulo": "Dependencias no pinneadas de forma determinista",
+      "impacto": "Resultados diferentes por entorno y fecha de instalación.",
+      "descripcion": "requirements usa rangos abiertos/cerrados en lugar de versiones exactas.",
+      "evidencias": [
+        {
+          "ruta": "requirements.txt",
+          "simbolo": "dependencias",
+          "detalle": "Uso de >= y <"
+        },
+        {
+          "ruta": "requirements-dev.txt",
+          "simbolo": "dependencias_dev",
+          "detalle": "Uso de >= y <"
+        }
+      ],
+      "recomendacion": "Adoptar lockfile y pines exactos para releases y CI.",
+      "prioridad": "P1"
+    },
+    {
+      "id": "H-007",
+      "severidad": "MEDIO",
+      "titulo": "Scripts Windows obligatorios ausentes",
+      "impacto": "DX inconsistente para soporte y QA en Windows.",
+      "descripcion": "No existen los nombres estandarizados solicitados para lanzar app y ejecutar tests.",
+      "evidencias": [
+        {
+          "ruta": "launch.bat",
+          "simbolo": "script_existente",
+          "detalle": "Existe launcher alternativo"
+        }
+      ],
+      "recomendacion": "Crear lanzar_app.bat y ejecutar_tests.bat como interfaz oficial.",
+      "prioridad": "P1"
+    },
+    {
+      "id": "H-008",
+      "severidad": "BAJO",
+      "titulo": "Falta VERSION en raíz",
+      "impacto": "Trazabilidad de release incompleta para tooling.",
+      "descripcion": "Existe changelog pero no archivo VERSION único.",
+      "evidencias": [
+        {
+          "ruta": "CHANGELOG.md",
+          "simbolo": "historial",
+          "detalle": "Presente"
+        }
+      ],
+      "recomendacion": "Añadir VERSION y validar coherencia en proceso release.",
+      "prioridad": "P1"
+    }
+  ],
+  "backlog": [
+    {
+      "id": "P0-01",
+      "prioridad": "P0",
+      "esfuerzo": "L",
+      "riesgo": "alto",
+      "dependencias": [],
+      "cambio": "Dividir MainWindow en módulos de estado, acciones y render por pestaña.",
+      "criterio_aceptacion": [
+        "app/ui/main_window.py < 700 LOC",
+        "pytest tests/ui/test_main_window_smoke.py -q"
+      ],
+      "relacion_hallazgos": [
+        "H-001"
+      ]
+    },
+    {
+      "id": "P0-02",
+      "prioridad": "P0",
+      "esfuerzo": "L",
+      "riesgo": "alto",
+      "dependencias": [
+        "P0-01"
+      ],
+      "cambio": "Separar app/application/use_cases/__init__.py por casos de uso y agregados.",
+      "criterio_aceptacion": [
+        "pytest tests/application -q",
+        "módulo agregador <= 200 LOC"
+      ],
+      "relacion_hallazgos": [
+        "H-002"
+      ]
+    },
+    {
+      "id": "P0-03",
+      "prioridad": "P0",
+      "esfuerzo": "M",
+      "riesgo": "alto",
+      "dependencias": [
+        "P0-02"
+      ],
+      "cambio": "Introducir PdfGeneratorPort y mover implementación concreta fuera de application.",
+      "criterio_aceptacion": [
+        "rg 'app.pdf' app/application devuelve 0",
+        "pytest tests/test_architecture_imports.py -q"
+      ],
+      "relacion_hallazgos": [
+        "H-003"
+      ]
+    },
+    {
+      "id": "P0-04",
+      "prioridad": "P0",
+      "esfuerzo": "S",
+      "riesgo": "medio",
+      "dependencias": [],
+      "cambio": "Eliminar prints de entrypoints y CLI técnica.",
+      "criterio_aceptacion": [
+        "rg '\\bprint\\(' app main.py devuelve 0 coincidencias funcionales"
+      ],
+      "relacion_hallazgos": [
+        "H-005"
+      ]
+    },
+    {
+      "id": "P0-05",
+      "prioridad": "P0",
+      "esfuerzo": "M",
+      "riesgo": "medio",
+      "dependencias": [
+        "P0-04"
+      ],
+      "cambio": "Configurar logging con rotación y formato estructurado.",
+      "criterio_aceptacion": [
+        "Se generan archivos rotados",
+        "Cada línea de log es JSON con campos mínimos"
+      ],
+      "relacion_hallazgos": [
+        "H-004"
+      ]
+    },
+    {
+      "id": "P1-01",
+      "prioridad": "P1",
+      "esfuerzo": "S",
+      "riesgo": "medio",
+      "dependencias": [],
+      "cambio": "Crear lanzar_app.bat como interfaz oficial de ejecución Windows.",
+      "criterio_aceptacion": [
+        "Archivo lanzar_app.bat existe",
+        "En Windows limpio crea .venv e inicia app"
+      ],
+      "relacion_hallazgos": [
+        "H-007"
+      ]
+    },
+    {
+      "id": "P1-02",
+      "prioridad": "P1",
+      "esfuerzo": "S",
+      "riesgo": "medio",
+      "dependencias": [],
+      "cambio": "Crear ejecutar_tests.bat con pytest y cobertura.",
+      "criterio_aceptacion": [
+        "Archivo ejecutar_tests.bat existe",
+        "Ejecuta pytest --cov y propaga exit code"
+      ],
+      "relacion_hallazgos": [
+        "H-007"
+      ]
+    },
+    {
+      "id": "P1-03",
+      "prioridad": "P1",
+      "esfuerzo": "M",
+      "riesgo": "medio",
+      "dependencias": [
+        "P1-02"
+      ],
+      "cambio": "Introducir lockfile de dependencias reproducible y proceso de actualización controlado.",
+      "criterio_aceptacion": [
+        "Instalación determinista en CI",
+        "Hash de lockfile versionado"
+      ],
+      "relacion_hallazgos": [
+        "H-006"
+      ]
+    },
+    {
+      "id": "P1-04",
+      "prioridad": "P1",
+      "esfuerzo": "M",
+      "riesgo": "bajo",
+      "dependencias": [
+        "P0-05"
+      ],
+      "cambio": "Unificar result_id de UI con correlation_id técnico en logs.",
+      "criterio_aceptacion": [
+        "Errores mostrados incluyen ID rastreable",
+        "Búsqueda por ID retorna traza completa"
+      ],
+      "relacion_hallazgos": [
+        "H-001",
+        "H-004"
+      ]
+    },
+    {
+      "id": "P1-05",
+      "prioridad": "P1",
+      "esfuerzo": "S",
+      "riesgo": "bajo",
+      "dependencias": [],
+      "cambio": "Añadir archivo VERSION y validación automática contra CHANGELOG.",
+      "criterio_aceptacion": [
+        "VERSION existe",
+        "release-check falla si hay desalineación"
+      ],
+      "relacion_hallazgos": [
+        "H-008"
+      ]
+    },
+    {
+      "id": "P1-06",
+      "prioridad": "P1",
+      "esfuerzo": "S",
+      "riesgo": "medio",
+      "dependencias": [],
+      "cambio": "Endurecer .gitignore y política de artefactos sensibles.",
+      "criterio_aceptacion": [
+        ".gitignore cubre *.db, credentials*.json y .env*"
+      ],
+      "relacion_hallazgos": [
+        "H-006"
+      ]
+    },
+    {
+      "id": "P2-01",
+      "prioridad": "P2",
+      "esfuerzo": "S",
+      "riesgo": "bajo",
+      "dependencias": [],
+      "cambio": "Publicar guía de naming consistente (español/inglés técnico) y aplicar en nuevas contribuciones.",
+      "criterio_aceptacion": [
+        "Documento de convención aprobado",
+        "Checklist de PR incorpora regla"
+      ],
+      "relacion_hallazgos": [
+        "H-001"
+      ]
+    },
+    {
+      "id": "P2-02",
+      "prioridad": "P2",
+      "esfuerzo": "M",
+      "riesgo": "bajo",
+      "dependencias": [
+        "P0-01",
+        "P0-02"
+      ],
+      "cambio": "Incorporar métrica de complejidad/LOC al quality gate.",
+      "criterio_aceptacion": [
+        "Gate falla al superar umbral LOC/CC",
+        "Reporte de métricas publicado en CI"
+      ],
+      "relacion_hallazgos": [
+        "H-001",
+        "H-002"
+      ]
+    }
+  ],
+  "quick_wins": [
+    {
+      "id": "QW-01",
+      "cambio": "Eliminar print en main.py y migraciones CLI.",
+      "criterio_aceptacion": [
+        "rg '\\bprint\\(' app main.py sin coincidencias funcionales"
+      ],
+      "impacto": "Trazabilidad inmediata y consistente"
+    },
+    {
+      "id": "QW-02",
+      "cambio": "Agregar archivo VERSION en raíz.",
+      "criterio_aceptacion": [
+        "VERSION existe",
+        "README/release lo referencia"
+      ],
+      "impacto": "Mejor trazabilidad de release"
+    },
+    {
+      "id": "QW-03",
+      "cambio": "Definir ejecutar_tests.bat estándar.",
+      "criterio_aceptacion": [
+        "Script ejecuta pytest con cobertura",
+        "Retorna exit code de pytest"
+      ],
+      "impacto": "DX Windows homogénea"
+    },
+    {
+      "id": "QW-04",
+      "cambio": "Activar rotación de app.log.",
+      "criterio_aceptacion": [
+        "Se generan ficheros app.log.1+ al exceder umbral"
+      ],
+      "impacto": "Evita crecimiento indefinido de logs"
+    },
+    {
+      "id": "QW-05",
+      "cambio": "Extender .gitignore para artefactos sensibles.",
+      "criterio_aceptacion": [
+        "Patrones de db/credenciales/.env incorporados"
+      ],
+      "impacto": "Reduce riesgo de fuga accidental"
+    }
+  ],
+  "checklist": [
+    {
+      "item": "No hay imports prohibidos entre capas",
+      "estado": "PASS",
+      "evidencias": [
+        {
+          "ruta": "tests/test_architecture_imports.py",
+          "simbolo": "test_architecture_import_rules"
+        }
+      ]
+    },
+    {
+      "item": "Dominio sin dependencias externas",
+      "estado": "PASS",
+      "evidencias": [
+        {
+          "ruta": "app/domain/models.py",
+          "simbolo": "imports_stdlib"
+        },
+        {
+          "ruta": "app/domain/sync_models.py",
+          "simbolo": "imports_stdlib"
+        }
+      ]
+    },
+    {
+      "item": "No hay lógica de negocio en UI",
+      "estado": "PASS",
+      "evidencias": [
+        {
+          "ruta": "app/ui/main_window.py",
+          "simbolo": "orquesta_use_cases"
+        }
+      ]
+    },
+    {
+      "item": "Logging estructurado sin prints",
+      "estado": "FAIL",
+      "evidencias": [
+        {
+          "ruta": "main.py",
+          "simbolo": "print_error_fatal"
+        },
+        {
+          "ruta": "app/infrastructure/migrations.py",
+          "simbolo": "print_status"
+        }
+      ]
+    },
+    {
+      "item": "Logs con rotación + crashes.log",
+      "estado": "FAIL",
+      "evidencias": [
+        {
+          "ruta": "app/bootstrap/logging.py",
+          "simbolo": "write_crash_log"
+        },
+        {
+          "ruta": "app/bootstrap/logging.py",
+          "simbolo": "configure_logging"
+        }
+      ]
+    },
+    {
+      "item": "requirements.txt con versiones fijadas",
+      "estado": "FAIL",
+      "evidencias": [
+        {
+          "ruta": "requirements.txt",
+          "simbolo": "versiones_por_rango"
+        }
+      ]
+    },
+    {
+      "item": "Scripts .bat: lanzar_app.bat y ejecutar_tests.bat",
+      "estado": "FAIL",
+      "evidencias": [
+        {
+          "ruta": "launch.bat",
+          "simbolo": "script_existente_no_estandar"
+        }
+      ]
+    },
+    {
+      "item": "pytest --cov... pasa con >=85%",
+      "estado": "NO_EVALUABLE",
+      "evidencias": [
+        {
+          "ruta": "requirements-dev.txt",
+          "simbolo": "pytest-cov_no_disponible_en_entorno"
+        }
+      ]
+    },
+    {
+      "item": "docs mínimos existen",
+      "estado": "PASS",
+      "evidencias": [
+        {
+          "ruta": "README.md",
+          "simbolo": "documentacion_principal"
+        },
+        {
+          "ruta": "arquitectura.md",
+          "simbolo": "documentacion_arquitectura"
+        }
+      ]
+    },
+    {
+      "item": "VERSION y CHANGELOG.md existen",
+      "estado": "FAIL",
+      "evidencias": [
+        {
+          "ruta": "CHANGELOG.md",
+          "simbolo": "presente"
+        }
+      ]
+    }
+  ],
+  "metricas": {
+    "tests": {
+      "hay_pytest": true,
+      "cobertura_porcentaje": null,
+      "comando_sugerido": "pytest --cov=. --cov-report=term-missing --cov-fail-under=85"
+    },
+    "logging": {
+      "hay_rotacion": false,
+      "crash_log": true,
+      "prints_detectados": 2
+    },
+    "arquitectura": {
+      "imports_prohibidos_detectados": false,
+      "dominio_depende_externo": false
+    }
+  }
+}
