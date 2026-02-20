@@ -511,12 +511,12 @@ class MainWindow(QMainWindow):
         pending_tools = QHBoxLayout()
         pending_tools.setSpacing(8)
         self.ver_todas_pendientes_button = QPushButton("Ver todas")
-        self.ver_todas_pendientes_button.setProperty("variant", "secondary")
+        self.ver_todas_pendientes_button.setProperty("variant", "tertiary")
         self.ver_todas_pendientes_button.setCheckable(True)
         self.ver_todas_pendientes_button.toggled.connect(self._on_toggle_ver_todas_pendientes)
         pending_tools.addWidget(self.ver_todas_pendientes_button)
         self.revisar_ocultas_button = QPushButton("Revisar pendientes ocultas")
-        self.revisar_ocultas_button.setProperty("variant", "secondary")
+        self.revisar_ocultas_button.setProperty("variant", "tertiary")
         self.revisar_ocultas_button.setVisible(False)
         self.revisar_ocultas_button.clicked.connect(self._on_review_hidden_pendientes)
         pending_tools.addWidget(self.revisar_ocultas_button)
@@ -568,12 +568,12 @@ class MainWindow(QMainWindow):
         left_actions = QHBoxLayout()
         left_actions.setSpacing(8)
         self.eliminar_pendiente_button = QPushButton("Eliminar selección")
-        self.eliminar_pendiente_button.setProperty("variant", "danger")
+        self.eliminar_pendiente_button.setProperty("variant", "tertiary")
         self.eliminar_pendiente_button.clicked.connect(self._on_remove_pendiente)
         left_actions.addWidget(self.eliminar_pendiente_button)
 
         self.eliminar_huerfana_button = QPushButton("Eliminar huérfana")
-        self.eliminar_huerfana_button.setProperty("variant", "danger")
+        self.eliminar_huerfana_button.setProperty("variant", "tertiary")
         self.eliminar_huerfana_button.clicked.connect(self._on_remove_huerfana)
         self.eliminar_huerfana_button.setVisible(False)
         left_actions.addWidget(self.eliminar_huerfana_button)
@@ -603,6 +603,7 @@ class MainWindow(QMainWindow):
 
         self.primary_cta_button = QPushButton("Añadir a pendientes")
         self.primary_cta_button.setProperty("variant", "primary")
+        self.primary_cta_button.setProperty("role", "dominantCta")
         self.primary_cta_button.clicked.connect(self._on_primary_cta_clicked)
         right_actions.addWidget(self.primary_cta_button)
 
@@ -1532,22 +1533,23 @@ class MainWindow(QMainWindow):
         if selected_pending and can_confirm:
             self._set_operativa_step(3)
 
-        if selected_pending and can_confirm:
-            self.primary_cta_button.setText("Confirmar seleccionadas")
+        cta_text = "Confirmar seleccionadas" if selected_pending and can_confirm else "Añadir a pendientes"
+        self.primary_cta_button.setText(cta_text)
+        if not form_valid:
+            self.primary_cta_button.setEnabled(False)
+            self.primary_cta_hint.setText(form_message)
+        elif selected_pending and can_confirm:
             self.primary_cta_button.setEnabled(True)
             self.primary_cta_hint.setText("")
-        elif persona_selected and form_valid:
-            self.primary_cta_button.setText("Añadir a pendientes")
+        elif persona_selected:
             self.primary_cta_button.setEnabled(True)
             self.primary_cta_hint.setText("")
         elif has_pending:
-            self.primary_cta_button.setText("Confirmar seleccionadas")
             self.primary_cta_button.setEnabled(False)
             self.primary_cta_hint.setText("Selecciona al menos una pendiente")
         else:
-            self.primary_cta_button.setText("Añadir a pendientes")
             self.primary_cta_button.setEnabled(False)
-            self.primary_cta_hint.setText(form_message or "Completa el formulario para continuar")
+            self.primary_cta_hint.setText("Completa el formulario para continuar")
 
     def _set_operativa_step(self, active_step: int) -> None:
         for index, label in enumerate(self.stepper_labels, start=1):
