@@ -28,6 +28,7 @@ from app.domain.sheets_errors import (
     SheetsRateLimitError,
 )
 from app.ui.error_mapping import map_error_to_ui_message
+from app.ui.patterns import SPACING_BASE, apply_modal_behavior, build_modal_actions, status_badge
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,8 @@ class OpcionesDialog(QDialog):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(SPACING_BASE * 2, SPACING_BASE * 2, SPACING_BASE * 2, SPACING_BASE * 2)
+        layout.setSpacing(SPACING_BASE + 4)
 
         title = QLabel("Google Sheets (Service Account)")
         title.setProperty("role", "subtitle")
@@ -84,25 +85,22 @@ class OpcionesDialog(QDialog):
         status_container.addWidget(self.connection_status_label)
         layout.addLayout(status_container)
 
-        actions_layout = QHBoxLayout()
-        actions_layout.addStretch(1)
-
         self.test_button = QPushButton("Probar conexión")
         self.test_button.setProperty("variant", "secondary")
         self.test_button.clicked.connect(self._on_test_connection)
-        actions_layout.addWidget(self.test_button)
 
         self.cancel_button = QPushButton("Cerrar")
-        self.cancel_button.setProperty("variant", "secondary")
+        self.cancel_button.setProperty("variant", "ghost")
         self.cancel_button.clicked.connect(self.reject)
-        actions_layout.addWidget(self.cancel_button)
 
         self.save_button = QPushButton("Guardar")
         self.save_button.setProperty("variant", "primary")
         self.save_button.clicked.connect(self._on_save)
-        actions_layout.addWidget(self.save_button)
 
+        actions_layout = build_modal_actions(self.cancel_button, self.save_button)
+        actions_layout.insertWidget(0, self.test_button)
         layout.addLayout(actions_layout)
+        apply_modal_behavior(self, primary_button=self.save_button)
 
         self.spreadsheet_input.textChanged.connect(self._update_status)
         self.credentials_input.textChanged.connect(self._update_status)
@@ -231,21 +229,21 @@ class OpcionesDialog(QDialog):
         credentials_set = bool(credentials_value)
         spreadsheet_set = bool(spreadsheet_value)
         self.credentials_status_label.setText(
-            "✅ Credenciales seleccionadas" if credentials_set else "❌ Credenciales sin seleccionar"
+            status_badge("CONFIRMED") + " Credenciales seleccionadas" if credentials_set else status_badge("ERROR") + " Credenciales sin seleccionar"
         )
         self.spreadsheet_status_label.setText(
-            "✅ Hoja configurada" if spreadsheet_set else "❌ Hoja sin configurar"
+            status_badge("CONFIRMED") + " Hoja configurada" if spreadsheet_set else status_badge("ERROR") + " Hoja sin configurar"
         )
         status_key = (credentials_value, spreadsheet_value)
         if status_key != self._last_status_key:
-            self.connection_status_label.setText("❌ Conexión no comprobada")
+            self.connection_status_label.setText(status_badge("PENDING") + " Conexión no comprobada")
             self._last_status_key = status_key
 
     def _set_connection_ok(self) -> None:
-        self.connection_status_label.setText("✅ Conexión OK")
+        self.connection_status_label.setText(status_badge("CONFIRMED") + " Conexión OK")
 
     def _set_connection_error(self, message: str) -> None:
-        self.connection_status_label.setText(f"❌ Error: {message}")
+        self.connection_status_label.setText(f"{status_badge('ERROR')} Error: {message}")
 
 
     def _show_unknown_error(self, exc: Exception) -> None:

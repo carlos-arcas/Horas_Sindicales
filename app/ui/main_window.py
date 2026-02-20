@@ -71,6 +71,7 @@ from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
 from app.ui.error_mapping import UiErrorMessage, map_error_to_ui_message
 from app.ui.person_dialog import PersonaDialog
 from app.ui.style import apply_theme
+from app.ui.patterns import apply_modal_behavior, build_modal_actions, status_badge, STATUS_PATTERNS
 from app.ui.widgets.header import HeaderWidget
 from app.ui.widgets.toast import ToastManager
 from app.ui.controllers.personas_controller import PersonasController
@@ -156,6 +157,7 @@ class OptionalConfirmDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(title)
         layout = QVBoxLayout(self)
+        layout.setSpacing(8)
         text = QLabel(message)
         text.setWordWrap(True)
         layout.addWidget(text)
@@ -163,16 +165,14 @@ class OptionalConfirmDialog(QDialog):
         self.skip_next_check = QCheckBox("No mostrar de nuevo")
         layout.addWidget(self.skip_next_check)
 
-        buttons = QHBoxLayout()
-        buttons.addStretch(1)
+        cancel_button = QPushButton("Cancelar")
+        cancel_button.setProperty("variant", "ghost")
+        cancel_button.clicked.connect(self.reject)
         ok = QPushButton("Aceptar")
         ok.setProperty("variant", "primary")
         ok.clicked.connect(self.accept)
-        buttons.addWidget(ok)
-        layout.addLayout(buttons)
-
-        self._escape_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
-        self._escape_shortcut.activated.connect(self.reject)
+        layout.addLayout(build_modal_actions(cancel_button, ok))
+        apply_modal_behavior(self, primary_button=ok)
 
 
 class PdfPreviewDialog(QDialog):
@@ -222,13 +222,12 @@ class PdfPreviewDialog(QDialog):
         actions.addWidget(save_as)
 
         close_button = QPushButton("Cerrar")
-        close_button.setProperty("variant", "secondary")
+        close_button.setProperty("variant", "ghost")
         close_button.clicked.connect(self.reject)
         actions.addWidget(close_button)
         layout.addLayout(actions)
 
-        self._escape_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
-        self._escape_shortcut.activated.connect(self.reject)
+        apply_modal_behavior(self)
 
     def _generate_preview(self) -> None:
         with NamedTemporaryFile(prefix="horas_sindicales_", suffix=".pdf", delete=False) as tmp:
@@ -274,8 +273,7 @@ class HistoricoDetalleDialog(QDialog):
         buttons.accepted.connect(self.accept)
         layout.addWidget(buttons)
 
-        self._escape_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
-        self._escape_shortcut.activated.connect(self.reject)
+        apply_modal_behavior(self, primary_button=save_as)
 
 
 class MainWindow(QMainWindow):
@@ -569,7 +567,7 @@ class MainWindow(QMainWindow):
         self.pending_errors_summary.setWordWrap(True)
         pending_errors_layout.addWidget(self.pending_errors_summary)
         self.goto_existing_button = QPushButton("Ir a la existente")
-        self.goto_existing_button.setProperty("variant", "tertiary")
+        self.goto_existing_button.setProperty("variant", "ghost")
         self.goto_existing_button.clicked.connect(self._on_go_to_existing_duplicate)
         self.goto_existing_button.setVisible(False)
         pending_errors_layout.addWidget(self.goto_existing_button)
@@ -701,17 +699,17 @@ class MainWindow(QMainWindow):
         pending_tools = QHBoxLayout()
         pending_tools.setSpacing(8)
         self.ver_todas_pendientes_button = QPushButton("Ver todas")
-        self.ver_todas_pendientes_button.setProperty("variant", "tertiary")
+        self.ver_todas_pendientes_button.setProperty("variant", "ghost")
         self.ver_todas_pendientes_button.setCheckable(True)
         self.ver_todas_pendientes_button.toggled.connect(self._on_toggle_ver_todas_pendientes)
         pending_tools.addWidget(self.ver_todas_pendientes_button)
         self.revisar_ocultas_button = QPushButton("Revisar pendientes ocultas")
-        self.revisar_ocultas_button.setProperty("variant", "tertiary")
+        self.revisar_ocultas_button.setProperty("variant", "ghost")
         self.revisar_ocultas_button.setVisible(False)
         self.revisar_ocultas_button.clicked.connect(self._on_review_hidden_pendientes)
         pending_tools.addWidget(self.revisar_ocultas_button)
         self.pending_details_button = QPushButton("Ver detalles")
-        self.pending_details_button.setProperty("variant", "tertiary")
+        self.pending_details_button.setProperty("variant", "ghost")
         pending_tools.addWidget(self.pending_details_button)
         self.pending_filter_warning = QLabel("")
         self.pending_filter_warning.setProperty("role", "secondary")
@@ -766,12 +764,12 @@ class MainWindow(QMainWindow):
         left_actions = QHBoxLayout()
         left_actions.setSpacing(8)
         self.eliminar_pendiente_button = QPushButton("Eliminar selección")
-        self.eliminar_pendiente_button.setProperty("variant", "tertiary")
+        self.eliminar_pendiente_button.setProperty("variant", "ghost")
         self.eliminar_pendiente_button.clicked.connect(self._on_remove_pendiente)
         left_actions.addWidget(self.eliminar_pendiente_button)
 
         self.eliminar_huerfana_button = QPushButton("Eliminar huérfana")
-        self.eliminar_huerfana_button.setProperty("variant", "tertiary")
+        self.eliminar_huerfana_button.setProperty("variant", "ghost")
         self.eliminar_huerfana_button.clicked.connect(self._on_remove_huerfana)
         self.eliminar_huerfana_button.setVisible(False)
         left_actions.addWidget(self.eliminar_huerfana_button)
@@ -918,7 +916,8 @@ class MainWindow(QMainWindow):
         historico_actions.setSpacing(10)
         historico_actions.addStretch(1)
         self.eliminar_button = QPushButton("Eliminar (0)")
-        self.eliminar_button.setProperty("variant", "danger")
+        self.eliminar_button.setProperty("variant", "primary")
+        self.eliminar_button.setProperty("intent", "destructive")
         self.eliminar_button.clicked.connect(self._on_eliminar)
         historico_actions.addWidget(self.eliminar_button)
 
@@ -988,7 +987,8 @@ class MainWindow(QMainWindow):
 
         persona_delete = QHBoxLayout()
         self.delete_persona_button = QPushButton("Eliminar delegado")
-        self.delete_persona_button.setProperty("variant", "danger")
+        self.delete_persona_button.setProperty("variant", "primary")
+        self.delete_persona_button.setProperty("intent", "destructive")
         self.delete_persona_button.clicked.connect(self._on_delete_persona)
         persona_delete.addWidget(self.delete_persona_button)
         persona_delete.addStretch(1)
@@ -2732,6 +2732,7 @@ class MainWindow(QMainWindow):
         dialog = QDialog(self)
         dialog.setWindowTitle("Detalles de sincronización")
         dialog.resize(940, 480)
+        apply_modal_behavior(dialog)
         layout = QVBoxLayout(dialog)
         table = QTreeWidget(dialog)
         table.setColumnCount(6)
@@ -2769,6 +2770,7 @@ class MainWindow(QMainWindow):
         actions.addWidget(export_detail)
 
         close_button = QPushButton("Cerrar")
+        close_button.setProperty("variant", "ghost")
         close_button.clicked.connect(dialog.accept)
         actions.addWidget(close_button)
         layout.addLayout(actions)
@@ -2776,6 +2778,8 @@ class MainWindow(QMainWindow):
 
     def _set_sync_status_badge(self, status: str) -> None:
         self.sync_status_badge.setText(self._status_to_label(status))
+        tone_map = {"OK": STATUS_PATTERNS["CONFIRMED"].tone, "RUNNING": STATUS_PATTERNS["PENDING"].tone, "OK_WARN": STATUS_PATTERNS["WARNING"].tone, "ERROR": STATUS_PATTERNS["ERROR"].tone}
+        self.sync_status_badge.setProperty("tone", tone_map.get(status, "pending"))
         self.sync_status_badge.setProperty("syncStatus", status)
         style = self.sync_status_badge.style()
         if style is not None:
@@ -2795,9 +2799,9 @@ class MainWindow(QMainWindow):
         return {
             "IDLE": "⏸ En espera",
             "RUNNING": "🔄 Sincronizando…",
-            "OK": "✅ Confirmada",
-            "OK_WARN": "⚠ Aviso",
-            "ERROR": "⛔ Error",
+            "OK": status_badge("CONFIRMED"),
+            "OK_WARN": status_badge("WARNING"),
+            "ERROR": status_badge("ERROR"),
             "CONFIG_INCOMPLETE": "⚙️ Configuración incompleta",
         }.get(status, status)
 
@@ -2867,12 +2871,14 @@ class MainWindow(QMainWindow):
     def _show_details_dialog(self, title: str, details: str) -> None:
         dialog = QDialog(self)
         dialog.setWindowTitle(title)
+        apply_modal_behavior(dialog)
         layout = QVBoxLayout(dialog)
         details_text = QPlainTextEdit()
         details_text.setReadOnly(True)
         details_text.setPlainText(details)
         layout.addWidget(details_text)
         close_button = QPushButton("Cerrar")
+        close_button.setProperty("variant", "ghost")
         close_button.clicked.connect(dialog.accept)
         layout.addWidget(close_button, alignment=Qt.AlignRight)
         dialog.resize(520, 360)
@@ -3198,7 +3204,7 @@ class MainWindow(QMainWindow):
         solicitud = self._selected_historico()
         if solicitud is None:
             return
-        estado = "✅ Confirmada" if solicitud.generated else "🕒 Pendiente"
+        estado = status_badge("CONFIRMED") if solicitud.generated else status_badge("PENDING")
         payload = {
             "ID": str(solicitud.id or "-"),
             "Delegada": self.historico_model.persona_name_for_id(solicitud.persona_id) or str(solicitud.persona_id),
