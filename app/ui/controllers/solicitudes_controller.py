@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 import logging
 
+from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.core.observability import OperationContext, log_event
 from app.domain.services import BusinessRuleError, ValidacionError
 
@@ -57,14 +58,26 @@ class SolicitudesController:
 
         try:
             w._set_processing_state(True)
-            with OperationContext("agregar_pendiente") as operation:
+            build_context = getattr(w.notifications, "build_operation_context", None)
+            operation_ctx = build_context() if callable(build_context) else ContextoOperacion.nuevo()
+            if not isinstance(operation_ctx, ContextoOperacion):
+                operation_ctx = ContextoOperacion.nuevo()
+            with OperationContext(
+                "agregar_pendiente",
+                correlation_id=operation_ctx.correlation_id,
+                result_id=operation_ctx.result_id,
+            ) as operation:
                 log_event(
                     logger,
                     "agregar_pendiente_started",
                     {"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
                     operation.correlation_id,
                 )
-                creada, _ = w._solicitud_use_cases.agregar_solicitud(solicitud, correlation_id=operation.correlation_id)
+                creada, _ = w._solicitud_use_cases.agregar_solicitud(
+                    solicitud,
+                    correlation_id=operation.correlation_id,
+                    contexto=operation_ctx,
+                )
                 log_event(logger, "agregar_pendiente_succeeded", {}, operation.correlation_id)
             w._reload_pending_views()
         except (ValidacionError, BusinessRuleError) as exc:

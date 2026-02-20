@@ -18,6 +18,7 @@ from app.application.dto import (
     SolicitudDTO,
     TotalesGlobalesDTO,
 )
+from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.application.pending_conflicts import detect_pending_time_conflicts
 from app.application.ports.pdf_puerto import GeneradorPdfPuerto
 from app.core.errors import InfraError, PersistenceError
@@ -29,6 +30,15 @@ from app.domain.services import BusinessRuleError, ValidacionError, validar_soli
 from app.domain.time_utils import minutes_to_hhmm, parse_hhmm
 
 logger = logging.getLogger(__name__)
+
+
+def _resolver_correlation_id(
+    correlation_id: str | None,
+    contexto: ContextoOperacion | None,
+) -> str | None:
+    if contexto is not None:
+        return contexto.correlation_id
+    return correlation_id
 
 MONTH_NAMES = {
     1: "ENERO",
@@ -139,18 +149,27 @@ class SolicitudUseCases:
     def listar_pendientes_huerfanas(self) -> Iterable[SolicitudDTO]:
         return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_huerfanas()]
 
-    def crear(self, dto: SolicitudDTO, correlation_id: str | None = None) -> SolicitudDTO:
-        solicitud, _ = self.agregar_solicitud(dto, correlation_id=correlation_id)
+    def crear(
+        self,
+        dto: SolicitudDTO,
+        correlation_id: str | None = None,
+        contexto: ContextoOperacion | None = None,
+    ) -> SolicitudDTO:
+        solicitud, _ = self.agregar_solicitud(dto, correlation_id=correlation_id, contexto=contexto)
         return solicitud
 
     def agregar_solicitud(
-        self, dto: SolicitudDTO, correlation_id: str | None = None
+        self,
+        dto: SolicitudDTO,
+        correlation_id: str | None = None,
+        contexto: ContextoOperacion | None = None,
     ) -> tuple[SolicitudDTO, SaldosDTO]:
         """Registra una solicitud nueva y devuelve el saldo recalculado.
 
         Se devuelve saldo en la misma operación para que el cliente trabaje con
         una vista consistente después de validar duplicados y conflictos del día.
         """
+        correlation_id = _resolver_correlation_id(correlation_id, contexto)
         logger.info(
             "Creando solicitud persona_id=%s fecha_pedida=%s completo=%s desde=%s hasta=%s",
             dto.persona_id,
@@ -289,7 +308,13 @@ class SolicitudUseCases:
         )
         return _calcular_saldos(persona, solicitudes_mes, solicitudes_ano)
 
-    def eliminar_solicitud(self, solicitud_id: int, correlation_id: str | None = None) -> SaldosDTO:
+    def eliminar_solicitud(
+        self,
+        solicitud_id: int,
+        correlation_id: str | None = None,
+        contexto: ContextoOperacion | None = None,
+    ) -> SaldosDTO:
+        correlation_id = _resolver_correlation_id(correlation_id, contexto)
         if correlation_id:
             log_event(logger, "solicitud_delete_started", {"solicitud_id": solicitud_id}, correlation_id)
         solicitud = self._repo.get_by_id(solicitud_id)
