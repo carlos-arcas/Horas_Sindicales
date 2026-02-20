@@ -5,6 +5,9 @@ import hashlib
 import importlib.util
 import logging
 import sqlite3
+
+from app.bootstrap.logging import configure_logging
+from app.bootstrap.settings import resolve_log_dir
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -232,7 +235,7 @@ def build_cli() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    configure_logging(resolve_log_dir())
     parser = build_cli()
     args = parser.parse_args()
 
