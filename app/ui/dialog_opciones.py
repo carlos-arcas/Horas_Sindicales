@@ -137,13 +137,13 @@ class OpcionesDialog(QDialog):
                 self.credentials_input.text().strip(),
             )
         except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Validación", f"{str(exc)}\nCausa probable: Falta completar o corregir campos obligatorios.\nAcción recomendada: Revisa los campos marcados y vuelve a guardar.")
+            QMessageBox.warning(self, "Validación", f"{str(exc)}\nCausa probable: Falta un dato requerido.\nAcción recomendada: Indica el dato faltante y vuelve a probar.")
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error guardando configuración de Sheets")
             self._show_unknown_error(exc)
             return
-        QMessageBox.information(self, "Opciones", "Configuración guardada correctamente.")
+        QMessageBox.information(self, "Opciones", "Configuración guardada.")
         self._update_status()
 
     def _on_test_connection(self) -> None:
@@ -153,7 +153,7 @@ class OpcionesDialog(QDialog):
                 self.credentials_input.text().strip(),
             )
         except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Validación", f"{str(exc)}\nCausa probable: Falta completar o corregir campos obligatorios.\nAcción recomendada: Revisa los campos marcados y vuelve a guardar.")
+            QMessageBox.warning(self, "Validación", f"{str(exc)}\nCausa probable: Falta un dato requerido.\nAcción recomendada: Indica el dato faltante y vuelve a probar.")
             return
         except SheetsApiDisabledError:
             self._set_connection_error(
@@ -236,11 +236,11 @@ class OpcionesDialog(QDialog):
         )
         status_key = (credentials_value, spreadsheet_value)
         if status_key != self._last_status_key:
-            self.connection_status_label.setText(status_badge("PENDING") + " Conexión no comprobada")
+            self.connection_status_label.setText(status_badge("PENDING") + " Pendiente de comprobación")
             self._last_status_key = status_key
 
     def _set_connection_ok(self) -> None:
-        self.connection_status_label.setText(status_badge("CONFIRMED") + " Conexión OK")
+        self.connection_status_label.setText(status_badge("CONFIRMED") + " Confirmada")
 
     def _set_connection_error(self, message: str) -> None:
         self.connection_status_label.setText(f"{status_badge('ERROR')} Error: {message}")

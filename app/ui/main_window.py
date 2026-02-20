@@ -336,7 +336,7 @@ class MainWindow(QMainWindow):
         self._reload_pending_views()
         self.sync_source_label.setText(f"Fuente: {self._sync_source_text()}")
         self.sync_scope_label.setText(f"Rango: {self._sync_scope_text()}")
-        self.sync_idempotency_label.setText("Idempotencia: Clave única delegada+fecha+tramo/completo")
+        self.sync_idempotency_label.setText("Evita duplicados: misma delegada, fecha y tramo")
         if not self._sync_service.is_configured():
             self._set_config_incomplete_state()
         self._refresh_last_sync_label()
@@ -952,7 +952,7 @@ class MainWindow(QMainWindow):
         config_layout.setContentsMargins(0, 0, 0, 0)
         config_layout.setSpacing(12)
         config_help = QLabel(
-            "Gestiona delegado, parámetros del grupo y sincronización avanzada desde un único bloque."
+            "Gestiona delegada, ajustes del grupo y sincronización desde un único bloque."
         )
         config_help.setWordWrap(True)
         config_help.setProperty("role", "secondary")
@@ -1037,7 +1037,7 @@ class MainWindow(QMainWindow):
         self.simulate_sync_button.clicked.connect(self._on_simulate_sync)
         sync_actions.addWidget(self.simulate_sync_button)
 
-        self.confirm_sync_button = QPushButton("Confirmar y ejecutar sincronización")
+        self.confirm_sync_button = QPushButton("Confirmar sincronización")
         self.confirm_sync_button.setProperty("variant", "primary")
         self.confirm_sync_button.setEnabled(False)
         self.confirm_sync_button.clicked.connect(self._on_confirm_sync)
@@ -1071,7 +1071,7 @@ class MainWindow(QMainWindow):
         self.sync_history_button.clicked.connect(self._on_show_sync_history)
         sync_actions.addWidget(self.sync_history_button)
 
-        self.review_conflicts_button = QPushButton("Ver conflictos")
+        self.review_conflicts_button = QPushButton("Revisar conflictos")
         self.review_conflicts_button.setProperty("variant", "secondary")
         self.review_conflicts_button.setEnabled(False)
         self.review_conflicts_button.clicked.connect(self._on_review_conflicts)
@@ -1102,7 +1102,7 @@ class MainWindow(QMainWindow):
         sync_state_row.addStretch(1)
         sync_layout.addLayout(sync_state_row)
 
-        self.sync_panel_status = QLabel("Detalle: Sistema en espera.")
+        self.sync_panel_status = QLabel("Estado: Pendiente")
         self.sync_panel_status.setProperty("role", "secondary")
         sync_layout.addWidget(self.sync_panel_status)
 
@@ -1114,7 +1114,7 @@ class MainWindow(QMainWindow):
         self.sync_scope_label.setProperty("role", "secondary")
         sync_layout.addWidget(self.sync_scope_label)
 
-        self.sync_idempotency_label = QLabel("Idempotencia: --")
+        self.sync_idempotency_label = QLabel("Evita duplicados: --")
         self.sync_idempotency_label.setProperty("role", "secondary")
         sync_layout.addWidget(self.sync_idempotency_label)
 
@@ -1219,7 +1219,7 @@ class MainWindow(QMainWindow):
         self.status_sync_progress.setRange(0, 0)
         self.status_sync_progress.setTextVisible(False)
         self.status_sync_progress.setVisible(False)
-        self.status_pending_label = QLabel("Pendientes calculados: 00:00")
+        self.status_pending_label = QLabel("Pendiente: 00:00")
         status.addPermanentWidget(self.status_sync_label)
         status.addPermanentWidget(self.status_sync_progress)
         status.addPermanentWidget(self.status_pending_label)
@@ -2520,7 +2520,7 @@ class MainWindow(QMainWindow):
     def _ask_push_after_pdf(self) -> None:
         dialog = QMessageBox(self)
         dialog.setWindowTitle("PDF generado")
-        dialog.setText("PDF generado. ¿Quieres subir los cambios a Google Sheets ahora?")
+        dialog.setText("PDF generado. ¿Quieres sincronizar ahora con Google Sheets?")
         subir_button = dialog.addButton("Subir ahora", QMessageBox.AcceptRole)
         dialog.addButton("Más tarde", QMessageBox.RejectRole)
         dialog.exec()
@@ -2566,7 +2566,7 @@ class MainWindow(QMainWindow):
         total = self._conflicts_service.count_conflicts()
         self.conflicts_reminder_label.setVisible(total > 0)
         if total > 0:
-            self.conflicts_reminder_label.setText(f"Hay {total} conflictos pendientes de revisión.")
+            self.conflicts_reminder_label.setText(f"Hay {total} conflictos pendientes. Revisa antes de sincronizar.")
 
     def _show_sync_error_dialog(self, error: Exception, details: str | None) -> None:
         if details:
@@ -2662,7 +2662,7 @@ class MainWindow(QMainWindow):
         self._set_sync_status_badge(report.status)
         self.sync_source_label.setText(f"Fuente: {report.source}")
         self.sync_scope_label.setText(f"Rango: {report.scope}")
-        self.sync_idempotency_label.setText(f"Idempotencia: {report.idempotency_criteria}")
+        self.sync_idempotency_label.setText(f"Evita duplicados: {report.idempotency_criteria}")
         self.sync_counts_label.setText(
             "Resumen: "
             f"Filas creadas: {counts.get('created', 0)} · "
@@ -2672,7 +2672,7 @@ class MainWindow(QMainWindow):
             f"Errores: {counts.get('errors', 0)}"
         )
         self.sync_panel_status.setText(
-            f"Detalle: intento #{len(self._sync_attempts)} · estado {self._status_to_label(report.status)} · consolidado {self._status_to_label(report.final_status)}"
+            f"Estado: intento #{len(self._sync_attempts)} · actual {self._status_to_label(report.status)} · final {self._status_to_label(report.final_status)}"
         )
         self.last_sync_metrics_label.setText(
             f"Duración: {report.duration_ms} ms · Cambios: {counts.get('created', 0) + counts.get('updated', 0)} · "
@@ -2683,7 +2683,7 @@ class MainWindow(QMainWindow):
         self.sync_details_button.setEnabled(True)
         self.copy_sync_report_button.setEnabled(True)
         self.retry_failed_button.setEnabled(bool(report.errors or report.conflicts))
-        self.review_conflicts_button.setText("Ver conflictos" if report.conflicts_count > 0 else "Ver conflictos (sin pendientes)")
+        self.review_conflicts_button.setText("Revisar conflictos" if report.conflicts_count > 0 else "Revisar conflictos (sin pendientes)")
         self._update_conflicts_reminder()
         persist_report(report, Path.cwd())
         self._refresh_health_and_alerts()
@@ -2746,7 +2746,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(table, 1)
 
         actions = QHBoxLayout()
-        open_affected = QPushButton("Abrir registro afectado")
+        open_affected = QPushButton("Abrir solicitud afectada")
         open_affected.setProperty("variant", "secondary")
         open_affected.setEnabled(bool(report.conflicts))
         open_affected.clicked.connect(self._on_review_conflicts)
@@ -2798,23 +2798,23 @@ class MainWindow(QMainWindow):
     def _status_to_label(status: str) -> str:
         return {
             "IDLE": "⏸ En espera",
-            "RUNNING": "🔄 Sincronizando…",
+            "RUNNING": "🕒 Pendiente · Sincronizando",
             "OK": status_badge("CONFIRMED"),
             "OK_WARN": status_badge("WARNING"),
             "ERROR": status_badge("ERROR"),
-            "CONFIG_INCOMPLETE": "⚙️ Configuración incompleta",
+            "CONFIG_INCOMPLETE": "⛔ Error · Configuración incompleta",
         }.get(status, status)
 
     def _sync_source_text(self) -> str:
         config = self._sheets_service.get_config()
         if not config:
-            return "Google Sheets sin credenciales configuradas"
+            return "Error: configura credenciales de Google Sheets"
         credentials_name = Path(config.credentials_path).name if config.credentials_path else "sin archivo"
         sheet_short = f"…{config.spreadsheet_id[-6:]}" if config.spreadsheet_id else "sin-id"
         return f"Spreadsheet {sheet_short} · credencial {credentials_name}"
 
     def _sync_scope_text(self) -> str:
-        return "Sincronización bidireccional de delegadas y solicitudes (todas las filas disponibles)."
+        return "Sincronización completa de delegadas y solicitudes."
 
     def _sync_actor_text(self) -> str:
         persona = self._current_persona()
@@ -2911,7 +2911,7 @@ class MainWindow(QMainWindow):
             self.copy_sync_report_button.setEnabled(False)
             self.review_conflicts_button.setEnabled(False)
             self._set_sync_status_badge("RUNNING")
-            self.sync_panel_status.setText("Detalle: sincronización en curso, espera el resumen final.")
+            self.sync_panel_status.setText("Estado: Pendiente · Sincronizando")
         else:
             self.statusBar().clearMessage()
 
@@ -2969,8 +2969,8 @@ class MainWindow(QMainWindow):
         )
         self._show_optional_notice(
             "confirmaciones/no_visible_filtros",
-            "Insertado en histórico",
-            "Insertado en histórico. Puede no verse por el filtro actual.",
+            "Solicitud confirmada",
+            "Solicitud confirmada. Ajusta filtros para verla en Histórico.",
         )
 
     def _update_pending_totals(self) -> None:
@@ -2983,8 +2983,8 @@ class MainWindow(QMainWindow):
                 total_min = 0
         formatted = self._format_minutes(total_min)
         self.total_pendientes_label.setText(f"Total: {formatted}")
-        self.status_pending_label.setText(f"Pendientes calculados: {formatted}")
-        self.statusBar().showMessage(f"Pendientes calculados: {formatted}", 4000)
+        self.status_pending_label.setText(f"Pendiente: {formatted}")
+        self.statusBar().showMessage(f"Pendiente: {formatted}", 4000)
 
     def _service_account_email(self) -> str | None:
         config = self._sheets_service.get_config()

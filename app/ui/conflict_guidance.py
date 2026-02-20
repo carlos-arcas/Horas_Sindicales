@@ -14,7 +14,7 @@ def classify_conflict(conflict: ConflictRecord) -> str:
         return "Diferencia de saldo"
     if any(token in keys for token in ("duplicate_of", "duplicado", "is_duplicate", "dup_uuid")):
         return "Duplicado remoto"
-    return "Registro ya modificado"
+    return "Solicitud ya modificada"
 
 
 def delegada_name(conflict: ConflictRecord) -> str:
@@ -39,7 +39,7 @@ def build_what_happened(conflict: ConflictRecord) -> str:
     return (
         f"Tipo: {conflict_type}\n"
         f"Delegada afectada: {delegada_name(conflict)}\n"
-        f"Registro: {conflict.uuid}\n"
+        f"Solicitud: {conflict.uuid}\n"
         f"Acción recomendada: {recommended_action(conflict_type)}"
     )
 
@@ -47,9 +47,9 @@ def build_what_happened(conflict: ConflictRecord) -> str:
 def build_why_happened(conflict: ConflictRecord) -> str:
     conflict_type = classify_conflict(conflict)
     mapping = {
-        "Duplicado remoto": "El mismo registro llegó dos veces desde la nube o se repitió durante un reintento.",
+        "Duplicado remoto": "La solicitud llegó dos veces desde la nube o en un reintento.",
         "Diferencia de saldo": "Los minutos u horas disponibles no coinciden entre este equipo y la nube.",
-        "Registro ya modificado": "El registro cambió en ambos lados antes de terminar la sincronización.",
+        "Solicitud ya modificada": "La solicitud cambió en ambos lados antes de terminar la sincronización.",
         "Error de acceso": "No fue posible validar correctamente un dato remoto por permisos o acceso.",
     }
-    return mapping.get(conflict_type, "El registro se modificó en distintos momentos y necesita una decisión.")
+    return mapping.get(conflict_type, "La solicitud cambió en momentos distintos y requiere decisión.")
