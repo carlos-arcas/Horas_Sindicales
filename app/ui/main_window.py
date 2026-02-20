@@ -77,7 +77,7 @@ from app.ui.controllers.personas_controller import PersonasController
 from app.ui.controllers.solicitudes_controller import SolicitudesController
 from app.ui.controllers.sync_controller import SyncController
 from app.ui.controllers.pdf_controller import PdfController
-from app.ui.notification_service import NotificationService
+from app.ui.notification_service import NotificationService, OperationFeedback
 from app.ui.sync_reporting import (
     build_config_incomplete_report,
     build_failed_report,
@@ -1310,7 +1310,16 @@ class MainWindow(QMainWindow):
 
     def _on_retry_failed(self) -> None:
         if self._pending_sync_plan is None or self._last_sync_report is None:
-            self.toast.info("No hay plan fallido para reintentar.", title="Reintento")
+            self.notifications.notify_operation(
+                OperationFeedback(
+                    title="Reintento no disponible",
+                    happened="No hay un plan fallido que se pueda reintentar.",
+                    affected_count=0,
+                    incidents="No hay incidencias nuevas.",
+                    next_step="Ejecuta una sincronización y revisa conflictos si aparecen.",
+                    status="error",
+                )
+            )
             return
         item_status = {
             item.uuid: ("CONFLICT" if item in self._pending_sync_plan.conflicts else "ERROR")
@@ -1318,6 +1327,15 @@ class MainWindow(QMainWindow):
         }
         retry_result = self._retry_sync_use_case.build_retry_plan(self._pending_sync_plan, item_status=item_status)
         self._pending_sync_plan = retry_result.plan
+        self.notifications.notify_operation(
+            OperationFeedback(
+                title="Reintento preparado",
+                happened="Se reconstruyó el plan con los elementos en conflicto o error.",
+                affected_count=len(item_status),
+                incidents="Pendiente de ejecución.",
+                next_step="Pulsa sincronizar para completar el reintento.",
+            )
+        )
         self._sync_controller.on_confirm_sync()
 
     def _on_show_sync_details(self) -> None:
@@ -1369,6 +1387,27 @@ class MainWindow(QMainWindow):
         self._attempt_history = next_attempt_history
         self._apply_sync_report(report)
         self._refresh_after_sync(summary)
+        status = self._status_from_summary(summary)
+        feedback_status = "success"
+        incidents = "Sin incidencias."
+        if status == "OK_WARN":
+            feedback_status = "partial"
+            incidents = f"{summary.conflicts_detected} conflictos y {summary.errors} errores."
+        elif status == "ERROR":
+            feedback_status = "error"
+            incidents = "La sincronización no se pudo completar."
+        self.notifications.notify_operation(
+            OperationFeedback(
+                title="Sincronización finalizada",
+                happened="Se ejecutó la sincronización con Google Sheets.",
+                affected_count=summary.inserted_local + summary.inserted_remote + summary.updated_local + summary.updated_remote,
+                incidents=incidents,
+                next_step="Puedes revisar detalle o continuar.",
+                status=feedback_status,
+                action_label="Ver detalle",
+                action_callback=self._on_show_sync_details,
+            )
+        )
         self._show_sync_summary_dialog("Sincronización completada", summary)
 
     def _on_sync_simulation_finished(self, plan: SyncExecutionPlan) -> None:
@@ -1429,6 +1468,18 @@ class MainWindow(QMainWindow):
             attempt_history=self._attempt_history,
         )
         self._apply_sync_report(report)
+        self.notifications.notify_operation(
+            OperationFeedback(
+                title="Sincronización con fallo",
+                happened="No se pudo completar la sincronización.",
+                affected_count=0,
+                incidents="Se detectó un error durante el proceso.",
+                next_step="Revisa el detalle y vuelve a intentar.",
+                status="error",
+                action_label="Ver detalle",
+                action_callback=self._on_show_sync_details,
+            )
+        )
         self._show_sync_error_dialog(error, details)
 
     def _on_review_conflicts(self) -> None:
@@ -1965,24 +2016,26 @@ class MainWindow(QMainWindow):
             )
             return
 
-        with OperationContext("confirmar_sin_pdf") as operation:
-            log_event(logger, "confirmar_sin_pdf_started", {"count": len(selected)}, operation.correlation_id)
-            creadas, pendientes_restantes, errores = self._solicitud_use_cases.confirmar_sin_pdf(
-                selected, correlation_id=operation.correlation_id
-            )
-            log_event(
-                logger,
-                "confirmar_sin_pdf_finished",
-                {"creadas": len(creadas), "errores": len(errores)},
-                operation.correlation_id,
-            )
-
-        if errores:
-            self.toast.warning("\n".join(errores), title="Errores")
+        try:
+            self._set_processing_state(True)
+            with OperationContext("confirmar_sin_pdf") as operation:
+                log_event(logger, "confirmar_sin_pdf_started", {"count": len(selected)}, operation.correlation_id)
+                creadas, pendientes_restantes, errores = self._solicitud_use_cases.confirmar_sin_pdf(
+                    selected, correlation_id=operation.correlation_id
+                )
+                log_event(
+                    logger,
+                    "confirmar_sin_pdf_finished",
+                    {"creadas": len(creadas), "errores": len(errores)},
+                    operation.correlation_id,
+                )
+        finally:
+            self._set_processing_state(False)
         if creadas:
             self.notifications.show_confirmation_summary(
                 count=len(creadas),
                 total_minutes=self._sum_solicitudes_minutes(creadas),
+                errores=errores,
             )
 
         _ = pendientes_restantes
@@ -2022,6 +2075,7 @@ class MainWindow(QMainWindow):
             return
         correlation_id: str | None = None
         try:
+            self._set_processing_state(True)
             with OperationContext("confirmar_y_generar_pdf") as operation:
                 correlation_id = operation.correlation_id
                 log_event(
@@ -2047,10 +2101,10 @@ class MainWindow(QMainWindow):
             logger.exception("Error confirmando solicitudes")
             self._show_critical_error(exc)
             return
+        finally:
+            self._set_processing_state(False)
         if generado and self.abrir_pdf_check.isChecked():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(generado)))
-        if errores:
-            self.toast.warning("\n".join(errores), title="Errores")
         if generado and creadas:
             pdf_hash = creadas[0].pdf_hash
             fechas = [solicitud.fecha_pedida for solicitud in creadas]
@@ -2066,6 +2120,7 @@ class MainWindow(QMainWindow):
             self.notifications.show_confirmation_summary(
                 count=len(creadas),
                 total_minutes=self._sum_solicitudes_minutes(creadas),
+                errores=errores,
             )
             self.toast.success("Exportación PDF OK")
         _ = pendientes_restantes
@@ -2420,6 +2475,16 @@ class MainWindow(QMainWindow):
         else:
             self.statusBar().clearMessage()
 
+    def _set_processing_state(self, in_progress: bool) -> None:
+        self.primary_cta_button.setEnabled(not in_progress)
+        self.confirmar_button.setEnabled(not in_progress)
+        self.eliminar_button.setEnabled(not in_progress)
+        self.eliminar_pendiente_button.setEnabled(not in_progress)
+        if in_progress:
+            self.statusBar().showMessage("Procesando…")
+        elif not self._sync_in_progress:
+            self.statusBar().clearMessage()
+
     def _show_critical_error(self, error: Exception | str) -> None:
         message = error if isinstance(error, str) else map_error_to_user_message(error)
         self.toast.error(message, title="Error")
@@ -2534,6 +2599,7 @@ class MainWindow(QMainWindow):
         if not seleccionadas:
             return
         try:
+            self._set_processing_state(True)
             for solicitud in seleccionadas:
                 with OperationContext("eliminar_solicitud") as operation:
                     self._solicitud_use_cases.eliminar_solicitud(
@@ -2546,9 +2612,20 @@ class MainWindow(QMainWindow):
             logger.exception("Error eliminando solicitud")
             self._show_critical_error(exc)
             return
+        finally:
+            self._set_processing_state(False)
         self._refresh_historico()
         self._refresh_saldos()
         self._update_action_state()
+        self.notifications.notify_operation(
+            OperationFeedback(
+                title="Solicitudes eliminadas",
+                happened="Las solicitudes seleccionadas se eliminaron del histórico.",
+                affected_count=len(seleccionadas),
+                incidents="Sin incidencias.",
+                next_step="Puedes continuar o revisar histórico.",
+            )
+        )
 
     def _on_remove_pendiente(self) -> None:
         selection = self.pendientes_table.selectionModel().selectedRows()
@@ -2561,13 +2638,33 @@ class MainWindow(QMainWindow):
                 solicitud = self._pending_solicitudes[row]
                 if solicitud.id is not None:
                     ids_to_delete.append(solicitud.id)
-        for solicitud_id in ids_to_delete:
-            with OperationContext("eliminar_pendiente") as operation:
-                self._solicitud_use_cases.eliminar_solicitud(
-                    solicitud_id, correlation_id=operation.correlation_id
-                )
+        try:
+            self._set_processing_state(True)
+            for solicitud_id in ids_to_delete:
+                with OperationContext("eliminar_pendiente") as operation:
+                    self._solicitud_use_cases.eliminar_solicitud(
+                        solicitud_id, correlation_id=operation.correlation_id
+                    )
+        except (ValidacionError, BusinessRuleError) as exc:
+            self.toast.warning(str(exc), title="Validación")
+            return
+        except Exception as exc:  # pragma: no cover - fallback
+            logger.exception("Error eliminando pendiente")
+            self._show_critical_error(exc)
+            return
+        finally:
+            self._set_processing_state(False)
         self._reload_pending_views()
         self._refresh_saldos()
+        self.notifications.notify_operation(
+            OperationFeedback(
+                title="Pendientes eliminadas",
+                happened="Las solicitudes pendientes seleccionadas se eliminaron.",
+                affected_count=len(ids_to_delete),
+                incidents="Sin incidencias.",
+                next_step="Puedes añadir nuevas solicitudes o confirmar otras pendientes.",
+            )
+        )
 
     def _refresh_historico(self) -> None:
         solicitudes: list[SolicitudDTO] = []
