@@ -84,8 +84,11 @@ class SyncLogEntry:
 
 @dataclass(frozen=True)
 class SyncReport:
+    sync_id: str
     started_at: str
     finished_at: str
+    attempts: int
+    final_status: str
     status: str
     source: str
     scope: str
@@ -97,13 +100,17 @@ class SyncReport:
     conflicts: list[str] = field(default_factory=list)
     items_changed: list[str] = field(default_factory=list)
     entries: list[SyncLogEntry] = field(default_factory=list)
+    attempt_history: tuple["SyncAttemptReport", ...] = ()
 
     @classmethod
     def empty(cls) -> "SyncReport":
         now = datetime.now().isoformat()
         return cls(
+            sync_id="",
             started_at=now,
             finished_at=now,
+            attempts=0,
+            final_status="IDLE",
             status="IDLE",
             source="Sin ejecutar",
             scope="Sin ejecutar",
@@ -145,3 +152,13 @@ class SyncExecutionPlan:
     @property
     def has_changes(self) -> bool:
         return bool(self.to_create or self.to_update)
+
+
+@dataclass(frozen=True)
+class SyncAttemptReport:
+    attempt_number: int
+    status: str
+    created: int = 0
+    updated: int = 0
+    conflicts: int = 0
+    errors: int = 0
