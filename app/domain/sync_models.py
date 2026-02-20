@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -68,3 +70,47 @@ class SyncSummary:
     @property
     def omitidas_por_delegada(self) -> int:
         return self.omitted_by_delegada
+
+
+@dataclass(frozen=True)
+class SyncLogEntry:
+    timestamp: str
+    severity: str
+    section: str
+    entity: str
+    message: str
+    suggested_action: str = ""
+
+
+@dataclass(frozen=True)
+class SyncReport:
+    started_at: str
+    finished_at: str
+    status: str
+    source: str
+    scope: str
+    idempotency_criteria: str
+    actor: str
+    counts: dict[str, int]
+    warnings: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    conflicts: list[str] = field(default_factory=list)
+    items_changed: list[str] = field(default_factory=list)
+    entries: list[SyncLogEntry] = field(default_factory=list)
+
+    @classmethod
+    def empty(cls) -> "SyncReport":
+        now = datetime.now().isoformat()
+        return cls(
+            started_at=now,
+            finished_at=now,
+            status="IDLE",
+            source="Sin ejecutar",
+            scope="Sin ejecutar",
+            idempotency_criteria="Sin ejecutar",
+            actor="N/D",
+            counts={"created": 0, "updated": 0, "skipped": 0, "conflicts": 0, "errors": 0},
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)

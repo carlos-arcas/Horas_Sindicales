@@ -339,3 +339,13 @@ La herramienta es funcional, pero todavía no alcanza el estándar de producto p
 - Rendimiento:
   - Filtrado implementado con `QSortFilterProxyModel` (sin barridos manuales por keypress).
   - Búsqueda con debounce de 250ms para minimizar lag al escribir.
+
+## Mejoras aplicadas: Sync Panel Pro
+
+- Se añadió un panel de sincronización persistente en Configuración con estado explícito (`Idle`, `Sincronizando…`, `OK`, `OK con avisos`, `Error`, `Configuración incompleta`).
+- El panel muestra trazabilidad operativa: última sincronización con fecha/hora y delegada, fuente configurada (credencial + spreadsheet parcial), alcance y criterio de idempotencia.
+- Se incorporó resumen inequívoco del último resultado: filas creadas, actualizadas, omitidas, conflictos y errores.
+- Nuevas acciones operativas: `Sincronizar ahora`, `Ver detalles`, `Copiar informe`, `Abrir carpeta de logs`, más CTA `Ir a configuración` cuando faltan credenciales/ID.
+- Se implementó vista de detalle con entradas estructuradas por severidad/entidad/sección/mensaje/acción sugerida.
+- Se persiste cada ejecución en `logs/sync_last.json` y `logs/sync_last.md`, además de historial rotativo en `logs/sync_history/` (últimas 20 sync).
+- Se reforzó anti-reentrancia: no se pueden disparar dos sincronizaciones simultáneas ni por doble click.

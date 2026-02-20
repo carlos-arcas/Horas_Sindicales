@@ -59,7 +59,10 @@ class SyncController:
 
     def on_sync(self) -> None:
         w = self.window
+        if w._sync_in_progress:
+            return
         if not w._sync_service.is_configured():
+            w._set_config_incomplete_state()
             w.toast.warning("No hay configuración de Google Sheets. Abre Opciones para configurarlo.", title="Sin configuración")
             return
         w._set_sync_in_progress(True)
@@ -81,6 +84,10 @@ class SyncController:
         configured = w._sync_service.is_configured()
         w.sync_button.setEnabled(configured and not w._sync_in_progress)
         w.review_conflicts_button.setEnabled(not w._sync_in_progress and w._conflicts_service.count_conflicts() > 0)
+        if hasattr(w, "sync_details_button"):
+            w.sync_details_button.setEnabled(not w._sync_in_progress and w._last_sync_report is not None)
+        if hasattr(w, "copy_sync_report_button"):
+            w.copy_sync_report_button.setEnabled(not w._sync_in_progress and w._last_sync_report is not None)
 
     def on_open_opciones(self) -> None:
         w = self.window
@@ -88,4 +95,7 @@ class SyncController:
 
         dialog = OpcionesDialog(w._sheets_service, w)
         dialog.exec()
+        if w._sync_service.is_configured():
+            w.go_to_sync_config_button.setVisible(False)
+            w.sync_panel_status.setText("Estado: Idle")
         self.update_sync_button_state()
