@@ -42,10 +42,42 @@ QLabel[role="stepIdle"] { color: #9d9d9d; font-size: 12px; }
 QLabel[role="stepActive"] {
     color: #ffe2e2;
     font-weight: 700;
-    border: 1px solid #8f2d2d;
+}
+QLabel[role="stepDone"] {
+    color: #d3f4d0;
+    font-weight: 600;
+}
+QFrame[role="stepContainer"] {
+    border: 1px solid #2f2f2f;
     border-radius: 7px;
-    padding: 2px 8px;
+    background-color: #1a1a1a;
+}
+QLabel[role="stepBulletIdle"],
+QLabel[role="stepBulletActive"],
+QLabel[role="stepBulletDone"] {
+    min-width: 18px;
+    max-width: 18px;
+    min-height: 18px;
+    max-height: 18px;
+    border-radius: 9px;
+    qproperty-alignment: AlignCenter;
+    font-size: 11px;
+    font-weight: 700;
+}
+QLabel[role="stepBulletIdle"] {
+    color: #a4a4a4;
+    border: 1px solid #4a4a4a;
+    background-color: #212121;
+}
+QLabel[role="stepBulletActive"] {
+    color: #ffe2e2;
+    border: 1px solid #8f2d2d;
     background-color: #2a1a1a;
+}
+QLabel[role="stepBulletDone"] {
+    color: #d8ffd5;
+    border: 1px solid #3f8f4a;
+    background-color: #1d2a1d;
 }
 
 QFrame[card="true"] {

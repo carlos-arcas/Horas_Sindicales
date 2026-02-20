@@ -408,19 +408,46 @@ class MainWindow(QMainWindow):
         solicitud_card, solicitud_layout = self._create_card("Alta de solicitud")
 
         self.stepper_labels: list[QLabel] = []
+        self._step_bullets: list[QLabel] = []
+        self._step_titles = [
+            "Completar datos",
+            "Revisar pendientes",
+            "Confirmar",
+        ]
         stepper_layout = QHBoxLayout()
         stepper_layout.setSpacing(8)
-        for step_text in [
-            "1) Rellena la solicitud",
-            "2) Añade a pendientes",
-            "3) Confirma (y genera PDF si aplica)",
-        ]:
+        stepper_layout.setContentsMargins(0, 0, 0, 0)
+        for step_text in self._step_titles:
+            step_container = QFrame()
+            step_container.setProperty("role", "stepContainer")
+            step_container.setFixedHeight(30)
+            step_container_layout = QHBoxLayout(step_container)
+            step_container_layout.setContentsMargins(8, 4, 8, 4)
+            step_container_layout.setSpacing(6)
+
+            bullet = QLabel("1")
+            bullet.setProperty("role", "stepBulletIdle")
+            self._step_bullets.append(bullet)
+            step_container_layout.addWidget(bullet)
+
             step_label = QLabel(step_text)
             step_label.setProperty("role", "stepIdle")
             self.stepper_labels.append(step_label)
-            stepper_layout.addWidget(step_label)
+            step_container_layout.addWidget(step_label)
+
+            stepper_layout.addWidget(step_container)
         stepper_layout.addStretch(1)
         solicitud_layout.addLayout(stepper_layout)
+
+        self.stepper_context_label = QLabel("Completa los datos obligatorios")
+        self.stepper_context_label.setProperty("role", "secondary")
+        solicitud_layout.addWidget(self.stepper_context_label)
+
+        self.confirmation_summary_label = QLabel("")
+        self.confirmation_summary_label.setProperty("role", "secondary")
+        self.confirmation_summary_label.setVisible(False)
+        self.confirmation_summary_label.setWordWrap(True)
+        solicitud_layout.addWidget(self.confirmation_summary_label)
 
         solicitud_row = QHBoxLayout()
         solicitud_row.setSpacing(10)
@@ -1526,12 +1553,10 @@ class MainWindow(QMainWindow):
         self.stepper_labels[1].setEnabled(form_valid)
         self.stepper_labels[1].setToolTip("" if form_valid else form_message or "Completa la solicitud para poder añadirla")
 
-        if persona_selected and form_valid:
-            self._set_operativa_step(2)
-        else:
-            self._set_operativa_step(1)
-        if selected_pending and can_confirm:
-            self._set_operativa_step(3)
+        active_step = self._resolve_operativa_step(form_valid, has_pending, selected_pending, can_confirm)
+        self._set_operativa_step(active_step)
+        self._update_step_context(active_step)
+        self._update_confirmation_summary(selected_pending)
 
         cta_text = "Confirmar seleccionadas" if selected_pending and can_confirm else "Añadir a pendientes"
         self.primary_cta_button.setText(cta_text)
@@ -1551,11 +1576,75 @@ class MainWindow(QMainWindow):
             self.primary_cta_button.setEnabled(False)
             self.primary_cta_hint.setText("Completa el formulario para continuar")
 
+    def _resolve_operativa_step(
+        self,
+        form_valid: bool,
+        has_pending: bool,
+        selected_pending: list[SolicitudDTO],
+        can_confirm: bool,
+    ) -> int:
+        if selected_pending and can_confirm:
+            return 3
+        if has_pending:
+            return 2
+        if form_valid:
+            return 2
+        return 1
+
     def _set_operativa_step(self, active_step: int) -> None:
         for index, label in enumerate(self.stepper_labels, start=1):
-            label.setProperty("role", "stepActive" if index == active_step else "stepIdle")
+            if index < active_step:
+                label.setProperty("role", "stepDone")
+            elif index == active_step:
+                label.setProperty("role", "stepActive")
+            else:
+                label.setProperty("role", "stepIdle")
             label.style().unpolish(label)
             label.style().polish(label)
+
+        for index, bullet in enumerate(self._step_bullets, start=1):
+            if index < active_step:
+                bullet.setText("✓")
+                bullet.setProperty("role", "stepBulletDone")
+            elif index == active_step:
+                bullet.setText(str(index))
+                bullet.setProperty("role", "stepBulletActive")
+            else:
+                bullet.setText(str(index))
+                bullet.setProperty("role", "stepBulletIdle")
+            bullet.style().unpolish(bullet)
+            bullet.style().polish(bullet)
+
+    def _update_step_context(self, active_step: int) -> None:
+        messages = {
+            1: "Completa los datos obligatorios",
+            2: "Revisa las solicitudes pendientes",
+            3: "Confirma para registrar definitivamente",
+        }
+        self.stepper_context_label.setText(messages.get(active_step, ""))
+
+    def _update_confirmation_summary(self, selected_pending: list[SolicitudDTO]) -> None:
+        if not selected_pending:
+            self.confirmation_summary_label.clear()
+            self.confirmation_summary_label.setVisible(False)
+            return
+
+        persona = self._current_persona()
+        delegada = persona.nombre if persona is not None else "Sin delegada"
+        fechas = sorted({solicitud.fecha_pedida for solicitud in selected_pending})
+        fecha_resumen = fechas[0] if len(fechas) == 1 else f"{fechas[0]} +{len(fechas) - 1}"
+        total_min = self._sum_solicitudes_minutes(selected_pending)
+        self.confirmation_summary_label.setText(
+            " · ".join(
+                [
+                    f"Delegada: {delegada}",
+                    f"Fecha: {fecha_resumen}",
+                    f"Total horas: {self._format_minutes(total_min)}",
+                    f"Solicitudes: {len(selected_pending)}",
+                ]
+            )
+        )
+        self.confirmation_summary_label.setVisible(True)
 
     def _selected_pending_solicitudes(self) -> list[SolicitudDTO]:
         selection_model = self.pendientes_table.selectionModel()
