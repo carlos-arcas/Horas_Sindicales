@@ -5,6 +5,7 @@ from PySide6.QtGui import QColor, QFont
 
 from app.application.dto import PersonaDTO, SolicitudDTO
 from app.domain.time_utils import minutes_to_hhmm
+from app.ui.patterns import status_badge
 
 
 def _format_minutes(minutes: int) -> str:
@@ -134,8 +135,8 @@ class SolicitudesTableModel(QAbstractTableModel):
         dynamic_column = 6
         if self._show_estado and column == dynamic_column:
             if solicitud.generated:
-                return "✅ Confirmada"
-            return "🕒 Pendiente"
+                return status_badge("CONFIRMED")
+            return status_badge("PENDING")
         if self._show_estado:
             dynamic_column += 1
 

@@ -8,6 +8,7 @@ from PySide6.QtCore import QDate, QModelIndex, QRegularExpression, QSortFilterPr
 
 from app.application.dto import SolicitudDTO
 from app.ui.models_qt import SolicitudesTableModel
+from app.ui.patterns import status_badge
 
 
 @dataclass(frozen=True)
@@ -18,8 +19,8 @@ class EstadoHistorico:
 
 
 ESTADOS_HISTORICO: dict[str, EstadoHistorico] = {
-    "PENDIENTE": EstadoHistorico("PENDIENTE", "Pendiente", "🕒 Pendiente"),
-    "CONFIRMADA": EstadoHistorico("CONFIRMADA", "Confirmada", "✅ Confirmada"),
+    "PENDIENTE": EstadoHistorico("PENDIENTE", "Pendiente", status_badge("PENDING")),
+    "CONFIRMADA": EstadoHistorico("CONFIRMADA", "Confirmada", status_badge("CONFIRMED")),
 }
 
 

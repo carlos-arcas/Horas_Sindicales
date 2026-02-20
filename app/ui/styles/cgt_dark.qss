@@ -41,6 +41,11 @@ QLabel[role="statusSuccess"] { color: #7fe3a9; font-weight: 600; }
 QLabel[role="statusWarning"] { color: #ffd18a; font-weight: 600; }
 QLabel[role="statusError"] { color: #ff9e9e; font-weight: 700; }
 
+QLabel[tone="success"] { color: #7fe3a9; font-weight: 600; }
+QLabel[tone="pending"] { color: #cfe3ff; font-weight: 600; }
+QLabel[tone="warning"] { color: #ffd18a; font-weight: 600; }
+QLabel[tone="error"] { color: #ff9e9e; font-weight: 700; }
+
 QLabel[role="stepIdle"] { color: #9d9d9d; font-size: 12px; }
 QLabel[role="stepActive"] {
     color: #ffe2e2;
@@ -164,17 +169,17 @@ QPushButton[variant="primary"]:hover { background-color: #2a6fd9; }
 QPushButton[variant="primary"]:pressed { background-color: #1b53ac; }
 QPushButton[variant="secondary"] { background-color: #282828; border-color: #323232; }
 QPushButton[variant="secondary"]:hover { background-color: #313131; }
-QPushButton[variant="tertiary"] {
+QPushButton[variant="ghost"] {
     background-color: transparent;
     border-color: #3a3a3a;
     color: #bdbdbd;
 }
-QPushButton[variant="tertiary"]:hover {
+QPushButton[variant="ghost"]:hover {
     background-color: #262626;
     color: #e0e0e0;
 }
-QPushButton[variant="danger"] { background-color: #352020; border-color: #8d3333; color: #ffdede; }
-QPushButton[variant="danger"]:hover { background-color: #402626; }
+QPushButton[variant="primary"][intent="destructive"] { background-color: #352020; border-color: #8d3333; color: #ffdede; }
+QPushButton[variant="primary"][intent="destructive"]:hover { background-color: #402626; }
 
 QPushButton[role="dominantCta"] {
     min-height: 42px;

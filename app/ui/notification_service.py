@@ -4,12 +4,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from app.application.dto import SolicitudDTO
 from app.domain.time_utils import minutes_to_hhmm
+from app.ui.patterns import SPACING_BASE, apply_modal_behavior, build_modal_actions, status_badge
 from app.ui.widgets.toast import ToastManager
 
 
@@ -60,24 +60,23 @@ class OperationFeedbackDialog(QDialog):
         self.setModal(True)
 
         layout = QVBoxLayout(self)
+        layout.setSpacing(SPACING_BASE)
         for text in lines:
             label = QLabel(text)
             label.setWordWrap(True)
             layout.addWidget(label)
 
-        actions = QHBoxLayout()
-        actions.addStretch(1)
+        action_button = None
         if action_label and action_callback:
             action_button = QPushButton(action_label)
+            action_button.setProperty("variant", "secondary")
             action_button.clicked.connect(lambda: (action_callback(), self.accept()))
-            actions.addWidget(action_button)
         close_button = QPushButton("Cerrar")
-        close_button.setProperty("variant", "primary")
+        close_button.setProperty("variant", "ghost")
         close_button.clicked.connect(self.accept)
-        actions.addWidget(close_button)
+        actions = build_modal_actions(close_button, action_button if action_label and action_callback else None)
         layout.addLayout(actions)
-
-        QShortcut(QKeySequence(Qt.Key_Escape), self, activated=self.reject)
+        apply_modal_behavior(self, primary_button=action_button if action_label and action_callback else None)
 
 
 class NotificationService:
@@ -212,7 +211,9 @@ class NotificationService:
             dialog.setStyleSheet("QDialog { border: 2px solid #2a9d8f; }")
 
         layout = QVBoxLayout(dialog)
+        layout.setSpacing(SPACING_BASE)
         summary_lines = [
+            f"Estado: {status_badge('CONFIRMED') if payload.status == 'success' else status_badge('WARNING') if payload.status == 'partial' else status_badge('ERROR')}",
             f"Solicitudes confirmadas: {payload.count}",
             f"Delegadas: {', '.join(payload.delegadas) if payload.delegadas else 'Sin delegadas'}",
             f"Horas confirmadas: {minutes_to_hhmm(payload.total_minutes)}",
@@ -233,9 +234,11 @@ class NotificationService:
                 layout.addWidget(QLabel(f"• {error}"))
 
         actions = QHBoxLayout()
-        actions.addStretch(1)
+        actions.setSpacing(SPACING_BASE)
+
         if payload.on_view_history is not None:
             view_button = QPushButton("Ver en histórico")
+            view_button.setProperty("variant", "secondary")
             view_button.clicked.connect(lambda: (payload.on_view_history(), dialog.accept()))
             actions.addWidget(view_button)
         if payload.on_sync_now is not None:
@@ -268,8 +271,10 @@ class NotificationService:
             undo_button.clicked.connect(_undo_and_close)
             actions.addWidget(undo_button)
         close_button = QPushButton("Volver a operativa")
+        close_button.setProperty("variant", "ghost")
         close_button.clicked.connect(lambda: (payload.on_return_to_operativa() if payload.on_return_to_operativa else None, dialog.accept()))
         actions.addWidget(close_button)
         layout.addLayout(actions)
+        apply_modal_behavior(dialog)
 
         dialog.exec()
