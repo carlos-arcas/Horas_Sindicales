@@ -101,6 +101,14 @@ class SyncReport:
     items_changed: list[str] = field(default_factory=list)
     entries: list[SyncLogEntry] = field(default_factory=list)
     attempt_history: tuple["SyncAttemptReport", ...] = ()
+    duration_ms: int = 0
+    rows_total_local: int = 0
+    rows_scanned_remote: int = 0
+    api_calls_count: int = 0
+    retry_count: int = 0
+    conflicts_count: int = 0
+    error_count: int = 0
+    success_rate: float = 1.0
 
     @classmethod
     def empty(cls) -> "SyncReport":
@@ -162,3 +170,27 @@ class SyncAttemptReport:
     updated: int = 0
     conflicts: int = 0
     errors: int = 0
+
+
+@dataclass(frozen=True)
+class HealthCheckItem:
+    key: str
+    status: str
+    message: str
+    action_id: str
+    category: str
+
+
+@dataclass(frozen=True)
+class HealthReport:
+    generated_at: str
+    checks: tuple[HealthCheckItem, ...]
+
+
+@dataclass(frozen=True)
+class Alert:
+    key: str
+    severity: str
+    message: str
+    action_id: str
+    silent_until: str | None = None

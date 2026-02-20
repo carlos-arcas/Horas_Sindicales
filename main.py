@@ -119,9 +119,12 @@ def _run_app() -> int:
     from app.application.conflicts_service import ConflictsService
     from app.application.sheets_service import SheetsService
     from app.application.sync_sheets_use_case import SyncSheetsUseCase
+    from app.application.use_cases.alert_engine import AlertEngine
+    from app.application.use_cases.health_check import HealthCheckUseCase
     from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
     from app.infrastructure.db import get_connection
     from app.infrastructure.local_config_store import LocalConfigStore
+    from app.infrastructure.health_probes import DefaultConnectivityProbe, SheetsConfigProbe, SQLiteLocalDbProbe
     from app.infrastructure.repos_conflicts_sqlite import SQLiteConflictsRepository
     from app.infrastructure.migrations import run_migrations
     from app.infrastructure.repos_sqlite import (
@@ -158,6 +161,12 @@ def _run_app() -> int:
     sheets_service = SheetsService(config_store, sheets_gateway)
     sync_port = SyncSheetsAdapter(get_connection, config_store, sheets_client, sheets_repository)
     sync_service = SyncSheetsUseCase(sync_port)
+    health_check_use_case = HealthCheckUseCase(
+        SheetsConfigProbe(config_store, sheets_client),
+        DefaultConnectivityProbe(),
+        SQLiteLocalDbProbe(get_connection),
+    )
+    alert_engine = AlertEngine()
     conflicts_repository = SQLiteConflictsRepository(connection)
     conflicts_service = ConflictsService(
         conflicts_repository,
@@ -172,6 +181,8 @@ def _run_app() -> int:
         sheets_service,
         sync_service,
         conflicts_service,
+        health_check_use_case,
+        alert_engine,
     )
     window.show()
     return app.exec()
