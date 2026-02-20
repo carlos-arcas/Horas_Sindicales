@@ -2,350 +2,314 @@
 
 ## 1. Resumen Ejecutivo
 
-**Nivel UX global:** 5,2 / 10  
-**Nivel de madurez:** Intermedio bajo  
-**Riesgo operativo:** Medio–Alto
+**Nivel UX global:** 4,9 / 10  
+**Nivel de madurez:** Intermedio  
+**Riesgo operativo:** Alto
 
 ### Impacto en usuario real
-La aplicación permite ejecutar tareas clave, pero exige demasiada interpretación por parte de una delegada no técnica. La interfaz transmite funcionalidad, no claridad operativa: se puede completar el trabajo, pero con fricción, dudas y riesgo de errores evitables en momentos críticos (carga de solicitud, validación y sincronización).
+La aplicación es utilizable, pero no suficientemente autoexplicativa para delegadas no técnicas en contexto real de trabajo. La carga operativa depende de memoria del proceso y prueba-error, lo que incrementa tiempos, ansiedad y probabilidad de registro incorrecto o duplicado.
 
-### Conclusión directa
-El producto no está en estado UX “profesional serio” para uso intensivo sin apoyo informal. Funciona como herramienta interna utilitaria, pero aún no como sistema robusto y autoexplicativo para operación diaria con bajo margen de error.
+### Conclusión clara y directa
+En su estado actual, el producto no alcanza estándar de herramienta profesional robusta para uso intensivo sin acompañamiento. Prioridad inmediata: claridad de flujo, prevención de errores y feedback transaccional inequívoco.
 
 ---
 
 ## 2. Evaluación por Dimensiones (con puntuación)
 
-## A. Jerarquía visual — **5,0/10**
+### A. Jerarquía visual — 4,8/10
+
 **Justificación técnica**  
-La pantalla concentra múltiples bloques funcionales con peso visual similar. Falta una estructura clara de prioridad (qué mirar primero, qué hacer después).
+La pantalla principal muestra múltiples bloques con peso visual parecido y sin secuencia perceptiva dominante. El usuario no identifica de forma inmediata qué acción es principal.
 
 **Problemas detectados**
-- Competencia visual entre formulario, acciones y listados.
-- Uso de color con función estética más que semántica.
-- Densidad alta de elementos visibles de forma simultánea.
+- Competencia visual entre captura, listados y acciones.
+- Uso de color con baja semántica funcional.
+- Escasez de separación jerárquica entre información crítica y secundaria.
 
 **Mejora concreta propuesta**
-- Definir jerarquía en tres niveles: acción principal, contexto secundario, soporte.
-- Reforzar contraste semántico (primario, secundario, alerta, éxito).
-- Reducir ruido visual con agrupación por tarjetas/secciones y más aire vertical.
+- Definir estructura visual por prioridad: acción principal, validación, contexto.
+- Reducir densidad inicial con bloques plegables o pestañas por tarea.
+- Reservar color acento exclusivamente para CTA principal y estados críticos.
 
-## B. Claridad funcional — **5,4/10**
+### B. Claridad funcional — 5,0/10
+
 **Justificación técnica**  
-Se intuyen los objetivos generales, pero no siempre queda explícito el flujo recomendado sin conocimiento previo.
+Se entiende el propósito general de la herramienta, pero no el camino óptimo para completar tareas sin entrenamiento informal.
 
 **Problemas detectados**
-- Falta de señal clara del “siguiente paso”.
-- Acciones relevantes no suficientemente diferenciadas de acciones accesorias.
-- Dependencia de conocimiento tácito del proceso sindical.
+- Campos y acciones no siempre comunican secuencia.
+- Ambigüedad entre acciones de edición, confirmación y sincronización.
+- Lenguaje de interfaz parcialmente técnico o poco orientado a tarea.
 
 **Mejora concreta propuesta**
-- Incorporar guía contextual breve por bloque (“1. Completa”, “2. Revisa”, “3. Confirma”).
-- Etiquetado orientado a tarea y no solo a dato.
-- Destacar una acción primaria por pantalla/estado.
+- Incorporar guía de pasos en la propia interfaz.
+- Reescribir etiquetas y ayudas en lenguaje operativo.
+- Hacer explícito qué acción cierra una operación y cuál solo prepara datos.
 
-## C. Flujo de interacción — **4,9/10**
+### C. Flujo de interacción — 4,6/10
+
 **Justificación técnica**  
-El recorrido operativo presenta fricción por transiciones y validaciones poco anticipadas.
+El flujo principal presenta fricción por validaciones tardías y cambios de estado poco visibles.
 
 **Problemas detectados**
-- Exceso de microdecisiones en una sola vista.
-- Puntos de error no prevenidos en origen.
-- Estados intermedios ambiguos (si una acción quedó realmente aplicada o no).
+- Exceso de decisiones en una sola vista.
+- Puntos de fallo descubiertos al final, no durante la entrada.
+- Escasa trazabilidad del estado de cada solicitud durante el recorrido.
 
 **Mejora concreta propuesta**
-- Modelo de flujo asistido (wizard ligero o pasos visibles).
-- Validación en tiempo real con mensajes accionables.
-- Confirmación explícita posterior a acciones de impacto.
+- Implementar flujo asistido por pasos con progreso visible.
+- Validar en tiempo real campos y reglas de negocio críticas.
+- Mostrar resumen final antes de confirmar y comprobante claro después.
 
-## D. Consistencia visual — **5,6/10**
+### D. Consistencia visual — 5,3/10
+
 **Justificación técnica**  
-Hay base de estilo común, pero se perciben variaciones de tamaños, alineaciones y peso de componentes.
+Existe una base común, pero con diferencias de espaciado, jerarquía tipográfica y tratamiento de controles.
 
 **Problemas detectados**
-- Homogeneidad incompleta en botones y controles.
-- Espaciado vertical irregular entre secciones.
-- Ritmo tipográfico mejorable (jerarquía de títulos/labels/valores).
+- Variación perceptible en tamaño/peso de botones similares.
+- Alineaciones y márgenes no completamente uniformes.
+- Jerarquía texto-label-valor mejorable.
 
 **Mejora concreta propuesta**
-- Definir sistema UI mínimo (tokens de spacing, tamaños, estados).
-- Estandarizar componentes reutilizables.
-- Crear plantilla visual de formularios y tablas.
+- Definir sistema mínimo de diseño (tokens de spacing, tipografía, estados).
+- Normalizar botones por importancia y contexto.
+- Estandarizar retículas y alineación por sección.
 
-## E. Feedback del sistema — **4,8/10**
+### E. Feedback del sistema — 4,5/10
+
 **Justificación técnica**  
-El sistema informa, pero no siempre en el momento ni con la profundidad necesaria para operación segura.
+Los resultados de acciones críticas no siempre se comunican con claridad suficiente para trabajo confiable.
 
 **Problemas detectados**
-- Confirmaciones poco contundentes tras acciones críticas.
-- Errores con bajo nivel de orientación práctica.
-- Estado de procesos (incluida sincronización) insuficientemente narrado.
+- Confirmaciones poco contundentes tras guardar/confirmar/sincronizar.
+- Falta de detalle accionable cuando algo falla.
+- Estados de proceso no siempre distinguibles (en curso, completado, con incidencias).
 
 **Mejora concreta propuesta**
-- Patrón uniforme de feedback: inicio/progreso/resultado.
-- Mensajes con estructura: qué pasó, por qué, cómo resolver.
-- Resumen final de operación (éxitos, omisiones, conflictos).
+- Aplicar patrón de feedback único: inicio, progreso, resultado, siguiente acción.
+- Incorporar resúmenes operativos post-acción con métricas básicas.
+- Diferenciar visual y textual estados exitosos, parciales y fallidos.
 
-## F. Gestión de errores — **4,6/10**
+### F. Gestión de errores — 4,4/10
+
 **Justificación técnica**  
-El enfoque actual parece más reactivo que preventivo.
+La estrategia parece centrada en notificar error, no en evitarlo y guiar recuperación.
 
 **Problemas detectados**
-- Falta de prevención robusta antes de confirmar.
-- Recuperación no siempre evidente para perfiles no técnicos.
-- Riesgo de bloqueos operativos por mensajes poco guiados.
+- Prevención limitada de entradas inválidas o inconsistentes.
+- Mensajes con baja capacidad de resolución autónoma.
+- Recuperación no guiada en conflictos de sincronización.
 
 **Mejora concreta propuesta**
-- Validadores preventivos de negocio antes del envío.
-- Acciones de recuperación directas en el mensaje de error.
-- Registro visual de incidencias recientes con estado y recomendación.
+- Añadir validadores preventivos y restricciones antes de confirmar.
+- Redactar errores con estructura: problema, causa probable, acción recomendada.
+- Incluir acciones directas de recuperación en el mismo mensaje.
 
-## G. Carga cognitiva — **4,7/10**
+### G. Carga cognitiva — 4,7/10
+
 **Justificación técnica**  
-La interfaz obliga a sostener demasiada información en memoria de trabajo.
+La usuaria debe mantener demasiada información en memoria de trabajo para completar tareas simples.
 
 **Problemas detectados**
-- Sobrecarga de datos visibles sin progresión.
-- Mezcla de captura, revisión e histórico en un mismo foco atencional.
-- Terminología con posible ambigüedad para usuario no experto.
+- Exceso de datos simultáneos visibles.
+- Mezcla de tareas transaccionales y consultas históricas en el mismo foco.
+- Falta de agrupación progresiva por objetivo.
 
 **Mejora concreta propuesta**
-- Progresive disclosure real: mostrar solo lo necesario en cada fase.
-- Separar “hacer” vs “consultar” en zonas claramente distintas.
-- Microcopys orientados a decisión y resultado.
+- Separar claramente modo operativo y modo consulta.
+- Mostrar solo información indispensable por fase.
+- Priorizar microcopys de decisión y consecuencias.
 
-## H. Accesibilidad — **4,5/10**
+### H. Accesibilidad — 4,3/10
+
 **Justificación técnica**  
-Hay riesgo de exclusión funcional por contraste, tamaño útil y navegación.
+Hay riesgo de fatiga y errores por contraste, tamaño utilizable y navegación de teclado no priorizada.
 
 **Problemas detectados**
-- Contraste y legibilidad con margen de mejora.
-- Objetivos clicables potencialmente pequeños para uso intensivo.
-- Navegación por teclado no percibida como prioritaria.
+- Contraste potencialmente insuficiente en elementos secundarios.
+- Objetivos de clic mejorables para uso prolongado.
+- Orden de foco y shortcuts no suficientemente explícitos.
 
 **Mejora concreta propuesta**
-- Ajustar contraste mínimo WCAG AA en texto y controles clave.
-- Aumentar áreas de interacción y espaciado táctico.
-- Definir orden de foco y atajos de teclado visibles.
+- Asegurar contraste mínimo AA en controles y textos clave.
+- Incrementar tamaño mínimo de hit targets y separación entre controles.
+- Definir y documentar flujo completo por teclado.
 
-## I. Experiencia emocional — **5,1/10**
+### I. Experiencia emocional — 4,9/10
+
 **Justificación técnica**  
-La aplicación se percibe útil, pero con sensación de herramienta “en evolución” más que de producto consolidado.
+La aplicación transmite utilidad, pero no plena sensación de solidez ni control en operaciones sensibles.
 
 **Problemas detectados**
-- Baja sensación de control en operaciones sensibles.
-- Poca “tranquilidad operativa” al confirmar acciones.
-- Señales de robustez insuficientes (estado, trazabilidad, cierre de flujo).
+- Dudas sobre estado final de acciones críticas.
+- Percepción de herramienta funcional pero no consolidada.
+- Confianza afectada cuando hay incidencias sin guía clara.
 
 **Mejora concreta propuesta**
-- Reforzar rituales de cierre: confirmaciones + resumen + próximo paso.
-- Mejorar lenguaje de confianza (“guardado”, “sincronizado”, “pendiente de revisión”).
-- Estabilizar patrones de interacción para previsibilidad.
+- Reforzar ritual de cierre de operación con comprobante breve.
+- Unificar tono de mensajes hacia claridad y control.
+- Hacer visible historial de acciones recientes con estado final.
 
 ---
 
 ## 3. Análisis de Flujo Principal
 
-## Crear solicitud
-**Riesgos de confusión**
-- No siempre queda claro qué campos son obligatorios y en qué orden conviene completarlos.
-- Si hay reglas de negocio implícitas, la usuaria las descubre tarde.
+### Crear solicitud
 
-**Errores probables**
-- Carga incompleta o inconsistente de datos.
-- Elecciones válidas técnicamente pero incorrectas operativamente.
+**Dónde puede confundirse una delegada real**
+- En la secuencia correcta de cumplimentación de campos.
+- En la diferencia entre guardar borrador, añadir pendiente y confirmar.
 
-**Partes frágiles**
+**Dónde puede cometer errores**
+- Introduciendo datos incompletos que solo fallan al final.
+- Repitiendo solicitud por no tener confirmación inequívoca.
+
+**Qué partes son frágiles**
 - Dependencia de validación tardía.
-- Falta de ayudas contextuales durante la captura.
+- Falta de ayudas contextuales en el momento de captura.
 
-## Confirmar solicitud
-**Riesgos de confusión**
-- Ambigüedad sobre el alcance de la confirmación (qué queda cerrado y qué no).
+### Confirmar solicitud
 
-**Errores probables**
-- Confirmación prematura sin revisión suficiente.
-- Duplicación por duda de estado final.
+**Dónde puede confundirse una delegada real**
+- En el alcance de la confirmación (qué cambia de estado y qué no).
 
-**Partes frágiles**
-- Feedback final insuficiente para dar sensación de transacción completada.
+**Dónde puede cometer errores**
+- Confirmando sin revisar elementos pendientes.
+- Asumiendo éxito cuando hubo incidencias parciales.
 
-## Ver histórico
-**Riesgos de confusión**
-- Dificultad para distinguir rápidamente estados, fechas o criterios relevantes.
+**Qué partes son frágiles**
+- Ausencia de resumen preconfirmación y postconfirmación suficientemente explícitos.
 
-**Errores probables**
-- Lectura errónea del estado de una solicitud.
-- Pérdida de tiempo por búsqueda manual sin filtros claros.
+### Ver histórico
 
-**Partes frágiles**
-- Escalabilidad visual limitada cuando crece el volumen de registros.
+**Dónde puede confundirse una delegada real**
+- En la interpretación rápida de estados y cronología.
 
-## Revisar saldos
-**Riesgos de confusión**
-- Interpretación ambigua de saldos disponibles, consumidos o pendientes.
+**Dónde puede cometer errores**
+- Tomando decisiones con lectura incompleta por falta de filtros visibles.
 
-**Errores probables**
-- Toma de decisiones con lectura incompleta del saldo real.
+**Qué partes son frágiles**
+- Escalado deficiente cuando crece volumen de registros.
 
-**Partes frágiles**
-- Ausencia de explicaciones de cálculo en contexto.
+### Revisar saldos
 
-## Sincronizar con Google Sheets
-**Riesgos de confusión**
-- Incertidumbre sobre cuándo sincronizar y qué impacto tiene.
+**Dónde puede confundirse una delegada real**
+- En la lectura de disponible, consumido y pendiente si no hay desglose claro.
 
-**Errores probables**
-- Reintentos innecesarios por no comprender el resultado.
-- Dudas ante conflictos o diferencias de datos.
+**Dónde puede cometer errores**
+- Confirmando solicitudes con interpretación errónea del saldo real.
 
-**Partes frágiles**
-- Falta de trazabilidad visible de la operación (qué se subió, qué falló, qué requiere acción).
+**Qué partes son frágiles**
+- Falta de contexto explicativo de cálculo en la propia vista.
+
+### Sincronizar con Google Sheets
+
+**Dónde puede confundirse una delegada real**
+- En cuándo ejecutar sincronización y qué consecuencias tiene.
+
+**Dónde puede cometer errores**
+- Reintentando sin necesidad por feedback ambiguo.
+- Ignorando conflictos por mensajes no accionables.
+
+**Qué partes son frágiles**
+- Baja trazabilidad visible del resultado (qué subió, qué falló, qué requiere acción).
 
 ---
 
 ## 4. Problemas Críticos (Top 10)
 
-1. **Falta de jerarquía de acción principal**  
+1. **Ausencia de CTA principal inequívoco por estado**  
    **Severidad:** Alta  
-   **Impacto real:** Incrementa errores de secuencia y tiempos de operación.  
-   **Solución concreta:** Diseñar layout por prioridad operativa con CTA primaria única por estado.
+   **Impacto real:** Errores de secuencia y mayor tiempo por tarea.  
+   **Solución concreta:** Definir una acción primaria única por fase y despriorizar el resto.
 
-2. **Validación tardía de reglas de negocio**  
+2. **Validación de reglas de negocio tardía**  
    **Severidad:** Alta  
-   **Impacto real:** La usuaria corrige tarde, con frustración y riesgo de datos erróneos.  
-   **Solución concreta:** Validación en campo y prechequeo antes de confirmar.
+   **Impacto real:** Correcciones tardías y frustración operativa.  
+   **Solución concreta:** Validación incremental en cada campo crítico y prechequeo antes de confirmar.
 
-3. **Feedback débil tras acciones críticas**  
+3. **Feedback insuficiente tras acciones críticas**  
    **Severidad:** Alta  
-   **Impacto real:** Dudas sobre si una solicitud quedó registrada/sincronizada.  
-   **Solución concreta:** Mensaje de resultado estructurado con identificador y siguiente paso.
+   **Impacto real:** Duda sobre si la operación se ejecutó correctamente.  
+   **Solución concreta:** Confirmación transaccional con resultado, identificador y siguiente paso.
 
-4. **Ambigüedad en estados de sincronización**  
+4. **Estados de sincronización ambiguos**  
    **Severidad:** Alta  
-   **Impacto real:** Repetición de acciones, posibles duplicados o desconfianza en datos.  
-   **Solución concreta:** Panel de estado con progreso, resumen y conflictos accionables.
+   **Impacto real:** Reintentos erróneos, posibles duplicados y pérdida de confianza.  
+   **Solución concreta:** Panel de estado con progreso, resultado y conflictos accionables.
 
-5. **Sobrecarga cognitiva en la vista principal**  
+5. **Sobrecarga de información en vista principal**  
    **Severidad:** Media  
-   **Impacto real:** Lentitud operativa y mayor tasa de error en tareas repetitivas.  
-   **Solución concreta:** Separar captura, revisión e histórico por pestañas o bloques progresivos.
+   **Impacto real:** Mayor fatiga y tasa de error en uso continuado.  
+   **Solución concreta:** Separar operativa, revisión y consulta en espacios diferenciados.
 
-6. **Consistencia visual parcial en componentes**  
+6. **Inconsistencia de controles y espaciados**  
    **Severidad:** Media  
-   **Impacto real:** Reduce previsibilidad y aumenta curva de aprendizaje.  
-   **Solución concreta:** Sistema de componentes con variantes y reglas de espaciado.
+   **Impacto real:** Menor previsibilidad y curva de aprendizaje más lenta.  
+   **Solución concreta:** Sistema de componentes con reglas de layout uniformes.
 
-7. **Mensajes de error poco prescriptivos**  
+7. **Errores no orientados a resolución**  
    **Severidad:** Media  
-   **Impacto real:** Dependencia de soporte informal para resolver incidencias.  
-   **Solución concreta:** Errores con causa probable + acción recomendada + botón directo.
+   **Impacto real:** Dependencia de soporte informal.  
+   **Solución concreta:** Mensajes con causa probable y acción concreta ejecutable.
 
-8. **Histórico con lectura operativa mejorable**  
+8. **Histórico con lectura operativa limitada**  
    **Severidad:** Media  
-   **Impacto real:** Dificulta auditoría rápida y seguimiento de casos.  
-   **Solución concreta:** Filtros por estado/fecha y códigos visuales consistentes.
+   **Impacto real:** Dificultad para seguimiento y auditoría diaria.  
+   **Solución concreta:** Filtros persistentes, estados normalizados y ordenación por defecto útil.
 
 9. **Accesibilidad funcional insuficiente**  
    **Severidad:** Media  
-   **Impacto real:** Fatiga visual y menor eficiencia en uso prolongado.  
-   **Solución concreta:** Mejorar contraste, tamaños mínimos y orden de foco por teclado.
+   **Impacto real:** Menor productividad y más errores por interacción.  
+   **Solución concreta:** Mejorar contraste, targets, foco visible y navegación teclado.
 
-10. **Lenguaje de interfaz poco orientado a tarea**  
+10. **Lenguaje UI poco orientado a tarea**  
     **Severidad:** Baja  
-    **Impacto real:** Necesidad de aprendizaje implícito para entender decisiones.  
-    **Solución concreta:** Reescritura de etiquetas y ayudas en lenguaje de acción.
+    **Impacto real:** Incremento de dudas en usuarias no técnicas.  
+    **Solución concreta:** Revisión integral de microcopy con enfoque en acción y resultado.
 
 ---
 
 ## 5. Recomendaciones Prioritarias
 
-## Alta prioridad (debe hacerse)
-- Reestructurar flujo principal en pasos visibles: capturar, validar, confirmar, registrar resultado.
-- Implementar feedback transaccional completo en guardar y sincronizar.
-- Introducir prevención de errores de negocio antes de confirmación.
-- Clarificar estados operativos con códigos visuales y texto inequívoco.
+### Alta prioridad
+- Rediseñar flujo principal en pasos explícitos: capturar, validar, confirmar, registrar resultado.
+- Implementar feedback transaccional robusto en guardar, confirmar y sincronizar.
+- Introducir prevención activa de errores antes de permitir confirmaciones.
+- Clarificar estados operativos con semántica visual y textual consistente.
 
-## Media prioridad
-- Unificar diseño de componentes y espaciados.
-- Mejorar histórico con filtros y lectura rápida.
-- Reducir densidad inicial de información mediante revelado progresivo.
+### Media prioridad
+- Normalizar componentes, jerarquía tipográfica y espaciados.
+- Mejorar histórico con filtros visibles y lectura rápida por estado.
+- Reducir carga cognitiva inicial mediante revelado progresivo.
 
-## Mejora estética
-- Refinar tipografía y contraste para elevar percepción de calidad.
-- Alinear ritmo visual (márgenes, títulos, bloques) para reducir sensación de improvisación.
+### Mejora estética
+- Refinar paleta y contraste para reforzar percepción de solidez.
+- Unificar ritmo visual entre bloques para eliminar sensación de herramienta improvisada.
 
 ---
 
 ## 6. Roadmap UX Profesional
 
-## Para pasar a nivel “profesional serio”
-1. Definir arquitectura de interacción por tareas críticas (no por acumulación de widgets).  
-2. Establecer sistema de feedback estándar para todas las operaciones sensibles.  
-3. Implementar accesibilidad base (contraste, foco, targets, teclado).  
-4. Normalizar componentes y lenguaje de interfaz en toda la app.
+### Cambios para pasar a nivel “profesional serio”
+1. Arquitectura de interacción orientada a tareas críticas, no a acumulación de controles.
+2. Modelo único de feedback para todas las operaciones sensibles.
+3. Base de accesibilidad aplicada de forma transversal.
+4. Biblioteca de patrones UI y microcopy consistente en toda la aplicación.
 
-## Para llegar a “producto de referencia”
-1. Incorporar asistencia contextual inteligente (explicaciones de saldo, conflictos y próximos pasos).  
-2. Añadir trazabilidad operativa completa y legible para auditoría diaria.  
-3. Diseñar experiencia resiliente a errores con recuperación guiada end-to-end.  
-4. Medir UX en producción (tiempos por tarea, tasa de error, retrabajo, soporte requerido).
+### Cambios para llegar a nivel “producto de referencia”
+1. Asistencia contextual avanzada para saldos, conflictos y decisiones.
+2. Trazabilidad completa de operaciones con historial legible y auditable.
+3. Recuperación guiada de errores end-to-end sin dependencia de soporte.
+4. Métricas UX en producción (tiempo por tarea, errores, retrabajo, tasa de soporte).
 
 ---
 
 ## 7. Nota Final
 
-**Nota UX actual:** 5,2 / 10  
-**Nota UX potencial tras mejoras prioritarias:** 8,1 / 10
+**Nota UX actual:** 4,9 / 10  
+**Nota UX potencial tras mejoras:** 8,3 / 10
 
-**Veredicto final**  
-La herramienta es funcional, pero todavía no alcanza el estándar de producto profesional robusto para operación real sin fricción. Su evolución debe centrarse en claridad de flujo, prevención de errores y confianza operativa, no en sumar funciones.
-
----
-
-## Cambios aplicados (P0)
-
-- Operativa ahora muestra un flujo visible de 3 pasos con resaltado del paso activo (rellenar, añadir, confirmar).
-- Se estableció un CTA primario único y dinámico por estado: `Añadir a pendientes` o `Confirmar seleccionadas`.
-- Se añadió guía contextual cuando el CTA primario está deshabilitado (`Selecciona al menos una pendiente` / motivo de validación).
-- Se implementó notificación transaccional unificada con helper de presentación (`NotificationService`), incluyendo toast de alta con acción `Deshacer` (9s).
-- Tras confirmar, se muestra un resumen transaccional con cantidad, total confirmado y próximos pasos.
-- Se agregó prevención de duplicados antes de añadir (misma delegada + fecha + tramo), con opción de navegar a la pendiente existente.
-- Se añadió soporte mínimo de teclado: Enter en el último campo para CTA primario y Escape en resumen/modal.
-- Se reforzó el orden de foco del formulario en Operativa.
-
-## Mejoras aplicadas P1: Histórico
-
-- Se incorporó un modelo dedicado (`HistoricalViewModel`) para desacoplar **fuente de datos -> proxy de filtros/orden -> tabla**, mejorando legibilidad y rendimiento con volúmenes altos.
-- Filtros disponibles en la barra superior:
-  - Búsqueda por texto libre (concepto/notas/columnas visibles/delegada/estado).
-  - Rango de fechas `Desde` / `Hasta`.
-  - Atajo rápido **Últimos 30 días**.
-  - Estado (Todos / Pendiente / Confirmada).
-  - Delegada (Todas / delegada específica).
-  - Limpieza integral con **Limpiar filtros**.
-- El estado ahora se presenta de forma legible en columna dedicada con badge textual (ej. `✅ Confirmada`, `🕒 Pendiente`).
-- Ordenación activa por cabecera; orden por defecto: fecha descendente con desempate por hora descendente.
-- Acciones del histórico ahora son contextuales por selección:
-  - `Eliminar (n)`
-  - `Generar PDF (n)`
-  - `Ver detalle (n)`
-  - `Re-sincronizar (n)`
-- Se añadió diálogo de detalle para inspeccionar una fila completa sin depender de columnas extensas.
-- Accesibilidad y teclado:
-  - **Ctrl+F** enfoca la búsqueda del histórico.
-  - **Enter** abre detalle de la fila seleccionada.
-  - **Escape** limpia foco de búsqueda o selección activa.
-- Rendimiento:
-  - Filtrado implementado con `QSortFilterProxyModel` (sin barridos manuales por keypress).
-  - Búsqueda con debounce de 250ms para minimizar lag al escribir.
-
-## Mejoras aplicadas: Sync Panel Pro
-
-- Se añadió un panel de sincronización persistente en Configuración con estado explícito (`Idle`, `Sincronizando…`, `OK`, `OK con avisos`, `Error`, `Configuración incompleta`).
-- El panel muestra trazabilidad operativa: última sincronización con fecha/hora y delegada, fuente configurada (credencial + spreadsheet parcial), alcance y criterio de idempotencia.
-- Se incorporó resumen inequívoco del último resultado: filas creadas, actualizadas, omitidas, conflictos y errores.
-- Nuevas acciones operativas: `Sincronizar ahora`, `Ver detalles`, `Copiar informe`, `Abrir carpeta de logs`, más CTA `Ir a configuración` cuando faltan credenciales/ID.
-- Se implementó vista de detalle con entradas estructuradas por severidad/entidad/sección/mensaje/acción sugerida.
-- Se persiste cada ejecución en `logs/sync_last.json` y `logs/sync_last.md`, además de historial rotativo en `logs/sync_history/` (últimas 20 sync).
-- Se reforzó anti-reentrancia: no se pueden disparar dos sincronizaciones simultáneas ni por doble click.
+**Veredicto final sin suavizar**  
+La aplicación cumple una función operativa, pero su experiencia de uso no es suficientemente fiable, clara ni resistente al error para un entorno profesional exigente con usuarias no técnicas. Si no se corrigen flujo, feedback y gestión de errores, seguirá funcionando por esfuerzo humano extra, no por calidad de producto.
