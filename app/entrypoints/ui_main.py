@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.bootstrap.container import AppContainer, build_container
+from app.ui.theme import build_stylesheet
 
 
 def run_ui(container: AppContainer | None = None) -> int:
@@ -10,6 +11,7 @@ def run_ui(container: AppContainer | None = None) -> int:
 
     resolved_container = container or build_container()
     app = QApplication([])
+    app.setStyleSheet(build_stylesheet())
     window = MainWindow(
         resolved_container.persona_use_cases,
         resolved_container.solicitud_use_cases,
