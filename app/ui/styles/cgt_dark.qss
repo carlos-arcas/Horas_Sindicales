@@ -101,11 +101,46 @@ QFrame[role="subtleSeparator"] {
 }
 
 QLabel[role="badge"] {
-    color: #ffb8b8;
     border: 1px solid #8f2d2d;
     border-radius: 7px;
     padding: 2px 8px;
     font-weight: 600;
+}
+
+QLabel[role="badge"][syncStatus="IDLE"] {
+    color: #d9d9d9;
+    border-color: #5a5a5a;
+    background-color: #2f2f2f;
+}
+
+QLabel[role="badge"][syncStatus="RUNNING"] {
+    color: #cfe3ff;
+    border-color: #3d6fb0;
+    background-color: #21324b;
+}
+
+QLabel[role="badge"][syncStatus="OK"] {
+    color: #b9f5cf;
+    border-color: #2f7a4b;
+    background-color: #1f3a2a;
+}
+
+QLabel[role="badge"][syncStatus="OK_WARN"] {
+    color: #ffdca8;
+    border-color: #9b6a21;
+    background-color: #3c2e1a;
+}
+
+QLabel[role="badge"][syncStatus="ERROR"] {
+    color: #ffb8b8;
+    border-color: #8f2d2d;
+    background-color: #3d1f1f;
+}
+
+QLabel[role="badge"][syncStatus="CONFIG_INCOMPLETE"] {
+    color: #d2d2d2;
+    border-color: #6f6f6f;
+    background-color: #2a2a2a;
 }
 
 QPushButton {

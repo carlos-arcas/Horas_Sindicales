@@ -104,7 +104,9 @@ class SyncController:
             report = getattr(w, "_last_sync_report", None)
             has_failures = bool(report and (report.errors or report.conflicts))
             w.retry_failed_button.setEnabled(not w._sync_in_progress and has_failures)
-        w.review_conflicts_button.setEnabled(not w._sync_in_progress and w._conflicts_service.count_conflicts() > 0)
+        conflicts_total = w._conflicts_service.count_conflicts()
+        w.review_conflicts_button.setText("Ver conflictos" if conflicts_total > 0 else "Ver conflictos (sin pendientes)")
+        w.review_conflicts_button.setEnabled(not w._sync_in_progress and conflicts_total > 0)
         if hasattr(w, "sync_details_button"):
             w.sync_details_button.setEnabled(not w._sync_in_progress and w._last_sync_report is not None)
         if hasattr(w, "copy_sync_report_button"):
@@ -118,5 +120,6 @@ class SyncController:
         dialog.exec()
         if w._sync_service.is_configured():
             w.go_to_sync_config_button.setVisible(False)
-            w.sync_panel_status.setText("Estado: Idle")
+            w._set_sync_status_badge("IDLE")
+            w.sync_panel_status.setText("Detalle: Sistema en espera.")
         self.update_sync_button_state()
