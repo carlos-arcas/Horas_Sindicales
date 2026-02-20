@@ -75,15 +75,15 @@ python main.py --selfcheck
 python -m app --selfcheck
 ```
 
-### Lanzador Windows
+### Lanzador Windows (interfaz oficial)
 
-También puedes usar:
+Para ejecutar la app con doble clic en Windows usa:
 
 ```bat
-launch.bat
+lanzar_app.bat
 ```
 
-Este script crea `.venv`, instala dependencias y ejecuta la app.
+`launch.bat` se mantiene por compatibilidad, pero la interfaz oficial es `lanzar_app.bat`.
 
 ## Estructura del proyecto
 
@@ -124,7 +124,13 @@ python -m app.infrastructure.migrations_cli down --db horas_sindicales.db --step
 
 ## Tests
 
-Ejecuta la suite con `pytest`:
+Interfaz oficial en Windows (doble clic):
+
+```bat
+ejecutar_tests.bat
+```
+
+Ejecución manual equivalente:
 
 ```bash
 PYTHONPATH=. pytest -q
