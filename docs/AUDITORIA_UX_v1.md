@@ -2,15 +2,54 @@
 
 ## 1. Resumen Ejecutivo
 
-**Nivel UX global:** 4,9 / 10  
+**Nivel UX global:** 5,2 / 10  
 **Nivel de madurez:** Intermedio  
-**Riesgo operativo:** Alto
+**Riesgo operativo:** Medio–Alto
+
+**Justificación de la nota (5,2):**
+- El producto ya incorpora mejoras reales en flujo principal, histórico y trazabilidad de sincronización, reduciendo fricción crítica frente al estado inicial.
+- Aun así, persisten brechas de prevención, consistencia y recuperación guiada que impiden considerarlo robusto para uso intensivo sin apoyo informal.
 
 ### Impacto en usuario real
-La aplicación es utilizable, pero no suficientemente autoexplicativa para delegadas no técnicas en contexto real de trabajo. La carga operativa depende de memoria del proceso y prueba-error, lo que incrementa tiempos, ansiedad y probabilidad de registro incorrecto o duplicado.
+La aplicación es utilizable y hoy más trazable, pero todavía no suficientemente autoexplicativa para delegadas no técnicas en contexto real de trabajo. La carga operativa ya no depende solo de prueba-error, aunque sigue exigiendo interpretación en momentos críticos.
 
 ### Conclusión clara y directa
-En su estado actual, el producto no alcanza estándar de herramienta profesional robusta para uso intensivo sin acompañamiento. Prioridad inmediata: claridad de flujo, prevención de errores y feedback transaccional inequívoco.
+El producto mejoró de forma verificable, pero **aún no** alcanza estándar de herramienta profesional robusta para uso intensivo sin acompañamiento. Prioridad inmediata: cerrar gaps de claridad de flujo, prevención de errores y recuperación asistida.
+
+---
+
+## 1.1 Evidencias en el producto (estado actual)
+
+- Flujo operativo visible en 3 pasos con foco del paso activo (rellenar, añadir, confirmar).
+- CTA primario único por estado (`Añadir a pendientes` / `Confirmar seleccionadas`) con guía contextual cuando está deshabilitado.
+- Feedback transaccional unificado con toast de alta, opción `Deshacer` y resumen posterior a confirmación.
+- Prevención de duplicados antes de añadir (delegada + fecha + tramo), con navegación a pendiente existente.
+- Mejoras de teclado y foco en Operativa (Enter en último campo y Escape en resumen/modal).
+- Histórico con `HistoricalViewModel`, filtros avanzados (texto, fechas, estado, delegada), orden útil por defecto y acciones contextuales por selección.
+- Histórico con diálogo de detalle, atajos de teclado (`Ctrl+F`, `Enter`, `Escape`) y búsqueda con debounce.
+- Sync Panel Pro persistente con estados explícitos (`Idle`, `Sincronizando…`, `OK`, `OK con avisos`, `Error`, `Configuración incompleta`).
+- Trazabilidad de sincronización con resumen inequívoco del resultado (creadas, actualizadas, omitidas, conflictos, errores).
+- Reportes y logs persistidos (`sync_last.json`, `sync_last.md`, historial rotativo), con acciones operativas directas y anti-reentrancia.
+
+## 1.2 Gaps restantes (lo que falta para pasar a 8/10)
+
+### P0
+1. Completar validación preventiva end-to-end en todos los puntos de confirmación (no solo en casos principales).
+2. Estandarizar mensajes de error con formato obligatorio: problema, causa probable, acción sugerida y CTA de resolución.
+3. Incorporar resumen preconfirmación obligatorio en operaciones críticas para minimizar confirmaciones erróneas.
+4. Unificar semántica de estados en toda la app (operativa, histórico y sincronización) para evitar interpretaciones mixtas.
+
+### P1
+5. Reducir carga cognitiva inicial separando más claramente modo operativo vs modo consulta.
+6. Homogeneizar sistema visual (espaciados, jerarquía tipográfica y variantes de botones) en todas las pantallas.
+7. Reforzar accesibilidad AA en controles y textos secundarios (contraste, targets y foco visible consistente).
+8. Mejorar microcopy orientado a tarea en etiquetas y ayudas contextuales de alto impacto.
+
+### P2
+9. Instrumentar métricas UX operativas (tiempo por tarea, tasa de error, retrabajo, soporte solicitado).
+10. Añadir asistencia contextual avanzada para interpretación de saldos y conflictos frecuentes.
+11. Consolidar shortcuts y navegación por teclado documentada para flujos completos.
+12. Elevar percepción de solidez visual con refinamiento de ritmos y densidad informativa en vistas extensas.
 
 ---
 
@@ -308,8 +347,59 @@ La aplicación transmite utilidad, pero no plena sensación de solidez ni contro
 
 ## 7. Nota Final
 
-**Nota UX actual:** 4,9 / 10  
+**Nota UX actual:** 5,2 / 10  
 **Nota UX potencial tras mejoras:** 8,3 / 10
 
 **Veredicto final sin suavizar**  
-La aplicación cumple una función operativa, pero su experiencia de uso no es suficientemente fiable, clara ni resistente al error para un entorno profesional exigente con usuarias no técnicas. Si no se corrigen flujo, feedback y gestión de errores, seguirá funcionando por esfuerzo humano extra, no por calidad de producto.
+La aplicación mejoró y hoy ofrece señales de madurez, pero **aún no** está al nivel de producto profesional robusto para operación intensiva sin fricción. Siguen abiertas tres causas críticas: (1) validación preventiva incompleta en todo el recorrido, (2) errores todavía no totalmente guiados a resolución autónoma, y (3) consistencia de estados/semántica aún irregular entre módulos clave.
+
+---
+
+## 8. Evidencias de implementación
+
+### Cambios aplicados (P0)
+
+- Operativa ahora muestra un flujo visible de 3 pasos con resaltado del paso activo (rellenar, añadir, confirmar).
+- Se estableció un CTA primario único y dinámico por estado: `Añadir a pendientes` o `Confirmar seleccionadas`.
+- Se añadió guía contextual cuando el CTA primario está deshabilitado (`Selecciona al menos una pendiente` / motivo de validación).
+- Se implementó notificación transaccional unificada con helper de presentación (`NotificationService`), incluyendo toast de alta con acción `Deshacer` (9s).
+- Tras confirmar, se muestra un resumen transaccional con cantidad, total confirmado y próximos pasos.
+- Se agregó prevención de duplicados antes de añadir (misma delegada + fecha + tramo), con opción de navegar a la pendiente existente.
+- Se añadió soporte mínimo de teclado: Enter en el último campo para CTA primario y Escape en resumen/modal.
+- Se reforzó el orden de foco del formulario en Operativa.
+
+### Mejoras aplicadas P1: Histórico
+
+- Se incorporó un modelo dedicado (`HistoricalViewModel`) para desacoplar **fuente de datos -> proxy de filtros/orden -> tabla**, mejorando legibilidad y rendimiento con volúmenes altos.
+- Filtros disponibles en la barra superior:
+  - Búsqueda por texto libre (concepto/notas/columnas visibles/delegada/estado).
+  - Rango de fechas `Desde` / `Hasta`.
+  - Atajo rápido **Últimos 30 días**.
+  - Estado (Todos / Pendiente / Confirmada).
+  - Delegada (Todas / delegada específica).
+  - Limpieza integral con **Limpiar filtros**.
+- El estado ahora se presenta de forma legible en columna dedicada con badge textual (ej. `✅ Confirmada`, `🕒 Pendiente`).
+- Ordenación activa por cabecera; orden por defecto: fecha descendente con desempate por hora descendente.
+- Acciones del histórico ahora son contextuales por selección:
+  - `Eliminar (n)`
+  - `Generar PDF (n)`
+  - `Ver detalle (n)`
+  - `Re-sincronizar (n)`
+- Se añadió diálogo de detalle para inspeccionar una fila completa sin depender de columnas extensas.
+- Accesibilidad y teclado:
+  - **Ctrl+F** enfoca la búsqueda del histórico.
+  - **Enter** abre detalle de la fila seleccionada.
+  - **Escape** limpia foco de búsqueda o selección activa.
+- Rendimiento:
+  - Filtrado implementado con `QSortFilterProxyModel` (sin barridos manuales por keypress).
+  - Búsqueda con debounce de 250ms para minimizar lag al escribir.
+
+### Mejoras aplicadas: Sync Panel Pro
+
+- Se añadió un panel de sincronización persistente en Configuración con estado explícito (`Idle`, `Sincronizando…`, `OK`, `OK con avisos`, `Error`, `Configuración incompleta`).
+- El panel muestra trazabilidad operativa: última sincronización con fecha/hora y delegada, fuente configurada (credencial + spreadsheet parcial), alcance y criterio de idempotencia.
+- Se incorporó resumen inequívoco del último resultado: filas creadas, actualizadas, omitidas, conflictos y errores.
+- Nuevas acciones operativas: `Sincronizar ahora`, `Ver detalles`, `Copiar informe`, `Abrir carpeta de logs`, más CTA `Ir a configuración` cuando faltan credenciales/ID.
+- Se implementó vista de detalle con entradas estructuradas por severidad/entidad/sección/mensaje/acción sugerida.
+- Se persiste cada ejecución en `logs/sync_last.json` y `logs/sync_last.md`, además de historial rotativo en `logs/sync_history/` (últimas 20 sync).
+- Se reforzó anti-reentrancia: no se pueden disparar dos sincronizaciones simultáneas ni por doble click.
