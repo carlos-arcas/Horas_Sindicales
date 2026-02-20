@@ -459,6 +459,7 @@ class MainWindow(QMainWindow):
         return saldos_card
 
     def _build_ui(self) -> None:
+        self.persona_combo = QComboBox()
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(True)
         self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -980,7 +981,6 @@ class MainWindow(QMainWindow):
         persona_label = QLabel("Delegado")
         persona_label.setProperty("role", "sectionTitle")
         persona_selector.addWidget(persona_label)
-        self.persona_combo = QComboBox()
         self.persona_combo.currentIndexChanged.connect(self._on_persona_changed)
         persona_selector.addWidget(self.persona_combo, 1)
         persona_layout.addLayout(persona_selector)
