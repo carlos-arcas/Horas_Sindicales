@@ -34,7 +34,7 @@ from app.domain.services import (
     validar_solicitud,
 )
 from app.domain.time_utils import minutes_to_hhmm, parse_hhmm
-from app.pdf import pdf_builder
+from app.application.ports.pdf_puerto import GeneradorPdfPuerto
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +216,7 @@ def _pdf_intro_text(config: GrupoConfig | None) -> str | None:
     if config is None:
         return None
     intro = (config.pdf_intro_text or "").strip()
-    return intro or pdf_builder.INTRO_TEXT
+    return intro or None
 
 
 class PersonaUseCases:
@@ -315,10 +315,12 @@ class SolicitudUseCases:
         repo: SolicitudRepository,
         persona_repo: PersonaRepository,
         config_repo: GrupoConfigRepository | None = None,
+        generador_pdf: GeneradorPdfPuerto | None = None,
     ) -> None:
         self._repo = repo
         self._persona_repo = persona_repo
         self._config_repo = config_repo
+        self._generador_pdf = generador_pdf
 
     def listar_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
         return self.listar_solicitudes_por_persona_y_periodo(persona_id, None, None)
@@ -612,7 +614,9 @@ class SolicitudUseCases:
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
         fechas = [solicitud.fecha_pedida for solicitud in solicitudes_list]
-        return pdf_builder.build_nombre_archivo(persona.nombre, fechas)
+        if self._generador_pdf is None:
+            raise BusinessRuleError("No hay generador PDF configurado.")
+        return self._generador_pdf.construir_nombre_archivo(persona.nombre, fechas)
 
     def confirmar_lote_y_generar_pdf(
         self,
@@ -655,7 +659,9 @@ class SolicitudUseCases:
                 if persona is None:
                     raise BusinessRuleError("Persona no encontrada.")
                 pdf_options = self._config_repo.get() if self._config_repo else None
-                pdf_path = pdf_builder.construir_pdf_solicitudes(
+                if self._generador_pdf is None:
+                    raise BusinessRuleError("No hay generador PDF configurado.")
+                pdf_path = self._generador_pdf.generar_pdf_solicitudes(
                     creadas,
                     persona,
                     destino,
@@ -757,7 +763,9 @@ class SolicitudUseCases:
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
         pdf_options = self._config_repo.get() if self._config_repo else None
-        pdf_path = pdf_builder.construir_pdf_historico(
+        if self._generador_pdf is None:
+            raise BusinessRuleError("No hay generador PDF configurado.")
+        pdf_path = self._generador_pdf.generar_pdf_historico(
             solicitudes_list,
             persona,
             destino,
@@ -789,7 +797,9 @@ class SolicitudUseCases:
         if not solicitudes_list:
             raise BusinessRuleError("No hay solicitudes para generar el PDF.")
         pdf_options = self._config_repo.get() if self._config_repo else None
-        pdf_path = pdf_builder.construir_pdf_historico(
+        if self._generador_pdf is None:
+            raise BusinessRuleError("No hay generador PDF configurado.")
+        pdf_path = self._generador_pdf.generar_pdf_historico(
             solicitudes_list,
             persona,
             destino,

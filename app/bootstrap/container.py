@@ -13,6 +13,7 @@ from app.application.use_cases.health_check import HealthCheckUseCase
 from app.infrastructure.db import get_connection
 from app.infrastructure.health_probes import DefaultConnectivityProbe, SheetsConfigProbe, SQLiteLocalDbProbe
 from app.infrastructure.local_config_store import LocalConfigStore
+from app.infrastructure.pdf.generador_pdf_reportlab import GeneradorPdfReportlab
 from app.infrastructure.migrations import run_migrations
 from app.infrastructure.repos_conflicts_sqlite import SQLiteConflictsRepository
 from app.infrastructure.repos_sqlite import (
@@ -56,7 +57,8 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
     base_cuadrantes_service = BaseCuadrantesService(persona_repo, cuadrante_repo)
     base_cuadrantes_service.ensure_for_all_personas()
     persona_use_cases = PersonaUseCases(persona_repo, base_cuadrantes_service)
-    solicitud_use_cases = SolicitudUseCases(solicitud_repo, persona_repo, grupo_repo)
+    generador_pdf = GeneradorPdfReportlab()
+    solicitud_use_cases = SolicitudUseCases(solicitud_repo, persona_repo, grupo_repo, generador_pdf)
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)
 
     config_store = LocalConfigStore()

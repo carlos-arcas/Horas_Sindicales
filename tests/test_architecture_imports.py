@@ -176,3 +176,22 @@ def test_application_forbidden_technical_imports() -> None:
                 violations.append(f"{record.source_file} -> {imported}")
 
     assert not violations, "application must not import sqlite3/gspread/google-auth libs:\n" + "\n".join(violations)
+
+
+def test_application_pdf_and_infrastructure_boundary() -> None:
+    violations: list[str] = []
+
+    for py_file in sorted((APP_ROOT / "application").rglob("*.py")):
+        for record in _iter_imports(py_file):
+            imported = record.imported_module
+            if imported.startswith("app.application.ports"):
+                continue
+            if imported == "app.pdf" or imported.startswith("app.pdf."):
+                violations.append(f"{record.source_file} -> {imported}")
+            if imported == "app.infrastructure" or imported.startswith("app.infrastructure."):
+                violations.append(f"{record.source_file} -> {imported}")
+
+    assert not violations, (
+        "application no puede importar app.pdf ni app.infrastructure directamente. "
+        "Use puertos en app.application.ports:\n" + "\n".join(violations)
+    )
