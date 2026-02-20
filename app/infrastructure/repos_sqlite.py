@@ -619,14 +619,14 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             return None
         return self._row_to_solicitud(row)
 
-    def exists_duplicate(
+    def find_duplicate(
         self,
         persona_id: int,
         fecha_pedida: str,
         desde_min: int | None,
         hasta_min: int | None,
         completo: bool,
-    ) -> bool:
+    ) -> Solicitud | None:
         cursor = self._connection.cursor()
         clauses = [
             "s.persona_id = ?",
@@ -647,7 +647,10 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             params.append(hasta_min)
         cursor.execute(
             f"""
-            SELECT s.id, s.uuid, p.uuid AS delegada_uuid
+            SELECT s.id, s.uuid, p.uuid AS delegada_uuid,
+                   s.persona_id, s.fecha_solicitud, s.fecha_pedida,
+                   s.desde_min, s.hasta_min, s.completo,
+                   s.horas_solicitadas_min, s.observaciones, s.notas, s.pdf_path, s.pdf_hash, s.generated
             FROM solicitudes s
             LEFT JOIN personas p ON p.id = s.persona_id
             WHERE {' AND '.join(clauses)}
@@ -656,18 +659,29 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             params,
         )
         duplicate = cursor.fetchone()
-        if duplicate:
-            logger.info(
-                "Duplicado detectado id=%s solicitud_uuid=%s delegada_uuid=%s persona_id=%s fecha=%s completo=%s",
-                duplicate["id"],
-                duplicate["uuid"],
-                duplicate["delegada_uuid"],
-                persona_id,
-                fecha_pedida,
-                completo,
-            )
-            return True
-        return False
+        if duplicate is None:
+            return None
+        logger.info(
+            "Duplicado detectado id=%s solicitud_uuid=%s delegada_uuid=%s persona_id=%s fecha=%s completo=%s generated=%s",
+            duplicate["id"],
+            duplicate["uuid"],
+            duplicate["delegada_uuid"],
+            persona_id,
+            fecha_pedida,
+            completo,
+            duplicate["generated"],
+        )
+        return self._row_to_solicitud(duplicate)
+
+    def exists_duplicate(
+        self,
+        persona_id: int,
+        fecha_pedida: str,
+        desde_min: int | None,
+        hasta_min: int | None,
+        completo: bool,
+    ) -> bool:
+        return self.find_duplicate(persona_id, fecha_pedida, desde_min, hasta_min, completo) is not None
 
     def create(self, solicitud: Solicitud) -> Solicitud:
         logger.info(

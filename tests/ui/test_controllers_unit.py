@@ -16,6 +16,7 @@ def _build_window_for_solicitudes(solicitud: SolicitudDTO | None) -> SimpleNames
     use_cases = Mock()
     use_cases.calcular_minutos_solicitud.return_value = 60
     use_cases.minutes_to_hours_float.return_value = 1.0
+    use_cases.buscar_duplicado.return_value = None
     creada = replace(solicitud, id=55) if solicitud else None
     use_cases.agregar_solicitud.return_value = (creada, None)
     return SimpleNamespace(
@@ -26,8 +27,7 @@ def _build_window_for_solicitudes(solicitud: SolicitudDTO | None) -> SimpleNames
         _refresh_historico=Mock(),
         _refresh_saldos=Mock(),
         _update_action_state=Mock(),
-        _find_pending_duplicate_row=Mock(return_value=None),
-        _handle_duplicate_before_add=Mock(return_value=False),
+        _handle_duplicate_detected=Mock(return_value=False),
         _undo_last_added_pending=Mock(),
         notas_input=SimpleNamespace(toPlainText=Mock(return_value=""), setPlainText=Mock()),
         notifications=Mock(),
@@ -98,13 +98,13 @@ def test_solicitudes_controller_duplicate_guides_to_existing() -> None:
         notas=None,
     )
     window = _build_window_for_solicitudes(solicitud)
-    window._find_pending_duplicate_row.return_value = 3
-    window._handle_duplicate_before_add.return_value = False
+    window._solicitud_use_cases.buscar_duplicado.return_value = replace(solicitud, id=3, generated=False)
+    window._handle_duplicate_detected.return_value = False
 
     controller = SolicitudesController(window)
     controller.on_add_pendiente()
 
-    window._handle_duplicate_before_add.assert_called_once_with(3)
+    window._handle_duplicate_detected.assert_called_once()
     window._solicitud_use_cases.agregar_solicitud.assert_not_called()
 
 

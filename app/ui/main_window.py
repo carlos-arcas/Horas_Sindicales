@@ -255,6 +255,8 @@ class MainWindow(QMainWindow):
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
+        self._pending_all_solicitudes: list[SolicitudDTO] = []
+        self._hidden_pendientes: list[SolicitudDTO] = []
         self._pending_conflict_rows: set[int] = set()
         self._pending_view_all = False
         self._orphan_pendientes: list[SolicitudDTO] = []
@@ -456,6 +458,15 @@ class MainWindow(QMainWindow):
         self.ver_todas_pendientes_button.setCheckable(True)
         self.ver_todas_pendientes_button.toggled.connect(self._on_toggle_ver_todas_pendientes)
         pending_tools.addWidget(self.ver_todas_pendientes_button)
+        self.revisar_ocultas_button = QPushButton("Revisar pendientes ocultas")
+        self.revisar_ocultas_button.setProperty("variant", "secondary")
+        self.revisar_ocultas_button.setVisible(False)
+        self.revisar_ocultas_button.clicked.connect(self._on_review_hidden_pendientes)
+        pending_tools.addWidget(self.revisar_ocultas_button)
+        self.pending_filter_warning = QLabel("")
+        self.pending_filter_warning.setProperty("role", "secondary")
+        self.pending_filter_warning.setVisible(False)
+        pending_tools.addWidget(self.pending_filter_warning)
         pending_tools.addStretch(1)
         pendientes_layout.addLayout(pending_tools)
 
@@ -844,13 +855,17 @@ class MainWindow(QMainWindow):
         status.addPermanentWidget(self.status_pending_label)
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
+        model = table.model()
+        column_count = model.columnCount() if model is not None else 6
+        if column_count <= 0:
+            return
         header = table.horizontalHeader()
         header.setMinimumSectionSize(78)
-        for column in range(5):
+        for column in range(max(0, column_count - 1)):
             header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(5, QHeaderView.Stretch)
+        header.setSectionResizeMode(column_count - 1, QHeaderView.Stretch)
         header.setStretchLastSection(False)
-        table.setColumnWidth(5, 240)
+        table.setColumnWidth(column_count - 1, 240)
         table.verticalHeader().setDefaultSectionSize(30)
         table.verticalHeader().setVisible(False)
         table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
@@ -936,6 +951,12 @@ class MainWindow(QMainWindow):
                 if self.persona_combo.itemData(index) == select_id:
                     self.persona_combo.setCurrentIndex(index)
                     break
+        self.pendientes_model.set_persona_nombres(
+            {int(persona.id): persona.nombre for persona in self._personas if persona.id is not None}
+        )
+        self.huerfanas_model.set_persona_nombres(
+            {int(persona.id): persona.nombre for persona in self._personas if persona.id is not None}
+        )
         self._on_persona_changed()
 
     def _current_persona(self) -> PersonaDTO | None:
@@ -1237,7 +1258,9 @@ class MainWindow(QMainWindow):
             )
 
     def _refresh_pending_ui_state(self) -> None:
+        self.pendientes_model.set_show_delegada(self._pending_view_all)
         self.pendientes_model.set_solicitudes(self._pending_solicitudes)
+        self._configure_solicitudes_table(self.pendientes_table)
         self._update_pending_totals()
         self._refresh_pending_conflicts()
         self._update_action_state()
@@ -1320,6 +1343,14 @@ class MainWindow(QMainWindow):
                 return row
         return None
 
+    def _find_pending_row_by_id(self, solicitud_id: int | None) -> int | None:
+        if solicitud_id is None:
+            return None
+        for row, pending in enumerate(self._pending_solicitudes):
+            if pending.id == solicitud_id:
+                return row
+        return None
+
     def _handle_duplicate_before_add(self, duplicate_row: int) -> bool:
         dialog = QMessageBox(self)
         dialog.setWindowTitle("Pendiente duplicada")
@@ -1348,6 +1379,56 @@ class MainWindow(QMainWindow):
         model_index = self.pendientes_model.index(row, 0)
         self.pendientes_table.scrollTo(model_index, QAbstractItemView.PositionAtCenter)
         self.pendientes_table.setFocus()
+
+    def _focus_pending_by_id(self, solicitud_id: int | None) -> bool:
+        row = self._find_pending_row_by_id(solicitud_id)
+        if row is None:
+            return False
+        self._focus_pending_row(row)
+        return True
+
+    def _focus_historico_duplicate(self, solicitud: SolicitudDTO) -> None:
+        self._refresh_historico()
+        for row in range(self.historico_model.rowCount()):
+            model_solicitud = self.historico_model.solicitud_at(row)
+            if model_solicitud is None:
+                continue
+            if model_solicitud.id == solicitud.id:
+                self.historico_table.selectRow(row)
+                self.historico_table.scrollTo(
+                    self.historico_model.index(row, 0), QAbstractItemView.PositionAtCenter
+                )
+                self.main_tabs.setCurrentIndex(1)
+                return
+
+    def _handle_duplicate_detected(self, duplicate: SolicitudDTO) -> bool:
+        is_pending = not duplicate.generated
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("Solicitud duplicada")
+        if is_pending:
+            dialog.setText("Ya existe una solicitud pendiente igual.")
+            dialog.setInformativeText("Puedes ir a la pendiente existente para gestionarla.")
+            goto_button = dialog.addButton("Ir a la pendiente existente", QMessageBox.AcceptRole)
+        else:
+            dialog.setText("La solicitud ya está confirmada en histórico.")
+            dialog.setInformativeText("Puedes abrir el histórico para revisarla.")
+            goto_button = dialog.addButton("Ir al histórico", QMessageBox.AcceptRole)
+        dialog.addButton("Cancelar", QMessageBox.RejectRole)
+        dialog.exec()
+        if dialog.clickedButton() is not goto_button:
+            return False
+
+        if is_pending:
+            if self._focus_pending_by_id(duplicate.id):
+                return False
+            if not self._pending_view_all:
+                self.ver_todas_pendientes_button.setChecked(True)
+            self._reload_pending_views()
+            self._focus_pending_by_id(duplicate.id)
+            return False
+
+        self._focus_historico_duplicate(duplicate)
+        return False
 
     def _resolve_pending_conflict(self, fecha_pedida: str, completo: bool) -> bool:
         conflictos = [
@@ -1991,6 +2072,8 @@ class MainWindow(QMainWindow):
 
     def _clear_pendientes(self) -> None:
         self._pending_solicitudes = []
+        self._pending_all_solicitudes = []
+        self._hidden_pendientes = []
         self._orphan_pendientes = []
         self.pendientes_model.clear()
         self.huerfanas_model.clear()
@@ -2005,12 +2088,34 @@ class MainWindow(QMainWindow):
 
     def _reload_pending_views(self) -> None:
         persona = self._current_persona()
+        self._pending_all_solicitudes = list(self._solicitud_use_cases.listar_pendientes_all())
         if self._pending_view_all:
-            self._pending_solicitudes = list(self._solicitud_use_cases.listar_pendientes_all())
+            self._pending_solicitudes = list(self._pending_all_solicitudes)
         elif persona is None:
             self._pending_solicitudes = []
         else:
             self._pending_solicitudes = list(self._solicitud_use_cases.listar_pendientes_por_persona(persona.id or 0))
+
+        pending_visible_ids = {solicitud.id for solicitud in self._pending_solicitudes if solicitud.id is not None}
+        self._hidden_pendientes = [
+            solicitud
+            for solicitud in self._pending_all_solicitudes
+            if solicitud.id is not None and solicitud.id not in pending_visible_ids
+        ]
+        hidden_count = len(self._hidden_pendientes)
+        should_warn_hidden = hidden_count > 0 and not self._pending_view_all
+        self.pending_filter_warning.setVisible(should_warn_hidden)
+        self.revisar_ocultas_button.setVisible(should_warn_hidden)
+        if should_warn_hidden:
+            self.pending_filter_warning.setText(f"Hay pendientes en otras delegadas: {hidden_count}")
+            self.revisar_ocultas_button.setText(f"Revisar pendientes ocultas ({hidden_count})")
+            logger.warning(
+                "Pendientes no visibles por filtro actual delegada_id=%s hidden=%s",
+                persona.id if persona is not None else None,
+                hidden_count,
+            )
+        else:
+            self.pending_filter_warning.setText("")
 
         self._orphan_pendientes = list(self._solicitud_use_cases.listar_pendientes_huerfanas())
         self.huerfanas_model.set_solicitudes(self._orphan_pendientes)
@@ -2028,6 +2133,14 @@ class MainWindow(QMainWindow):
             )
 
         self._refresh_pending_ui_state()
+
+    def _on_review_hidden_pendientes(self) -> None:
+        if not self._hidden_pendientes:
+            return
+        first_hidden = self._hidden_pendientes[0]
+        self.ver_todas_pendientes_button.setChecked(True)
+        self._reload_pending_views()
+        self._focus_pending_by_id(first_hidden.id)
 
     def _on_remove_huerfana(self) -> None:
         selection = self.huerfanas_table.selectionModel().selectedRows()

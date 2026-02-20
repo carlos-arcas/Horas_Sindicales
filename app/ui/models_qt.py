@@ -76,13 +76,21 @@ class SolicitudesTableModel(QAbstractTableModel):
             "Horas",
             "Notas",
         ]
+        self._show_delegada = False
+        self._persona_nombres: dict[int, str] = {}
         self._conflict_rows: set[int] = set()
+
+    def _effective_headers(self) -> list[str]:
+        headers = list(self._headers)
+        if self._show_delegada:
+            headers.append("Delegada")
+        return headers
 
     def rowCount(self, parent: QModelIndex | None = None) -> int:
         return len(self._solicitudes)
 
     def columnCount(self, parent: QModelIndex | None = None) -> int:
-        return len(self._headers)
+        return len(self._effective_headers())
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
         if not index.isValid():
@@ -114,13 +122,18 @@ class SolicitudesTableModel(QAbstractTableModel):
             return _format_minutes(int(round(solicitud.horas * 60)))
         if column == 5:
             return solicitud.notas or ""
+        if self._show_delegada and column == 6:
+            return self._persona_nombres.get(solicitud.persona_id, "(sin delegada)")
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
         if role != Qt.DisplayRole:
             return None
         if orientation == Qt.Horizontal:
-            return self._headers[section]
+            headers = self._effective_headers()
+            if 0 <= section < len(headers):
+                return headers[section]
+            return None
         return str(section + 1)
 
     def set_solicitudes(self, solicitudes: list[SolicitudDTO]) -> None:
@@ -152,4 +165,14 @@ class SolicitudesTableModel(QAbstractTableModel):
     def set_conflict_rows(self, rows: set[int]) -> None:
         self.beginResetModel()
         self._conflict_rows = set(rows)
+        self.endResetModel()
+
+    def set_show_delegada(self, show: bool) -> None:
+        self.beginResetModel()
+        self._show_delegada = show
+        self.endResetModel()
+
+    def set_persona_nombres(self, persona_nombres: dict[int, str]) -> None:
+        self.beginResetModel()
+        self._persona_nombres = dict(persona_nombres)
         self.endResetModel()

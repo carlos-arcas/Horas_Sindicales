@@ -69,6 +69,16 @@ class SolicitudRepository(Protocol):
     ) -> bool:
         ...
 
+    def find_duplicate(
+        self,
+        persona_id: int,
+        fecha_pedida: str,
+        desde_min: int | None,
+        hasta_min: int | None,
+        completo: bool,
+    ) -> Solicitud | None:
+        ...
+
     def create(self, solicitud: Solicitud) -> Solicitud:
         ...
 

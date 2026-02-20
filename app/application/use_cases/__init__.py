@@ -387,9 +387,12 @@ class SolicitudUseCases:
         desde_min = parse_hhmm(dto.desde) if dto.desde else None
         hasta_min = parse_hhmm(dto.hasta) if dto.hasta else None
         duplicate_key = solicitud_key(dto, persona=persona, delegada_uuid=self._delegada_uuid(dto.persona_id))
-        if self._is_duplicate_key(dto.persona_id, dto.completo, duplicate_key):
-            logger.debug("Duplicado detectado al agregar solicitud. nueva=%s existente=%s", duplicate_key, duplicate_key)
-            raise BusinessRuleError("Duplicado")
+        duplicate = self.buscar_duplicado(dto)
+        if duplicate is not None:
+            logger.debug("Duplicado detectado al agregar solicitud. nueva=%s existente_id=%s", duplicate_key, duplicate.id)
+            if duplicate.generated:
+                raise BusinessRuleError("Duplicado confirmado")
+            raise BusinessRuleError("Duplicado pendiente")
 
         minutos = _calcular_minutos(dto, persona)
         notas = dto.notas if dto.notas is not None else dto.observaciones
@@ -409,6 +412,14 @@ class SolicitudUseCases:
         )
         validar_solicitud(solicitud)
         creada = self._repo.create(solicitud)
+        logger.info(
+            "Pendiente creada id=%s delegada_id=%s fecha=%s tramo=%s-%s",
+            creada.id,
+            creada.persona_id,
+            creada.fecha_pedida,
+            dto.desde,
+            dto.hasta,
+        )
         year, month = _parse_year_month(dto.fecha_pedida)
         saldos = self.calcular_saldos(dto.persona_id, year, month)
         if correlation_id:
@@ -426,20 +437,18 @@ class SolicitudUseCases:
             raise BusinessRuleError("No se pudo resolver el uuid de la delegada.")
         return delegada_uuid
 
-    def _is_duplicate_key(
-        self,
-        persona_id: int,
-        completo: bool,
-        key: tuple[object, ...],
-    ) -> bool:
-        _, fecha, _, desde, hasta = key
-        if completo:
-            desde_min = None
-            hasta_min = None
-        else:
-            desde_min = parse_hhmm(str(desde))
-            hasta_min = parse_hhmm(str(hasta))
-        return self._repo.exists_duplicate(persona_id, str(fecha), desde_min, hasta_min, completo)
+    def buscar_duplicado(self, dto: SolicitudDTO) -> SolicitudDTO | None:
+        _, fecha, completo, desde, hasta = solicitud_key(
+            dto,
+            persona=self._persona_repo.get_by_id(dto.persona_id),
+            delegada_uuid=self._delegada_uuid(dto.persona_id),
+        )
+        desde_min = None if completo else parse_hhmm(str(desde))
+        hasta_min = None if completo else parse_hhmm(str(hasta))
+        duplicate = self._repo.find_duplicate(dto.persona_id, str(fecha), desde_min, hasta_min, completo)
+        if duplicate is None:
+            return None
+        return _solicitud_to_dto(duplicate)
 
     def listar_solicitudes_por_persona_y_periodo(
         self, persona_id: int, year: int | None, month: int | None
