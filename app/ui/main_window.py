@@ -325,6 +325,7 @@ class MainWindow(QMainWindow):
         self._blocking_errors: dict[str, str] = {}
         self._warnings: dict[str, str] = {}
         self._duplicate_target: SolicitudDTO | None = None
+        self._ui_ready = False
         self.status_sync_label: QLabel | None = None
         self.status_sync_progress: QProgressBar | None = None
         self.status_pending_label: QLabel | None = None
@@ -501,6 +502,7 @@ class MainWindow(QMainWindow):
         self._build_layout()
         self._wire_signals()
         self._apply_initial_state()
+        self._ui_ready = True
 
     def _build_layout(self) -> None:
         """Mantiene la fase explícita de layout sin alterar el comportamiento actual."""
@@ -1558,6 +1560,8 @@ class MainWindow(QMainWindow):
         return blocking, warnings
 
     def _render_preventive_validation(self) -> None:
+        if not self._ui_ready:
+            return
         delegada_error = self._blocking_errors.get("delegada", "") if "delegada" in self._field_touched else ""
         fecha_error = self._blocking_errors.get("fecha", "") if "fecha" in self._field_touched else ""
         tramo_error = self._blocking_errors.get("tramo", "") if "tramo" in self._field_touched else ""
@@ -1635,6 +1639,8 @@ class MainWindow(QMainWindow):
             self._refresh_saldos()
 
     def _on_sync(self) -> None:
+        if not self._ui_ready:
+            return
         self._pending_sync_plan = None
         self._active_sync_id = None
         self._attempt_history = ()
@@ -1901,6 +1907,8 @@ class MainWindow(QMainWindow):
             return None, warning
 
     def _update_solicitud_preview(self) -> None:
+        if not self._ui_ready:
+            return
         valid, message = self._validate_solicitud_form()
         minutos, warning = self._calculate_preview_minutes()
         total_txt = "—" if minutos is None or not valid else self._format_minutes(minutos)
@@ -2198,6 +2206,8 @@ class MainWindow(QMainWindow):
         self._load_personas()
 
     def _on_add_pendiente(self) -> None:
+        if not self._ui_ready:
+            return
         self._field_touched.update({"delegada", "fecha", "tramo"})
         self._run_preventive_validation()
         if self._blocking_errors:
@@ -2411,6 +2421,8 @@ class MainWindow(QMainWindow):
         self._notify_historico_filter_if_hidden(creadas)
 
     def _on_confirmar(self) -> None:
+        if not self._ui_ready:
+            return
         if not self._run_preconfirm_checks():
             return
         persona = self._current_persona()
