@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
@@ -26,6 +26,23 @@ class OperationFeedback:
     details: list[str] | None = None
     action_label: str | None = None
     action_callback: Callable[[], None] | None = None
+
+
+@dataclass(slots=True)
+class ConfirmationSummaryPayload:
+    count: int
+    total_minutes: int
+    delegadas: list[str]
+    saldo_disponible: str
+    errores: list[str]
+    status: str
+    timestamp: str
+    result_id: str
+    on_view_history: Callable[[], None] | None = None
+    on_sync_now: Callable[[], None] | None = None
+    on_return_to_operativa: Callable[[], None] | None = None
+    undo_seconds: int | None = None
+    on_undo: Callable[[], None] | None = None
 
 
 class OperationFeedbackDialog(QDialog):
@@ -159,22 +176,100 @@ class NotificationService:
 
     def show_confirmation_summary(self, *, count: int, total_minutes: int, errores: list[str] | None = None) -> None:
         issues = errores or []
-        status = "partial" if issues else "success"
-        incidents = (
-            f"{len(issues)} con advertencia." if issues else "Sin incidencias."
+        if count <= 0:
+            status = "error"
+        elif issues:
+            status = "partial"
+        else:
+            status = "success"
+        payload = ConfirmationSummaryPayload(
+            count=count,
+            total_minutes=total_minutes,
+            delegadas=[],
+            saldo_disponible="No disponible",
+            errores=issues,
+            status=status,
+            timestamp=datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            result_id=self._next_result_id(),
         )
-        details = [f"Total confirmado: {minutes_to_hhmm(total_minutes)}."]
-        if issues:
-            details.extend([f"- {error}" for error in issues])
-        self.notify_operation(
-            OperationFeedback(
-                title="Solicitudes confirmadas",
-                happened=f"{count} solicitudes registradas correctamente.",
-                affected_count=count,
-                incidents=incidents,
-                next_step="Puedes revisar el detalle o continuar.",
-                status=status,
-                details=details,
-            ),
-            show_details=bool(issues),
-        )
+        self.show_confirmation_closure(payload)
+
+    def show_confirmation_closure(self, payload: ConfirmationSummaryPayload) -> None:
+        title_by_status = {
+            "success": "Confirmación completa",
+            "partial": "Confirmación parcial",
+            "error": "Confirmación fallida",
+        }
+        dialog = QDialog(self._parent)
+        dialog.setWindowTitle(title_by_status.get(payload.status, "Resultado de confirmación"))
+        dialog.setModal(True)
+
+        if payload.status == "error":
+            dialog.setStyleSheet("QDialog { border: 2px solid #d62828; }")
+        elif payload.status == "partial":
+            dialog.setStyleSheet("QDialog { border: 2px solid #f4a261; }")
+        else:
+            dialog.setStyleSheet("QDialog { border: 2px solid #2a9d8f; }")
+
+        layout = QVBoxLayout(dialog)
+        summary_lines = [
+            f"Solicitudes confirmadas: {payload.count}",
+            f"Delegadas: {', '.join(payload.delegadas) if payload.delegadas else 'Sin delegadas'}",
+            f"Horas confirmadas: {minutes_to_hhmm(payload.total_minutes)}",
+            f"Saldo disponible: {payload.saldo_disponible}",
+            f"Confirmado: {payload.timestamp}",
+            f"Referencia: {payload.result_id}",
+        ]
+        for line in summary_lines:
+            label = QLabel(line)
+            label.setWordWrap(True)
+            layout.addWidget(label)
+
+        if payload.errores:
+            warnings_title = QLabel("Avisos:")
+            warnings_title.setProperty("role", "secondary")
+            layout.addWidget(warnings_title)
+            for error in payload.errores[:3]:
+                layout.addWidget(QLabel(f"• {error}"))
+
+        actions = QHBoxLayout()
+        actions.addStretch(1)
+        if payload.on_view_history is not None:
+            view_button = QPushButton("Ver en histórico")
+            view_button.clicked.connect(lambda: (payload.on_view_history(), dialog.accept()))
+            actions.addWidget(view_button)
+        if payload.on_sync_now is not None:
+            sync_button = QPushButton("Sincronizar ahora")
+            sync_button.setProperty("variant", "primary")
+            sync_button.clicked.connect(lambda: (payload.on_sync_now(), dialog.accept()))
+            actions.addWidget(sync_button)
+        if payload.undo_seconds and payload.on_undo is not None and payload.status != "error":
+            undo_button = QPushButton(f"Deshacer ({payload.undo_seconds}s)")
+            countdown = {"value": payload.undo_seconds}
+
+            def _tick_undo() -> None:
+                countdown["value"] -= 1
+                if countdown["value"] <= 0:
+                    undo_button.setText("Deshacer no disponible")
+                    undo_button.setEnabled(False)
+                    timer.stop()
+                    return
+                undo_button.setText(f"Deshacer ({countdown['value']}s)")
+
+            timer = QTimer(dialog)
+            timer.setInterval(1000)
+            timer.timeout.connect(_tick_undo)
+            timer.start()
+
+            def _undo_and_close() -> None:
+                payload.on_undo()
+                dialog.accept()
+
+            undo_button.clicked.connect(_undo_and_close)
+            actions.addWidget(undo_button)
+        close_button = QPushButton("Volver a operativa")
+        close_button.clicked.connect(lambda: (payload.on_return_to_operativa() if payload.on_return_to_operativa else None, dialog.accept()))
+        actions.addWidget(close_button)
+        layout.addLayout(actions)
+
+        dialog.exec()

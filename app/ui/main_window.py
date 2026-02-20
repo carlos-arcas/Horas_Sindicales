@@ -77,7 +77,7 @@ from app.ui.controllers.personas_controller import PersonasController
 from app.ui.controllers.solicitudes_controller import SolicitudesController
 from app.ui.controllers.sync_controller import SyncController
 from app.ui.controllers.pdf_controller import PdfController
-from app.ui.notification_service import NotificationService, OperationFeedback
+from app.ui.notification_service import ConfirmationSummaryPayload, NotificationService, OperationFeedback
 from app.ui.sync_reporting import (
     build_config_incomplete_report,
     build_failed_report,
@@ -2350,17 +2350,11 @@ class MainWindow(QMainWindow):
                 )
         finally:
             self._set_processing_state(False)
-        if creadas:
-            self.notifications.show_confirmation_summary(
-                count=len(creadas),
-                total_minutes=self._sum_solicitudes_minutes(creadas),
-                errores=errores,
-            )
-
         _ = pendientes_restantes
         self._reload_pending_views()
         self._refresh_historico()
         self._refresh_saldos()
+        self._show_confirmation_closure(creadas, errores, operation_name="confirmar_sin_pdf")
         self._notify_historico_filter_if_hidden(creadas)
 
     def _on_confirmar(self) -> None:
@@ -2438,20 +2432,90 @@ class MainWindow(QMainWindow):
                     correlation_id,
                 )
             self._ask_push_after_pdf()
-            self.notifications.show_confirmation_summary(
-                count=len(creadas),
-                total_minutes=self._sum_solicitudes_minutes(creadas),
-                errores=errores,
-            )
             self.toast.success("Exportación PDF OK")
         _ = pendientes_restantes
         self._reload_pending_views()
         self._refresh_historico()
         self._refresh_saldos()
+        self._show_confirmation_closure(creadas, errores, operation_name="confirmar_y_generar_pdf")
         self._notify_historico_filter_if_hidden(creadas)
 
     def _sum_solicitudes_minutes(self, solicitudes: list[SolicitudDTO]) -> int:
         return sum(int(round(solicitud.horas * 60)) for solicitud in solicitudes)
+
+    def _show_confirmation_closure(
+        self,
+        creadas: list[SolicitudDTO],
+        errores: list[str],
+        *,
+        operation_name: str,
+    ) -> None:
+        payload = self._build_confirmation_payload(creadas, errores)
+        log_event(
+            logger,
+            "confirmation_closure_recorded",
+            {
+                "operation": operation_name,
+                "result_id": payload.result_id,
+                "status": payload.status,
+                "count": payload.count,
+                "delegadas": payload.delegadas,
+                "total_minutes": payload.total_minutes,
+                "saldo_disponible": payload.saldo_disponible,
+                "errores": payload.errores,
+                "timestamp": payload.timestamp,
+            },
+            payload.result_id,
+        )
+        self.notifications.show_confirmation_closure(payload)
+
+    def _build_confirmation_payload(
+        self,
+        creadas: list[SolicitudDTO],
+        errores: list[str],
+    ) -> ConfirmationSummaryPayload:
+        persona_nombres = {persona.id: persona.nombre for persona in self._personas if persona.id is not None}
+        delegadas = sorted({persona_nombres.get(s.persona_id, f"ID {s.persona_id}") for s in creadas})
+        if not creadas:
+            status = "error"
+        elif errores:
+            status = "partial"
+        else:
+            status = "success"
+        undo_ids = [solicitud.id for solicitud in creadas if solicitud.id is not None]
+        return ConfirmationSummaryPayload(
+            count=len(creadas),
+            total_minutes=self._sum_solicitudes_minutes(creadas),
+            delegadas=delegadas,
+            saldo_disponible=self.saldo_periodo_restantes.text(),
+            errores=errores,
+            status=status,
+            timestamp=datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            result_id=f"CFM-{datetime.now().strftime('%y%m%d%H%M%S')}",
+            on_view_history=self._focus_historico_search,
+            on_sync_now=self._on_push_now,
+            on_return_to_operativa=lambda: self.main_tabs.setCurrentIndex(0),
+            undo_seconds=12 if undo_ids else None,
+            on_undo=(lambda: self._undo_confirmation(undo_ids)) if undo_ids else None,
+        )
+
+    def _undo_confirmation(self, solicitud_ids: list[int]) -> None:
+        if self._sync_in_progress:
+            self.toast.warning("La sincronización está en curso. Ahora no se puede deshacer.", title="Deshacer no disponible")
+            return
+        removed = 0
+        for solicitud_id in solicitud_ids:
+            try:
+                with OperationContext("deshacer_confirmacion") as operation:
+                    self._solicitud_use_cases.eliminar_solicitud(solicitud_id, correlation_id=operation.correlation_id)
+                removed += 1
+            except BusinessRuleError:
+                continue
+        self._reload_pending_views()
+        self._refresh_historico()
+        self._refresh_saldos()
+        if removed:
+            self.toast.success(f"Se deshicieron {removed} confirmaciones.")
 
     def _ask_push_after_pdf(self) -> None:
         dialog = QMessageBox(self)
