@@ -34,6 +34,7 @@ def _build_window_for_solicitudes(solicitud: SolicitudDTO | None) -> SimpleNames
         toast=Mock(),
         desde_input=SimpleNamespace(setFocus=Mock()),
         _show_critical_error=Mock(),
+        _set_processing_state=Mock(),
     )
 
 

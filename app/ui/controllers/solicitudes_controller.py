@@ -56,6 +56,7 @@ class SolicitudesController:
             return
 
         try:
+            w._set_processing_state(True)
             with OperationContext("agregar_pendiente") as operation:
                 log_event(
                     logger,
@@ -78,12 +79,11 @@ class SolicitudesController:
             logger.error("Error insertando petición en base de datos", exc_info=True)
             w._show_critical_error(exc)
             return
+        finally:
+            w._set_processing_state(False)
 
         w.notas_input.setPlainText("")
         w._refresh_historico()
         w._refresh_saldos()
         w._update_action_state()
-        w.notifications.notify_added_pending(
-            creada,
-            on_undo=lambda: w._undo_last_added_pending(creada.id),
-        )
+        w.notifications.notify_added_pending(creada, on_undo=lambda: w._undo_last_added_pending(creada.id))
