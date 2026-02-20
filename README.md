@@ -61,6 +61,8 @@ Aplicación de escritorio (PySide6) para la gestión de **horas sindicales**, in
 
 ```bash
 python main.py
+# o equivalente
+python -m app
 ```
 
 ### Self-check (sin abrir UI)
@@ -69,6 +71,8 @@ Valida recursos estáticos básicos (por ejemplo, hoja de estilos e imágenes):
 
 ```bash
 python main.py --selfcheck
+# o equivalente
+python -m app --selfcheck
 ```
 
 ### Lanzador Windows
@@ -90,9 +94,11 @@ Este script crea `.venv`, instala dependencias y ejecuta la app.
 │   ├── domain/           # Entidades, reglas de negocio y puertos
 │   ├── infrastructure/   # SQLite, migraciones, repositorios y adaptadores externos
 │   ├── pdf/              # Construcción y servicio de generación de PDF
-│   └── ui/               # Ventanas, diálogos, widgets y estilos Qt
+│   ├── ui/               # Ventanas, diálogos, widgets y estilos Qt
+│   ├── bootstrap/        # Configuración, logging y wiring (DI)
+│   └── entrypoints/      # Entrypoints CLI/UI
 ├── tests/                # Pruebas automatizadas (pytest)
-├── main.py               # Punto de entrada
+├── main.py               # Compatibilidad: delega al entrypoint principal
 ├── requirements.txt      # Dependencias
 └── launch.bat            # Arranque asistido en Windows
 ```
