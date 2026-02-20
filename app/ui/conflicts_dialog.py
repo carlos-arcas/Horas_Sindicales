@@ -281,12 +281,12 @@ class ConflictsDialog(QDialog):
 
     def _refresh_panel_summary(self, rows: list[ConflictRow]) -> None:
         if not rows:
-            self.summary_label.setText("Sin conflictos pendientes.")
+            self.summary_label.setText("Sin conflictos.")
             return
         first = rows[0].record
         self.summary_label.setText(
             "[Conflictos detectados]\n"
-            f"- Nº total: {len(rows)}\n"
+            f"- Total: {len(rows)}\n"
             f"- Tipo de conflicto: {classify_conflict(first)}\n"
             f"- Delegada afectada: {delegada_name(first)}\n"
             f"- Acción recomendada: {recommended_action(classify_conflict(first))}"
@@ -298,8 +298,8 @@ class ConflictsDialog(QDialog):
         self.resolution_summary_label.setText(
             "Resumen: "
             f"Conflictos resueltos {self._resolved_count} · "
-            f"Pendientes {len(rows)} · "
-            f"Requieren revisión manual {manual_pending}"
+            f"Pendiente {len(rows)} · "
+            f"Con avisos {manual_pending}"
         )
 
     def _current_rows(self) -> list[ConflictRow]:
@@ -340,7 +340,7 @@ class ConflictsDialog(QDialog):
             self._refresh_resolution_summary(self._current_rows())
             return
         if self.option_retry.isChecked():
-            QMessageBox.information(self, "Reintentar", "Puedes volver a sincronizar para reintentar este conflicto.")
+            QMessageBox.information(self, "Reintentar", "Conflicto pendiente. Reintenta la sincronización.")
             self._on_skip()
 
     def _on_skip(self) -> None:
@@ -354,7 +354,7 @@ class ConflictsDialog(QDialog):
         confirm = QMessageBox.question(
             self,
             "Aplicar a todos",
-            "Se resolverán todos los conflictos con la política por defecto (gana el cambio más reciente). ¿Continuar?",
+            "Se resolverán todos los conflictos con la política activa. ¿Continuar?",
         )
         if confirm != QMessageBox.StandardButton.Yes:
             return

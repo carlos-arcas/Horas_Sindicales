@@ -115,9 +115,9 @@ class NotificationService:
         normalized = self._normalize_feedback(feedback)
         lines = [
             f"- {normalized.happened}",
-            f"- Elementos afectados: {normalized.affected_count}",
+            f"- Solicitudes afectadas: {normalized.affected_count}",
             f"- Incidencias: {normalized.incidents}",
-            f"- Ahora puedes: {normalized.next_step}",
+            f"- Siguiente paso: {normalized.next_step}",
             f"- {normalized.timestamp} · {normalized.result_id}",
         ]
         self._toast.show(
@@ -135,7 +135,7 @@ class NotificationService:
         normalized = self._normalize_feedback(feedback)
         detail_lines = [
             normalized.happened,
-            f"Elementos afectados: {normalized.affected_count}",
+            f"Solicitudes afectadas: {normalized.affected_count}",
             f"Incidencias: {normalized.incidents}",
             f"Siguiente paso: {normalized.next_step}",
             f"Fecha y hora: {normalized.timestamp}",
@@ -159,12 +159,12 @@ class NotificationService:
             OperationFeedback(
                 title="Solicitud añadida a pendientes",
                 happened=(
-                    f"Se guardó la solicitud del {solicitud.fecha_pedida} ({tramo}, "
+                    f"Solicitud guardada: {solicitud.fecha_pedida} ({tramo}, "
                     f"{minutes_to_hhmm(duration_minutes)})."
                 ),
                 affected_count=1,
                 incidents="Sin incidencias.",
-                next_step="Revisar pendientes o continuar cargando solicitudes.",
+                next_step="Revisar pendientes o añadir otra solicitud.",
                 action_label="Deshacer",
                 action_callback=on_undo,
             )
@@ -195,12 +195,12 @@ class NotificationService:
 
     def show_confirmation_closure(self, payload: ConfirmationSummaryPayload) -> None:
         title_by_status = {
-            "success": "Confirmación completa",
-            "partial": "Confirmación parcial",
-            "error": "Confirmación fallida",
+            "success": "Confirmada",
+            "partial": "Con avisos",
+            "error": "Error",
         }
         dialog = QDialog(self._parent)
-        dialog.setWindowTitle(title_by_status.get(payload.status, "Resultado de confirmación"))
+        dialog.setWindowTitle(title_by_status.get(payload.status, "Resultado"))
         dialog.setModal(True)
 
         if payload.status == "error":

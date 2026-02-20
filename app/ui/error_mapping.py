@@ -26,20 +26,20 @@ def map_error_to_ui_message(error: Exception) -> UiErrorMessage:
         return UiErrorMessage(
             title=message,
             probable_cause="Los datos ingresados no cumplen una regla de negocio.",
-            recommended_action="Corrige los datos marcados y vuelve a intentarlo.",
+            recommended_action="Corrige los datos marcados y reintenta.",
             severity="warning",
         )
     if isinstance(error, InfraError):
         return UiErrorMessage(
             title="No se pudo completar la operación",
-            probable_cause="Hubo un problema técnico al acceder a datos o servicios externos.",
-            recommended_action="Reintentar. Si persiste, revisa configuración o contacta con soporte.",
+            probable_cause="No fue posible acceder a los datos o al servicio externo.",
+            recommended_action="Reintenta. Si persiste, revisa la configuración o contacta soporte.",
             severity="blocking",
         )
     return UiErrorMessage(
-        title="Ha ocurrido un error inesperado.",
+        title="Ocurrió un error inesperado.",
         probable_cause="Se produjo un fallo técnico no identificado.",
-        recommended_action="Reintentar o contactar con soporte.",
+        recommended_action="Reintenta. Si persiste, contacta soporte.",
         severity="blocking",
     )
 

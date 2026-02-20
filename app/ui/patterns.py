@@ -21,10 +21,10 @@ class UiStatusPattern:
 
 
 STATUS_PATTERNS: dict[str, UiStatusPattern] = {
-    "CONFIRMED": UiStatusPattern("Confirmado", "✅", "success"),
+    "CONFIRMED": UiStatusPattern("Confirmada", "✅", "success"),
     "PENDING": UiStatusPattern("Pendiente", "🕒", "pending"),
     "ERROR": UiStatusPattern("Error", "⛔", "error"),
-    "WARNING": UiStatusPattern("Aviso", "⚠", "warning"),
+    "WARNING": UiStatusPattern("Con avisos", "⚠", "warning"),
 }
 
 

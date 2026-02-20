@@ -105,7 +105,7 @@ class SyncController:
             has_failures = bool(report and (report.errors or report.conflicts))
             w.retry_failed_button.setEnabled(not w._sync_in_progress and has_failures)
         conflicts_total = w._conflicts_service.count_conflicts()
-        w.review_conflicts_button.setText("Ver conflictos" if conflicts_total > 0 else "Ver conflictos (sin pendientes)")
+        w.review_conflicts_button.setText("Revisar conflictos" if conflicts_total > 0 else "Revisar conflictos (sin pendientes)")
         w.review_conflicts_button.setEnabled(not w._sync_in_progress and conflicts_total > 0)
         if hasattr(w, "_update_conflicts_reminder"):
             w._update_conflicts_reminder()
@@ -123,5 +123,5 @@ class SyncController:
         if w._sync_service.is_configured():
             w.go_to_sync_config_button.setVisible(False)
             w._set_sync_status_badge("IDLE")
-            w.sync_panel_status.setText("Detalle: Sistema en espera.")
+            w.sync_panel_status.setText("Estado: Pendiente")
         self.update_sync_button_state()

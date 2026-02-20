@@ -28,13 +28,13 @@ def build_sync_report(
     finished = datetime.now().isoformat()
     warnings: list[str] = []
     if summary.duplicates_skipped > 0:
-        warnings.append(f"{summary.duplicates_skipped} filas omitidas por idempotencia (sin cambios).")
+        warnings.append(f"{summary.duplicates_skipped} solicitudes ya existían y no cambiaron.")
     if summary.omitted_by_delegada > 0:
         warnings.append(f"{summary.omitted_by_delegada} filas omitidas por filtro de delegada.")
 
     errors = []
     if summary.errors > 0:
-        errors.append(f"Se detectaron {summary.errors} errores durante la sincronización.")
+        errors.append(f"Error en {summary.errors} solicitudes durante la sincronización.")
 
     conflicts = []
     if summary.conflicts_detected > 0:
@@ -56,7 +56,7 @@ def build_sync_report(
         status=status,
         source=source,
         scope=scope,
-        idempotency_criteria="Clave única solicitud: delegada_uuid + fecha + tramo horario/completo.",
+        idempotency_criteria="Una solicitud por delegada, fecha y tramo.",
         actor=actor,
         counts={
             "created": summary.inserted_local + summary.inserted_remote,
@@ -148,7 +148,7 @@ def build_failed_report(
         status="ERROR",
         source=source,
         scope=scope,
-        idempotency_criteria="Clave única solicitud: delegada_uuid + fecha + tramo horario/completo.",
+        idempotency_criteria="Una solicitud por delegada, fecha y tramo.",
         actor=actor,
         counts={"created": 0, "updated": 0, "skipped": 0, "conflicts": 0, "errors": 1},
         errors=[error_message],
@@ -159,7 +159,7 @@ def build_failed_report(
                 section="Errores",
                 entity="Red",
                 message=error_message,
-                suggested_action="Revisar configuración/conectividad y reintentar solo fallidos.",
+                suggested_action="Revisa configuración o red. Reintenta solo fallidos.",
             ),
             SyncLogEntry(
                 timestamp=now,
@@ -195,7 +195,7 @@ def build_simulation_report(
                 severity="INFO",
                 section="Creaciones",
                 entity="Solicitud",
-                message=f"{item.uuid}: Nuevo registro",
+                message=f"{item.uuid}: Solicitud nueva",
             )
         )
     for item in plan.to_update:
@@ -226,7 +226,7 @@ def build_simulation_report(
                 section="Conflictos",
                 entity="Solicitud",
                 message=f"{item.uuid}: {item.reason}",
-                suggested_action="Resolver conflicto antes de sincronizar.",
+                suggested_action="Revisa el conflicto y vuelve a sincronizar.",
             )
         )
     for error in plan.potential_errors:
@@ -325,13 +325,13 @@ def to_markdown(report: SyncReport) -> str:
         f"- Idempotencia: {report.idempotency_criteria}",
         "",
         "## Resumen",
-        f"- Filas creadas: {report.counts.get('created', 0)}",
-        f"- Filas actualizadas: {report.counts.get('updated', 0)}",
-        f"- Filas omitidas (sin cambios): {report.counts.get('skipped', 0)}",
+        f"- Solicitudes creadas: {report.counts.get('created', 0)}",
+        f"- Solicitudes actualizadas: {report.counts.get('updated', 0)}",
+        f"- Solicitudes omitidas (sin cambios): {report.counts.get('skipped', 0)}",
         f"- Conflictos detectados: {report.counts.get('conflicts', 0)}",
         f"- Errores: {report.counts.get('errors', 0)}",
-        f"- Filas locales totales: {report.rows_total_local}",
-        f"- Filas remotas escaneadas: {report.rows_scanned_remote}",
+        f"- Solicitudes locales totales: {report.rows_total_local}",
+        f"- Solicitudes remotas revisadas: {report.rows_scanned_remote}",
         f"- Llamadas API: {report.api_calls_count}",
         f"- Reintentos: {report.retry_count}",
         f"- Conflictos (métrica): {report.conflicts_count}",
@@ -442,7 +442,7 @@ def _base_entries(
             section="Conflictos",
             entity="Solicitud",
             message=conflict,
-            suggested_action="Abrir registros afectados y marcar para revisión.",
+            suggested_action="Abre las solicitudes afectadas y revísalas.",
         )
         for conflict in conflicts
     )
