@@ -27,6 +27,7 @@ from app.domain.sheets_errors import (
     SheetsPermissionError,
     SheetsRateLimitError,
 )
+from app.ui.error_mapping import map_error_to_ui_message
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +127,7 @@ class OpcionesDialog(QDialog):
             destination = self._sheets_service.store_credentials(path)
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error copiando credenciales")
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_unknown_error(exc)
             return
         self.credentials_input.setText(str(destination))
         self._update_status()
@@ -138,11 +139,11 @@ class OpcionesDialog(QDialog):
                 self.credentials_input.text().strip(),
             )
         except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            QMessageBox.warning(self, "Validación", f"{str(exc)}\nCausa probable: Falta completar o corregir campos obligatorios.\nAcción recomendada: Revisa los campos marcados y vuelve a guardar.")
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error guardando configuración de Sheets")
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_unknown_error(exc)
             return
         QMessageBox.information(self, "Opciones", "Configuración guardada correctamente.")
         self._update_status()
@@ -154,7 +155,7 @@ class OpcionesDialog(QDialog):
                 self.credentials_input.text().strip(),
             )
         except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Validación", str(exc))
+            QMessageBox.warning(self, "Validación", f"{str(exc)}\nCausa probable: Falta completar o corregir campos obligatorios.\nAcción recomendada: Revisa los campos marcados y vuelve a guardar.")
             return
         except SheetsApiDisabledError:
             self._set_connection_error(
@@ -162,11 +163,10 @@ class OpcionesDialog(QDialog):
             )
             QMessageBox.critical(
                 self,
-                "Google Sheets API deshabilitada",
-                "La API de Google Sheets no está habilitada en tu proyecto de Google Cloud.\n\n"
-                "Solución: entra en Google Cloud Console → APIs & Services → Library → "
-                "Google Sheets API → Enable.\n\n"
-                "Después espera 2–5 minutos y vuelve a probar.",
+                "No se pudo validar la conexión",
+                "No se pudo validar la conexión.\n"
+                "Causa probable: La API de Google Sheets no está habilitada en Google Cloud.\n"
+                "Acción recomendada: Activa Google Sheets API y reintenta en 2-5 minutos.",
             )
             return
         except SheetsPermissionError:
@@ -175,38 +175,45 @@ class OpcionesDialog(QDialog):
             self._set_connection_error("Permisos insuficientes para acceder a la hoja.")
             QMessageBox.critical(
                 self,
-                "Permisos insuficientes",
-                "La hoja no está compartida con la cuenta de servicio.\n\n"
-                f"Comparte la hoja con: {email_hint} como Editor.",
+                "No se pudo validar la conexión",
+                "No se pudo validar la conexión.\n"
+                f"Causa probable: La hoja no está compartida con {email_hint}.\n"
+                "Acción recomendada: Comparte la hoja como Editor y reintenta.",
             )
             return
         except SheetsNotFoundError:
             self._set_connection_error("Hoja no encontrada.")
             QMessageBox.critical(
                 self,
-                "Hoja no encontrada",
-                "El Spreadsheet ID/URL no es válido o la hoja no existe.",
+                "No se pudo validar la conexión",
+                "No se pudo validar la conexión.\n"
+                "Causa probable: El Spreadsheet ID/URL es inválido o la hoja no existe.\n"
+                "Acción recomendada: Revisa el ID/URL y vuelve a probar.",
             )
             return
         except SheetsCredentialsError:
             self._set_connection_error("Credenciales inválidas.")
             QMessageBox.critical(
                 self,
-                "Credenciales inválidas",
-                "No se pueden leer las credenciales JSON seleccionadas.",
+                "No se pudo validar la conexión",
+                "No se pudo validar la conexión.\n"
+                "Causa probable: El archivo de credenciales JSON no es válido o no se puede leer.\n"
+                "Acción recomendada: Selecciona de nuevo las credenciales y reintenta.",
             )
             return
         except SheetsRateLimitError:
             self._set_connection_error("Límite temporal alcanzado.")
             QMessageBox.warning(
                 self,
-                "Límite de Google Sheets",
-                "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta.",
+                "Sincronización pausada",
+                "Sincronización pausada temporalmente.\n"
+                "Causa probable: Google Sheets aplicó un límite de peticiones.\n"
+                "Acción recomendada: Espera 1 minuto y vuelve a intentar la prueba.",
             )
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error probando conexión a Sheets")
-            QMessageBox.critical(self, "Error", str(exc))
+            self._show_unknown_error(exc)
             return
         extra = ""
         if result.schema_actions:
@@ -239,6 +246,12 @@ class OpcionesDialog(QDialog):
 
     def _set_connection_error(self, message: str) -> None:
         self.connection_status_label.setText(f"❌ Error: {message}")
+
+
+    def _show_unknown_error(self, exc: Exception) -> None:
+        logger.exception("Error técnico en configuración de Sheets", exc_info=exc)
+        mapped = map_error_to_ui_message(exc)
+        QMessageBox.critical(self, mapped.title, mapped.as_text())
 
     def _service_account_email(self) -> str | None:
         path = self.credentials_input.text().strip()

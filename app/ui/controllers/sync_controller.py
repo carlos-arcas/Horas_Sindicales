@@ -72,7 +72,7 @@ class SyncController:
             return
         if not w._sync_service.is_configured():
             w._set_config_incomplete_state()
-            w.toast.warning("No hay configuración de Google Sheets. Abre Opciones para configurarlo.", title="Sin configuración")
+            w.toast.warning("No se pudo iniciar la sincronización.\nCausa probable: Falta configurar Google Sheets.\nAcción recomendada: Pulsa Ir a configuración, guarda los datos y reintenta.", title="Sin configuración")
             return
         w._set_sync_in_progress(True)
         w._sync_thread = QThread()

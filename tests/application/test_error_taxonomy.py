@@ -19,4 +19,7 @@ def test_persistence_error_propagates_in_confirmar_sin_pdf(solicitud_use_cases, 
 def test_validation_error_uses_functional_message_in_ui_mapping() -> None:
     error = ValidationError("La fecha es obligatoria")
 
-    assert map_error_to_user_message(error) == "La fecha es obligatoria"
+    message = map_error_to_user_message(error)
+    assert message.startswith("La fecha es obligatoria")
+    assert "Causa probable:" in message
+    assert "Acción recomendada:" in message

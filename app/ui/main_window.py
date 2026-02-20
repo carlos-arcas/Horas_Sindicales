@@ -68,7 +68,7 @@ from app.ui.models_qt import SolicitudesTableModel
 from app.ui.historico_view import ESTADOS_HISTORICO, HistoricalViewModel
 from app.ui.conflicts_dialog import ConflictsDialog
 from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
-from app.ui.error_mapping import map_error_to_user_message
+from app.ui.error_mapping import UiErrorMessage, map_error_to_ui_message
 from app.ui.person_dialog import PersonaDialog
 from app.ui.style import apply_theme
 from app.ui.widgets.header import HeaderWidget
@@ -1636,7 +1636,10 @@ class MainWindow(QMainWindow):
         self._set_sync_in_progress(False)
         self._update_sync_button_state()
         error, details = self._normalize_sync_error(payload)
-        user_message = map_error_to_user_message(error)
+        if details:
+            logger.exception("Fallo técnico durante sincronización", exc_info=error)
+        user_error = map_error_to_ui_message(error)
+        user_message = user_error.as_text()
         report = build_failed_report(
             user_message,
             source=self._sync_source_text(),
@@ -2378,17 +2381,19 @@ class MainWindow(QMainWindow):
         self._sync_controller.update_sync_button_state()
 
     def _show_sync_error_dialog(self, error: Exception, details: str | None) -> None:
+        if details:
+            logger.error("Detalle técnico de sincronización: %s", details)
         title = "Error de sincronización"
         icon = QMessageBox.Critical
         if isinstance(error, SheetsApiDisabledError):
             self._show_message_with_details(
                 title,
-                "La API de Google Sheets no está habilitada en tu proyecto de Google Cloud.\n\n"
-                "Solución: entra en Google Cloud Console → APIs & Services → Library → "
-                "Google Sheets API → Enable.\n\n"
-                "Después espera 2–5 minutos y vuelve a probar.",
-                details,
+                "No se pudo sincronizar.\n"
+                "Causa probable: La API de Google Sheets no está habilitada en el proyecto de Google Cloud.\n"
+                "Acción recomendada: Actívala en Google Cloud Console y vuelve a reintentar en 2-5 minutos.",
+                None,
                 icon,
+                action_buttons=(("Ir a configuración", self._on_open_opciones), ("Reintentar", self._sync_controller.on_sync)),
             )
             return
         if isinstance(error, SheetsPermissionError):
@@ -2396,26 +2401,34 @@ class MainWindow(QMainWindow):
             email_hint = f"{email}" if email else "la cuenta de servicio"
             self._show_message_with_details(
                 title,
-                "La hoja no está compartida con la cuenta de servicio.\n\n"
-                f"Comparte la hoja con: {email_hint} como Editor.",
-                details,
+                "No se pudo sincronizar.\n"
+                f"Causa probable: La hoja no está compartida con {email_hint}.\n"
+                "Acción recomendada: Comparte la hoja como Editor y reintenta.",
+                None,
                 icon,
+                action_buttons=(("Ir a configuración", self._on_open_opciones), ("Reintentar", self._sync_controller.on_sync)),
             )
             return
         if isinstance(error, SheetsNotFoundError):
             self._show_message_with_details(
                 title,
-                "El Spreadsheet ID/URL no es válido o la hoja no existe.",
-                details,
+                "No se pudo sincronizar.\n"
+                "Causa probable: El Spreadsheet ID/URL es inválido o la hoja no existe.\n"
+                "Acción recomendada: Revisa el ID/URL en configuración y vuelve a intentarlo.",
+                None,
                 icon,
+                action_buttons=(("Ir a configuración", self._on_open_opciones),),
             )
             return
         if isinstance(error, SheetsCredentialsError):
             self._show_message_with_details(
                 title,
-                "No se pueden leer las credenciales JSON seleccionadas.",
-                details,
+                "No se pudo sincronizar.\n"
+                "Causa probable: La credencial JSON no es válida o no se puede leer.\n"
+                "Acción recomendada: Selecciona de nuevo el archivo de credenciales en configuración.",
+                None,
                 icon,
+                action_buttons=(("Ir a configuración", self._on_open_opciones),),
             )
             return
         if isinstance(error, SheetsRateLimitError):
@@ -2426,21 +2439,33 @@ class MainWindow(QMainWindow):
             )
             self._show_message_with_details(
                 title,
-                "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta.",
-                details,
+                "Sincronización pausada temporalmente.\n"
+                "Causa probable: Google Sheets aplicó límite de peticiones.\n"
+                "Acción recomendada: Espera 1 minuto y pulsa Reintentar.",
+                None,
                 QMessageBox.Warning,
+                action_buttons=(("Reintentar", self._sync_controller.on_sync),),
             )
             return
         if isinstance(error, SheetsConfigError):
             self._show_message_with_details(
                 title,
-                "No hay configuración de Google Sheets. Abre Opciones para configurarlo.",
-                details,
+                "No se pudo sincronizar.\n"
+                "Causa probable: Falta completar la configuración de Google Sheets.\n"
+                "Acción recomendada: Abre configuración, guarda credenciales e ID de hoja, y reintenta.",
+                None,
                 QMessageBox.Warning,
+                action_buttons=(("Ir a configuración", self._on_open_opciones),),
             )
             return
-        fallback_message = map_error_to_user_message(error)
-        self._show_message_with_details(title, fallback_message, details, icon)
+        fallback_message = map_error_to_ui_message(error)
+        self._show_message_with_details(
+            title,
+            fallback_message.as_text(),
+            None,
+            QMessageBox.Critical if fallback_message.severity == "blocking" else QMessageBox.Warning,
+            action_buttons=(("Reintentar", self._sync_controller.on_sync),),
+        )
 
     def _apply_sync_report(self, report) -> None:
         self._last_sync_report = report
@@ -2628,16 +2653,25 @@ class MainWindow(QMainWindow):
         message: str,
         details: str | None,
         icon: QMessageBox.Icon,
+        action_buttons: tuple[tuple[str, object], ...] = (),
     ) -> None:
         dialog = QMessageBox(self)
         dialog.setWindowTitle(title)
         dialog.setIcon(icon)
         dialog.setText(message)
+        action_mapping: dict[object, object] = {}
+        for label, callback in action_buttons:
+            button = dialog.addButton(label, QMessageBox.ActionRole)
+            action_mapping[button] = callback
         details_button = None
         if details:
             details_button = dialog.addButton("Ver detalles", QMessageBox.ActionRole)
         dialog.addButton("Cerrar", QMessageBox.AcceptRole)
         dialog.exec()
+        clicked_button = dialog.clickedButton()
+        if clicked_button in action_mapping:
+            action_mapping[clicked_button]()
+            return
         if details_button and dialog.clickedButton() == details_button:
             self._show_details_dialog(title, details)
 
@@ -2697,9 +2731,19 @@ class MainWindow(QMainWindow):
             self.statusBar().clearMessage()
 
     def _show_critical_error(self, error: Exception | str) -> None:
-        message = error if isinstance(error, str) else map_error_to_user_message(error)
+        if isinstance(error, str):
+            mapped = UiErrorMessage(
+                title=error,
+                probable_cause="Se produjo un problema no esperado durante la operación.",
+                recommended_action="Reintentar. Si persiste, contactar con soporte.",
+                severity="blocking",
+            )
+        else:
+            mapped = map_error_to_ui_message(error)
+            logger.exception("Error técnico capturado en UI", exc_info=error)
+        message = mapped.as_text()
         self.toast.error(message, title="Error")
-        QMessageBox.critical(self, "Error", message)
+        QMessageBox.critical(self, mapped.title, message)
 
     def _show_optional_notice(self, key: str, title: str, message: str) -> None:
         if bool(self._settings.value(key, False, type=bool)):
