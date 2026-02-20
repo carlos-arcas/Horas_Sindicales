@@ -70,7 +70,6 @@ from app.ui.conflicts_dialog import ConflictsDialog
 from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
 from app.ui.error_mapping import UiErrorMessage, map_error_to_ui_message
 from app.ui.person_dialog import PersonaDialog
-from app.ui.style import apply_theme
 from app.ui.patterns import apply_modal_behavior, build_modal_actions, status_badge, STATUS_PATTERNS
 from app.ui.widgets.header import HeaderWidget
 from app.ui.widgets.toast import ToastManager
@@ -290,9 +289,6 @@ class MainWindow(QMainWindow):
         alert_engine: AlertEngine | None = None,
     ) -> None:
         super().__init__()
-        app = QApplication.instance()
-        if app:
-            apply_theme(app)
         self._persona_use_cases = persona_use_cases
         self._solicitud_use_cases = solicitud_use_cases
         self._grupo_use_cases = grupo_use_cases
