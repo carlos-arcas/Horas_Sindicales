@@ -114,3 +114,34 @@ class SyncReport:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class SyncFieldDiff:
+    field: str
+    current_value: str
+    new_value: str
+
+
+@dataclass(frozen=True)
+class SyncPlanItem:
+    uuid: str
+    action: str
+    reason: str = ""
+    diffs: tuple[SyncFieldDiff, ...] = ()
+
+
+@dataclass(frozen=True)
+class SyncExecutionPlan:
+    generated_at: str
+    worksheet: str
+    to_create: tuple[SyncPlanItem, ...] = ()
+    to_update: tuple[SyncPlanItem, ...] = ()
+    unchanged: tuple[SyncPlanItem, ...] = ()
+    conflicts: tuple[SyncPlanItem, ...] = ()
+    potential_errors: tuple[str, ...] = ()
+    values_matrix: tuple[tuple[Any, ...], ...] = ()
+
+    @property
+    def has_changes(self) -> bool:
+        return bool(self.to_create or self.to_update)

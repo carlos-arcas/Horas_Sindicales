@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
-from app.domain.sync_models import SyncLogEntry, SyncReport, SyncSummary
+from app.domain.sync_models import SyncExecutionPlan, SyncLogEntry, SyncReport, SyncSummary
 
 
 def build_sync_report(
@@ -127,6 +127,100 @@ def build_failed_report(
         ],
     )
 
+
+
+def build_simulation_report(
+    plan: SyncExecutionPlan,
+    *,
+    source: str,
+    scope: str,
+    actor: str,
+) -> SyncReport:
+    now = datetime.now().isoformat()
+    entries: list[SyncLogEntry] = []
+    for item in plan.to_create:
+        entries.append(
+            SyncLogEntry(
+                timestamp=now,
+                severity="INFO",
+                section="Creaciones",
+                entity="Solicitud",
+                message=f"{item.uuid}: Nuevo registro",
+            )
+        )
+    for item in plan.to_update:
+        entries.append(
+            SyncLogEntry(
+                timestamp=now,
+                severity="INFO",
+                section="Actualizaciones",
+                entity="Solicitud",
+                message=f"{item.uuid}: {len(item.diffs)} campo(s) con cambios.",
+            )
+        )
+        for diff in item.diffs:
+            entries.append(
+                SyncLogEntry(
+                    timestamp=now,
+                    severity="INFO",
+                    section="Diff",
+                    entity="Solicitud",
+                    message=f"{item.uuid} | {diff.field} | actual: {diff.current_value} | nuevo: {diff.new_value}",
+                )
+            )
+    for item in plan.conflicts:
+        entries.append(
+            SyncLogEntry(
+                timestamp=now,
+                severity="WARN",
+                section="Conflictos",
+                entity="Solicitud",
+                message=f"{item.uuid}: {item.reason}",
+                suggested_action="Resolver conflicto antes de sincronizar.",
+            )
+        )
+    for error in plan.potential_errors:
+        entries.append(
+            SyncLogEntry(
+                timestamp=now,
+                severity="WARN",
+                section="Validaciones",
+                entity="SyncPlanner",
+                message=error,
+                suggested_action="Corregir dato y volver a simular.",
+            )
+        )
+    if not entries:
+        entries.append(
+            SyncLogEntry(
+                timestamp=now,
+                severity="INFO",
+                section="Operación",
+                entity="SyncPlanner",
+                message="No hay cambios que aplicar.",
+            )
+        )
+    status = "OK" if plan.has_changes else "IDLE"
+    return SyncReport(
+        started_at=plan.generated_at,
+        finished_at=now,
+        status=status,
+        source=source,
+        scope=scope,
+        idempotency_criteria="Plan inmutable generado por SyncPlanner antes de ejecutar SyncExecutor.",
+        actor=actor,
+        counts={
+            "created": len(plan.to_create),
+            "updated": len(plan.to_update),
+            "skipped": len(plan.unchanged),
+            "conflicts": len(plan.conflicts),
+            "errors": len(plan.potential_errors),
+        },
+        warnings=["Simulación sin escritura en Google Sheets."],
+        conflicts=[item.reason for item in plan.conflicts],
+        errors=list(plan.potential_errors),
+        entries=entries,
+    )
 
 def persist_report(report: SyncReport, root: Path) -> tuple[Path, Path]:
     logs_dir = root / "logs"

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Protocol, Iterable
 
-from app.domain.sync_models import SyncSummary
+from app.domain.sync_models import SyncExecutionPlan, SyncSummary
 from app.domain.models import GrupoConfig, Persona, SheetsConfig, Solicitud
 
 
@@ -205,6 +205,12 @@ class SheetsSyncPort(Protocol):
         ...
 
     def sync_bidirectional(self) -> SyncSummary:
+        ...
+
+    def simulate_sync_plan(self) -> SyncExecutionPlan:
+        ...
+
+    def execute_sync_plan(self, plan: SyncExecutionPlan) -> SyncSummary:
         ...
 
     def get_last_sync_at(self) -> str | None:
