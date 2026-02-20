@@ -8,6 +8,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from app.application.dto import SolicitudDTO
+from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.domain.time_utils import minutes_to_hhmm
 from app.ui.patterns import SPACING_BASE, apply_modal_behavior, build_modal_actions, status_badge
 from app.ui.widgets.toast import ToastManager
@@ -38,6 +39,7 @@ class ConfirmationSummaryPayload:
     status: str
     timestamp: str
     result_id: str
+    correlation_id: str | None = None
     on_view_history: Callable[[], None] | None = None
     on_sync_now: Callable[[], None] | None = None
     on_return_to_operativa: Callable[[], None] | None = None
@@ -88,6 +90,10 @@ class NotificationService:
     def _next_result_id(self) -> str:
         self._operation_counter += 1
         return f"OP-{self._operation_counter:04d}"
+
+    def build_operation_context(self, *, result_id: str | None = None) -> ContextoOperacion:
+        resolved_result_id = result_id or self._next_result_id()
+        return ContextoOperacion.nuevo(result_id=resolved_result_id)
 
     def _normalize_feedback(self, feedback: OperationFeedback) -> OperationFeedback:
         return OperationFeedback(
@@ -190,6 +196,7 @@ class NotificationService:
             status=status,
             timestamp=datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
             result_id=self._next_result_id(),
+            correlation_id=ContextoOperacion.nuevo().correlation_id,
         )
         self.show_confirmation_closure(payload)
 
@@ -220,6 +227,7 @@ class NotificationService:
             f"Saldo disponible: {payload.saldo_disponible}",
             f"Confirmado: {payload.timestamp}",
             f"Referencia: {payload.result_id}",
+            f"ID de incidente: {payload.correlation_id or 'No disponible'}",
         ]
         for line in summary_lines:
             label = QLabel(line)

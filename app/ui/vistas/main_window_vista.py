@@ -2279,7 +2279,12 @@ class MainWindow(QMainWindow):
         self._reload_pending_views()
         self._refresh_historico()
         self._refresh_saldos()
-        self._show_confirmation_closure(creadas, errores, operation_name="confirmar_sin_pdf")
+        self._show_confirmation_closure(
+            creadas,
+            errores,
+            operation_name="confirmar_sin_pdf",
+            correlation_id=operation.correlation_id,
+        )
         self._notify_historico_filter_if_hidden(creadas)
 
     def _on_confirmar(self) -> None:
@@ -2364,7 +2369,12 @@ class MainWindow(QMainWindow):
         self._reload_pending_views()
         self._refresh_historico()
         self._refresh_saldos()
-        self._show_confirmation_closure(creadas, errores, operation_name="confirmar_y_generar_pdf")
+        self._show_confirmation_closure(
+            creadas,
+            errores,
+            operation_name="confirmar_y_generar_pdf",
+            correlation_id=correlation_id,
+        )
         self._notify_historico_filter_if_hidden(creadas)
 
     def _sum_solicitudes_minutes(self, solicitudes: list[SolicitudDTO]) -> int:
@@ -2376,8 +2386,9 @@ class MainWindow(QMainWindow):
         errores: list[str],
         *,
         operation_name: str,
+        correlation_id: str | None = None,
     ) -> None:
-        payload = self._build_confirmation_payload(creadas, errores)
+        payload = self._build_confirmation_payload(creadas, errores, correlation_id=correlation_id)
         log_event(
             logger,
             "confirmation_closure_recorded",
@@ -2392,7 +2403,7 @@ class MainWindow(QMainWindow):
                 "errores": payload.errores,
                 "timestamp": payload.timestamp,
             },
-            payload.result_id,
+            payload.correlation_id or correlation_id or payload.result_id,
         )
         self.notifications.show_confirmation_closure(payload)
 
@@ -2400,6 +2411,8 @@ class MainWindow(QMainWindow):
         self,
         creadas: list[SolicitudDTO],
         errores: list[str],
+        *,
+        correlation_id: str | None = None,
     ) -> ConfirmationSummaryPayload:
         persona_nombres = {persona.id: persona.nombre for persona in self._personas if persona.id is not None}
         delegadas = sorted({persona_nombres.get(s.persona_id, f"ID {s.persona_id}") for s in creadas})
@@ -2419,6 +2432,7 @@ class MainWindow(QMainWindow):
             status=status,
             timestamp=datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
             result_id=f"CFM-{datetime.now().strftime('%y%m%d%H%M%S')}",
+            correlation_id=correlation_id,
             on_view_history=self._focus_historico_search,
             on_sync_now=self._on_push_now,
             on_return_to_operativa=lambda: self.main_tabs.setCurrentIndex(0),
@@ -2864,7 +2878,11 @@ class MainWindow(QMainWindow):
             )
         else:
             mapped = map_error_to_ui_message(error)
-            logger.exception("Error técnico capturado en UI", exc_info=error)
+            logger.exception(
+                "Error técnico capturado en UI",
+                exc_info=error,
+                extra={"correlation_id": mapped.incident_id},
+            )
         message = mapped.as_text()
         self.toast.error(message, title="Error")
         QMessageBox.critical(self, mapped.title, message)

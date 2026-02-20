@@ -4,7 +4,10 @@ from contextlib import AbstractContextManager
 from contextvars import ContextVar, Token
 from datetime import datetime, timezone
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.application.dtos.contexto_operacion import ContextoOperacion
 
 _CORRELATION_ID: ContextVar[str | None] = ContextVar("correlation_id", default=None)
 _RESULT_ID: ContextVar[str | None] = ContextVar("result_id", default=None)
@@ -39,15 +42,22 @@ def reset_result_id(token: Token[str | None]) -> None:
 
 
 class OperationContext(AbstractContextManager["OperationContext"]):
-    def __init__(self, operation_name: str) -> None:
+    def __init__(
+        self,
+        operation_name: str,
+        *,
+        correlation_id: str | None = None,
+        result_id: str | None = None,
+    ) -> None:
         self.operation_name = operation_name
-        self.correlation_id = generate_correlation_id()
+        self.correlation_id = correlation_id or generate_correlation_id()
+        self.result_id = result_id
         self._correlation_token: Token[str | None] | None = None
         self._result_token: Token[str | None] | None = None
 
     def __enter__(self) -> "OperationContext":
         self._correlation_token = set_correlation_id(self.correlation_id)
-        self._result_token = set_result_id(None)
+        self._result_token = set_result_id(self.result_id)
         return self
 
     def __exit__(self, exc_type: object, exc: object, exc_tb: object) -> None:
@@ -56,6 +66,18 @@ class OperationContext(AbstractContextManager["OperationContext"]):
         if self._correlation_token is not None:
             reset_correlation_id(self._correlation_token)
         return None
+
+
+def establecer_contexto(contexto: "ContextoOperacion") -> tuple[Token[str | None], Token[str | None]]:
+    correlation_token = set_correlation_id(contexto.correlation_id)
+    result_token = set_result_id(contexto.result_id)
+    return correlation_token, result_token
+
+
+def restaurar_contexto(tokens: tuple[Token[str | None], Token[str | None]]) -> None:
+    correlation_token, result_token = tokens
+    reset_result_id(result_token)
+    reset_correlation_id(correlation_token)
 
 
 def log_event(logger: Any, event_name: str, payload: dict[str, Any], correlation_id: str) -> dict[str, Any]:
