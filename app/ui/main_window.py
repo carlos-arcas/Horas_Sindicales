@@ -331,6 +331,7 @@ class MainWindow(QMainWindow):
         self._pdf_controller = PdfController(self._solicitud_use_cases)
         self.setWindowTitle("Horas Sindicales")
         self._build_ui()
+        self._validate_required_widgets()
         self.toast.attach_to(self)
         self._load_personas()
         self._reload_pending_views()
@@ -343,6 +344,24 @@ class MainWindow(QMainWindow):
         self._update_sync_button_state()
         self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
+
+    def _validate_required_widgets(self) -> None:
+        required_widgets = (
+            "persona_combo",
+            "fecha_input",
+            "desde_input",
+            "hasta_input",
+            "completo_check",
+            "agregar_button",
+            "pendientes_table",
+            "main_tabs",
+            "sync_source_label",
+            "sync_scope_label",
+            "sync_idempotency_label",
+        )
+        for widget_name in required_widgets:
+            if not hasattr(self, widget_name):
+                raise RuntimeError(f"MainWindow mal inicializada. Falta widget requerido: {widget_name}")
 
     def _create_card(self, title: str) -> tuple[QFrame, QVBoxLayout]:
         card = QFrame()
