@@ -355,6 +355,72 @@ class MainWindow(QMainWindow):
         card_layout.addWidget(separator)
         return card, card_layout
 
+    def _build_saldos_card(self) -> QFrame:
+        saldos_card, saldos_layout = self._create_card("Saldos detallados")
+        saldos_grid = QGridLayout()
+        saldos_grid.setHorizontalSpacing(10)
+        saldos_grid.setVerticalSpacing(8)
+
+        saldos_grid.addWidget(QLabel(""), 0, 0)
+        consumidas_header = QLabel("Consumidas")
+        consumidas_header.setProperty("role", "secondary")
+        saldos_grid.addWidget(consumidas_header, 0, 1)
+        restantes_header = QLabel("Restantes")
+        restantes_header.setProperty("role", "secondary")
+        saldos_grid.addWidget(restantes_header, 0, 2)
+
+        self.saldo_periodo_consumidas = self._build_saldo_field()
+        self.saldo_periodo_restantes = self._build_saldo_field()
+        self.saldo_anual_consumidas = self._build_saldo_field()
+        self.saldo_anual_restantes = self._build_saldo_field()
+        self.saldo_grupo_consumidas = self._build_saldo_field()
+        self.saldo_grupo_restantes = self._build_saldo_field()
+
+        self.saldo_periodo_label = QLabel("Mensual")
+        saldos_grid.addWidget(self.saldo_periodo_label, 1, 0)
+        saldos_grid.addWidget(self.saldo_periodo_consumidas, 1, 1)
+        saldos_grid.addWidget(self.saldo_periodo_restantes, 1, 2)
+
+        saldos_grid.addWidget(QLabel("Anual delegada"), 2, 0)
+        saldos_grid.addWidget(self.saldo_anual_consumidas, 2, 1)
+        saldos_grid.addWidget(self.saldo_anual_restantes, 2, 2)
+
+        saldos_grid.addWidget(QLabel("Anual grupo"), 3, 0)
+        saldos_grid.addWidget(self.saldo_grupo_consumidas, 3, 1)
+        saldos_grid.addWidget(self.saldo_grupo_restantes, 3, 2)
+        saldos_layout.addLayout(saldos_grid)
+
+        self.exceso_badge = QLabel("")
+        self.exceso_badge.setProperty("role", "badge")
+        self.exceso_badge.setVisible(False)
+        exceso_row = QHBoxLayout()
+        exceso_row.addStretch(1)
+        exceso_row.addWidget(self.exceso_badge)
+        saldos_layout.addLayout(exceso_row)
+
+        bolsas_separator = QFrame()
+        bolsas_separator.setProperty("role", "subtleSeparator")
+        bolsas_separator.setFixedHeight(1)
+        saldos_layout.addWidget(bolsas_separator)
+
+        bolsas_grid = QGridLayout()
+        bolsas_grid.setHorizontalSpacing(8)
+        bolsas_grid.setVerticalSpacing(6)
+        bolsas_grid.addWidget(QLabel("Bolsa mensual delegada"), 0, 0)
+        self.bolsa_mensual_label = QLabel("00:00")
+        self.bolsa_mensual_label.setProperty("role", "secondary")
+        bolsas_grid.addWidget(self.bolsa_mensual_label, 0, 1)
+        bolsas_grid.addWidget(QLabel("Bolsa anual delegada"), 1, 0)
+        self.bolsa_delegada_label = QLabel("00:00")
+        self.bolsa_delegada_label.setProperty("role", "secondary")
+        bolsas_grid.addWidget(self.bolsa_delegada_label, 1, 1)
+        bolsas_grid.addWidget(QLabel("Bolsa anual grupo"), 2, 0)
+        self.bolsa_grupo_label = QLabel("00:00")
+        self.bolsa_grupo_label.setProperty("role", "secondary")
+        bolsas_grid.addWidget(self.bolsa_grupo_label, 2, 1)
+        saldos_layout.addLayout(bolsas_grid)
+        return saldos_card
+
     def _build_ui(self) -> None:
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(True)
@@ -680,76 +746,6 @@ class MainWindow(QMainWindow):
         pendientes_layout.addLayout(pendientes_footer)
         left_column.addWidget(pendientes_card, 1)
 
-        right_column = QVBoxLayout()
-        right_column.setSpacing(14)
-        self._content_row.addLayout(right_column, 2)
-
-        saldos_card, saldos_layout = self._create_card("Resumen de saldos")
-        saldos_grid = QGridLayout()
-        saldos_grid.setHorizontalSpacing(10)
-        saldos_grid.setVerticalSpacing(8)
-
-        saldos_grid.addWidget(QLabel(""), 0, 0)
-        consumidas_header = QLabel("Consumidas")
-        consumidas_header.setProperty("role", "secondary")
-        saldos_grid.addWidget(consumidas_header, 0, 1)
-        restantes_header = QLabel("Restantes")
-        restantes_header.setProperty("role", "secondary")
-        saldos_grid.addWidget(restantes_header, 0, 2)
-
-        self.saldo_periodo_consumidas = self._build_saldo_field()
-        self.saldo_periodo_restantes = self._build_saldo_field()
-        self.saldo_anual_consumidas = self._build_saldo_field()
-        self.saldo_anual_restantes = self._build_saldo_field()
-        self.saldo_grupo_consumidas = self._build_saldo_field()
-        self.saldo_grupo_restantes = self._build_saldo_field()
-
-        self.saldo_periodo_label = QLabel("Mensual")
-        saldos_grid.addWidget(self.saldo_periodo_label, 1, 0)
-        saldos_grid.addWidget(self.saldo_periodo_consumidas, 1, 1)
-        saldos_grid.addWidget(self.saldo_periodo_restantes, 1, 2)
-
-        saldos_grid.addWidget(QLabel("Anual delegada"), 2, 0)
-        saldos_grid.addWidget(self.saldo_anual_consumidas, 2, 1)
-        saldos_grid.addWidget(self.saldo_anual_restantes, 2, 2)
-
-        saldos_grid.addWidget(QLabel("Anual grupo"), 3, 0)
-        saldos_grid.addWidget(self.saldo_grupo_consumidas, 3, 1)
-        saldos_grid.addWidget(self.saldo_grupo_restantes, 3, 2)
-        saldos_layout.addLayout(saldos_grid)
-
-        self.exceso_badge = QLabel("")
-        self.exceso_badge.setProperty("role", "badge")
-        self.exceso_badge.setVisible(False)
-        exceso_row = QHBoxLayout()
-        exceso_row.addStretch(1)
-        exceso_row.addWidget(self.exceso_badge)
-        saldos_layout.addLayout(exceso_row)
-
-        bolsas_separator = QFrame()
-        bolsas_separator.setProperty("role", "subtleSeparator")
-        bolsas_separator.setFixedHeight(1)
-        saldos_layout.addWidget(bolsas_separator)
-
-        bolsas_grid = QGridLayout()
-        bolsas_grid.setHorizontalSpacing(8)
-        bolsas_grid.setVerticalSpacing(6)
-        bolsas_grid.addWidget(QLabel("Bolsa mensual delegada"), 0, 0)
-        self.bolsa_mensual_label = QLabel("00:00")
-        self.bolsa_mensual_label.setProperty("role", "secondary")
-        bolsas_grid.addWidget(self.bolsa_mensual_label, 0, 1)
-        bolsas_grid.addWidget(QLabel("Bolsa anual delegada"), 1, 0)
-        self.bolsa_delegada_label = QLabel("00:00")
-        self.bolsa_delegada_label.setProperty("role", "secondary")
-        bolsas_grid.addWidget(self.bolsa_delegada_label, 1, 1)
-        bolsas_grid.addWidget(QLabel("Bolsa anual grupo"), 2, 0)
-        self.bolsa_grupo_label = QLabel("00:00")
-        self.bolsa_grupo_label.setProperty("role", "secondary")
-        bolsas_grid.addWidget(self.bolsa_grupo_label, 2, 1)
-        saldos_layout.addLayout(bolsas_grid)
-        right_column.addWidget(saldos_card)
-        right_column.addStretch(1)
-
         self.main_tabs.addTab(operativa_tab, "Operativa")
 
         historico_tab = QWidget()
@@ -757,11 +753,14 @@ class MainWindow(QMainWindow):
         historico_tab_layout.setContentsMargins(0, 0, 0, 0)
         historico_tab_layout.setSpacing(12)
         historico_help = QLabel(
-            "Consulta solicitudes con filtros de texto, fechas, estado y delegada para localizar casos en segundos."
+            "Consulta histórico completo, filtra por criterios clave y revisa saldos detallados sin distraer la captura."
         )
         historico_help.setWordWrap(True)
         historico_help.setProperty("role", "secondary")
         historico_tab_layout.addWidget(historico_help)
+
+        saldos_card = self._build_saldos_card()
+        historico_tab_layout.addWidget(saldos_card)
 
         # UX: el histórico se separa para inspección y reporting sin contaminar el flujo operativo.
         historico_card, historico_layout = self._create_card("Histórico")
@@ -866,7 +865,7 @@ class MainWindow(QMainWindow):
         historico_layout.addLayout(historico_actions)
         historico_tab_layout.addWidget(historico_card, 1)
 
-        self.main_tabs.addTab(historico_tab, "Histórico")
+        self.main_tabs.addTab(historico_tab, "Consulta")
 
         config_tab = QWidget()
         config_layout = QVBoxLayout(config_tab)
