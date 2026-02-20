@@ -313,3 +313,29 @@ La herramienta es funcional, pero todavía no alcanza el estándar de producto p
 - Se agregó prevención de duplicados antes de añadir (misma delegada + fecha + tramo), con opción de navegar a la pendiente existente.
 - Se añadió soporte mínimo de teclado: Enter en el último campo para CTA primario y Escape en resumen/modal.
 - Se reforzó el orden de foco del formulario en Operativa.
+
+## Mejoras aplicadas P1: Histórico
+
+- Se incorporó un modelo dedicado (`HistoricalViewModel`) para desacoplar **fuente de datos -> proxy de filtros/orden -> tabla**, mejorando legibilidad y rendimiento con volúmenes altos.
+- Filtros disponibles en la barra superior:
+  - Búsqueda por texto libre (concepto/notas/columnas visibles/delegada/estado).
+  - Rango de fechas `Desde` / `Hasta`.
+  - Atajo rápido **Últimos 30 días**.
+  - Estado (Todos / Pendiente / Confirmada).
+  - Delegada (Todas / delegada específica).
+  - Limpieza integral con **Limpiar filtros**.
+- El estado ahora se presenta de forma legible en columna dedicada con badge textual (ej. `✅ Confirmada`, `🕒 Pendiente`).
+- Ordenación activa por cabecera; orden por defecto: fecha descendente con desempate por hora descendente.
+- Acciones del histórico ahora son contextuales por selección:
+  - `Eliminar (n)`
+  - `Generar PDF (n)`
+  - `Ver detalle (n)`
+  - `Re-sincronizar (n)`
+- Se añadió diálogo de detalle para inspeccionar una fila completa sin depender de columnas extensas.
+- Accesibilidad y teclado:
+  - **Ctrl+F** enfoca la búsqueda del histórico.
+  - **Enter** abre detalle de la fila seleccionada.
+  - **Escape** limpia foco de búsqueda o selección activa.
+- Rendimiento:
+  - Filtrado implementado con `QSortFilterProxyModel` (sin barridos manuales por keypress).
+  - Búsqueda con debounce de 250ms para minimizar lag al escribir.

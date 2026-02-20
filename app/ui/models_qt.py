@@ -65,7 +65,12 @@ class PersonasTableModel(QAbstractTableModel):
 
 
 class SolicitudesTableModel(QAbstractTableModel):
-    def __init__(self, solicitudes: list[SolicitudDTO] | None = None) -> None:
+    def __init__(
+        self,
+        solicitudes: list[SolicitudDTO] | None = None,
+        *,
+        show_estado: bool = False,
+    ) -> None:
         super().__init__()
         self._solicitudes = solicitudes or []
         self._headers = [
@@ -77,11 +82,14 @@ class SolicitudesTableModel(QAbstractTableModel):
             "Notas",
         ]
         self._show_delegada = False
+        self._show_estado = show_estado
         self._persona_nombres: dict[int, str] = {}
         self._conflict_rows: set[int] = set()
 
     def _effective_headers(self) -> list[str]:
         headers = list(self._headers)
+        if self._show_estado:
+            headers.append("Estado")
         if self._show_delegada:
             headers.append("Delegada")
         return headers
@@ -122,7 +130,16 @@ class SolicitudesTableModel(QAbstractTableModel):
             return _format_minutes(int(round(solicitud.horas * 60)))
         if column == 5:
             return solicitud.notas or ""
-        if self._show_delegada and column == 6:
+
+        dynamic_column = 6
+        if self._show_estado and column == dynamic_column:
+            if solicitud.generated:
+                return "✅ Confirmada"
+            return "🕒 Pendiente"
+        if self._show_estado:
+            dynamic_column += 1
+
+        if self._show_delegada and column == dynamic_column:
             return self._persona_nombres.get(solicitud.persona_id, "(sin delegada)")
         return None
 
@@ -171,6 +188,9 @@ class SolicitudesTableModel(QAbstractTableModel):
         self.beginResetModel()
         self._show_delegada = show
         self.endResetModel()
+
+    def persona_name_for_id(self, persona_id: int) -> str:
+        return self._persona_nombres.get(persona_id, "")
 
     def set_persona_nombres(self, persona_nombres: dict[int, str]) -> None:
         self.beginResetModel()

@@ -7,8 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QUrl, Qt, QObject, Signal, Slot, QThread
-from PySide6.QtGui import QDesktopServices, QKeyEvent
+from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, QUrl, Qt, QObject, Signal, Slot, QThread
+from PySide6.QtGui import QDesktopServices, QKeyEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QBoxLayout,
     QCheckBox,
@@ -30,7 +30,6 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QProgressBar,
     QSizePolicy,
-    QSpinBox,
     QScrollArea,
     QStatusBar,
     QTabWidget,
@@ -38,6 +37,8 @@ from PySide6.QtWidgets import (
     QTimeEdit,
     QVBoxLayout,
     QWidget,
+    QDialogButtonBox,
+    QTextEdit,
 )
 
 from app.application.conflicts_service import ConflictsService
@@ -58,6 +59,7 @@ from app.domain.sheets_errors import (
     SheetsRateLimitError,
 )
 from app.ui.models_qt import SolicitudesTableModel
+from app.ui.historico_view import ESTADOS_HISTORICO, HistoricalViewModel
 from app.ui.conflicts_dialog import ConflictsDialog
 from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
 from app.ui.error_mapping import map_error_to_user_message
@@ -230,6 +232,25 @@ class PdfPreviewDialog(QDialog):
     @property
     def exported_path(self) -> Path | None:
         return self._last_pdf_path
+
+
+class HistoricoDetalleDialog(QDialog):
+    def __init__(self, payload: dict[str, str], parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Detalle de solicitud")
+        self.resize(560, 420)
+        layout = QVBoxLayout(self)
+
+        details = QTextEdit(self)
+        details.setReadOnly(True)
+        body = "\n".join(f"{key}: {value}" for key, value in payload.items())
+        details.setPlainText(body)
+        layout.addWidget(details, 1)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons.rejected.connect(self.reject)
+        buttons.accepted.connect(self.accept)
+        layout.addWidget(buttons)
 
 
 class MainWindow(QMainWindow):
@@ -634,7 +655,7 @@ class MainWindow(QMainWindow):
         historico_tab_layout.setContentsMargins(0, 0, 0, 0)
         historico_tab_layout.setSpacing(12)
         historico_help = QLabel(
-            "Consulta y depura solicitudes confirmadas aplicando filtros por periodo y año."
+            "Consulta solicitudes con filtros de texto, fechas, estado y delegada para localizar casos en segundos."
         )
         historico_help.setWordWrap(True)
         historico_help.setProperty("role", "secondary")
@@ -645,68 +666,98 @@ class MainWindow(QMainWindow):
         self._historico_group = historico_card
         historico_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        filtros_layout = QHBoxLayout()
-        filtros_layout.setSpacing(10)
-        self.periodo_modo_combo = QComboBox()
-        self.periodo_modo_combo.addItem("Año completo", "ANUAL")
-        self.periodo_modo_combo.addItem("Año + mes", "MENSUAL")
-        self.periodo_modo_combo.currentIndexChanged.connect(self._on_period_mode_changed)
-        filtros_layout.addWidget(QLabel("Periodo"))
-        filtros_layout.addWidget(self.periodo_modo_combo)
+        filtros_layout = QVBoxLayout()
+        filtros_layout.setSpacing(8)
 
-        self.year_input = QSpinBox()
-        self.year_input.setRange(2000, 2100)
-        self.year_input.setValue(QDate.currentDate().year())
-        self.year_input.valueChanged.connect(self._on_period_changed)
-        filtros_layout.addWidget(QLabel("Año"))
-        filtros_layout.addWidget(self.year_input)
+        filtros_row_1 = QHBoxLayout()
+        filtros_row_1.setSpacing(8)
+        self.historico_search_input = QLineEdit()
+        self.historico_search_input.setPlaceholderText("Buscar en concepto/notas/columnas…")
+        filtros_row_1.addWidget(QLabel("Buscar"))
+        filtros_row_1.addWidget(self.historico_search_input, 1)
 
-        self.month_label = QLabel("Mes")
-        self.month_combo = QComboBox()
-        for month_number, month_name in [
-            (1, "Enero"),
-            (2, "Febrero"),
-            (3, "Marzo"),
-            (4, "Abril"),
-            (5, "Mayo"),
-            (6, "Junio"),
-            (7, "Julio"),
-            (8, "Agosto"),
-            (9, "Septiembre"),
-            (10, "Octubre"),
-            (11, "Noviembre"),
-            (12, "Diciembre"),
-        ]:
-            self.month_combo.addItem(month_name, month_number)
-        self.month_combo.setCurrentIndex(QDate.currentDate().month() - 1)
-        self.month_combo.currentIndexChanged.connect(self._on_period_changed)
-        filtros_layout.addWidget(self.month_label)
-        filtros_layout.addWidget(self.month_combo)
-        filtros_layout.addStretch(1)
+        self.historico_estado_combo = QComboBox()
+        self.historico_estado_combo.addItem("Todos", None)
+        for estado in ESTADOS_HISTORICO.values():
+            self.historico_estado_combo.addItem(estado.label, estado.code)
+        filtros_row_1.addWidget(QLabel("Estado"))
+        filtros_row_1.addWidget(self.historico_estado_combo)
+
+        self.historico_delegada_combo = QComboBox()
+        self.historico_delegada_combo.addItem("Todas", None)
+        filtros_row_1.addWidget(QLabel("Delegada"))
+        filtros_row_1.addWidget(self.historico_delegada_combo)
+        filtros_layout.addLayout(filtros_row_1)
+
+        filtros_row_2 = QHBoxLayout()
+        filtros_row_2.setSpacing(8)
+        self.historico_desde_date = QDateEdit()
+        self.historico_desde_date.setCalendarPopup(True)
+        self.historico_desde_date.setDisplayFormat("yyyy-MM-dd")
+        self.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
+        filtros_row_2.addWidget(QLabel("Desde"))
+        filtros_row_2.addWidget(self.historico_desde_date)
+
+        self.historico_hasta_date = QDateEdit()
+        self.historico_hasta_date.setCalendarPopup(True)
+        self.historico_hasta_date.setDisplayFormat("yyyy-MM-dd")
+        self.historico_hasta_date.setDate(QDate.currentDate())
+        filtros_row_2.addWidget(QLabel("Hasta"))
+        filtros_row_2.addWidget(self.historico_hasta_date)
+
+        self.historico_last_30_button = QPushButton("Últimos 30 días")
+        self.historico_last_30_button.setProperty("variant", "secondary")
+        filtros_row_2.addWidget(self.historico_last_30_button)
+
+        self.historico_clear_filters_button = QPushButton("Limpiar filtros")
+        self.historico_clear_filters_button.setProperty("variant", "secondary")
+        filtros_row_2.addWidget(self.historico_clear_filters_button)
+        filtros_row_2.addStretch(1)
+        filtros_layout.addLayout(filtros_row_2)
         historico_layout.addLayout(filtros_layout)
 
         self.historico_table = QTableView()
-        self.historico_model = SolicitudesTableModel([])
-        self.historico_table.setModel(self.historico_model)
+        self.historico_view_model = HistoricalViewModel([])
+        self.historico_model = self.historico_view_model.source_model
+        self.historico_proxy_model = self.historico_view_model.proxy_model
+        self.historico_model.set_show_delegada(True)
+        self.historico_table.setModel(self.historico_proxy_model)
         self.historico_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.historico_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.historico_table.setSelectionMode(QAbstractItemView.MultiSelection)
         self.historico_table.selectionModel().selectionChanged.connect(self._on_historico_selection_changed)
+        self.historico_table.doubleClicked.connect(self._on_open_historico_detalle)
         self.historico_table.setShowGrid(False)
         self.historico_table.setAlternatingRowColors(True)
         self.historico_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.historico_table.setMinimumHeight(260)
         self._configure_solicitudes_table(self.historico_table)
+        self.historico_table.setSortingEnabled(True)
+        historico_header = self.historico_table.horizontalHeader()
+        historico_header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        historico_header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        historico_header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        historico_header.setSectionResizeMode(5, QHeaderView.Stretch)
         historico_layout.addWidget(self.historico_table, 1)
 
         historico_actions = QHBoxLayout()
         historico_actions.setSpacing(10)
         historico_actions.addStretch(1)
-        self.eliminar_button = QPushButton("Eliminar")
+        self.eliminar_button = QPushButton("Eliminar (0)")
         self.eliminar_button.setProperty("variant", "danger")
         self.eliminar_button.clicked.connect(self._on_eliminar)
         historico_actions.addWidget(self.eliminar_button)
 
-        self.generar_pdf_button = QPushButton("Generar PDF histórico")
+        self.ver_detalle_button = QPushButton("Ver detalle (0)")
+        self.ver_detalle_button.setProperty("variant", "secondary")
+        self.ver_detalle_button.clicked.connect(self._on_open_historico_detalle)
+        historico_actions.addWidget(self.ver_detalle_button)
+
+        self.resync_historico_button = QPushButton("Re-sincronizar (0)")
+        self.resync_historico_button.setProperty("variant", "secondary")
+        self.resync_historico_button.clicked.connect(self._on_resync_historico)
+        historico_actions.addWidget(self.resync_historico_button)
+
+        self.generar_pdf_button = QPushButton("Generar PDF (0)")
         self.generar_pdf_button.setProperty("variant", "secondary")
         self.generar_pdf_button.clicked.connect(self._on_generar_pdf_historico)
         historico_actions.addWidget(self.generar_pdf_button)
@@ -835,7 +886,26 @@ class MainWindow(QMainWindow):
         self._update_responsive_columns()
         self._configure_time_placeholders()
         self._configure_operativa_focus_order()
-        self._on_period_mode_changed()
+        self._historico_search_timer = QTimer(self)
+        self._historico_search_timer.setSingleShot(True)
+        self._historico_search_timer.setInterval(250)
+        self._historico_search_timer.timeout.connect(self._apply_historico_text_filter)
+        self.historico_search_input.textChanged.connect(lambda _: self._historico_search_timer.start())
+        self.historico_estado_combo.currentIndexChanged.connect(self._apply_historico_filters)
+        self.historico_delegada_combo.currentIndexChanged.connect(self._apply_historico_filters)
+        self.historico_desde_date.dateChanged.connect(self._apply_historico_filters)
+        self.historico_hasta_date.dateChanged.connect(self._apply_historico_filters)
+        self.historico_last_30_button.clicked.connect(self._apply_historico_last_30_days)
+        self.historico_clear_filters_button.clicked.connect(self._clear_historico_filters)
+
+        self._historico_find_shortcut = QShortcut(QKeySequence.Find, self)
+        self._historico_find_shortcut.activated.connect(self.historico_search_input.setFocus)
+        self._historico_detail_shortcut = QShortcut(QKeySequence(Qt.Key_Return), self.historico_table)
+        self._historico_detail_shortcut.activated.connect(self._on_open_historico_detalle)
+        self._historico_escape_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
+        self._historico_escape_shortcut.activated.connect(self._on_historico_escape)
+
+        self._apply_historico_filters()
         self._update_solicitud_preview()
         self._update_action_state()
 
@@ -889,9 +959,13 @@ class MainWindow(QMainWindow):
             self.fecha_input,
             self.desde_input,
             self.hasta_input,
-            self.periodo_modo_combo,
-            self.year_input,
-            self.month_combo,
+            self.historico_search_input,
+            self.historico_estado_combo,
+            self.historico_delegada_combo,
+            self.historico_desde_date,
+            self.historico_hasta_date,
+            self.historico_last_30_button,
+            self.historico_clear_filters_button,
             self.add_persona_button,
             self.edit_persona_button,
             self.edit_grupo_button,
@@ -904,6 +978,8 @@ class MainWindow(QMainWindow):
             self.confirmar_button,
             self.primary_cta_button,
             self.eliminar_button,
+            self.ver_detalle_button,
+            self.resync_historico_button,
             self.generar_pdf_button,
         ]
         for control in controls:
@@ -951,12 +1027,16 @@ class MainWindow(QMainWindow):
                 if self.persona_combo.itemData(index) == select_id:
                     self.persona_combo.setCurrentIndex(index)
                     break
-        self.pendientes_model.set_persona_nombres(
-            {int(persona.id): persona.nombre for persona in self._personas if persona.id is not None}
-        )
-        self.huerfanas_model.set_persona_nombres(
-            {int(persona.id): persona.nombre for persona in self._personas if persona.id is not None}
-        )
+        persona_nombres = {int(persona.id): persona.nombre for persona in self._personas if persona.id is not None}
+        self.pendientes_model.set_persona_nombres(persona_nombres)
+        self.huerfanas_model.set_persona_nombres(persona_nombres)
+        self.historico_model.set_persona_nombres(persona_nombres)
+        self.historico_delegada_combo.blockSignals(True)
+        self.historico_delegada_combo.clear()
+        self.historico_delegada_combo.addItem("Todas", None)
+        for persona_id, nombre in sorted(persona_nombres.items(), key=lambda item: item[1].lower()):
+            self.historico_delegada_combo.addItem(nombre, persona_id)
+        self.historico_delegada_combo.blockSignals(False)
         self._on_persona_changed()
 
     def _current_persona(self) -> PersonaDTO | None:
@@ -978,16 +1058,32 @@ class MainWindow(QMainWindow):
         self._refresh_saldos()
         self._update_solicitud_preview()
 
-    def _on_period_changed(self) -> None:
-        self._refresh_historico()
+    def _apply_historico_text_filter(self) -> None:
+        self.historico_proxy_model.set_search_text(self.historico_search_input.text())
+        self._update_action_state()
 
-    def _on_period_mode_changed(self) -> None:
-        modo = self.periodo_modo_combo.currentData()
-        is_mensual = modo == "MENSUAL"
-        self.month_combo.setEnabled(is_mensual)
-        self.month_combo.setVisible(is_mensual)
-        self.month_label.setVisible(is_mensual)
-        self._on_period_changed()
+    def _apply_historico_filters(self) -> None:
+        self.historico_proxy_model.set_date_range(self.historico_desde_date.date(), self.historico_hasta_date.date())
+        self.historico_proxy_model.set_estado_code(self.historico_estado_combo.currentData())
+        self.historico_proxy_model.set_delegada_id(self.historico_delegada_combo.currentData())
+        self._apply_historico_text_filter()
+
+    def _apply_historico_last_30_days(self) -> None:
+        self.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
+        self.historico_hasta_date.setDate(QDate.currentDate())
+        self._apply_historico_filters()
+
+    def _clear_historico_filters(self) -> None:
+        self.historico_search_input.clear()
+        self.historico_estado_combo.setCurrentIndex(0)
+        self.historico_delegada_combo.setCurrentIndex(0)
+        self._apply_historico_last_30_days()
+
+    def _on_historico_escape(self) -> None:
+        if self.historico_search_input.hasFocus():
+            self.historico_search_input.clearFocus()
+            return
+        self.historico_table.clearSelection()
 
     def _on_completo_changed(self, checked: bool) -> None:
         self._sync_completo_visibility(checked)
@@ -1049,14 +1145,14 @@ class MainWindow(QMainWindow):
         if summary.inserted_local <= 0:
             return
         persona = self._current_persona()
-        if persona is None or self.historico_model.rowCount() > 0:
+        if persona is None or self.historico_proxy_model.rowCount() > 0:
             return
         if persona.id is None:
             return
         solicitudes_persona = self._solicitud_use_cases.listar_solicitudes_por_persona(persona.id)
         if any(True for _ in solicitudes_persona):
             self.toast.info(
-                "Datos importados, pero no visibles por el filtro actual (año/periodo).",
+                "Datos importados, pero no visibles por los filtros actuales de histórico.",
                 title="Sincronización",
             )
 
@@ -1164,11 +1260,17 @@ class MainWindow(QMainWindow):
         self.delete_persona_button.setEnabled(persona_selected)
         self.edit_grupo_button.setEnabled(True)
         self.editar_pdf_button.setEnabled(True)
-        self.eliminar_button.setEnabled(persona_selected and self._selected_historico() is not None)
+        selected_historico = self._selected_historico_solicitudes()
+        self.eliminar_button.setEnabled(persona_selected and bool(selected_historico))
         self.eliminar_pendiente_button.setEnabled(bool(self._pending_solicitudes))
-        self.generar_pdf_button.setEnabled(
-            persona_selected and self.historico_model.rowCount() > 0
-        )
+        self.ver_detalle_button.setEnabled(persona_selected and len(selected_historico) == 1)
+        self.resync_historico_button.setEnabled(persona_selected and bool(selected_historico))
+        self.generar_pdf_button.setEnabled(persona_selected and bool(selected_historico))
+        selected_count = len(selected_historico)
+        self.eliminar_button.setText(f"Eliminar ({selected_count})")
+        self.ver_detalle_button.setText(f"Ver detalle ({selected_count})")
+        self.resync_historico_button.setText(f"Re-sincronizar ({selected_count})")
+        self.generar_pdf_button.setText(f"Generar PDF ({selected_count})")
 
         self.stepper_labels[1].setEnabled(form_valid)
         self.stepper_labels[1].setToolTip("" if form_valid else form_message or "Completa la solicitud para poder añadirla")
@@ -1266,10 +1368,20 @@ class MainWindow(QMainWindow):
         self._update_action_state()
 
     def _selected_historico(self) -> SolicitudDTO | None:
+        selected = self._selected_historico_solicitudes()
+        return selected[0] if selected else None
+
+    def _selected_historico_solicitudes(self) -> list[SolicitudDTO]:
         selection = self.historico_table.selectionModel().selectedRows()
         if not selection:
-            return None
-        return self.historico_model.solicitud_at(selection[0].row())
+            return []
+        solicitudes: list[SolicitudDTO] = []
+        for proxy_index in selection:
+            source_index = self.historico_proxy_model.mapToSource(proxy_index)
+            solicitud = self.historico_model.solicitud_at(source_index.row())
+            if solicitud is not None:
+                solicitudes.append(solicitud)
+        return solicitudes
 
     def _on_add_persona(self) -> None:
         dialog = PersonaDialog(self)
@@ -1394,9 +1506,13 @@ class MainWindow(QMainWindow):
             if model_solicitud is None:
                 continue
             if model_solicitud.id == solicitud.id:
-                self.historico_table.selectRow(row)
+                source_index = self.historico_model.index(row, 0)
+                proxy_index = self.historico_proxy_model.mapFromSource(source_index)
+                if not proxy_index.isValid():
+                    continue
+                self.historico_table.selectRow(proxy_index.row())
                 self.historico_table.scrollTo(
-                    self.historico_model.index(row, 0), QAbstractItemView.PositionAtCenter
+                    proxy_index, QAbstractItemView.PositionAtCenter
                 )
                 self.main_tabs.setCurrentIndex(1)
                 return
@@ -1826,7 +1942,13 @@ class MainWindow(QMainWindow):
         inserted_ids = {solicitud.id for solicitud in solicitudes_insertadas if solicitud.id is not None}
         if not inserted_ids:
             return
-        visibles_ids = {item.id for item in self.historico_model.solicitudes() if item.id is not None}
+        visibles_ids: set[int] = set()
+        for row in range(self.historico_proxy_model.rowCount()):
+            proxy_index = self.historico_proxy_model.index(row, 0)
+            source_index = self.historico_proxy_model.mapToSource(proxy_index)
+            solicitud = self.historico_model.solicitud_at(source_index.row())
+            if solicitud and solicitud.id is not None:
+                visibles_ids.add(solicitud.id)
         if inserted_ids.issubset(visibles_ids):
             return
         logger.info(
@@ -1866,12 +1988,12 @@ class MainWindow(QMainWindow):
         persona = self._current_persona()
         if persona is None:
             return
-        filtro = self._current_periodo_filtro()
-        if self.historico_model.rowCount() == 0:
+        selected = self._selected_historico_solicitudes()
+        if not selected:
             self.toast.info("No hay solicitudes para exportar.", title="Histórico")
             return
         try:
-            default_name = self._pdf_controller.sugerir_nombre_historico(filtro)
+            default_name = self._solicitud_use_cases.sugerir_nombre_pdf(selected)
         except (ValidacionError, BusinessRuleError) as exc:
             self.toast.warning(str(exc), title="Validación")
             return
@@ -1884,11 +2006,11 @@ class MainWindow(QMainWindow):
                 log_event(
                     logger,
                     "exportar_historico_pdf_started",
-                    {"persona_id": persona.id or 0, "modo": filtro.modo},
+                    {"persona_id": persona.id or 0, "count": len(selected)},
                     operation.correlation_id,
                 )
-                pdf = self._solicitud_use_cases.exportar_historico_pdf(
-                    persona.id or 0, filtro, target, correlation_id=operation.correlation_id
+                pdf = self._solicitud_use_cases.generar_pdf_historico(
+                    selected, target, correlation_id=operation.correlation_id
                 )
                 log_event(logger, "exportar_historico_pdf_finished", {"path": str(pdf)}, operation.correlation_id)
                 return pdf
@@ -1911,14 +2033,15 @@ class MainWindow(QMainWindow):
             )
 
     def _on_eliminar(self) -> None:
-        solicitud = self._selected_historico()
-        if solicitud is None or solicitud.id is None:
+        seleccionadas = [sol for sol in self._selected_historico_solicitudes() if sol.id is not None]
+        if not seleccionadas:
             return
         try:
-            with OperationContext("eliminar_solicitud") as operation:
-                self._solicitud_use_cases.eliminar_solicitud(
-                    solicitud.id, correlation_id=operation.correlation_id
-                )
+            for solicitud in seleccionadas:
+                with OperationContext("eliminar_solicitud") as operation:
+                    self._solicitud_use_cases.eliminar_solicitud(
+                        solicitud.id or 0, correlation_id=operation.correlation_id
+                    )
         except (ValidacionError, BusinessRuleError) as exc:
             self.toast.warning(str(exc), title="Validación")
             return
@@ -1950,19 +2073,14 @@ class MainWindow(QMainWindow):
         self._refresh_saldos()
 
     def _refresh_historico(self) -> None:
-        persona = self._current_persona()
-        if persona is None:
-            self.historico_model.set_solicitudes([])
-            return
-        filtro = self._current_periodo_filtro()
-        solicitudes = list(
-            self._solicitud_use_cases.listar_solicitudes_por_persona_y_periodo(
-                persona.id or 0,
-                filtro.year,
-                filtro.month,
-            )
-        )
+        solicitudes: list[SolicitudDTO] = []
+        for persona in self._personas:
+            if persona.id is None:
+                continue
+            solicitudes.extend(self._solicitud_use_cases.listar_solicitudes_por_persona(persona.id))
         self.historico_model.set_solicitudes(solicitudes)
+        self.historico_table.sortByColumn(0, Qt.DescendingOrder)
+        self._apply_historico_filters()
         self._update_action_state()
 
     def _refresh_saldos(self) -> None:
@@ -2038,12 +2156,35 @@ class MainWindow(QMainWindow):
     def _on_historico_selection_changed(self) -> None:
         self._update_action_state()
 
-    def _current_periodo_filtro(self) -> PeriodoFiltro:
-        year = self.year_input.value()
-        modo = self.periodo_modo_combo.currentData()
-        if modo == "ANUAL":
-            return PeriodoFiltro.anual(year)
-        return PeriodoFiltro.mensual(year, self.month_combo.currentData())
+    def _on_open_historico_detalle(self) -> None:
+        solicitud = self._selected_historico()
+        if solicitud is None:
+            return
+        estado = "Confirmada" if solicitud.generated else "Pendiente"
+        payload = {
+            "ID": str(solicitud.id or "-"),
+            "Delegada": self.historico_model.persona_name_for_id(solicitud.persona_id) or str(solicitud.persona_id),
+            "Fecha solicitada": solicitud.fecha_solicitud,
+            "Fecha pedida": solicitud.fecha_pedida,
+            "Desde": solicitud.desde or "-",
+            "Hasta": solicitud.hasta or "-",
+            "Completo": "Sí" if solicitud.completo else "No",
+            "Horas": str(solicitud.horas),
+            "Estado": estado,
+            "Observaciones": solicitud.observaciones or "",
+            "Notas": solicitud.notas or "",
+        }
+        dialog = HistoricoDetalleDialog(payload, self)
+        dialog.exec()
+
+    def _on_resync_historico(self) -> None:
+        selected_count = len(self._selected_historico_solicitudes())
+        if selected_count == 0:
+            return
+        self.toast.info(
+            f"Re-sincronización preparada para {selected_count} solicitud(es). Ejecuta Sincronizar para completar.",
+            title="Histórico",
+        )
 
     def _current_saldo_filtro(self) -> PeriodoFiltro:
         periodo_base = self.fecha_input.date() if hasattr(self, "fecha_input") else QDate.currentDate()
