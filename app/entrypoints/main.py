@@ -6,7 +6,7 @@ import logging
 import sys
 from pathlib import Path
 
-from app.bootstrap.logging import configure_logging, install_exception_hook
+from app.bootstrap.logging import CRASH_LOG_NAME, configure_logging, install_exception_hook
 from app.bootstrap.settings import project_root, resolve_log_dir
 from app.entrypoints.ui_main import run_ui
 
@@ -37,8 +37,8 @@ def _run_selfcheck(log_dir: Path) -> int:
         logger.info("Logo encontrado en: %s", existing)
 
     if errors:
-        crash_path = log_dir / "crash.log"
-        logger.error("Selfcheck fallo con %s error(es). Verifica recursos. crash.log=%s", errors, crash_path)
+        crash_path = log_dir / CRASH_LOG_NAME
+        logger.error("Selfcheck fallo con %s error(es). Verifica recursos. crashes.log=%s", errors, crash_path)
         return 1
     logger.info("Selfcheck OK.")
     return 0
