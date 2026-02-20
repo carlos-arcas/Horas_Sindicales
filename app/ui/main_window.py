@@ -79,6 +79,7 @@ from app.ui.controllers.solicitudes_controller import SolicitudesController
 from app.ui.controllers.sync_controller import SyncController
 from app.ui.controllers.pdf_controller import PdfController
 from app.ui.notification_service import ConfirmationSummaryPayload, NotificationService, OperationFeedback
+from app.ui.components.saldos_card import SaldosCard
 from app.ui.sync_reporting import (
     build_config_incomplete_report,
     build_failed_report,
@@ -329,19 +330,7 @@ class MainWindow(QMainWindow):
         self.status_sync_label: QLabel | None = None
         self.status_sync_progress: QProgressBar | None = None
         self.status_pending_label: QLabel | None = None
-        self.saldos_details_button: QPushButton | None = None
-        self.saldos_details_content: QWidget | None = None
-        self.saldo_periodo_label: QLabel | None = None
-        self.saldo_periodo_consumidas: QLabel | None = None
-        self.saldo_periodo_restantes: QLabel | None = None
-        self.saldo_grupo_consumidas: QLabel | None = None
-        self.saldo_grupo_restantes: QLabel | None = None
-        self.saldo_anual_consumidas: QLabel | None = None
-        self.saldo_anual_restantes: QLabel | None = None
-        self.exceso_badge: QLabel | None = None
-        self.bolsa_mensual_label: QLabel | None = None
-        self.bolsa_delegada_label: QLabel | None = None
-        self.bolsa_grupo_label: QLabel | None = None
+        self.saldos_card: SaldosCard | None = None
         self.horas_input: object | None = None
         self.toast = ToastManager()
         self.notifications = NotificationService(self.toast, self)
@@ -419,83 +408,6 @@ class MainWindow(QMainWindow):
 
         button.toggled.connect(_toggle)
         _toggle(False)
-
-    def _build_saldos_card(self) -> QFrame:
-        saldos_card, saldos_layout = self._create_card("Saldos detallados")
-        self.saldos_details_button = QPushButton("Ver detalles")
-        self.saldos_details_button.setProperty("variant", "secondary")
-        saldos_layout.addWidget(self.saldos_details_button)
-
-        self.saldos_details_content = QWidget()
-        saldos_details_layout = QVBoxLayout(self.saldos_details_content)
-        saldos_details_layout.setContentsMargins(0, 0, 0, 0)
-        saldos_details_layout.setSpacing(8)
-
-        saldos_grid = QGridLayout()
-        saldos_grid.setHorizontalSpacing(10)
-        saldos_grid.setVerticalSpacing(8)
-
-        saldos_grid.addWidget(QLabel(""), 0, 0)
-        consumidas_header = QLabel("Consumidas")
-        consumidas_header.setProperty("role", "secondary")
-        saldos_grid.addWidget(consumidas_header, 0, 1)
-        restantes_header = QLabel("Restantes")
-        restantes_header.setProperty("role", "secondary")
-        saldos_grid.addWidget(restantes_header, 0, 2)
-
-        self.saldo_periodo_consumidas = self._build_saldo_field()
-        self.saldo_periodo_restantes = self._build_saldo_field()
-        self.saldo_anual_consumidas = self._build_saldo_field()
-        self.saldo_anual_restantes = self._build_saldo_field()
-        self.saldo_grupo_consumidas = self._build_saldo_field()
-        self.saldo_grupo_restantes = self._build_saldo_field()
-
-        self.saldo_periodo_label = QLabel("Mensual")
-        saldos_grid.addWidget(self.saldo_periodo_label, 1, 0)
-        saldos_grid.addWidget(self.saldo_periodo_consumidas, 1, 1)
-        saldos_grid.addWidget(self.saldo_periodo_restantes, 1, 2)
-
-        saldos_grid.addWidget(QLabel("Anual delegada"), 2, 0)
-        saldos_grid.addWidget(self.saldo_anual_consumidas, 2, 1)
-        saldos_grid.addWidget(self.saldo_anual_restantes, 2, 2)
-
-        saldos_grid.addWidget(QLabel("Anual grupo"), 3, 0)
-        saldos_grid.addWidget(self.saldo_grupo_consumidas, 3, 1)
-        saldos_grid.addWidget(self.saldo_grupo_restantes, 3, 2)
-        saldos_details_layout.addLayout(saldos_grid)
-
-        self.exceso_badge = QLabel("")
-        self.exceso_badge.setProperty("role", "badge")
-        self.exceso_badge.setVisible(False)
-        exceso_row = QHBoxLayout()
-        exceso_row.addStretch(1)
-        exceso_row.addWidget(self.exceso_badge)
-        saldos_details_layout.addLayout(exceso_row)
-
-        bolsas_separator = QFrame()
-        bolsas_separator.setProperty("role", "subtleSeparator")
-        bolsas_separator.setFixedHeight(1)
-        saldos_details_layout.addWidget(bolsas_separator)
-
-        bolsas_grid = QGridLayout()
-        bolsas_grid.setHorizontalSpacing(8)
-        bolsas_grid.setVerticalSpacing(6)
-        bolsas_grid.addWidget(QLabel("Bolsa mensual delegada"), 0, 0)
-        self.bolsa_mensual_label = QLabel("00:00")
-        self.bolsa_mensual_label.setProperty("role", "secondary")
-        bolsas_grid.addWidget(self.bolsa_mensual_label, 0, 1)
-        bolsas_grid.addWidget(QLabel("Bolsa anual delegada"), 1, 0)
-        self.bolsa_delegada_label = QLabel("00:00")
-        self.bolsa_delegada_label.setProperty("role", "secondary")
-        bolsas_grid.addWidget(self.bolsa_delegada_label, 1, 1)
-        bolsas_grid.addWidget(QLabel("Bolsa anual grupo"), 2, 0)
-        self.bolsa_grupo_label = QLabel("00:00")
-        self.bolsa_grupo_label.setProperty("role", "secondary")
-        bolsas_grid.addWidget(self.bolsa_grupo_label, 2, 1)
-        saldos_details_layout.addLayout(bolsas_grid)
-        saldos_layout.addWidget(self.saldos_details_content)
-        self._configure_disclosure(self.saldos_details_button, self.saldos_details_content)
-        return saldos_card
 
     def _build_ui(self) -> None:
         self._create_widgets()
@@ -880,8 +792,8 @@ class MainWindow(QMainWindow):
         historico_help.setProperty("role", "secondary")
         historico_tab_layout.addWidget(historico_help)
 
-        saldos_card = self._build_saldos_card()
-        historico_tab_layout.addWidget(saldos_card)
+        self.saldos_card = SaldosCard()
+        historico_tab_layout.addWidget(self.saldos_card)
 
         # UX: el histórico se separa para inspección y reporting sin contaminar el flujo operativo.
         historico_card, historico_layout = self._create_card("Histórico")
@@ -1385,14 +1297,6 @@ class MainWindow(QMainWindow):
             self._content_row.setDirection(QBoxLayout.LeftToRight)
             self._content_row.setStretch(0, 3)
             self._content_row.setStretch(1, 2)
-
-    def _build_saldo_field(self) -> QLineEdit:
-        field = QLineEdit("00:00")
-        field.setReadOnly(True)
-        field.setFocusPolicy(Qt.NoFocus)
-        field.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        field.setProperty("role", "saldo")
-        return field
 
     def _load_personas(self, select_id: int | None = None) -> None:
         self.persona_combo.blockSignals(True)
@@ -2552,7 +2456,7 @@ class MainWindow(QMainWindow):
             count=len(creadas),
             total_minutes=self._sum_solicitudes_minutes(creadas),
             delegadas=delegadas,
-            saldo_disponible=self.saldo_periodo_restantes.text(),
+            saldo_disponible=self.saldos_card.saldo_periodo_restante_text(),
             errores=errores,
             status=status,
             timestamp=datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
@@ -3211,7 +3115,7 @@ class MainWindow(QMainWindow):
         self._set_saldos_labels(resumen)
 
     def _update_periodo_label(self) -> None:
-        self.saldo_periodo_label.setText("Mensual")
+        self.saldos_card.update_periodo_label("Mensual")
 
     def _set_saldos_labels(
         self,
@@ -3219,51 +3123,7 @@ class MainWindow(QMainWindow):
         pendientes_periodo: int = 0,
         pendientes_ano: int = 0,
     ) -> None:
-        if resumen is None:
-            self._set_saldo_line(self.saldo_periodo_consumidas, self.saldo_periodo_restantes, 0, 0)
-            self._set_saldo_line(self.saldo_anual_consumidas, self.saldo_anual_restantes, 0, 0)
-            self._set_saldo_line(self.saldo_grupo_consumidas, self.saldo_grupo_restantes, 0, 0)
-            self._set_bolsa_labels(0, 0, 0)
-            self.exceso_badge.setVisible(False)
-            return
-        consumidas_periodo = resumen.individual.consumidas_periodo_min
-        bolsa_periodo = resumen.individual.bolsa_periodo_min
-        restantes_periodo = bolsa_periodo - consumidas_periodo
-
-        consumidas_anual = resumen.individual.consumidas_anual_min
-        bolsa_anual = resumen.individual.bolsa_anual_min
-        restantes_anual = bolsa_anual - consumidas_anual
-
-        consumidas_grupo = resumen.grupo_anual.consumidas_anual_min
-        bolsa_grupo = resumen.grupo_anual.bolsa_anual_grupo_min
-        restantes_grupo = bolsa_grupo - consumidas_grupo
-
-        self._set_saldo_line(
-            self.saldo_periodo_consumidas,
-            self.saldo_periodo_restantes,
-            consumidas_periodo,
-            restantes_periodo,
-        )
-        self._set_saldo_line(
-            self.saldo_anual_consumidas,
-            self.saldo_anual_restantes,
-            consumidas_anual,
-            restantes_anual,
-        )
-        self._set_saldo_line(
-            self.saldo_grupo_consumidas,
-            self.saldo_grupo_restantes,
-            consumidas_grupo,
-            restantes_grupo,
-        )
-        self._set_bolsa_labels(bolsa_periodo, bolsa_anual, bolsa_grupo)
-
-        exceso = min(restantes_periodo, restantes_anual, restantes_grupo)
-        if exceso < 0:
-            self.exceso_badge.setText(f"Exceso {self._format_minutes(abs(exceso))}")
-            self.exceso_badge.setVisible(True)
-        else:
-            self.exceso_badge.setVisible(False)
+        self.saldos_card.update_saldos(resumen, pendientes_periodo, pendientes_ano)
 
     def _on_historico_selection_changed(self) -> None:
         self._update_action_state()
@@ -3407,36 +3267,6 @@ class MainWindow(QMainWindow):
             return
         self._solicitud_use_cases.eliminar_solicitud(solicitud.id)
         self._reload_pending_views()
-
-    def _set_saldo_line(
-        self,
-        consumidas_field: QLineEdit,
-        restantes_field: QLineEdit,
-        consumidas: int,
-        restantes: int,
-    ) -> None:
-        consumidas_field.setText(self._format_minutes(consumidas))
-        restantes_text, warning = self._format_restantes(restantes)
-        restantes_field.setText(restantes_text)
-        self._set_warning_state(restantes_field, warning)
-
-    def _set_warning_state(self, field: QLineEdit, warning: bool) -> None:
-        field.setProperty("status", "warning" if warning else None)
-        field.style().unpolish(field)
-        field.style().polish(field)
-        field.update()
-
-    def _set_bolsa_labels(
-        self, bolsa_mensual: int, bolsa_delegada: int, bolsa_grupo: int
-    ) -> None:
-        self.bolsa_mensual_label.setText(self._format_minutes(bolsa_mensual))
-        self.bolsa_delegada_label.setText(self._format_minutes(bolsa_delegada))
-        self.bolsa_grupo_label.setText(self._format_minutes(bolsa_grupo))
-
-    def _format_restantes(self, minutos: int) -> tuple[str, bool]:
-        if minutos < 0:
-            return f"Exceso {minutes_to_hhmm(abs(minutos))}", True
-        return self._format_minutes(minutos), False
 
     def _confirm_conflicto(self, mensaje: str) -> bool:
         return (
