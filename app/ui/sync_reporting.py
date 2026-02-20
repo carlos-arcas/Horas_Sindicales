@@ -20,6 +20,9 @@ def build_sync_report(
     started_at: str | None = None,
     sync_id: str | None = None,
     attempt_history: tuple[SyncAttemptReport, ...] = (),
+    rows_total_local: int = 0,
+    rows_scanned_remote: int = 0,
+    api_calls_count: int = 0,
 ) -> SyncReport:
     started = started_at or datetime.now().isoformat()
     finished = datetime.now().isoformat()
@@ -38,11 +41,17 @@ def build_sync_report(
         conflicts.append(f"Se detectaron {summary.conflicts_detected} conflictos.")
 
     entries = _base_entries(summary, warnings=warnings, errors=errors, conflicts=conflicts, details=details, finished=finished)
+    started_dt = datetime.fromisoformat(started)
+    finished_dt = datetime.fromisoformat(finished)
+    duration_ms = max(0, int((finished_dt - started_dt).total_seconds() * 1000))
+    attempts = max(1, len(attempt_history) or 1)
+    total_operations = summary.inserted_local + summary.updated_local + summary.inserted_remote + summary.updated_remote
+    success_rate = 1.0 if total_operations == 0 else max(0.0, (total_operations - summary.errors) / total_operations)
     return SyncReport(
         sync_id=sync_id or str(uuid.uuid4()),
         started_at=started,
         finished_at=finished,
-        attempts=max(1, len(attempt_history) or 1),
+        attempts=attempts,
         final_status=status,
         status=status,
         source=source,
@@ -64,6 +73,14 @@ def build_sync_report(
             f"Sheets: +{summary.inserted_remote} / ~{summary.updated_remote}",
         ],
         entries=entries,
+        duration_ms=duration_ms,
+        rows_total_local=rows_total_local,
+        rows_scanned_remote=rows_scanned_remote,
+        api_calls_count=api_calls_count,
+        retry_count=max(0, attempts - 1),
+        conflicts_count=summary.conflicts_detected,
+        error_count=summary.errors,
+        success_rate=success_rate,
         attempt_history=attempt_history
         or (
             SyncAttemptReport(
@@ -104,6 +121,8 @@ def build_config_incomplete_report(source: str, scope: str, actor: str) -> SyncR
         ],
         errors=["Configuración incompleta."],
         counts={"created": 0, "updated": 0, "skipped": 0, "conflicts": 0, "errors": 1},
+        error_count=1,
+        success_rate=0.0,
     )
 
 
@@ -150,6 +169,9 @@ def build_failed_report(
                 message=details or "Sin detalle adicional.",
             ),
         ],
+        duration_ms=max(0, int((datetime.fromisoformat(now) - datetime.fromisoformat(start)).total_seconds() * 1000)),
+        error_count=1,
+        success_rate=0.0,
         attempt_history=attempt_history or (SyncAttemptReport(attempt_number=1, status="ERROR", errors=1),),
     )
 
@@ -251,6 +273,12 @@ def build_simulation_report(
         conflicts=[item.reason for item in plan.conflicts],
         errors=list(plan.potential_errors),
         entries=entries,
+        duration_ms=max(0, int((datetime.fromisoformat(now) - datetime.fromisoformat(plan.generated_at)).total_seconds() * 1000)),
+        rows_scanned_remote=len(plan.values_matrix),
+        retry_count=max(0, len(attempt_history) - 1),
+        conflicts_count=len(plan.conflicts),
+        error_count=len(plan.potential_errors),
+        success_rate=1.0 if not plan.potential_errors else 0.5,
         attempt_history=attempt_history
         or (
             SyncAttemptReport(
@@ -290,6 +318,7 @@ def to_markdown(report: SyncReport) -> str:
         f"- Estado: **{report.status}**",
         f"- Inicio: {report.started_at}",
         f"- Fin: {report.finished_at}",
+        f"- Duración: {report.duration_ms} ms",
         f"- Actor: {report.actor}",
         f"- Fuente: {report.source}",
         f"- Alcance: {report.scope}",
@@ -301,6 +330,13 @@ def to_markdown(report: SyncReport) -> str:
         f"- Filas omitidas (sin cambios): {report.counts.get('skipped', 0)}",
         f"- Conflictos detectados: {report.counts.get('conflicts', 0)}",
         f"- Errores: {report.counts.get('errors', 0)}",
+        f"- Filas locales totales: {report.rows_total_local}",
+        f"- Filas remotas escaneadas: {report.rows_scanned_remote}",
+        f"- Llamadas API: {report.api_calls_count}",
+        f"- Reintentos: {report.retry_count}",
+        f"- Conflictos (métrica): {report.conflicts_count}",
+        f"- Errores (métrica): {report.error_count}",
+        f"- Tasa de éxito: {report.success_rate:.0%}",
         "",
         "## Detalle",
     ]
@@ -348,6 +384,14 @@ def load_sync_report(path: Path) -> SyncReport:
         conflicts=data.get("conflicts", []),
         items_changed=data.get("items_changed", []),
         entries=entries,
+        duration_ms=int(data.get("duration_ms", 0)),
+        rows_total_local=int(data.get("rows_total_local", 0)),
+        rows_scanned_remote=int(data.get("rows_scanned_remote", 0)),
+        api_calls_count=int(data.get("api_calls_count", 0)),
+        retry_count=int(data.get("retry_count", 0)),
+        conflicts_count=int(data.get("conflicts_count", 0)),
+        error_count=int(data.get("error_count", 0)),
+        success_rate=float(data.get("success_rate", 1.0)),
         attempt_history=tuple(attempts),
     )
 

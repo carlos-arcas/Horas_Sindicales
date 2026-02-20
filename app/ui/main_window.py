@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import json
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -49,11 +49,13 @@ from app.application.sheets_service import SheetsService
 from app.application.sync_sheets_use_case import SyncSheetsUseCase
 from app.application.use_cases.conflict_resolution_policy import ConflictResolutionPolicy
 from app.application.use_cases.retry_sync_use_case import RetrySyncUseCase
+from app.application.use_cases.health_check import HealthCheckUseCase
+from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.time_utils import minutes_to_hhmm
 from app.domain.request_time import validate_request_inputs
-from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
+from app.domain.sync_models import Alert, HealthReport, SyncAttemptReport, SyncExecutionPlan, SyncSummary
 from app.domain.sheets_errors import (
     SheetsApiDisabledError,
     SheetsConfigError,
@@ -276,6 +278,8 @@ class MainWindow(QMainWindow):
         sheets_service: SheetsService,
         sync_sheets_use_case: SyncSheetsUseCase,
         conflicts_service: ConflictsService,
+        health_check_use_case: HealthCheckUseCase | None = None,
+        alert_engine: AlertEngine | None = None,
     ) -> None:
         super().__init__()
         app = QApplication.instance()
@@ -287,6 +291,9 @@ class MainWindow(QMainWindow):
         self._sheets_service = sheets_service
         self._sync_service = sync_sheets_use_case
         self._conflicts_service = conflicts_service
+        self._health_check_use_case = health_check_use_case
+        self._alert_engine = alert_engine or AlertEngine()
+        self._alert_snooze: dict[str, str] = {}
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
@@ -323,6 +330,7 @@ class MainWindow(QMainWindow):
             self._set_config_incomplete_state()
         self._refresh_last_sync_label()
         self._update_sync_button_state()
+        self._refresh_health_and_alerts()
 
     def _create_card(self, title: str) -> tuple[QFrame, QVBoxLayout]:
         card = QFrame()
@@ -928,6 +936,14 @@ class MainWindow(QMainWindow):
         self.last_sync_label.setProperty("role", "secondary")
         sync_layout.addWidget(self.last_sync_label)
 
+        self.last_sync_metrics_label = QLabel("Duración: -- · Cambios: -- · Conflictos: -- · Errores: --")
+        self.last_sync_metrics_label.setProperty("role", "secondary")
+        sync_layout.addWidget(self.last_sync_metrics_label)
+
+        self.sync_trend_label = QLabel("Tendencia (5): --")
+        self.sync_trend_label.setProperty("role", "secondary")
+        sync_layout.addWidget(self.sync_trend_label)
+
         self.sync_panel_status = QLabel("Estado: Idle")
         self.sync_panel_status.setProperty("role", "secondary")
         sync_layout.addWidget(self.sync_panel_status)
@@ -967,7 +983,33 @@ class MainWindow(QMainWindow):
         sync_status_row.addWidget(self.sync_progress, 1)
         sync_layout.addLayout(sync_status_row)
 
+        self.alert_banner_label = QLabel("Alertas: sin alertas activas.")
+        self.alert_banner_label.setProperty("role", "secondary")
+        sync_layout.addWidget(self.alert_banner_label)
+
+        health_card, health_layout = self._create_card("Salud del sistema")
+        self.health_summary_label = QLabel("Estado general: pendiente de comprobación")
+        self.health_summary_label.setProperty("role", "secondary")
+        health_layout.addWidget(self.health_summary_label)
+        self.health_checks_tree = QTreeWidget()
+        self.health_checks_tree.setColumnCount(4)
+        self.health_checks_tree.setHeaderLabels(["Estado", "Categoría", "Mensaje", "Acción"])
+        self.health_checks_tree.setMinimumHeight(180)
+        health_layout.addWidget(self.health_checks_tree)
+        health_actions = QHBoxLayout()
+        self.refresh_health_button = QPushButton("Actualizar salud")
+        self.refresh_health_button.setProperty("variant", "secondary")
+        self.refresh_health_button.clicked.connect(self._refresh_health_and_alerts)
+        health_actions.addWidget(self.refresh_health_button)
+        self.snooze_alerts_button = QPushButton("No mostrar hoy")
+        self.snooze_alerts_button.setProperty("variant", "secondary")
+        self.snooze_alerts_button.clicked.connect(self._on_snooze_alerts_today)
+        health_actions.addWidget(self.snooze_alerts_button)
+        health_actions.addStretch(1)
+        health_layout.addLayout(health_actions)
+
         config_layout.addWidget(sync_card)
+        config_layout.addWidget(health_card)
         config_layout.addStretch(1)
         self.main_tabs.addTab(config_tab, "Configuración")
 
@@ -2073,11 +2115,17 @@ class MainWindow(QMainWindow):
         self.sync_panel_status.setText(
             f"Estado: {self._status_to_label(report.status)} · Intento #{len(self._sync_attempts)} · Consolidado: {self._status_to_label(report.final_status)}"
         )
+        self.last_sync_metrics_label.setText(
+            f"Duración: {report.duration_ms} ms · Cambios: {counts.get('created', 0) + counts.get('updated', 0)} · "
+            f"Conflictos: {report.conflicts_count} · Errores: {report.error_count}"
+        )
+        self._refresh_sync_trend_label()
         self.go_to_sync_config_button.setVisible(report.status == "CONFIG_INCOMPLETE")
         self.sync_details_button.setEnabled(True)
         self.copy_sync_report_button.setEnabled(True)
         self.retry_failed_button.setEnabled(bool(report.errors or report.conflicts))
         persist_report(report, Path.cwd())
+        self._refresh_health_and_alerts()
 
     def _on_show_sync_history(self) -> None:
         history = list_sync_history(Path.cwd())
@@ -2689,6 +2737,77 @@ class MainWindow(QMainWindow):
             QMessageBox.question(self, "Conflicto", mensaje, QMessageBox.Yes | QMessageBox.No)
             == QMessageBox.Yes
         )
+
+    def _refresh_health_and_alerts(self) -> None:
+        if self._health_check_use_case is None:
+            self.health_summary_label.setText("Estado general: monitorización no configurada")
+            self.alert_banner_label.setText("Alertas: monitorización no disponible.")
+            return
+        report = self._health_check_use_case.run()
+        self._render_health_report(report)
+        history = [load_sync_report(path) for path in list_sync_history(Path.cwd())[:5]]
+        pending_count = len(list(self._solicitud_use_cases.listar_pendientes_all()))
+        alerts = self._alert_engine.evaluate(
+            history=history,
+            health_report=report,
+            pending_count=pending_count,
+            silenced_until=self._alert_snooze,
+        )
+        self._render_alerts(alerts)
+
+    def _render_health_report(self, report: HealthReport) -> None:
+        self.health_checks_tree.clear()
+        worst = "OK"
+        for check in report.checks:
+            if check.status == "ERROR":
+                worst = "ERROR"
+            elif check.status == "WARN" and worst != "ERROR":
+                worst = "WARN"
+            item = QTreeWidgetItem([check.status, check.category, check.message, "Solucionar"])
+            item.setData(0, Qt.UserRole, check.action_id)
+            self.health_checks_tree.addTopLevelItem(item)
+        self.health_summary_label.setText(f"Estado general: {worst} · actualizado {self._format_timestamp(report.generated_at)}")
+
+    def _render_alerts(self, alerts: list[Alert]) -> None:
+        if not alerts:
+            self.alert_banner_label.setText("Alertas: sin alertas activas.")
+            return
+        top = alerts[0]
+        self.alert_banner_label.setText(f"Alerta {top.severity}: {top.message} · Acción: {top.action_id}")
+
+    def _on_health_check_action(self, item: QTreeWidgetItem) -> None:
+        action_id = item.data(0, Qt.UserRole)
+        self._execute_action(action_id)
+
+    def _execute_action(self, action_id: str) -> None:
+        if action_id == "open_sync_settings":
+            self._on_open_opciones()
+            return
+        if action_id == "open_sync_panel":
+            self.main_tabs.setCurrentIndex(2)
+            return
+        if action_id == "open_conflicts":
+            self._on_review_conflicts()
+            return
+        if action_id == "open_network_help":
+            QMessageBox.information(self, "Conectividad", "Revisa tu conexión de red o VPN y vuelve a intentar.")
+            return
+        if action_id == "open_db_help":
+            QMessageBox.information(self, "Base de datos", "Reinicia la aplicación y ejecuta migraciones si procede.")
+
+    def _on_snooze_alerts_today(self) -> None:
+        until = (datetime.now() + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        for key in ["stale_sync", "high_failure_rate", "repeated_conflicts", "config_incomplete", "pending_local_changes"]:
+            self._alert_snooze[key] = until
+        self._refresh_health_and_alerts()
+
+    def _refresh_sync_trend_label(self) -> None:
+        history = [load_sync_report(path) for path in list_sync_history(Path.cwd())[:5]]
+        if not history:
+            self.sync_trend_label.setText("Tendencia (5): --")
+            return
+        chunks = [f"{report.status}:{report.duration_ms}ms" for report in history]
+        self.sync_trend_label.setText("Tendencia (5): " + " · ".join(chunks))
 
     def _refresh_last_sync_label(self) -> None:
         last_sync = self._sync_service.get_last_sync_at()

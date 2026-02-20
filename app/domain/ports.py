@@ -194,6 +194,21 @@ class SheetsRepositoryPort(Protocol):
         ...
 
 
+class SheetsConnectivityProbe(Protocol):
+    def check(self, *, timeout_seconds: float = 3.0) -> tuple[bool, bool, float | None, str]:
+        """Retorna: internet_ok, api_reachable, latency_ms, mensaje."""
+
+
+class SheetsSchemaProbe(Protocol):
+    def check(self) -> dict[str, tuple[bool, str, str]]:
+        """Retorna un mapa clave->(ok, mensaje, action_id) para checks de configuración remota."""
+
+
+class LocalDbProbe(Protocol):
+    def check(self) -> dict[str, tuple[bool, str, str]]:
+        """Retorna un mapa clave->(ok, mensaje, action_id) para checks de integridad local."""
+
+
 class SheetsSyncPort(Protocol):
     def pull(self) -> SyncSummary:
         ...
