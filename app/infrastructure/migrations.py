@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib.util
+import logging
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -11,6 +12,9 @@ from types import ModuleType
 from typing import Callable
 
 MigrationHook = Callable[[sqlite3.Connection], None]
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -228,6 +232,7 @@ def build_cli() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     parser = build_cli()
     args = parser.parse_args()
 
@@ -237,12 +242,23 @@ def main() -> int:
 
     if args.command == "up":
         runner.apply_all()
+        logger.info("Migraciones aplicadas", extra={"context_module": __name__, "context_function": "main", "command": "up"})
     elif args.command == "down":
-        runner.rollback(args.steps)
+        rolled_back = runner.rollback(args.steps)
+        logger.info(
+            "Migraciones revertidas",
+            extra={"context_module": __name__, "context_function": "main", "command": "down", "count": len(rolled_back)},
+        )
     else:
         for item in runner.status():
             marker = "[x]" if item["applied"] else "[ ]"
-            print(f"{marker} {item['version']:04d} {item['name']}")
+            logger.info(
+                "Estado de migración %s %04d %s",
+                marker,
+                item["version"],
+                item["name"],
+                extra={"context_module": __name__, "context_function": "main", "command": "status"},
+            )
 
     connection.close()
     return 0
