@@ -123,6 +123,35 @@ def test_sync_controller_updates_button_state() -> None:
     window.sync_button.setEnabled.assert_called_once_with(True)
 
 
+def test_sync_controller_blocks_reentrancy() -> None:
+    window = SimpleNamespace(
+        _sync_service=SimpleNamespace(is_configured=Mock(return_value=True)),
+        _sync_in_progress=True,
+        _set_sync_in_progress=Mock(),
+        _on_sync_finished=Mock(),
+        _on_sync_failed=Mock(),
+    )
+
+    controller = SyncController(window)
+    controller.on_sync()
+
+    window._set_sync_in_progress.assert_not_called()
+
+
+def test_sync_controller_marks_config_incomplete() -> None:
+    window = SimpleNamespace(
+        _sync_service=SimpleNamespace(is_configured=Mock(return_value=False)),
+        _sync_in_progress=False,
+        _set_config_incomplete_state=Mock(),
+        toast=Mock(),
+    )
+
+    controller = SyncController(window)
+    controller.on_sync()
+
+    window._set_config_incomplete_state.assert_called_once()
+
+
 def test_pdf_controller_delegates_name_generation() -> None:
     use_cases = Mock()
     use_cases.sugerir_nombre_pdf_historico.return_value = "hist.pdf"
