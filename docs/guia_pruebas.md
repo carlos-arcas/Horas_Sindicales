@@ -1,54 +1,51 @@
 # Guía de pruebas
 
-## Quality gate de tamaño y complejidad
+## Objetivo
 
-La suite incluye `tests/test_quality_gate_metrics.py`, que valida dos métricas sobre `app/`:
+Estandarizar la ejecución de pruebas automáticas en local y en CI, con foco en reproducibilidad y cobertura.
 
-- **LOC por archivo** (líneas de código sin comentarios/blancos) con umbral `MAX_LOC_POR_ARCHIVO`.
-- **Complejidad ciclomática por función/método** con umbral `MAX_CC_POR_FUNCION`.
+## Ejecución en Windows (interfaz recomendada)
 
-La configuración vive en `app/configuracion/calidad.py`.
+El repositorio incluye script oficial:
 
-### Cómo ajustar umbrales
+```bat
+ejecutar_tests.bat
+```
 
-1. Edita `MAX_LOC_POR_ARCHIVO` y/o `MAX_CC_POR_FUNCION`.
-2. Ejecuta `pytest -q` (o `ejecutar_tests.bat` en Windows) para validar el impacto.
+Este flujo prepara entorno y ejecuta la suite según la configuración vigente del proyecto.
 
-### Excepciones baseline (deuda técnica)
+## Ejecución manual equivalente
 
-Se permiten excepciones controladas en:
+Desde la raíz del repositorio:
 
-- `EXCEPCIONES_LOC`
-- `EXCEPCIONES_CC`
+```bash
+PYTHONPATH=. pytest -q
+```
 
-Estas excepciones **no deben crecer**: cualquier aumento falla el test.
-Añadir una excepción nueva debe ser la última opción y requiere justificar por qué no se pudo refactorizar/extraer responsabilidades.
+## Cobertura
 
-## Tests UI (PySide6)
+Para medir cobertura explícitamente, usar `pytest` con `--cov`:
 
-La suite separa los tests de interfaz bajo `tests/ui/` y los marca automáticamente con `@pytest.mark.ui` desde `tests/conftest.py`.
+```bash
+PYTHONPATH=. pytest -q --cov=app --cov-report=term-missing
+```
 
-### Ejecución recomendada
+Si se usa quality gate, este comando puede complementarse con los scripts de `Makefile`/pipeline del proyecto.
 
-- Ejecutar toda la suite: `pytest -q`
-- Ejecutar solo UI: `pytest -m ui`
+## Markers (incluyendo UI)
 
-### Estabilidad en entornos headless
+- Suite completa: `pytest -q`
+- Solo UI: `pytest -m ui`
+- Excluir UI: `pytest -m "not ui"`
 
-En Linux sin servidor gráfico (`DISPLAY` y `WAYLAND_DISPLAY` ausentes), la configuración de tests fuerza:
+Los tests UI pueden requerir entorno gráfico o modo `offscreen` según plataforma.
 
-- `QT_QPA_PLATFORM=offscreen`
-- `QT_OPENGL=software`
+## Recomendaciones de estabilidad
 
-Si PySide6/Qt no puede cargarse igualmente (por ejemplo, por `libGL.so.1`), los tests marcados como `ui` se omiten automáticamente con un motivo explícito, sin romper la colección ni el pipeline.
+1. Instalar dependencias desde `requirements-dev.txt`.
+2. Ejecutar primero smoke tests y luego suite completa cuando haya cambios amplios.
+3. Mantener consistencia entre comandos locales y los usados por CI.
 
-### Requisitos mínimos locales
+## Pendiente de completar
 
-- **Windows**
-  - Instalar dependencias del proyecto (`requirements-dev.txt`).
-  - Ejecutar `pytest -m ui` en una sesión normal de escritorio.
-
-- **Linux**
-  - Instalar dependencias del proyecto (`requirements-dev.txt`).
-  - Tener soporte gráfico/GL disponible para tests UI completos.
-  - Si aparece error por `libGL.so.1`, instalar los paquetes de OpenGL/Mesa típicos de la distro (por ejemplo `libgl1` en Debian/Ubuntu) y reintentar.
+- Pendiente de completar matriz de tiempos objetivo por tipo de suite (smoke, unit, integración, UI).

@@ -205,6 +205,17 @@ python scripts/product_audit.py --auto --out docs/auditoria_producto.md --json-o
 
 Esto genera `docs/auditoria_producto.md` y un snapshot versionado en `docs/audits/`.
 
+## Documentación mínima obligatoria
+
+La documentación mínima normalizada del proyecto está en:
+
+- `docs/arquitectura.md`
+- `docs/decisiones_tecnicas.md`
+- `docs/guia_pruebas.md`
+- `docs/guia_logging.md`
+- `docs/definicion_producto_final.md`
+
+
 ## Arquitectura (resumen por capas)
 
 El proyecto sigue una separación por capas con responsabilidades claras:
