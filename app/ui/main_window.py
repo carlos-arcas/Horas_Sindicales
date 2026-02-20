@@ -343,6 +343,7 @@ class MainWindow(QMainWindow):
             self._set_config_incomplete_state()
         self._refresh_last_sync_label()
         self._update_sync_button_state()
+        self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
 
     def _create_card(self, title: str) -> tuple[QFrame, QVBoxLayout]:
@@ -1144,6 +1145,11 @@ class MainWindow(QMainWindow):
         self.alert_banner_label.setProperty("role", "secondary")
         sync_layout.addWidget(self.alert_banner_label)
 
+        self.conflicts_reminder_label = QLabel("Hay 0 conflictos pendientes de revisión.")
+        self.conflicts_reminder_label.setProperty("role", "secondary")
+        self.conflicts_reminder_label.setVisible(False)
+        sync_layout.addWidget(self.conflicts_reminder_label)
+
         health_card, health_layout = self._create_card("Salud del sistema")
         self.health_summary_label = QLabel("Estado general: pendiente de comprobación")
         self.health_summary_label.setProperty("role", "secondary")
@@ -1773,7 +1779,8 @@ class MainWindow(QMainWindow):
     def _on_review_conflicts(self) -> None:
         dialog = ConflictsDialog(self._conflicts_service, self)
         dialog.exec()
-        self.review_conflicts_button.setEnabled(self._conflicts_service.count_conflicts() > 0)
+        self._update_sync_button_state()
+        self._update_conflicts_reminder()
 
     def _on_open_opciones(self) -> None:
         self._sync_controller.on_open_opciones()
@@ -2491,6 +2498,12 @@ class MainWindow(QMainWindow):
     def _update_sync_button_state(self) -> None:
         self._sync_controller.update_sync_button_state()
 
+    def _update_conflicts_reminder(self) -> None:
+        total = self._conflicts_service.count_conflicts()
+        self.conflicts_reminder_label.setVisible(total > 0)
+        if total > 0:
+            self.conflicts_reminder_label.setText(f"Hay {total} conflictos pendientes de revisión.")
+
     def _show_sync_error_dialog(self, error: Exception, details: str | None) -> None:
         if details:
             logger.error("Detalle técnico de sincronización: %s", details)
@@ -2607,6 +2620,7 @@ class MainWindow(QMainWindow):
         self.copy_sync_report_button.setEnabled(True)
         self.retry_failed_button.setEnabled(bool(report.errors or report.conflicts))
         self.review_conflicts_button.setText("Ver conflictos" if report.conflicts_count > 0 else "Ver conflictos (sin pendientes)")
+        self._update_conflicts_reminder()
         persist_report(report, Path.cwd())
         self._refresh_health_and_alerts()
 
