@@ -4,11 +4,12 @@ import pytest
 
 from app.application.dto import SolicitudDTO
 
+QDate = pytest.importorskip("PySide6.QtCore", exc_type=ImportError).QDate
+
 try:
     from app.ui.historico_view import HistoricalViewModel
 except ImportError as exc:  # pragma: no cover - depende de librerías Qt del entorno
     pytest.skip(f"PySide6 no disponible en entorno de test: {exc}", allow_module_level=True)
-from PySide6.QtCore import QDate
 
 
 def _solicitud(
