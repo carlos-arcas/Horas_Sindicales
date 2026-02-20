@@ -9,7 +9,7 @@ from app.domain.ports import (
     SheetsRepositoryPort,
     SheetsSyncPort,
 )
-from app.domain.sync_models import SyncSummary
+from app.domain.sync_models import SyncExecutionPlan, SyncSummary
 from app.application.use_cases.sync_sheets import SheetsSyncService
 
 
@@ -37,6 +37,12 @@ class SyncSheetsAdapter(SheetsSyncPort):
 
     def sync_bidirectional(self) -> SyncSummary:
         return self._run_with_connection(lambda service: service.sync_bidirectional())
+
+    def simulate_sync_plan(self) -> SyncExecutionPlan:
+        return self._run_with_connection(lambda service: service.simulate_sync_plan())
+
+    def execute_sync_plan(self, plan: SyncExecutionPlan) -> SyncSummary:
+        return self._run_with_connection(lambda service: service.execute_sync_plan(plan))
 
     def get_last_sync_at(self) -> str | None:
         return self._run_with_connection(lambda service: service.get_last_sync_at())

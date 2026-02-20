@@ -6,6 +6,34 @@
 - Después de confirmar un lote relevante de solicitudes.
 - Antes de cerrar jornada si hubo conflictos o errores pendientes.
 
+## Simulación de sincronización (dry-run)
+
+La opción **Simular sincronización** genera un plan previo de cambios sin escribir en Google Sheets.
+
+- Evalúa normalización y comparación completa antes de ejecutar.
+- Muestra resumen previsible:
+  - Se crearán: X
+  - Se actualizarán: Y
+  - Sin cambios: Z
+  - Conflictos detectados: N
+- En detalle de diff se muestran campos cambiados con formato:
+  - `campo | valor actual | nuevo valor`
+- Los nuevos elementos se etiquetan como **Nuevo registro**.
+- Los conflictos muestran su causa para revisión operativa.
+
+### Garantía de no escritura
+
+Durante la simulación **no se ejecuta ninguna escritura en Google Sheets**. Solo se calcula un plan inmutable (SyncPlanner) para validación humana.
+
+## Confirmación explícita
+
+Tras simular:
+
+- Si hay cambios, se habilita **Confirmar y ejecutar sincronización**.
+- Si no hay cambios, se muestra **No hay cambios que aplicar** y el botón confirmar queda deshabilitado.
+
+Esto refuerza idempotencia y evita dobles sincronizaciones innecesarias.
+
 ## Estados del panel
 
 - **Idle**: sin operación en curso.

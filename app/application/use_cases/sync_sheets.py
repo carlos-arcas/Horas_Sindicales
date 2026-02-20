@@ -21,7 +21,7 @@ from app.domain.ports import (
     SqlCursorPort,
 )
 from app.domain.sheets_errors import SheetsConfigError, SheetsRateLimitError
-from app.domain.sync_models import SyncSummary
+from app.domain.sync_models import SyncExecutionPlan, SyncFieldDiff, SyncPlanItem, SyncSummary
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +124,29 @@ class SheetsSyncService:
             conflicts_detected=pull_summary.conflicts_detected + push_summary.conflicts_detected,
             omitted_by_delegada=pull_summary.omitted_by_delegada + push_summary.omitted_by_delegada,
             errors=pull_summary.errors + push_summary.errors,
+        )
+
+    def simulate_sync_plan(self) -> SyncExecutionPlan:
+        spreadsheet = self._open_spreadsheet()
+        self._prepare_sync_context(spreadsheet)
+        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+        return self._build_solicitudes_sync_plan(spreadsheet)
+
+    def execute_sync_plan(self, plan: SyncExecutionPlan) -> SyncSummary:
+        spreadsheet = self._open_spreadsheet()
+        self._prepare_sync_context(spreadsheet)
+        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+        worksheet = self._get_worksheet(spreadsheet, plan.worksheet)
+        values = [list(row) for row in plan.values_matrix]
+        worksheet.update("A1", values)
+        self._set_last_sync_at(self._now_iso())
+        self._log_sync_stats("execute_sync_plan")
+        return SyncSummary(
+            inserted_remote=len(plan.to_create),
+            updated_remote=len(plan.to_update),
+            duplicates_skipped=len(plan.unchanged),
+            conflicts_detected=len(plan.conflicts),
+            errors=len(plan.potential_errors),
         )
 
     def get_last_sync_at(self) -> str | None:
@@ -794,6 +817,133 @@ class SheetsSyncService:
         worksheet.update("A1", values)
         logger.info("PUSH Sheets: %s filas enviadas", max(len(values) - 1, 0))
         return uploaded, conflicts, omitted_duplicates
+
+    def _build_solicitudes_sync_plan(self, spreadsheet: Any) -> SyncExecutionPlan:
+        worksheet = self._get_worksheet(spreadsheet, "solicitudes")
+        headers, rows = self._rows_with_index(worksheet)
+        remote_index = self._uuid_index(rows)
+        last_sync_at = self._get_last_sync_at()
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT s.id, s.uuid, s.persona_id, s.fecha_pedida, s.desde_min, s.hasta_min,
+                   s.completo, s.horas_solicitadas_min, s.notas, s.created_at, s.updated_at,
+                   s.source_device, s.deleted, s.pdf_hash,
+                   p.uuid AS delegada_uuid, p.nombre AS delegada_nombre
+            FROM solicitudes s
+            JOIN personas p ON p.id = s.persona_id
+            WHERE s.updated_at IS NOT NULL
+            """
+        )
+        to_create: list[SyncPlanItem] = []
+        to_update: list[SyncPlanItem] = []
+        unchanged: list[SyncPlanItem] = []
+        conflicts: list[SyncPlanItem] = []
+        errors: list[str] = []
+        values: list[tuple[Any, ...]] = [tuple(HEADER_CANONICO_SOLICITUDES)]
+
+        for row in cursor.fetchall():
+            if last_sync_at and not self._is_after_last_sync(row["updated_at"], last_sync_at):
+                continue
+            uuid_value = str(row["uuid"] or "").strip()
+            if not uuid_value:
+                errors.append("Solicitud sin UUID: no puede sincronizarse.")
+                continue
+            remote_row = remote_index.get(uuid_value)
+            remote_updated_at = self._parse_iso(remote_row.get("updated_at") if remote_row else None)
+            if self._is_conflict(row["updated_at"], remote_updated_at, last_sync_at):
+                conflicts.append(SyncPlanItem(uuid=uuid_value, action="conflict", reason="Cambios locales y remotos desde última sync."))
+                continue
+            payload = (
+                uuid_value,
+                row["delegada_uuid"] or "",
+                row["delegada_nombre"] or "",
+                self._to_iso_date(row["fecha_pedida"]),
+                self._hour_component(row["desde_min"]),
+                self._minute_component(row["desde_min"]),
+                self._hour_component(row["hasta_min"]),
+                self._minute_component(row["hasta_min"]),
+                1 if row["completo"] else 0,
+                self._int_or_zero(row["horas_solicitadas_min"]),
+                row["notas"] or "",
+                "",
+                self._to_iso_date(row["created_at"]),
+                self._to_iso_date(row["updated_at"]),
+                row["source_device"] or self._device_id(),
+                self._int_or_zero(row["deleted"]),
+                row["pdf_hash"] or "",
+            )
+            values.append(payload)
+            if remote_row is None:
+                to_create.append(SyncPlanItem(uuid=uuid_value, action="create", reason="Nuevo registro"))
+                continue
+            remote_payload = (
+                remote_row.get("uuid", ""),
+                remote_row.get("delegada_uuid", ""),
+                remote_row.get("delegada_nombre") or remote_row.get("Delegada") or "",
+                self._to_iso_date(remote_row.get("fecha") or remote_row.get("fecha_pedida")),
+                self._hour_component_from_hhmm(remote_row.get("desde") or self._remote_hhmm(remote_row.get("desde_h"), remote_row.get("desde_m"), None)),
+                self._minute_component_from_hhmm(remote_row.get("desde") or self._remote_hhmm(remote_row.get("desde_h"), remote_row.get("desde_m"), None)),
+                self._hour_component_from_hhmm(remote_row.get("hasta") or self._remote_hhmm(remote_row.get("hasta_h"), remote_row.get("hasta_m"), None)),
+                self._minute_component_from_hhmm(remote_row.get("hasta") or self._remote_hhmm(remote_row.get("hasta_h"), remote_row.get("hasta_m"), None)),
+                self._int_or_zero(remote_row.get("completo")),
+                self._int_or_zero(remote_row.get("horas") or remote_row.get("minutos_total")),
+                remote_row.get("notas") or "",
+                remote_row.get("estado") or "",
+                self._to_iso_date(remote_row.get("created_at") or remote_row.get("fecha")),
+                self._to_iso_date(remote_row.get("updated_at")),
+                remote_row.get("source_device") or "",
+                self._int_or_zero(remote_row.get("deleted")),
+                remote_row.get("pdf_id") or "",
+            )
+            diffs = []
+            for idx, field in enumerate(HEADER_CANONICO_SOLICITUDES):
+                current_value = str(remote_payload[idx])
+                new_value = str(payload[idx])
+                if current_value != new_value:
+                    diffs.append(SyncFieldDiff(field=field, current_value=current_value, new_value=new_value))
+            if diffs:
+                to_update.append(SyncPlanItem(uuid=uuid_value, action="update", diffs=tuple(diffs)))
+            else:
+                unchanged.append(SyncPlanItem(uuid=uuid_value, action="unchanged", reason="Sin cambios"))
+
+        for _, remote_row in rows:
+            remote_uuid = str(remote_row.get("uuid", "")).strip()
+            if not remote_uuid:
+                continue
+            if not any(item.uuid == remote_uuid for item in to_create + to_update + unchanged + conflicts):
+                values.append(
+                    (
+                        remote_uuid,
+                        remote_row.get("delegada_uuid") or remote_row.get("delegado_uuid") or "",
+                        remote_row.get("delegada_nombre") or remote_row.get("Delegada") or remote_row.get("delegado_nombre") or "",
+                        self._to_iso_date(remote_row.get("fecha") or remote_row.get("fecha_pedida")),
+                        self._hour_component_from_hhmm(remote_row.get("desde") or self._remote_hhmm(remote_row.get("desde_h"), remote_row.get("desde_m"), None)),
+                        self._minute_component_from_hhmm(remote_row.get("desde") or self._remote_hhmm(remote_row.get("desde_h"), remote_row.get("desde_m"), None)),
+                        self._hour_component_from_hhmm(remote_row.get("hasta") or self._remote_hhmm(remote_row.get("hasta_h"), remote_row.get("hasta_m"), None)),
+                        self._minute_component_from_hhmm(remote_row.get("hasta") or self._remote_hhmm(remote_row.get("hasta_h"), remote_row.get("hasta_m"), None)),
+                        self._int_or_zero(remote_row.get("completo")),
+                        self._int_or_zero(remote_row.get("horas") or remote_row.get("minutos_total")),
+                        remote_row.get("notas") or "",
+                        remote_row.get("estado") or "",
+                        self._to_iso_date(remote_row.get("created_at") or remote_row.get("fecha")),
+                        self._to_iso_date(remote_row.get("updated_at")),
+                        remote_row.get("source_device") or "",
+                        self._int_or_zero(remote_row.get("deleted")),
+                        remote_row.get("pdf_id") or "",
+                    )
+                )
+
+        return SyncExecutionPlan(
+            generated_at=self._now_iso(),
+            worksheet="solicitudes",
+            to_create=tuple(to_create),
+            to_update=tuple(to_update),
+            unchanged=tuple(unchanged),
+            conflicts=tuple(conflicts),
+            potential_errors=tuple(errors),
+            values_matrix=tuple(values),
+        )
 
     def _push_cuadrantes(
         self, spreadsheet: Any, last_sync_at: str | None

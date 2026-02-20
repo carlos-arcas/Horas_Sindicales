@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.domain.ports import SheetsSyncPort
-from app.domain.sync_models import SyncSummary
+from app.domain.sync_models import SyncExecutionPlan, SyncSummary
 
 
 class SyncSheetsUseCase:
@@ -24,6 +24,12 @@ class SyncSheetsUseCase:
 
     def sync_bidirectional(self) -> SyncSummary:
         return self._sync_port.sync_bidirectional()
+
+    def simulate_sync_plan(self) -> SyncExecutionPlan:
+        return self._sync_port.simulate_sync_plan()
+
+    def execute_sync_plan(self, plan: SyncExecutionPlan) -> SyncSummary:
+        return self._sync_port.execute_sync_plan(plan)
 
     def is_configured(self) -> bool:
         return self._sync_port.is_configured()

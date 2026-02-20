@@ -51,7 +51,7 @@ from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, Soli
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.time_utils import minutes_to_hhmm
 from app.domain.request_time import validate_request_inputs
-from app.domain.sync_models import SyncSummary
+from app.domain.sync_models import SyncExecutionPlan, SyncSummary
 from app.domain.sheets_errors import (
     SheetsApiDisabledError,
     SheetsConfigError,
@@ -77,6 +77,7 @@ from app.ui.notification_service import NotificationService
 from app.ui.sync_reporting import (
     build_config_incomplete_report,
     build_failed_report,
+    build_simulation_report,
     build_sync_report,
     persist_report,
     to_markdown,
@@ -292,6 +293,7 @@ class MainWindow(QMainWindow):
         self._orphan_pendientes: list[SolicitudDTO] = []
         self._sync_in_progress = False
         self._last_sync_report = None
+        self._pending_sync_plan: SyncExecutionPlan | None = None
         self._sync_started_at: str | None = None
         self._logs_dir = Path.cwd() / "logs"
         self.toast = ToastManager()
@@ -867,6 +869,17 @@ class MainWindow(QMainWindow):
         self.sync_button.clicked.connect(self._on_sync)
         sync_actions.addWidget(self.sync_button)
 
+        self.simulate_sync_button = QPushButton("Simular sincronización")
+        self.simulate_sync_button.setProperty("variant", "secondary")
+        self.simulate_sync_button.clicked.connect(self._on_simulate_sync)
+        sync_actions.addWidget(self.simulate_sync_button)
+
+        self.confirm_sync_button = QPushButton("Confirmar y ejecutar sincronización")
+        self.confirm_sync_button.setProperty("variant", "primary")
+        self.confirm_sync_button.setEnabled(False)
+        self.confirm_sync_button.clicked.connect(self._on_confirm_sync)
+        sync_actions.addWidget(self.confirm_sync_button)
+
         self.sync_details_button = QPushButton("Ver detalles")
         self.sync_details_button.setProperty("variant", "secondary")
         self.sync_details_button.setEnabled(False)
@@ -1189,7 +1202,15 @@ class MainWindow(QMainWindow):
             self._refresh_saldos()
 
     def _on_sync(self) -> None:
+        self._pending_sync_plan = None
+        self.confirm_sync_button.setEnabled(False)
         self._sync_controller.on_sync()
+
+    def _on_simulate_sync(self) -> None:
+        self._sync_controller.on_simulate_sync()
+
+    def _on_confirm_sync(self) -> None:
+        self._sync_controller.on_confirm_sync()
 
     def _on_show_sync_details(self) -> None:
         if self._last_sync_report is None:
@@ -1208,6 +1229,8 @@ class MainWindow(QMainWindow):
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(self._logs_dir)))
 
     def _on_sync_finished(self, summary: SyncSummary) -> None:
+        self._pending_sync_plan = None
+        self.confirm_sync_button.setEnabled(False)
         self._set_sync_in_progress(False)
         self._update_sync_button_state()
         self._refresh_last_sync_label()
@@ -1222,6 +1245,28 @@ class MainWindow(QMainWindow):
         self._apply_sync_report(report)
         self._refresh_after_sync(summary)
         self._show_sync_summary_dialog("Sincronización completada", summary)
+
+    def _on_sync_simulation_finished(self, plan: SyncExecutionPlan) -> None:
+        self._set_sync_in_progress(False)
+        self._pending_sync_plan = plan
+        self._update_sync_button_state()
+        report = build_simulation_report(
+            plan,
+            source=self._sync_source_text(),
+            scope=self._sync_scope_text(),
+            actor=self._sync_actor_text(),
+        )
+        self._apply_sync_report(report)
+        has_changes = plan.has_changes
+        self.confirm_sync_button.setEnabled(has_changes)
+        if has_changes:
+            self.toast.info(
+                f"Se crearán: {len(plan.to_create)} · Se actualizarán: {len(plan.to_update)} · Sin cambios: {len(plan.unchanged)} · Conflictos detectados: {len(plan.conflicts)}",
+                title="Simulación completada",
+                duration_ms=7000,
+            )
+        else:
+            self.toast.info("No hay cambios que aplicar", title="Simulación completada")
 
     def _refresh_after_sync(self, summary: SyncSummary) -> None:
         self._refresh_historico()
@@ -1958,11 +2003,11 @@ class MainWindow(QMainWindow):
         self.sync_idempotency_label.setText(f"Idempotencia: {report.idempotency_criteria}")
         self.sync_counts_label.setText(
             "Resumen: "
-            f"creadas {counts.get('created', 0)} · "
-            f"actualizadas {counts.get('updated', 0)} · "
-            f"omitidas {counts.get('skipped', 0)} · "
-            f"conflictos {counts.get('conflicts', 0)} · "
-            f"errores {counts.get('errors', 0)}"
+            f"Se crearán: {counts.get('created', 0)} · "
+            f"Se actualizarán: {counts.get('updated', 0)} · "
+            f"Sin cambios: {counts.get('skipped', 0)} · "
+            f"Conflictos detectados: {counts.get('conflicts', 0)} · "
+            f"Errores potenciales: {counts.get('errors', 0)}"
         )
         self.go_to_sync_config_button.setVisible(report.status == "CONFIG_INCOMPLETE")
         self.sync_details_button.setEnabled(True)
@@ -2125,6 +2170,8 @@ class MainWindow(QMainWindow):
             self._sync_started_at = datetime.now().isoformat()
             self.statusBar().showMessage("Sincronizando con Google Sheets…")
             self.sync_button.setEnabled(False)
+            self.simulate_sync_button.setEnabled(False)
+            self.confirm_sync_button.setEnabled(False)
             self.sync_details_button.setEnabled(False)
             self.copy_sync_report_button.setEnabled(False)
             self.review_conflicts_button.setEnabled(False)
