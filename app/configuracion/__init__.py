@@ -1,0 +1,1 @@
+"""Configuraciones compartidas del proyecto."""
