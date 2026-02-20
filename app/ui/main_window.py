@@ -171,6 +171,9 @@ class OptionalConfirmDialog(QDialog):
         buttons.addWidget(ok)
         layout.addLayout(buttons)
 
+        self._escape_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
+        self._escape_shortcut.activated.connect(self.reject)
+
 
 class PdfPreviewDialog(QDialog):
     def __init__(self, pdf_generator, default_name: str, parent: QWidget | None = None) -> None:
@@ -224,6 +227,9 @@ class PdfPreviewDialog(QDialog):
         actions.addWidget(close_button)
         layout.addLayout(actions)
 
+        self._escape_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
+        self._escape_shortcut.activated.connect(self.reject)
+
     def _generate_preview(self) -> None:
         with NamedTemporaryFile(prefix="horas_sindicales_", suffix=".pdf", delete=False) as tmp:
             temp_path = Path(tmp.name)
@@ -267,6 +273,9 @@ class HistoricoDetalleDialog(QDialog):
         buttons.rejected.connect(self.reject)
         buttons.accepted.connect(self.accept)
         layout.addWidget(buttons)
+
+        self._escape_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
+        self._escape_shortcut.activated.connect(self.reject)
 
 
 class MainWindow(QMainWindow):
@@ -503,6 +512,7 @@ class MainWindow(QMainWindow):
         self._content_row.addLayout(left_column, 3)
 
         solicitud_card, solicitud_layout = self._create_card("Alta de solicitud")
+        solicitud_layout.setSpacing(12)
 
         self.stepper_labels: list[QLabel] = []
         self._step_bullets: list[QLabel] = []
@@ -675,6 +685,11 @@ class MainWindow(QMainWindow):
         self.notas_input.setPlaceholderText("Notas para la solicitud")
         self.notas_input.setMinimumHeight(74)
         self.notas_input.installEventFilter(self)
+        self.persona_combo.installEventFilter(self)
+        self.fecha_input.installEventFilter(self)
+        self.desde_input.installEventFilter(self)
+        self.hasta_input.installEventFilter(self)
+        self.completo_check.installEventFilter(self)
         self.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         notas_row.addWidget(self.notas_input, 1)
         solicitud_layout.addLayout(notas_row)
@@ -707,7 +722,7 @@ class MainWindow(QMainWindow):
         self.pending_details_content = QWidget()
         pending_details_layout = QVBoxLayout(self.pending_details_content)
         pending_details_layout.setContentsMargins(0, 0, 0, 0)
-        pending_details_layout.setSpacing(8)
+        pending_details_layout.setSpacing(12)
 
         self.pendientes_table = QTableView()
         self.pendientes_model = SolicitudesTableModel([])
@@ -1163,6 +1178,7 @@ class MainWindow(QMainWindow):
         self._update_responsive_columns()
         self._configure_time_placeholders()
         self._configure_operativa_focus_order()
+        self._configure_historico_focus_order()
         self._bind_preventive_validation_events()
         self._historico_search_timer = QTimer(self)
         self._historico_search_timer.setSingleShot(True)
@@ -1177,7 +1193,7 @@ class MainWindow(QMainWindow):
         self.historico_clear_filters_button.clicked.connect(self._clear_historico_filters)
 
         self._historico_find_shortcut = QShortcut(QKeySequence.Find, self)
-        self._historico_find_shortcut.activated.connect(self.historico_search_input.setFocus)
+        self._historico_find_shortcut.activated.connect(self._focus_historico_search)
         self._historico_detail_shortcut = QShortcut(QKeySequence(Qt.Key_Return), self.historico_table)
         self._historico_detail_shortcut.activated.connect(self._on_open_historico_detalle)
         self._historico_escape_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
@@ -1224,11 +1240,19 @@ class MainWindow(QMainWindow):
         self._update_responsive_columns()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
-        if watched is self.notas_input and isinstance(event, QKeyEvent):
+        submit_widgets = {
+            getattr(self, "persona_combo", None),
+            getattr(self, "fecha_input", None),
+            getattr(self, "desde_input", None),
+            getattr(self, "hasta_input", None),
+            getattr(self, "completo_check", None),
+            getattr(self, "notas_input", None),
+        }
+        if watched in submit_widgets and isinstance(event, QKeyEvent):
             if event.key() in (Qt.Key_Return, Qt.Key_Enter) and event.modifiers() == Qt.NoModifier:
                 if self.primary_cta_button.isEnabled():
                     self.primary_cta_button.click()
-                    return True
+                return True
         return super().eventFilter(watched, event)
 
     def _normalize_input_heights(self) -> None:
@@ -1261,14 +1285,31 @@ class MainWindow(QMainWindow):
             self.generar_pdf_button,
         ]
         for control in controls:
-            control.setMinimumHeight(34)
+            control.setMinimumHeight(40)
 
     def _configure_operativa_focus_order(self) -> None:
+        self.setTabOrder(self.persona_combo, self.fecha_input)
         self.setTabOrder(self.fecha_input, self.desde_input)
         self.setTabOrder(self.desde_input, self.hasta_input)
         self.setTabOrder(self.hasta_input, self.completo_check)
         self.setTabOrder(self.completo_check, self.notas_input)
         self.setTabOrder(self.notas_input, self.primary_cta_button)
+        self.setTabOrder(self.primary_cta_button, self.insertar_sin_pdf_button)
+        self.setTabOrder(self.insertar_sin_pdf_button, self.confirmar_button)
+
+    def _configure_historico_focus_order(self) -> None:
+        self.setTabOrder(self.historico_search_input, self.historico_estado_combo)
+        self.setTabOrder(self.historico_estado_combo, self.historico_delegada_combo)
+        self.setTabOrder(self.historico_delegada_combo, self.historico_desde_date)
+        self.setTabOrder(self.historico_desde_date, self.historico_hasta_date)
+        self.setTabOrder(self.historico_hasta_date, self.historico_last_30_button)
+        self.setTabOrder(self.historico_last_30_button, self.historico_clear_filters_button)
+        self.setTabOrder(self.historico_clear_filters_button, self.historico_table)
+
+    def _focus_historico_search(self) -> None:
+        self.main_tabs.setCurrentIndex(1)
+        self.historico_search_input.setFocus()
+        self.historico_search_input.selectAll()
 
     def _update_responsive_columns(self) -> None:
         if not hasattr(self, "_content_row"):
@@ -2674,12 +2715,12 @@ class MainWindow(QMainWindow):
     @staticmethod
     def _status_to_label(status: str) -> str:
         return {
-            "IDLE": "Idle",
-            "RUNNING": "Sincronizando…",
-            "OK": "OK",
-            "OK_WARN": "OK con avisos",
-            "ERROR": "Error",
-            "CONFIG_INCOMPLETE": "Configuración incompleta",
+            "IDLE": "⏸ En espera",
+            "RUNNING": "🔄 Sincronizando…",
+            "OK": "✅ Confirmada",
+            "OK_WARN": "⚠ Aviso",
+            "ERROR": "⛔ Error",
+            "CONFIG_INCOMPLETE": "⚙️ Configuración incompleta",
         }.get(status, status)
 
     def _sync_source_text(self) -> str:
@@ -3079,7 +3120,7 @@ class MainWindow(QMainWindow):
         solicitud = self._selected_historico()
         if solicitud is None:
             return
-        estado = "Confirmada" if solicitud.generated else "Pendiente"
+        estado = "✅ Confirmada" if solicitud.generated else "🕒 Pendiente"
         payload = {
             "ID": str(solicitud.id or "-"),
             "Delegada": self.historico_model.persona_name_for_id(solicitud.persona_id) or str(solicitud.persona_id),
