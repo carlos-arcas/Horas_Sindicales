@@ -18,13 +18,27 @@ class SolicitudesController:
         logger.info("Botón Agregar pulsado en pantalla de Peticiones")
         solicitud = w._build_preview_solicitud()
         if solicitud is None:
-            w.toast.warning("Selecciona una delegada antes de agregar una petición.", title="Validación")
+            w.notifications.notify_validation_error(
+                what="No se puede añadir la solicitud.",
+                why="Falta seleccionar una delegada.",
+                how="Selecciona una delegada en Configuración y vuelve a intentarlo.",
+            )
+            return
+
+        duplicate_row = w._find_pending_duplicate_row(solicitud)
+        if duplicate_row is not None and not w._handle_duplicate_before_add(duplicate_row):
             return
 
         try:
             minutos = w._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
         except (ValidacionError, BusinessRuleError) as exc:
-            w.toast.warning(str(exc), title="Validación")
+            w.notifications.notify_validation_error(
+                what="No se puede añadir la solicitud.",
+                why=f"{str(exc)}.",
+                how="Revisa fecha/tramo y corrige los campos marcados.",
+            )
+            if not solicitud.completo:
+                w.desde_input.setFocus()
             return
         except Exception as exc:  # pragma: no cover - fallback
             logger.error("Error calculando minutos de la petición", exc_info=True)
@@ -49,11 +63,15 @@ class SolicitudesController:
                     {"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
                     operation.correlation_id,
                 )
-                w._solicitud_use_cases.agregar_solicitud(solicitud, correlation_id=operation.correlation_id)
+                creada, _ = w._solicitud_use_cases.agregar_solicitud(solicitud, correlation_id=operation.correlation_id)
                 log_event(logger, "agregar_pendiente_succeeded", {}, operation.correlation_id)
             w._reload_pending_views()
         except (ValidacionError, BusinessRuleError) as exc:
-            w.toast.warning(str(exc), title="Validación")
+            w.notifications.notify_validation_error(
+                what="No se guardó la solicitud.",
+                why=f"{str(exc)}.",
+                how="Corrige el formulario y vuelve a pulsar 'Añadir a pendientes'.",
+            )
             return
         except Exception as exc:  # pragma: no cover - fallback
             log_event(logger, "agregar_pendiente_failed", {"error": str(exc)}, operation.correlation_id)
@@ -65,4 +83,7 @@ class SolicitudesController:
         w._refresh_historico()
         w._refresh_saldos()
         w._update_action_state()
-        w.toast.success("Petición añadida a pendientes")
+        w.notifications.notify_added_pending(
+            creada,
+            on_undo=lambda: w._undo_last_added_pending(creada.id),
+        )

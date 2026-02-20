@@ -300,3 +300,16 @@ La aplicación se percibe útil, pero con sensación de herramienta “en evoluc
 
 **Veredicto final**  
 La herramienta es funcional, pero todavía no alcanza el estándar de producto profesional robusto para operación real sin fricción. Su evolución debe centrarse en claridad de flujo, prevención de errores y confianza operativa, no en sumar funciones.
+
+---
+
+## Cambios aplicados (P0)
+
+- Operativa ahora muestra un flujo visible de 3 pasos con resaltado del paso activo (rellenar, añadir, confirmar).
+- Se estableció un CTA primario único y dinámico por estado: `Añadir a pendientes` o `Confirmar seleccionadas`.
+- Se añadió guía contextual cuando el CTA primario está deshabilitado (`Selecciona al menos una pendiente` / motivo de validación).
+- Se implementó notificación transaccional unificada con helper de presentación (`NotificationService`), incluyendo toast de alta con acción `Deshacer` (9s).
+- Tras confirmar, se muestra un resumen transaccional con cantidad, total confirmado y próximos pasos.
+- Se agregó prevención de duplicados antes de añadir (misma delegada + fecha + tramo), con opción de navegar a la pendiente existente.
+- Se añadió soporte mínimo de teclado: Enter en el último campo para CTA primario y Escape en resumen/modal.
+- Se reforzó el orden de foco del formulario en Operativa.
