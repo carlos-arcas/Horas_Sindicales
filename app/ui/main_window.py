@@ -991,7 +991,7 @@ class MainWindow(QMainWindow):
         self.sync_history_button.clicked.connect(self._on_show_sync_history)
         sync_actions.addWidget(self.sync_history_button)
 
-        self.review_conflicts_button = QPushButton("Revisar discrepancias")
+        self.review_conflicts_button = QPushButton("Ver conflictos")
         self.review_conflicts_button.setProperty("variant", "secondary")
         self.review_conflicts_button.setEnabled(False)
         self.review_conflicts_button.clicked.connect(self._on_review_conflicts)
@@ -1010,7 +1010,19 @@ class MainWindow(QMainWindow):
         self.sync_trend_label.setProperty("role", "secondary")
         sync_layout.addWidget(self.sync_trend_label)
 
-        self.sync_panel_status = QLabel("Estado: Idle")
+        sync_state_row = QHBoxLayout()
+        sync_state_row.setSpacing(8)
+        sync_state_caption = QLabel("Estado actual:")
+        sync_state_caption.setProperty("role", "secondary")
+        sync_state_row.addWidget(sync_state_caption)
+        self.sync_status_badge = QLabel(self._status_to_label("IDLE"))
+        self.sync_status_badge.setProperty("role", "badge")
+        self.sync_status_badge.setProperty("syncStatus", "IDLE")
+        sync_state_row.addWidget(self.sync_status_badge)
+        sync_state_row.addStretch(1)
+        sync_layout.addLayout(sync_state_row)
+
+        self.sync_panel_status = QLabel("Detalle: Sistema en espera.")
         self.sync_panel_status.setProperty("role", "secondary")
         sync_layout.addWidget(self.sync_panel_status)
 
@@ -1565,17 +1577,17 @@ class MainWindow(QMainWindow):
             incidents = "La sincronización no se pudo completar."
         self.notifications.notify_operation(
             OperationFeedback(
-                title="Sincronización finalizada",
-                happened="Se ejecutó la sincronización con Google Sheets.",
+                title=f"Resultado de sincronización: {self._status_to_label(status)}",
+                happened="Se actualizó el estado del panel con el resumen persistente.",
                 affected_count=summary.inserted_local + summary.inserted_remote + summary.updated_local + summary.updated_remote,
                 incidents=incidents,
-                next_step="Puedes revisar detalle o continuar.",
+                next_step="Revisa conflictos o continúa operando según el estado mostrado.",
                 status=feedback_status,
                 action_label="Ver detalle",
                 action_callback=self._on_show_sync_details,
             )
         )
-        self._show_sync_summary_dialog("Sincronización completada", summary)
+        self._show_sync_summary_dialog(f"Resultado: {self._status_to_label(status)}", summary)
 
     def _on_sync_simulation_finished(self, plan: SyncExecutionPlan) -> None:
         self._set_sync_in_progress(False)
@@ -1624,8 +1636,9 @@ class MainWindow(QMainWindow):
         self._set_sync_in_progress(False)
         self._update_sync_button_state()
         error, details = self._normalize_sync_error(payload)
+        user_message = map_error_to_user_message(error)
         report = build_failed_report(
-            str(error),
+            user_message,
             source=self._sync_source_text(),
             scope=self._sync_scope_text(),
             actor=self._sync_actor_text(),
@@ -2433,20 +2446,20 @@ class MainWindow(QMainWindow):
         self._last_sync_report = report
         self._sync_attempts.append({"status": report.status, "counts": report.counts})
         counts = report.counts
-        self.sync_panel_status.setText(f"Estado: {self._status_to_label(report.status)}")
+        self._set_sync_status_badge(report.status)
         self.sync_source_label.setText(f"Fuente: {report.source}")
         self.sync_scope_label.setText(f"Rango: {report.scope}")
         self.sync_idempotency_label.setText(f"Idempotencia: {report.idempotency_criteria}")
         self.sync_counts_label.setText(
             "Resumen: "
-            f"Se crearán: {counts.get('created', 0)} · "
-            f"Se actualizarán: {counts.get('updated', 0)} · "
-            f"Sin cambios: {counts.get('skipped', 0)} · "
-            f"Conflictos detectados: {counts.get('conflicts', 0)} · "
-            f"Errores potenciales: {counts.get('errors', 0)}"
+            f"Filas creadas: {counts.get('created', 0)} · "
+            f"Filas actualizadas: {counts.get('updated', 0)} · "
+            f"Filas omitidas: {counts.get('skipped', 0)} · "
+            f"Conflictos: {counts.get('conflicts', 0)} · "
+            f"Errores: {counts.get('errors', 0)}"
         )
         self.sync_panel_status.setText(
-            f"Estado: {self._status_to_label(report.status)} · Intento #{len(self._sync_attempts)} · Consolidado: {self._status_to_label(report.final_status)}"
+            f"Detalle: intento #{len(self._sync_attempts)} · estado {self._status_to_label(report.status)} · consolidado {self._status_to_label(report.final_status)}"
         )
         self.last_sync_metrics_label.setText(
             f"Duración: {report.duration_ms} ms · Cambios: {counts.get('created', 0) + counts.get('updated', 0)} · "
@@ -2457,6 +2470,7 @@ class MainWindow(QMainWindow):
         self.sync_details_button.setEnabled(True)
         self.copy_sync_report_button.setEnabled(True)
         self.retry_failed_button.setEnabled(bool(report.errors or report.conflicts))
+        self.review_conflicts_button.setText("Ver conflictos" if report.conflicts_count > 0 else "Ver conflictos (sin pendientes)")
         persist_report(report, Path.cwd())
         self._refresh_health_and_alerts()
 
@@ -2545,6 +2559,15 @@ class MainWindow(QMainWindow):
         actions.addWidget(close_button)
         layout.addLayout(actions)
         dialog.exec()
+
+    def _set_sync_status_badge(self, status: str) -> None:
+        self.sync_status_badge.setText(self._status_to_label(status))
+        self.sync_status_badge.setProperty("syncStatus", status)
+        style = self.sync_status_badge.style()
+        if style is not None:
+            style.unpolish(self.sync_status_badge)
+            style.polish(self.sync_status_badge)
+        self.sync_status_badge.update()
 
     def _status_from_summary(self, summary: SyncSummary) -> str:
         if summary.errors > 0:
@@ -2658,7 +2681,8 @@ class MainWindow(QMainWindow):
             self.sync_details_button.setEnabled(False)
             self.copy_sync_report_button.setEnabled(False)
             self.review_conflicts_button.setEnabled(False)
-            self.sync_panel_status.setText("Estado: Sincronizando…")
+            self._set_sync_status_badge("RUNNING")
+            self.sync_panel_status.setText("Detalle: sincronización en curso, espera el resumen final.")
         else:
             self.statusBar().clearMessage()
 
@@ -3190,7 +3214,7 @@ class MainWindow(QMainWindow):
             self.last_sync_label.setText("Última sync: Nunca")
             return
         formatted = self._format_timestamp(last_sync)
-        self.last_sync_label.setText(f"Última sync: {formatted} · Delegada: {self._sync_actor_text()}")
+        self.last_sync_label.setText(f"Última sync: {formatted} · Delegada: {self._sync_actor_text()} · Alcance: {self._sync_scope_text()}")
 
     @staticmethod
     def _format_timestamp(value: str) -> str:

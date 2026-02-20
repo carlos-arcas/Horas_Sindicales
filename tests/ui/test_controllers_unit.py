@@ -114,7 +114,7 @@ def test_sync_controller_updates_button_state() -> None:
         _sync_service=SimpleNamespace(is_configured=Mock(return_value=True)),
         _sync_in_progress=False,
         sync_button=SimpleNamespace(setEnabled=Mock()),
-        review_conflicts_button=SimpleNamespace(setEnabled=Mock()),
+        review_conflicts_button=SimpleNamespace(setEnabled=Mock(), setText=Mock()),
         _conflicts_service=SimpleNamespace(count_conflicts=Mock(return_value=0)),
     )
     controller = SyncController(window)
@@ -122,6 +122,7 @@ def test_sync_controller_updates_button_state() -> None:
     controller.update_sync_button_state()
 
     window.sync_button.setEnabled.assert_called_once_with(True)
+    window.review_conflicts_button.setText.assert_called_once()
 
 
 def test_sync_controller_blocks_reentrancy() -> None:
