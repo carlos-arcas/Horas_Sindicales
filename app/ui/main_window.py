@@ -478,6 +478,21 @@ class MainWindow(QMainWindow):
         return saldos_card
 
     def _build_ui(self) -> None:
+        self._create_widgets()
+        self._build_layout()
+        self._wire_signals()
+        self._apply_initial_state()
+
+    def _build_layout(self) -> None:
+        """Mantiene la fase explícita de layout sin alterar el comportamiento actual."""
+
+    def _wire_signals(self) -> None:
+        """Mantiene la fase explícita de señales sin alterar el comportamiento actual."""
+
+    def _apply_initial_state(self) -> None:
+        """Mantiene la fase explícita de estado inicial sin alterar el comportamiento actual."""
+
+    def _create_widgets(self) -> None:
         self.persona_combo = QComboBox()
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(True)
