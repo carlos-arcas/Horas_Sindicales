@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable
 
 from app.application.sheets_service import SHEETS_SCHEMA
-from app.domain.ports import LocalDbProbe, SheetsClientPort, SheetsConfigStorePort, SqlConnectionPort
+from app.domain.ports import SheetsClientPort, SheetsConfigStorePort, SqlConnectionPort
 
 
 class SheetsConfigProbe:
