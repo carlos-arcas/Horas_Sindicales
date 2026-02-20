@@ -1,16 +1,10 @@
 from __future__ import annotations
 
-import os
 import sqlite3
 
 import pytest
 
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
-try:
-    from PySide6.QtWidgets import QApplication
-except ImportError as exc:  # pragma: no cover - depende de librerías Qt del entorno
-    pytest.skip(f"PySide6 no disponible en entorno de test: {exc}", allow_module_level=True)
+QApplication = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError).QApplication
 
 from app.bootstrap.container import build_container
 from app.ui.main_window import MainWindow
