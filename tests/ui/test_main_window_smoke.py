@@ -38,3 +38,24 @@ def test_main_window_smoke_initialization() -> None:
 
     window.close()
     app.processEvents()
+
+
+def test_main_window_build_ui_smoke_no_exception() -> None:
+    app = QApplication.instance() or QApplication([])
+    container = build_container(connection_factory=_in_memory_connection)
+
+    window = MainWindow(
+        container.persona_use_cases,
+        container.solicitud_use_cases,
+        container.grupo_use_cases,
+        container.sheets_service,
+        container.sync_service,
+        container.conflicts_service,
+        health_check_use_case=None,
+        alert_engine=container.alert_engine,
+    )
+
+    window._build_ui()
+
+    window.close()
+    app.processEvents()

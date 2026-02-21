@@ -1240,8 +1240,14 @@ class MainWindow(QMainWindow):
         self.header_secondary_actions.setPopupMode(QToolButton.InstantPopup)
         self.header_secondary_actions.setToolButtonStyle(Qt.ToolButtonTextOnly)
         self.header_secondary_menu = QMenu(self.header_secondary_actions)
-        self.header_secondary_menu.addAction("Sincronizar ahora", self._on_sync_with_confirmation)
-        self.header_secondary_menu.addAction("Exportar histórico PDF", self._on_export_historico_pdf)
+        self.header_secondary_menu.addAction(
+            "Sincronizar ahora",
+            self._resolve_ui_handler("_on_sync_with_confirmation"),
+        )
+        self.header_secondary_menu.addAction(
+            "Exportar histórico PDF",
+            self._resolve_ui_handler("_on_export_historico_pdf"),
+        )
         self.header_secondary_menu.addSeparator()
         self.header_secondary_menu.addAction("Abrir configuración", lambda: self._switch_sidebar_page(4))
         self.header_secondary_actions.setMenu(self.header_secondary_menu)
@@ -1316,12 +1322,19 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(shell)
 
     def _conectar_click_seguro(self, button: QPushButton, handler_name: str) -> None:
-        handler = getattr(self, handler_name, None)
-        if callable(handler):
+        handler = self._resolve_ui_handler(handler_name)
+        if handler is not None:
             button.clicked.connect(handler)
             return
         logger.error("ui_handler_missing", extra={"handler": handler_name, "button": button.text()})
         button.clicked.connect(lambda _checked=False, name=handler_name: self._mostrar_funcion_no_disponible(name))
+
+    def _resolve_ui_handler(self, handler_name: str):
+        handler = getattr(self, handler_name, None)
+        if callable(handler):
+            return handler
+        logger.warning("ui_handler_missing", extra={"handler": handler_name})
+        return lambda: self._mostrar_funcion_no_disponible(handler_name)
 
     def _verificar_handlers_ui(self) -> None:
         """Valida handlers críticos y asegura fallback para que la UI nunca reviente."""
@@ -1618,6 +1631,10 @@ class MainWindow(QMainWindow):
         if isinstance(fecha_input, QDateEdit):
             fecha_input.setDate(QDate.currentDate())
 
+        persona_combo = getattr(self, "persona_combo", None)
+        if isinstance(persona_combo, QComboBox):
+            persona_combo.setCurrentIndex(-1)
+
         desde_input = getattr(self, "desde_input", None)
         if isinstance(desde_input, QTimeEdit):
             desde_input.setTime(QTime(9, 0))
@@ -1634,6 +1651,10 @@ class MainWindow(QMainWindow):
         if isinstance(notas_input, QPlainTextEdit):
             notas_input.clear()
 
+        minutos_input = getattr(self, "minutos_input", None)
+        if isinstance(minutos_input, QLineEdit):
+            minutos_input.clear()
+
         for attr_name in ("_field_touched", "_blocking_errors", "_warnings"):
             state = getattr(self, attr_name, None)
             if hasattr(state, "clear"):
@@ -1647,7 +1668,12 @@ class MainWindow(QMainWindow):
         ):
             label = getattr(self, label_name, None)
             if isinstance(label, QLabel):
+                label.setText("")
                 label.setVisible(False)
+
+        pending_errors_frame = getattr(self, "pending_errors_frame", None)
+        if isinstance(pending_errors_frame, QFrame):
+            pending_errors_frame.setVisible(False)
 
         update_preview = getattr(self, "_update_solicitud_preview", None)
         if callable(update_preview):
@@ -1681,20 +1707,47 @@ class MainWindow(QMainWindow):
         )
 
     def _on_sync_with_confirmation(self) -> None:
-        """Alias legado: mantener compatibilidad con conexiones antiguas."""
-        self._sincronizar_con_confirmacion()
+        """Confirma la acción y delega la sincronización al flujo ya existente."""
+        result = QMessageBox.question(
+            self,
+            "Confirmar sincronización",
+            "¿Deseas iniciar la sincronización con Google Sheets ahora?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if result != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            self._on_sync()
+            self.toast.info("Sincronización en curso.", title="Sincronización")
+        except Exception:
+            logger.exception("sync_start_failed_from_header")
+            QMessageBox.warning(
+                self,
+                "Sincronización",
+                "No se pudo iniciar la sincronización. Revisa configuración y vuelve a intentarlo.",
+            )
 
     def _on_export_historico_pdf(self) -> None:
-        """Alias estable para acciones de shell/header refactorizadas."""
+        """Orquesta la exportación histórica desde UI sin lógica de negocio."""
         export_handler = getattr(self, "_on_generar_pdf_historico", None)
         if callable(export_handler):
-            export_handler()
+            try:
+                export_handler()
+            except Exception:
+                logger.exception("export_historico_pdf_failed")
+                QMessageBox.warning(
+                    self,
+                    "Exportación",
+                    "No se pudo completar la exportación del histórico.",
+                )
             return
         logger.warning("export_historico_pdf_not_available")
         QMessageBox.information(
             self,
             "Exportación",
-            "No disponible aún.",
+            "Función pendiente",
         )
 
     def _normalize_input_heights(self) -> None:
