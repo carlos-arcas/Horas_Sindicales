@@ -5,6 +5,7 @@ from types import TracebackType
 
 from app.bootstrap.container import AppContainer, build_container
 from app.bootstrap.exception_handler import manejar_excepcion_global
+from app.ui.estilos.apply_theme import aplicar_tema
 from app.ui.theme import build_stylesheet
 
 
@@ -31,7 +32,10 @@ def run_ui(container: AppContainer | None = None) -> int:
 
     resolved_container = container or build_container()
     app = QApplication([])
-    app.setStyleSheet(build_stylesheet())
+    try:
+        aplicar_tema(app)
+    except OSError:
+        app.setStyleSheet(build_stylesheet())
 
     try:
         window = MainWindow(

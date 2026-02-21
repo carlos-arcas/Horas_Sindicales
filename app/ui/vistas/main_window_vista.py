@@ -31,7 +31,10 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QScrollArea,
     QStatusBar,
+    QStackedWidget,
     QTabWidget,
+    QListWidget,
+    QListWidgetItem,
     QTableView,
     QTimeEdit,
     QVBoxLayout,
@@ -1100,7 +1103,7 @@ class MainWindow(QMainWindow):
         self.main_tabs.addTab(config_tab, "Configuración")
 
         self._scroll_area.setWidget(content)
-        self.setCentralWidget(self._scroll_area)
+        self._build_shell_layout()
         self._build_status_bar()
 
         self._normalize_input_heights()
@@ -1133,6 +1136,77 @@ class MainWindow(QMainWindow):
         self._apply_historico_filters()
         self._update_solicitud_preview()
         self._update_action_state()
+
+    def _build_shell_layout(self) -> None:
+        shell = QWidget()
+        shell_layout = QVBoxLayout(shell)
+        shell_layout.setContentsMargins(0, 0, 0, 0)
+        shell_layout.setSpacing(0)
+
+        self.header_shell = QFrame()
+        self.header_shell.setObjectName("header_shell")
+        header_layout = QHBoxLayout(self.header_shell)
+        header_layout.setContentsMargins(16, 12, 16, 12)
+        header_layout.setSpacing(8)
+
+        self.header_title_label = QLabel("Gestión de horas sindicales")
+        self.header_title_label.setProperty("role", "sectionTitle")
+        header_layout.addWidget(self.header_title_label)
+
+        self.header_state_badge = QLabel("Pendiente")
+        self.header_state_badge.setObjectName("header_state_badge")
+        header_layout.addWidget(self.header_state_badge)
+        header_layout.addStretch(1)
+
+        self.header_sync_button = QPushButton("Sincronizar")
+        self.header_sync_button.setProperty("variant", "secondary")
+        self.header_sync_button.clicked.connect(self._on_sync_with_confirmation)
+        header_layout.addWidget(self.header_sync_button)
+
+        self.header_new_button = QPushButton("Nueva solicitud")
+        self.header_new_button.setProperty("variant", "primary")
+        self.header_new_button.clicked.connect(self._clear_form)
+        header_layout.addWidget(self.header_new_button)
+
+        shell_layout.addWidget(self.header_shell)
+
+        body = QWidget()
+        body_layout = QHBoxLayout(body)
+        body_layout.setContentsMargins(12, 0, 12, 12)
+        body_layout.setSpacing(12)
+
+        self.sidebar = QListWidget()
+        self.sidebar.setObjectName("sidebar")
+        self.sidebar.setFixedWidth(200)
+        for name in ("Solicitudes", "Personas", "Configuración", "Sincronización"):
+            QListWidgetItem(name, self.sidebar)
+        self.sidebar.setCurrentRow(0)
+        body_layout.addWidget(self.sidebar)
+
+        self.stacked_pages = QStackedWidget()
+        self.stacked_pages.setObjectName("stacked_pages")
+        self.stacked_pages.addWidget(self._scroll_area)
+
+        self.page_personas = QWidget()
+        self.page_personas.setLayout(QVBoxLayout())
+        self.page_personas.layout().addWidget(QLabel("Administración de personas"))
+        self.stacked_pages.addWidget(self.page_personas)
+
+        self.page_configuracion = QWidget()
+        self.page_configuracion.setLayout(QVBoxLayout())
+        self.page_configuracion.layout().addWidget(QLabel("Configuración"))
+        self.stacked_pages.addWidget(self.page_configuracion)
+
+        self.page_sincronizacion = QWidget()
+        self.page_sincronizacion.setLayout(QVBoxLayout())
+        self.page_sincronizacion.layout().addWidget(QLabel("Sincronización"))
+        self.stacked_pages.addWidget(self.page_sincronizacion)
+
+        body_layout.addWidget(self.stacked_pages, 1)
+        shell_layout.addWidget(body, 1)
+
+        self.sidebar.currentRowChanged.connect(self.stacked_pages.setCurrentIndex)
+        self.setCentralWidget(shell)
 
     def _build_status_bar(self) -> None:
         status = QStatusBar(self)
