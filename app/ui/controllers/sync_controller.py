@@ -5,6 +5,7 @@ import logging
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 
+from app.bootstrap.logging import log_operational_error
 from app.core.observability import OperationContext, log_event
 
 
@@ -29,6 +30,15 @@ class _SyncWorker(QObject):
             log_event(logger, "sync_succeeded", {"operation": self._operation_name}, self._correlation_id)
         except Exception as exc:  # pragma: no cover
             log_event(logger, "sync_failed", {"operation": self._operation_name, "error": str(exc)}, self._correlation_id)
+            log_operational_error(
+                logger,
+                "Sync failed",
+                exc=exc,
+                extra={
+                    "operation": self._operation_name,
+                    "correlation_id": self._correlation_id,
+                },
+            )
             self.failed.emit({"error": exc, "details": traceback.format_exc()})
             return
         self.finished.emit(result)
