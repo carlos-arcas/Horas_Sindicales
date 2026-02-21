@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 from typing import cast
 
 from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, Signal, Slot, QThread
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
     QBoxLayout,
     QCheckBox,
@@ -1515,12 +1516,10 @@ class MainWindow(QMainWindow):
                 getattr(self, "notas_input", None),
             }
             if watched in submit_widgets and event.type() == QEvent.KeyPress:
-                key_getter = getattr(event, "key", None)
-                modifiers_getter = getattr(event, "modifiers", None)
-                if not callable(key_getter):
+                if not isinstance(event, QKeyEvent):
                     return super().eventFilter(watched, event)
-                key = key_getter()
-                modifiers = modifiers_getter() if callable(modifiers_getter) else Qt.NoModifier
+                key = event.key()
+                modifiers = event.modifiers()
                 if key in (Qt.Key_Return, Qt.Key_Enter) and modifiers == Qt.NoModifier:
                     if self.primary_cta_button.isEnabled():
                         self.primary_cta_button.click()
