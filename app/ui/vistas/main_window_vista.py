@@ -80,7 +80,10 @@ from app.ui.controllers.solicitudes_controller import SolicitudesController
 from app.ui.controllers.sync_controller import SyncController
 from app.ui.controllers.pdf_controller import PdfController
 from app.ui.notification_service import ConfirmationSummaryPayload, NotificationService, OperationFeedback
+from app.ui.components.primary_button import PrimaryButton
 from app.ui.components.saldos_card import SaldosCard
+from app.ui.components.secondary_button import SecondaryButton
+from app.ui.components.status_badge import StatusBadge
 from app.ui.sync_reporting import (
     build_config_incomplete_report,
     build_failed_report,
@@ -1196,28 +1199,26 @@ class MainWindow(QMainWindow):
         self.header_shell = QFrame()
         self.header_shell.setObjectName("header_shell")
         header_layout = QHBoxLayout(self.header_shell)
-        header_layout.setContentsMargins(16, 12, 16, 12)
-        header_layout.setSpacing(8)
+        header_layout.setContentsMargins(16, 16, 16, 16)
+        header_layout.setSpacing(12)
 
-        self.header_title_label = QLabel("Horas sindicales")
-        self.header_title_label.setProperty("role", "sectionTitle")
+        self.header_title_label = QLabel("Gestión de horas sindicales")
+        self.header_title_label.setProperty("role", "title")
         header_layout.addWidget(self.header_title_label)
 
-        self.header_state_badge = QLabel("Pendiente")
+        self.header_state_badge = StatusBadge("Pendiente", variant="warning")
         self.header_state_badge.setObjectName("header_state_badge")
         header_layout.addWidget(self.header_state_badge)
         header_layout.addStretch(1)
 
-        self.header_sync_button = QPushButton("Sincronizar")
-        self.header_sync_button.setProperty("variant", "secondary")
+        self.header_sync_button = SecondaryButton("Sincronizar")
         # Para juniors: en Qt, una señal (`clicked`) se conecta a un slot (método).
         # Usamos conexión segura por nombre para evitar que un refactor deje la UI rota
         # por un handler faltante al arrancar.
         self._conectar_click_seguro(self.header_sync_button, "_sincronizar_con_confirmacion")
         header_layout.addWidget(self.header_sync_button)
 
-        self.header_new_button = QPushButton("Nueva solicitud")
-        self.header_new_button.setProperty("variant", "primary")
+        self.header_new_button = PrimaryButton("Nueva solicitud")
         # Para juniors: este botón dispara un "reset" de vista, no lógica de negocio.
         # La vista sólo prepara estado UI y delega servicios/controladores cuando haga falta.
         self._conectar_click_seguro(self.header_new_button, "_limpiar_formulario")
@@ -1227,8 +1228,8 @@ class MainWindow(QMainWindow):
 
         body = QWidget()
         body_layout = QHBoxLayout(body)
-        body_layout.setContentsMargins(12, 0, 12, 12)
-        body_layout.setSpacing(12)
+        body_layout.setContentsMargins(16, 12, 16, 16)
+        body_layout.setSpacing(16)
 
         self.sidebar = QFrame()
         self.sidebar.setObjectName("sidebar")

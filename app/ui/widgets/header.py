@@ -27,7 +27,7 @@ class HeaderWidget(QWidget):
 
         self.logo_label = QLabel()
         self.logo_label.setObjectName("headerLogo")
-        self.logo_label.setFixedHeight(72)
+        self.logo_label.setFixedHeight(56)
         self.logo_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.logo_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         self._set_logo_pixmap()
@@ -37,9 +37,9 @@ class HeaderWidget(QWidget):
         title_layout.setContentsMargins(0, 0, 0, 0)
         title_layout.setSpacing(2)
 
-        title = QLabel("RESERVA DE HORAS SINDICALES")
+        title = QLabel("Gestión de horas sindicales")
         title.setProperty("role", "title")
-        subtitle = QLabel("Gestiona solicitudes, genera PDF y sincroniza con Google Sheets.")
+        subtitle = QLabel("Producto institucional CGT para solicitudes, seguimiento y sincronización.")
         subtitle.setProperty("role", "subtitle")
 
         title_layout.addWidget(title)
@@ -56,12 +56,7 @@ class HeaderWidget(QWidget):
                 if pixmap.isNull():
                     logger.warning("Logo encontrado pero no se pudo cargar: %s", candidate)
                     continue
-                scaled = pixmap.scaled(
-                    180,
-                    72,
-                    Qt.KeepAspectRatio,
-                    Qt.SmoothTransformation,
-                )
+                scaled = pixmap.scaled(132, 52, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self.logo_label.setPixmap(scaled)
                 return
         logger.warning("No se encontro logo.png, usando texto de respaldo")
