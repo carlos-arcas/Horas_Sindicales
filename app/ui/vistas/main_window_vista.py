@@ -9,7 +9,6 @@ from tempfile import NamedTemporaryFile
 from typing import cast
 
 from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, Signal, Slot, QThread
-from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
     QBoxLayout,
     QCheckBox,
@@ -1493,9 +1492,14 @@ class MainWindow(QMainWindow):
                 getattr(self, "completo_check", None),
                 getattr(self, "notas_input", None),
             }
-            if watched in submit_widgets and event.type() in (QEvent.KeyPress, QEvent.KeyRelease):
-                key_event = cast(QKeyEvent, event)
-                if key_event.key() in (Qt.Key_Return, Qt.Key_Enter) and key_event.modifiers() == Qt.NoModifier:
+            if watched in submit_widgets and event.type() == QEvent.KeyPress:
+                key_getter = getattr(event, "key", None)
+                modifiers_getter = getattr(event, "modifiers", None)
+                if not callable(key_getter):
+                    return super().eventFilter(watched, event)
+                key = key_getter()
+                modifiers = modifiers_getter() if callable(modifiers_getter) else Qt.NoModifier
+                if key in (Qt.Key_Return, Qt.Key_Enter) and modifiers == Qt.NoModifier:
                     if self.primary_cta_button.isEnabled():
                         self.primary_cta_button.click()
                     return True
@@ -1679,6 +1683,19 @@ class MainWindow(QMainWindow):
     def _on_sync_with_confirmation(self) -> None:
         """Alias legado: mantener compatibilidad con conexiones antiguas."""
         self._sincronizar_con_confirmacion()
+
+    def _on_export_historico_pdf(self) -> None:
+        """Alias estable para acciones de shell/header refactorizadas."""
+        export_handler = getattr(self, "_on_generar_pdf_historico", None)
+        if callable(export_handler):
+            export_handler()
+            return
+        logger.warning("export_historico_pdf_not_available")
+        QMessageBox.information(
+            self,
+            "Exportación",
+            "No disponible aún.",
+        )
 
     def _normalize_input_heights(self) -> None:
         controls = [

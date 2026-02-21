@@ -24,12 +24,9 @@ def _in_memory_connection() -> sqlite3.Connection:
     return connection
 
 
-def test_module_exports_qkeyevent_symbol() -> None:
-    assert hasattr(main_window_vista, "QKeyEvent")
-    assert main_window_vista.QKeyEvent is not None
-
-
-def test_event_filter_handles_return_key_without_crash() -> None:
+def test_event_filter_handles_return_key_without_crash_when_qkeyevent_symbol_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = QApplication.instance() or QApplication([])
     container = build_container(connection_factory=_in_memory_connection)
 
@@ -44,6 +41,7 @@ def test_event_filter_handles_return_key_without_crash() -> None:
         alert_engine=container.alert_engine,
     )
 
+    monkeypatch.setattr(main_window_vista, "QKeyEvent", None, raising=False)
     event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key_Return, Qt.NoModifier)
     handled = window.eventFilter(window.notas_input, event)
 
