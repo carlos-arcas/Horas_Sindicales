@@ -10,6 +10,8 @@ if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
 set "SUMMARY_FILE=%LOG_DIR%\menu_ultima_ejecucion.txt"
 set "TESTS_STDOUT=%LOG_DIR%\menu_tests_stdout.txt"
 set "TESTS_STDERR=%LOG_DIR%\menu_tests_stderr.txt"
+set "TESTS_ENV=%LOG_DIR%\menu_tests_env.txt"
+set "TESTS_POST=%LOG_DIR%\menu_tests_postflight.txt"
 set "GATE_STDOUT=%LOG_DIR%\menu_gate_stdout.txt"
 set "GATE_STDERR=%LOG_DIR%\menu_gate_stderr.txt"
 
@@ -55,10 +57,14 @@ goto MENU
 set "TESTS_EXEC=1"
 set "GATE_EXEC=0"
 set "LAST_ACTION=Ejecutar tests"
+set "TESTS_COMMAND=call \"%ROOT_DIR%ejecutar_tests.bat\""
+
+call :WRITE_TESTS_PREFLIGHT
 
 call "%ROOT_DIR%ejecutar_tests.bat" 1>"%TESTS_STDOUT%" 2>"%TESTS_STDERR%"
-set "TESTS_CODE=!ERRORLEVEL!"
-if "!TESTS_CODE!"=="0" (
+set "TESTS_CODE=%ERRORLEVEL%"
+call :WRITE_TESTS_POSTFLIGHT %TESTS_CODE%
+if "%TESTS_CODE%"=="0" (
     set "TESTS_STATUS=PASS"
 ) else (
     set "TESTS_STATUS=FAIL"
@@ -69,7 +75,7 @@ set "GATE_STATUS=NO_EJECUTADO"
 
 call :WRITE_SUMMARY
 call :PRINT_RESULTS
-exit /b !TESTS_CODE!
+exit /b %TESTS_CODE%
 
 :RUN_GATE
 set "TESTS_EXEC=0"
@@ -96,21 +102,25 @@ exit /b !GATE_CODE!
 set "TESTS_EXEC=1"
 set "GATE_EXEC=0"
 set "LAST_ACTION=Ejecutar ambos en orden"
+set "TESTS_COMMAND=call \"%ROOT_DIR%ejecutar_tests.bat\""
+
+call :WRITE_TESTS_PREFLIGHT
 
 call "%ROOT_DIR%ejecutar_tests.bat" 1>"%TESTS_STDOUT%" 2>"%TESTS_STDERR%"
-set "TESTS_CODE=!ERRORLEVEL!"
-if "!TESTS_CODE!"=="0" (
+set "TESTS_CODE=%ERRORLEVEL%"
+call :WRITE_TESTS_POSTFLIGHT %TESTS_CODE%
+if "%TESTS_CODE%"=="0" (
     set "TESTS_STATUS=PASS"
 ) else (
     set "TESTS_STATUS=FAIL"
 )
 
-if not "!TESTS_CODE!"=="0" (
+if not "%TESTS_CODE%"=="0" (
     set "GATE_CODE=NO_EJECUTADO"
     set "GATE_STATUS=NO_EJECUTADO"
     call :WRITE_SUMMARY
     call :PRINT_RESULTS
-    exit /b !TESTS_CODE!
+    exit /b %TESTS_CODE%
 )
 
 set "GATE_EXEC=1"
@@ -126,17 +136,81 @@ call :WRITE_SUMMARY
 call :PRINT_RESULTS
 exit /b !GATE_CODE!
 
+:WRITE_TESTS_PREFLIGHT
+>%TESTS_ENV% echo MENU VALIDACION - PRECHECK TESTS
+>>%TESTS_ENV% echo Fecha: %DATE% %TIME%
+>>%TESTS_ENV% echo CD=%CD%
+>>%TESTS_ENV% echo ROOT_DIR=%ROOT_DIR%
+>>%TESTS_ENV% echo PATH=%PATH%
+>>%TESTS_ENV% echo.
+>>%TESTS_ENV% echo ---- where python ----
+where python >>%TESTS_ENV% 2>&1
+>>%TESTS_ENV% echo ---- where pip ----
+where pip >>%TESTS_ENV% 2>&1
+>>%TESTS_ENV% echo ---- where pytest ----
+where pytest >>%TESTS_ENV% 2>&1
+>>%TESTS_ENV% echo.
+>>%TESTS_ENV% echo ---- python --version ----
+python --version >>%TESTS_ENV% 2>&1
+>>%TESTS_ENV% echo ---- pip --version ----
+pip --version >>%TESTS_ENV% 2>&1
+>>%TESTS_ENV% echo ---- pytest --version ----
+where pytest >nul 2>nul
+if errorlevel 1 (
+    >>%TESTS_ENV% echo [info] pytest no disponible en PATH
+) else (
+    pytest --version >>%TESTS_ENV% 2>&1
+)
+exit /b 0
+
+:WRITE_TESTS_POSTFLIGHT
+>%TESTS_POST% echo MENU VALIDACION - POSTCHECK TESTS
+>>%TESTS_POST% echo Fecha: %DATE% %TIME%
+>>%TESTS_POST% echo Comando: %TESTS_COMMAND%
+>>%TESTS_POST% echo Exit code tests: %~1
+if exist "%TESTS_STDOUT%" (
+    for %%A in ("%TESTS_STDOUT%") do >>%TESTS_POST% echo Bytes stdout menu: %%~zA
+) else (
+    >>%TESTS_POST% echo Bytes stdout menu: [archivo inexistente]
+)
+if exist "%TESTS_STDERR%" (
+    for %%A in ("%TESTS_STDERR%") do >>%TESTS_POST% echo Bytes stderr menu: %%~zA
+) else (
+    >>%TESTS_POST% echo Bytes stderr menu: [archivo inexistente]
+)
+exit /b 0
+
 :WRITE_SUMMARY
 >"%SUMMARY_FILE%" echo MENU VALIDACION - ULTIMA EJECUCION
 >>"%SUMMARY_FILE%" echo Fecha: %DATE% %TIME%
 >>"%SUMMARY_FILE%" echo Carpeta raiz: %ROOT_DIR%
 >>"%SUMMARY_FILE%" echo Opcion: !LAST_ACTION!
+if defined TESTS_COMMAND >>"%SUMMARY_FILE%" echo Comando tests: !TESTS_COMMAND!
 >>"%SUMMARY_FILE%" echo.
 >>"%SUMMARY_FILE%" echo TESTS: !TESTS_STATUS! ^(exit code !TESTS_CODE!^)
 >>"%SUMMARY_FILE%" echo QUALITY GATE: !GATE_STATUS! ^(exit code !GATE_CODE!^)
 >>"%SUMMARY_FILE%" echo.
 
 if "!TESTS_EXEC!"=="1" (
+    set "HAS_TESTS_STREAM=0"
+    if exist "%TESTS_STDOUT%" for %%A in ("%TESTS_STDOUT%") do if %%~zA gtr 0 set "HAS_TESTS_STREAM=1"
+    if exist "%TESTS_STDERR%" for %%A in ("%TESTS_STDERR%") do if %%~zA gtr 0 set "HAS_TESTS_STREAM=1"
+
+    >>"%SUMMARY_FILE%" echo ===== TESTS PRE/POST FLIGHT =====
+    >>"%SUMMARY_FILE%" echo --- logs\menu_tests_env.txt ---
+    if exist "%TESTS_ENV%" (
+        type "%TESTS_ENV%" >>"%SUMMARY_FILE%"
+    ) else (
+        >>"%SUMMARY_FILE%" echo [sin preflight de tests]
+    )
+    >>"%SUMMARY_FILE%" echo.
+    if exist "%TESTS_POST%" (
+        type "%TESTS_POST%" >>"%SUMMARY_FILE%"
+    ) else (
+        >>"%SUMMARY_FILE%" echo [sin postflight de tests]
+    )
+    >>"%SUMMARY_FILE%" echo.
+
     >>"%SUMMARY_FILE%" echo ===== TESTS STDOUT =====
     if exist "%TESTS_STDOUT%" (
         type "%TESTS_STDOUT%" >>"%SUMMARY_FILE%"
@@ -151,6 +225,32 @@ if "!TESTS_EXEC!"=="1" (
         >>"%SUMMARY_FILE%" echo [sin salida stderr de tests]
     )
     >>"%SUMMARY_FILE%" echo.
+
+    if "!HAS_TESTS_STREAM!"=="0" (
+        set "HAS_FALLBACK=0"
+        >>"%SUMMARY_FILE%" echo ===== FALLBACK LOGS TESTS =====
+        if exist "%LOG_DIR%\pytest_output.txt" (
+            set "HAS_FALLBACK=1"
+            >>"%SUMMARY_FILE%" echo --- logs\pytest_output.txt ---
+            type "%LOG_DIR%\pytest_output.txt" >>"%SUMMARY_FILE%"
+            >>"%SUMMARY_FILE%" echo.
+        )
+        if exist "%LOG_DIR%\coverage_report.txt" (
+            set "HAS_FALLBACK=1"
+            >>"%SUMMARY_FILE%" echo --- logs\coverage_report.txt ---
+            type "%LOG_DIR%\coverage_report.txt" >>"%SUMMARY_FILE%"
+            >>"%SUMMARY_FILE%" echo.
+        )
+        if "!HAS_FALLBACK!"=="0" (
+            if exist "%TESTS_ENV%" (
+                >>"%SUMMARY_FILE%" echo [fallback] stdout/stderr vacios; se adjunta menu_tests_env.txt
+                type "%TESTS_ENV%" >>"%SUMMARY_FILE%"
+            ) else (
+                >>"%SUMMARY_FILE%" echo [fallback] stdout/stderr vacios y sin logs alternativos
+            )
+        )
+        >>"%SUMMARY_FILE%" echo.
+    )
 )
 
 if "!GATE_EXEC!"=="1" (
