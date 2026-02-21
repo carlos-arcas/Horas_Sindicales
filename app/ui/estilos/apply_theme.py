@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
+
+from app.ui.theme.cgt_theme import aplicar_tema as aplicar_tema_cgt
 
 
 def aplicar_tema(app: Any) -> None:
-    qss_path = Path(__file__).with_name("tema.qss")
-    app.setStyleSheet(qss_path.read_text(encoding="utf-8"))
+    aplicar_tema_cgt(app)
