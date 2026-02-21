@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QListWidget, QVBoxLayout, QWidget
 
 from app.ui.components.card_widget import CardWidget
 from app.ui.components.primary_button import PrimaryButton
@@ -12,6 +12,7 @@ class PaginaResumen(QWidget):
     nueva_solicitud = Signal()
     ver_pendientes = Signal()
     sincronizar_ahora = Signal()
+    duplicar_ultima = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -43,6 +44,15 @@ class PaginaResumen(QWidget):
         kpi_grid.addWidget(self.kpi_saldo_restante, 1, 1)
         layout.addLayout(kpi_grid)
 
+        delegada_card = CardWidget("Delegada activa")
+        self.delegada_nombre_label = QLabel("Sin delegada")
+        self.delegada_nombre_label.setProperty("role", "title")
+        self.delegada_saldo_label = QLabel("Saldo disponible: No calculado")
+        self.delegada_saldo_label.setProperty("role", "secondary")
+        delegada_card.layout().addWidget(self.delegada_nombre_label)
+        delegada_card.layout().addWidget(self.delegada_saldo_label)
+        layout.addWidget(delegada_card)
+
         acciones_card = CardWidget("Acciones rápidas")
         acciones_layout = QHBoxLayout()
         acciones_layout.setSpacing(16)
@@ -59,9 +69,24 @@ class PaginaResumen(QWidget):
         self.sincronizar_ahora_button.clicked.connect(self.sincronizar_ahora.emit)
         acciones_layout.addWidget(self.sincronizar_ahora_button)
 
+        self.duplicar_ultima_button = SecondaryButton("Duplicar última solicitud")
+        self.duplicar_ultima_button.setEnabled(False)
+        self.duplicar_ultima_button.setToolTip("Disponible próximamente")
+        self.duplicar_ultima_button.clicked.connect(self.duplicar_ultima.emit)
+        acciones_layout.addWidget(self.duplicar_ultima_button)
+
         acciones_layout.addStretch(1)
         acciones_card.layout().addLayout(acciones_layout)
         layout.addWidget(acciones_card)
+
+        self.recientes_card = CardWidget("Últimas 5 solicitudes")
+        self.recientes_list = QListWidget()
+        self.recientes_empty_label = QLabel("Todavía no hay solicitudes recientes.")
+        self.recientes_empty_label.setProperty("role", "secondary")
+        self.recientes_card.layout().addWidget(self.recientes_empty_label)
+        self.recientes_card.layout().addWidget(self.recientes_list)
+        self.recientes_list.setVisible(False)
+        layout.addWidget(self.recientes_card)
         layout.addStretch(1)
 
     def _build_kpi_card(self, titulo: str, valor: str) -> CardWidget:
@@ -71,3 +96,13 @@ class PaginaResumen(QWidget):
         card.layout().addWidget(label_valor)
         card.value_label = label_valor
         return card
+
+    def set_recientes(self, items: list[str]) -> None:
+        self.recientes_list.clear()
+        if not items:
+            self.recientes_list.setVisible(False)
+            self.recientes_empty_label.setVisible(True)
+            return
+        self.recientes_list.addItems(items)
+        self.recientes_list.setVisible(True)
+        self.recientes_empty_label.setVisible(False)

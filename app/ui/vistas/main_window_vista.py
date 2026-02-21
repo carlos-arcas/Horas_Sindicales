@@ -85,6 +85,7 @@ from app.ui.components.primary_button import PrimaryButton
 from app.ui.components.saldos_card import SaldosCard
 from app.ui.components.secondary_button import SecondaryButton
 from app.ui.components.status_badge import StatusBadge
+from app.ui.components.contexto_trabajo_widget import ContextoTrabajoWidget
 from app.ui.sync_reporting import (
     build_config_incomplete_report,
     build_failed_report,
@@ -313,6 +314,10 @@ class MainWindow(QMainWindow):
         self.page_sincronizacion: QWidget | None = None
         self.page_solicitudes: QWidget | None = None
         self.sidebar_buttons: list[QPushButton] = []
+        self.contexto_trabajo_widget: ContextoTrabajoWidget | None = None
+        self._persona_change_guard = False
+        self._last_persona_id: int | None = None
+        self._draft_solicitud_por_persona: dict[int, dict[str, object]] = {}
         self.toast = ToastManager()
         self.notifications = NotificationService(self.toast, self)
         self._personas_controller = PersonasController(self)
@@ -326,6 +331,7 @@ class MainWindow(QMainWindow):
         self._load_personas()
         self._reload_pending_views()
         self._refresh_resumen_kpis()
+        self._update_global_context()
         self.sync_source_label.setText(f"Fuente: {self._sync_source_text()}")
         self.sync_scope_label.setText(f"Rango: {self._sync_scope_text()}")
         self.sync_idempotency_label.setText("Evita duplicados: misma delegada, fecha y tramo")
@@ -1208,31 +1214,41 @@ class MainWindow(QMainWindow):
 
         self.header_shell = QFrame()
         self.header_shell.setObjectName("header_shell")
-        header_layout = QHBoxLayout(self.header_shell)
+        header_layout = QVBoxLayout(self.header_shell)
         header_layout.setContentsMargins(16, 16, 16, 16)
-        header_layout.setSpacing(12)
+        header_layout.setSpacing(10)
+
+        header_top = QHBoxLayout()
+        header_top.setContentsMargins(0, 0, 0, 0)
+        header_top.setSpacing(12)
 
         self.header_title_label = QLabel("Gestión de horas sindicales")
         self.header_title_label.setProperty("role", "title")
-        header_layout.addWidget(self.header_title_label)
+        header_top.addWidget(self.header_title_label)
 
         self.header_state_badge = StatusBadge("Pendiente", variant="warning")
         self.header_state_badge.setObjectName("header_state_badge")
-        header_layout.addWidget(self.header_state_badge)
-        header_layout.addStretch(1)
+        header_top.addWidget(self.header_state_badge)
+        header_top.addStretch(1)
 
         self.header_sync_button = SecondaryButton("Sincronizar")
         # Para juniors: en Qt, una señal (`clicked`) se conecta a un slot (método).
         # Usamos conexión segura por nombre para evitar que un refactor deje la UI rota
         # por un handler faltante al arrancar.
         self._conectar_click_seguro(self.header_sync_button, "_sincronizar_con_confirmacion")
-        header_layout.addWidget(self.header_sync_button)
+        header_top.addWidget(self.header_sync_button)
 
         self.header_new_button = PrimaryButton("Nueva solicitud")
         # Para juniors: este botón dispara un "reset" de vista, no lógica de negocio.
         # La vista sólo prepara estado UI y delega servicios/controladores cuando haga falta.
         self._conectar_click_seguro(self.header_new_button, "_limpiar_formulario")
-        header_layout.addWidget(self.header_new_button)
+        header_top.addWidget(self.header_new_button)
+
+        header_layout.addLayout(header_top)
+        self.contexto_trabajo_widget = ContextoTrabajoWidget(self.header_shell)
+        self.contexto_trabajo_widget.editar_clicked.connect(lambda: self._switch_sidebar_page(3))
+        self.contexto_trabajo_widget.delegada_cambiada.connect(self._on_persona_changed)
+        header_layout.addWidget(self.contexto_trabajo_widget)
 
         shell_layout.addWidget(self.header_shell)
 
@@ -1295,6 +1311,7 @@ class MainWindow(QMainWindow):
         self.page_resumen.nueva_solicitud.connect(self._limpiar_formulario)
         self.page_resumen.ver_pendientes.connect(lambda: self._switch_sidebar_page(1))
         self.page_resumen.sincronizar_ahora.connect(self._sincronizar_con_confirmacion)
+        self.page_resumen.duplicar_ultima.connect(self._on_duplicate_latest_placeholder)
         self.page_sincronizacion.configurar_credenciales.connect(self._on_open_opciones)
         self.page_configuracion.editar_grupo.connect(self._on_edit_grupo)
         self.page_historico.ver_solicitudes.connect(lambda: self._switch_sidebar_page(1))
@@ -1336,8 +1353,13 @@ class MainWindow(QMainWindow):
     def _switch_sidebar_page(self, index: int) -> None:
         if self.stacked_pages is None:
             return
+        if self.stacked_pages.currentIndex() == 1 and index != 1:
+            self._save_current_draft(self._current_persona().id if self._current_persona() is not None else None)
         if index == 1:
             self.main_tabs.setCurrentIndex(0)
+            persona = self._current_persona()
+            self._restore_draft_for_persona(persona.id if persona is not None else None)
+            self.fecha_input.setFocus()
         if 0 <= index < self.stacked_pages.count():
             self.stacked_pages.setCurrentIndex(index)
             self._sync_sidebar_state(index)
@@ -1363,6 +1385,15 @@ class MainWindow(QMainWindow):
         else:
             self.page_resumen.kpi_ultima_sync.value_label.setText(self._format_timestamp(last_sync))
         self.page_resumen.kpi_saldo_restante.value_label.setText("No calculado")
+
+        recientes: list[str] = []
+        persona = self._current_persona()
+        if persona is not None and persona.id is not None:
+            historico = list(self._solicitud_use_cases.listar_solicitudes_por_persona(persona.id))
+            for solicitud in historico[-5:][::-1]:
+                recientes.append(f"{solicitud.fecha_pedida} · {minutes_to_hhmm(solicitud.horas)}")
+        self.page_resumen.set_recientes(recientes)
+        self._update_global_context()
 
     def _build_status_bar(self) -> None:
         status = QStatusBar(self)
@@ -1450,6 +1481,73 @@ class MainWindow(QMainWindow):
         self._update_solicitud_preview()
         self._update_action_state()
         logger.info("formulario_limpiado")
+
+    def _is_form_dirty(self) -> bool:
+        return bool(self.notas_input.toPlainText().strip()) or self.fecha_input.date() != QDate.currentDate() or self.desde_input.time() != QTime(9, 0) or self.hasta_input.time() != QTime(17, 0) or self.completo_check.isChecked()
+
+    def _confirmar_cambio_delegada(self) -> bool:
+        respuesta = QMessageBox.question(
+            self,
+            "Cambiar delegada",
+            "Cambiar delegada descartará el formulario actual. ¿Continuar?",
+        )
+        return respuesta == QMessageBox.StandardButton.Yes
+
+    def _save_current_draft(self, persona_id: int | None) -> None:
+        if persona_id is None:
+            return
+        if not self._is_form_dirty():
+            self._draft_solicitud_por_persona.pop(persona_id, None)
+            return
+        self._draft_solicitud_por_persona[persona_id] = {
+            "fecha": self.fecha_input.date(),
+            "desde": self.desde_input.time(),
+            "hasta": self.hasta_input.time(),
+            "completo": self.completo_check.isChecked(),
+            "notas": self.notas_input.toPlainText(),
+        }
+
+    def _restore_draft_for_persona(self, persona_id: int | None) -> None:
+        if persona_id is None:
+            return
+        draft = self._draft_solicitud_por_persona.get(persona_id)
+        if not draft:
+            return
+        self.fecha_input.setDate(draft["fecha"])
+        self.desde_input.setTime(draft["desde"])
+        self.hasta_input.setTime(draft["hasta"])
+        self.completo_check.setChecked(bool(draft["completo"]))
+        self.notas_input.setPlainText(str(draft["notas"]))
+
+    def _update_global_context(self) -> None:
+        persona = self._current_persona()
+        estado_texto, estado_variant = self._resolve_context_status()
+        if self.contexto_trabajo_widget is not None:
+            self.contexto_trabajo_widget.set_aviso_delegada(persona is None)
+            self.contexto_trabajo_widget.set_grupo_servicio("—")
+            self.contexto_trabajo_widget.set_sync_estado(estado_texto, variant=estado_variant)
+        if self.header_state_badge is not None:
+            self.header_state_badge.setText(estado_texto)
+        if self.page_resumen is not None:
+            self.page_resumen.nueva_solicitud_button.setEnabled(persona is not None)
+            self.page_resumen.nueva_solicitud_button.setToolTip("" if persona is not None else "Selecciona delegada")
+            self.page_resumen.delegada_nombre_label.setText(persona.nombre if persona is not None else "Sin delegada")
+            self.page_resumen.delegada_saldo_label.setText("Saldo disponible: No calculado")
+        if self.header_new_button is not None:
+            self.header_new_button.setEnabled(persona is not None)
+            self.header_new_button.setToolTip("" if persona is not None else "Selecciona delegada")
+
+    def _resolve_context_status(self) -> tuple[str, str]:
+        if not self._sync_service.is_configured():
+            return "Google Sheets no configurado", "warning"
+        if self._pending_conflict_rows:
+            return "Conflictos", "warning"
+        if self._pending_solicitudes:
+            return "Pendiente", "warning"
+        return "Sincronizado", "success"
+
+    def _on_duplicate_latest_placeholder(self) -> None:
+        self.toast.info("Disponible próximamente", title="Duplicar última solicitud")
 
     def _clear_form(self) -> None:
         """Alias legado: mantener compatibilidad con conexiones antiguas.
@@ -1610,16 +1708,26 @@ class MainWindow(QMainWindow):
     def _load_personas(self, select_id: int | None = None) -> None:
         self.persona_combo.blockSignals(True)
         self.persona_combo.clear()
+        if self.contexto_trabajo_widget is not None:
+            self.contexto_trabajo_widget.delegada_combo.blockSignals(True)
+            self.contexto_trabajo_widget.delegada_combo.clear()
         self._personas = list(self._persona_use_cases.listar())
         for persona in self._personas:
             self.persona_combo.addItem(persona.nombre, persona.id)
+            if self.contexto_trabajo_widget is not None:
+                self.contexto_trabajo_widget.delegada_combo.addItem(persona.nombre, persona.id)
         self.persona_combo.blockSignals(False)
+        if self.contexto_trabajo_widget is not None:
+            self.contexto_trabajo_widget.delegada_combo.blockSignals(False)
 
         if select_id is not None:
             for index in range(self.persona_combo.count()):
                 if self.persona_combo.itemData(index) == select_id:
                     self.persona_combo.setCurrentIndex(index)
+                    if self.contexto_trabajo_widget is not None:
+                        self.contexto_trabajo_widget.delegada_combo.setCurrentIndex(index)
                     break
+        self._last_persona_id = self.persona_combo.currentData()
         persona_nombres = {int(persona.id): persona.nombre for persona in self._personas if persona.id is not None}
         self.pendientes_model.set_persona_nombres(persona_nombres)
         self.huerfanas_model.set_persona_nombres(persona_nombres)
@@ -1642,7 +1750,37 @@ class MainWindow(QMainWindow):
                 return persona
         return None
 
-    def _on_persona_changed(self) -> None:
+    def _on_persona_changed(self, *_args) -> None:
+        if self._persona_change_guard:
+            return
+        nueva_persona_id = self.persona_combo.currentData()
+        if self.contexto_trabajo_widget is not None and self.sender() is self.contexto_trabajo_widget.delegada_combo:
+            self._persona_change_guard = True
+            self.persona_combo.setCurrentIndex(self.contexto_trabajo_widget.delegada_combo.currentIndex())
+            self._persona_change_guard = False
+            nueva_persona_id = self.persona_combo.currentData()
+        elif self.contexto_trabajo_widget is not None:
+            self._persona_change_guard = True
+            self.contexto_trabajo_widget.delegada_combo.setCurrentIndex(self.persona_combo.currentIndex())
+            self._persona_change_guard = False
+
+        if self._last_persona_id != nueva_persona_id and self._is_form_dirty() and not self._confirmar_cambio_delegada():
+            self._persona_change_guard = True
+            for index in range(self.persona_combo.count()):
+                if self.persona_combo.itemData(index) == self._last_persona_id:
+                    self.persona_combo.setCurrentIndex(index)
+                    if self.contexto_trabajo_widget is not None:
+                        self.contexto_trabajo_widget.delegada_combo.setCurrentIndex(index)
+                    break
+            self._persona_change_guard = False
+            return
+
+        if self._last_persona_id != nueva_persona_id:
+            self._save_current_draft(self._last_persona_id)
+            self._limpiar_formulario()
+            self._restore_draft_for_persona(nueva_persona_id)
+
+        self._last_persona_id = nueva_persona_id
         self.pendientes_table.clearSelection()
         self.huerfanas_table.clearSelection()
         self._reload_pending_views()
@@ -1650,6 +1788,7 @@ class MainWindow(QMainWindow):
         self._refresh_historico()
         self._refresh_saldos()
         self._update_solicitud_preview()
+        self._update_global_context()
 
     def _apply_historico_text_filter(self) -> None:
         self.historico_proxy_model.set_search_text(self.historico_search_input.text())
@@ -2353,6 +2492,7 @@ class MainWindow(QMainWindow):
         self._update_pending_totals()
         self._refresh_pending_conflicts()
         self._update_action_state()
+        self._update_global_context()
 
     def _selected_historico(self) -> SolicitudDTO | None:
         selected = self._selected_historico_solicitudes()
@@ -3087,6 +3227,7 @@ class MainWindow(QMainWindow):
             style.unpolish(self.sync_status_badge)
             style.polish(self.sync_status_badge)
         self.sync_status_badge.update()
+        self._update_global_context()
 
     def _status_from_summary(self, summary: SyncSummary) -> str:
         if summary.errors > 0:
