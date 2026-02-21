@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Callable
 
 from app.application.sheets_service import SHEETS_SCHEMA
+from app.core.operational_logging import log_operational_error
 from app.domain.ports import SheetsClientPort, SheetsConfigStorePort, SqlConnectionPort
 
 
@@ -64,6 +65,11 @@ class SheetsConfigProbe:
                     header_msg = f"Faltan cabeceras en solicitudes: {', '.join(missing_headers[:4])}."
             result["headers"] = (headers_ok, header_msg, "open_sync_settings")
         except Exception as exc:  # noqa: BLE001
+            log_operational_error(
+                "Sync precheck failed",
+                exc=exc,
+                extra={"operation": "sheets_config_probe", "probe": "worksheet_headers"},
+            )
             result["worksheet"] = (False, f"No se pudo acceder al Spreadsheet: {exc}", "open_sync_settings")
             result["headers"] = (False, "No se pudo validar rango/cabeceras.", "open_sync_settings")
         return result
@@ -123,6 +129,11 @@ class SQLiteLocalDbProbe:
             ghost_pending = int(cursor.fetchone()["total"])
             ghost_ok = ghost_pending == 0
         except Exception as exc:  # noqa: BLE001
+            log_operational_error(
+                "DB probe failed",
+                exc=exc,
+                extra={"operation": "sqlite_probe", "probe": "preventive_validation"},
+            )
             return {
                 "local_db": (False, f"Base de datos no accesible: {exc}", "open_db_help"),
                 "migrations": (False, "No se pudo validar estado de migraciones.", "open_db_help"),

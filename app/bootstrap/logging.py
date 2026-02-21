@@ -15,6 +15,7 @@ DEFAULT_LOG_MAX_BYTES = 1_048_576
 DEFAULT_LOG_BACKUP_COUNT = 10
 MAIN_LOG_NAME = "seguimiento.log"
 CRASH_LOG_NAME = "crashes.log"
+OPERATIONAL_ERROR_LOG_NAME = "error_operativo.log"
 LEGACY_MAIN_LOG_NAME = "app.log"
 LEGACY_CRASH_LOG_NAME = "crash.log"
 
@@ -112,9 +113,21 @@ def configure_logging(
         level=logging.ERROR,
         only_crashes=True,
     )
+    operational_error_handler = _build_rotating_handler(
+        log_dir / OPERATIONAL_ERROR_LOG_NAME,
+        max_bytes=resolved_max_bytes,
+        backup_count=backup_count,
+        level=logging.ERROR,
+    )
 
     root_logger.addHandler(main_handler)
     root_logger.addHandler(crash_handler)
+
+    operational_logger = logging.getLogger("app.operational_error")
+    operational_logger.handlers.clear()
+    operational_logger.addHandler(operational_error_handler)
+    operational_logger.setLevel(logging.ERROR)
+    operational_logger.propagate = False
 
     # Compatibilidad controlada: conservamos logs legacy para instalaciones/scripts previos.
     root_logger.addHandler(

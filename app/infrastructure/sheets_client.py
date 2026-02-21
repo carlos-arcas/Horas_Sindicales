@@ -10,6 +10,7 @@ import gspread
 from google.auth.exceptions import DefaultCredentialsError
 
 from app.core.observability import get_correlation_id
+from app.core.operational_logging import log_operational_error
 from app.domain.ports import SheetsClientPort
 from app.domain.sheets_errors import SheetsPermissionError, SheetsRateLimitError
 from app.infrastructure.sheets_errors import SheetsApiCompatibilityError, map_gspread_exception
@@ -285,13 +286,11 @@ class SheetsClient(SheetsClientPort):
         spreadsheet_id: str | None = None,
         worksheet_name: str | None = None,
     ) -> None:
-        logger.error(
-            "Google Sheets permisos insuficientes. correlation_id=%s spreadsheet_id=%s worksheet=%s error=%s",
-            get_correlation_id(),
-            spreadsheet_id or "n/a",
-            worksheet_name or "n/a",
-            error,
+        log_operational_error(
+            "Sheets permission denied during sync",
+            exc=error,
             extra={
+                "operation": "sheets_access",
                 "correlation_id": get_correlation_id(),
                 "spreadsheet_id": spreadsheet_id,
                 "worksheet": worksheet_name,

@@ -54,6 +54,7 @@ from app.application.use_cases.retry_sync_use_case import RetrySyncUseCase
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
+from app.core.operational_logging import log_operational_error
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.time_utils import minutes_to_hhmm
 from app.domain.request_time import validate_request_inputs
@@ -2286,8 +2287,11 @@ class MainWindow(QMainWindow):
         self._set_sync_in_progress(False)
         self._update_sync_button_state()
         error, details = self._normalize_sync_error(payload)
-        if details:
-            logger.exception("Fallo técnico durante sincronización", exc_info=error)
+        log_operational_error(
+            "Sync failed during UI flow",
+            exc=error,
+            extra={"operation": "sync_ui", "details_available": bool(details), "sync_id": self._active_sync_id},
+        )
         user_error = map_error_to_ui_message(error)
         user_message = user_error.as_text()
         report = build_failed_report(
@@ -3498,10 +3502,10 @@ class MainWindow(QMainWindow):
             )
         else:
             mapped = map_error_to_ui_message(error)
-            logger.exception(
-                "Error técnico capturado en UI",
-                exc_info=error,
-                extra={"correlation_id": mapped.incident_id},
+            log_operational_error(
+                "UI handled exception",
+                exc=error,
+                extra={"operation": "ui_feedback", "incident_id": mapped.incident_id},
             )
         message = mapped.as_text()
         self.toast.error(message, title="Error")

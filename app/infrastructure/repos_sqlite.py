@@ -7,6 +7,8 @@ import time
 from datetime import datetime, timezone
 from typing import Callable, Iterable, TypeVar
 
+from app.core.observability import get_correlation_id
+from app.core.operational_logging import log_operational_error
 from app.domain.models import GrupoConfig, Persona, Solicitud
 from app.domain.ports import CuadranteRepository, GrupoConfigRepository, PersonaRepository, SolicitudRepository
 
@@ -37,7 +39,16 @@ def _run_with_locked_retry(operation: Callable[[], _T], *, context: str) -> _T:
             )
             time.sleep(delay_seconds)
 
-    return operation()
+    try:
+        return operation()
+    except sqlite3.OperationalError as error:
+        if _is_locked_operational_error(error):
+            log_operational_error(
+                "DB locked during repository operation",
+                exc=error,
+                extra={"operation": context, "correlation_id": get_correlation_id()},
+            )
+        raise
 
 
 def _int_or_zero(value: int | None) -> int:
