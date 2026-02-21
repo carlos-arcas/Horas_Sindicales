@@ -118,6 +118,17 @@ def main() -> int:
             alert_engine=container.alert_engine,
         )
         app.processEvents()
+
+        # Smoke de navegación entre secciones para validar que el shell externo
+        # actualiza el header dinámico sin errores de señales/layout.
+        for sidebar_index in (0, 1, 2, 3, 1):
+            window._switch_sidebar_page(sidebar_index)
+            app.processEvents()
+
+        expected_title = "Solicitudes"
+        header_title = getattr(window, "header_title_label", None)
+        if header_title is None or header_title.text() != expected_title:
+            raise AssertionError("El header externo no actualizó el título esperado tras navegar secciones")
     except Exception as exc:  # pragma: no cover - fallo defensivo
         if "libGL.so.1" in str(exc):
             logger.warning("ui_import_fallback_ast: %s", exc)

@@ -73,7 +73,6 @@ from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
 from app.ui.error_mapping import UiErrorMessage, map_error_to_ui_message
 from app.ui.person_dialog import PersonaDialog
 from app.ui.patterns import apply_modal_behavior, build_modal_actions, status_badge, STATUS_PATTERNS
-from app.ui.widgets.header import HeaderWidget
 from app.ui.widgets.toast import ToastManager
 from app.ui.controllers.personas_controller import PersonasController
 from app.ui.controllers.solicitudes_controller import SolicitudesController
@@ -426,24 +425,8 @@ class MainWindow(QMainWindow):
         content = QWidget()
         content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(14)
-
-        header_frame = QFrame()
-        header_frame.setProperty("role", "header")
-        header_layout = QVBoxLayout(header_frame)
-        header_layout.setContentsMargins(0, 0, 0, 0)
-        header_layout.setSpacing(4)
-
-        header = HeaderWidget()
-        header.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        header_layout.addWidget(header)
-
-        header_separator = QFrame()
-        header_separator.setObjectName("headerSeparator")
-        header_separator.setFixedHeight(3)
-        header_layout.addWidget(header_separator)
-        layout.addWidget(header_frame)
+        layout.setContentsMargins(20, 16, 20, 20)
+        layout.setSpacing(16)
 
         self.main_tabs = QTabWidget()
         self.main_tabs.setObjectName("mainTabs")
