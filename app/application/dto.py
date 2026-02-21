@@ -46,6 +46,11 @@ class SolicitudDTO:
     notas: Optional[str] = None
     generated: bool = False
 
+    @property
+    def fecha(self) -> str:
+        """Alias de compatibilidad para UI/fixtures antiguos."""
+        return self.fecha_solicitud
+
 
 @dataclass(frozen=True)
 class ConflictoDiaDTO:

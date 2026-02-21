@@ -18,10 +18,17 @@ def manejar_excepcion_ui(
     exc_value: BaseException,
     exc_traceback: TracebackType,
 ) -> str:
-    from PySide6.QtWidgets import QMessageBox
+    from PySide6.QtWidgets import QApplication, QMessageBox
 
     incident_id = manejar_excepcion_global(exc_type, exc_value, exc_traceback)
-    QMessageBox.critical(None, "Error inesperado", construir_mensaje_error_ui(incident_id))
+    app = QApplication.instance()
+    if app is None:
+        return incident_id
+    try:
+        QMessageBox.critical(None, "Error inesperado", construir_mensaje_error_ui(incident_id))
+    except Exception:
+        # Respaldo: evitar un segundo crash al intentar pintar un diálogo de error.
+        pass
     return incident_id
 
 
