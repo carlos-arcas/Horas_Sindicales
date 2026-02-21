@@ -1,0 +1,10 @@
+[run]
+source =
+    app
+omit =
+    .venv/*
+    tests/*
+    logs/*
+    scripts/*
+    migrations/*
+    **/site-packages/*

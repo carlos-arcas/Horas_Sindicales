@@ -216,12 +216,7 @@ exit /b 0
 set "TESTS_EXEC=1"
 set "TESTS_STATUS=NO_EJECUTADO"
 set "TESTS_CODE=NO_EJECUTADO"
-
-call :PREPARE_PYTEST_COV_EXTRA
 >>"%RUN_SUMMARY%" echo CMD_TESTS_CALL=call "%TESTS_SCRIPT%"
-if defined PYTEST_COV_EXTRA_ARGS (
-    >>"%RUN_SUMMARY%" echo PYTEST_COV_EXTRA_ARGS=%PYTEST_COV_EXTRA_ARGS%
-)
 
 call "%TESTS_SCRIPT%" 1>"%TESTS_STDOUT%" 2>"%TESTS_STDERR%"
 set "TESTS_CODE=%ERRORLEVEL%"
@@ -230,35 +225,23 @@ if "%TESTS_CODE%"=="0" (set "TESTS_STATUS=PASS") else (set "TESTS_STATUS=FAIL")
 findstr /c:"El sistema no puede encontrar la ruta especificada." "%TESTS_STDERR%" >nul 2>&1
 if not errorlevel 1 set "PATH_ERROR_TESTS=1"
 
+findstr /i /c:"collected 0 items" "%TESTS_STDOUT%" >nul 2>&1
+if not errorlevel 1 (
+    >>"%RUN_SUMMARY%" echo ERROR_HUMANO=Pytest no encontro tests. Causa tipica: ruta mal entrecomillada o ejecucion desde directorio incorrecto. Ejecuta opcion 1 desde el menu o corre: pytest -q tests
+)
+
+findstr /i /c:"No data to report." "%TESTS_STDOUT%" >nul 2>&1
+if not errorlevel 1 (
+    >>"%RUN_SUMMARY%" echo ERROR_HUMANO=Coverage indico "No data to report". Revisa si pytest ejecuto tests reales.
+)
+
+findstr /i /c:"pytest_cov_html" "%TESTS_STDOUT%" >nul 2>&1
+if not errorlevel 1 (
+    >>"%RUN_SUMMARY%" echo ERROR_HUMANO=Se detecto ruta sospechosa para pytest_cov_html. Posible truncado por espacios o comillas.
+)
+
 call :GENERATE_COVERAGE_ARTIFACTS
 exit /b %TESTS_CODE%
-
-:PREPARE_PYTEST_COV_EXTRA
-set "PYTEST_COV_EXTRA_ARGS="
-if not defined PYTHON_CMD exit /b 0
-
-"%PYTHON_CMD%" -m pytest --help >"%RUN_DIR%\pytest_help.txt" 2>&1
-if errorlevel 1 exit /b 0
-
-findstr /i /c:"--cov-report" "%RUN_DIR%\pytest_help.txt" >nul 2>&1
-if errorlevel 1 exit /b 0
-
-findstr /i /c:"--cov-report=term-missing" "%TESTS_SCRIPT%" >nul 2>&1
-if not errorlevel 1 (
-    set "HAS_TERM_COV=1"
-) else (
-    set "HAS_TERM_COV=0"
-)
-findstr /i /c:"--cov-report=html" "%TESTS_SCRIPT%" >nul 2>&1
-if not errorlevel 1 (
-    set "HAS_HTML_COV=1"
-) else (
-    set "HAS_HTML_COV=0"
-)
-
-if "%HAS_TERM_COV%"=="0" set "PYTEST_COV_EXTRA_ARGS=!PYTEST_COV_EXTRA_ARGS! --cov-report=term-missing:%PYTEST_COV_TERM%"
-if "%HAS_HTML_COV%"=="0" set "PYTEST_COV_EXTRA_ARGS=!PYTEST_COV_EXTRA_ARGS! --cov-report=html:%PYTEST_COV_HTML%"
-exit /b 0
 
 :RUN_GATE
 set "GATE_EXEC=1"
@@ -367,7 +350,19 @@ set "LAST_COV_INDEX=%RUNS_DIR%\%LAST_RUN_ID%\coverage_html\index.html"
 if exist "%LAST_COV_INDEX%" (
     start "" "%LAST_COV_INDEX%"
 ) else (
-    echo No existe coverage html en "%LAST_COV_INDEX%".
+    echo No existe coverage html para el ultimo run.
+    echo 1) Ruta buscada: "%LAST_COV_INDEX%"
+    if exist "%RUNS_DIR%\%LAST_RUN_ID%\summary.txt" (
+        echo 2) Estado del ultimo run ^(summary^):
+        for /f "usebackq tokens=1,* delims=:" %%A in (`findstr /n "^" "%RUNS_DIR%\%LAST_RUN_ID%\summary.txt"`) do (
+            if %%A LEQ 20 echo    %%B
+        )
+    ) else (
+        echo 2) Estado del ultimo run: no existe summary en "%RUNS_DIR%\%LAST_RUN_ID%\summary.txt"
+    )
+    echo 3) Siguiente accion recomendada:
+    echo    - Ejecuta 1 ^(tests^) o 3 ^(ambos^) para generar coverage HTML.
+    echo    - Si ya ejecutaste, abre el ultimo summary ^(opcion 5^) y revisa si pytest corrio.
 )
 exit /b 0
 
