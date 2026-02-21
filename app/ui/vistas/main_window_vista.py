@@ -6,6 +6,7 @@ import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import cast
 
 from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, Signal, Slot, QThread
 from PySide6.QtGui import QKeyEvent
@@ -1175,12 +1176,17 @@ class MainWindow(QMainWindow):
 
         self.header_sync_button = QPushButton("Sincronizar")
         self.header_sync_button.setProperty("variant", "secondary")
-        self.header_sync_button.clicked.connect(self._on_sync_with_confirmation)
+        # Para juniors: en Qt, una señal (`clicked`) se conecta a un slot (método).
+        # Usamos conexión segura por nombre para evitar que un refactor deje la UI rota
+        # por un handler faltante al arrancar.
+        self._conectar_click_seguro(self.header_sync_button, "_sincronizar_con_confirmacion")
         header_layout.addWidget(self.header_sync_button)
 
         self.header_new_button = QPushButton("Nueva solicitud")
         self.header_new_button.setProperty("variant", "primary")
-        self.header_new_button.clicked.connect(self._clear_form)
+        # Para juniors: este botón dispara un "reset" de vista, no lógica de negocio.
+        # La vista sólo prepara estado UI y delega servicios/controladores cuando haga falta.
+        self._conectar_click_seguro(self.header_new_button, "_limpiar_formulario")
         header_layout.addWidget(self.header_new_button)
 
         shell_layout.addWidget(self.header_shell)
@@ -1231,8 +1237,39 @@ class MainWindow(QMainWindow):
         shell_layout.addWidget(body, 1)
 
         self.stacked_pages.currentChanged.connect(self._sync_sidebar_state)
+        self._verificar_handlers_ui()
         self._switch_sidebar_page(0)
         self.setCentralWidget(shell)
+
+    def _conectar_click_seguro(self, button: QPushButton, handler_name: str) -> None:
+        handler = getattr(self, handler_name, None)
+        if callable(handler):
+            button.clicked.connect(handler)
+            return
+        logger.error("ui_handler_missing", extra={"handler": handler_name, "button": button.text()})
+        button.clicked.connect(lambda _checked=False, name=handler_name: self._mostrar_funcion_no_disponible(name))
+
+    def _verificar_handlers_ui(self) -> None:
+        """Valida handlers críticos y asegura fallback para que la UI nunca reviente."""
+        # Para juniors: este guard-rail evita crashes al construir la vista si se renombra
+        # un método conectado a señales sin actualizar todos los puntos.
+        handlers_criticos = {
+            "header_sync_button": "_sincronizar_con_confirmacion",
+            "header_new_button": "_limpiar_formulario",
+        }
+        for boton_attr, handler_name in handlers_criticos.items():
+            boton = getattr(self, boton_attr, None)
+            if not isinstance(boton, QPushButton):
+                logger.error("ui_button_missing", extra={"button_attr": boton_attr})
+                continue
+            if callable(getattr(self, handler_name, None)):
+                continue
+            logger.error("ui_handler_missing", extra={"handler": handler_name, "button": boton.text()})
+            boton.clicked.connect(lambda _checked=False, name=handler_name: self._mostrar_funcion_no_disponible(name))
+
+    def _mostrar_funcion_no_disponible(self, handler_name: str) -> None:
+        logger.error("ui_fallback_handler_triggered", extra={"handler": handler_name})
+        QMessageBox.warning(self, "Función no disponible", "Esta acción no está disponible temporalmente.")
 
     def _switch_sidebar_page(self, index: int) -> None:
         if self.stacked_pages is None:
@@ -1286,11 +1323,12 @@ class MainWindow(QMainWindow):
         self._update_responsive_columns()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
+        # Para juniors: `eventFilter` intercepta eventos antes que el widget objetivo.
+        # Si este método lanza una excepción, puede romper incluso el manejador global
+        # que muestra QMessageBox de error. Por eso se protege con try/except defensivo.
         try:
             if watched is None or event is None:
                 return False
-            if not isinstance(event, QEvent):
-                return super().eventFilter(watched, event)
             submit_widgets = {
                 getattr(self, "persona_combo", None),
                 getattr(self, "fecha_input", None),
@@ -1299,8 +1337,9 @@ class MainWindow(QMainWindow):
                 getattr(self, "completo_check", None),
                 getattr(self, "notas_input", None),
             }
-            if watched in submit_widgets and isinstance(event, QKeyEvent):
-                if event.key() in (Qt.Key_Return, Qt.Key_Enter) and event.modifiers() == Qt.NoModifier:
+            if watched in submit_widgets and event.type() in (QEvent.KeyPress, QEvent.KeyRelease):
+                key_event = cast(QKeyEvent, event)
+                if key_event.key() in (Qt.Key_Return, Qt.Key_Enter) and key_event.modifiers() == Qt.NoModifier:
                     if self.primary_cta_button.isEnabled():
                         self.primary_cta_button.click()
                     return True
@@ -1315,7 +1354,28 @@ class MainWindow(QMainWindow):
             )
             return False
 
-    def _on_sync_with_confirmation(self) -> None:
+    def _limpiar_formulario(self) -> None:
+        self.fecha_input.setDate(QDate.currentDate())
+        self.desde_input.setTime(QTime(9, 0))
+        self.hasta_input.setTime(QTime(17, 0))
+        self.completo_check.setChecked(False)
+        self.notas_input.clear()
+        self._field_touched.clear()
+        self._blocking_errors.clear()
+        self._warnings.clear()
+        self.solicitud_inline_error.setVisible(False)
+        self.delegada_field_error.setVisible(False)
+        self.fecha_field_error.setVisible(False)
+        self.tramo_field_error.setVisible(False)
+        self._update_solicitud_preview()
+        self._update_action_state()
+        logger.info("formulario_limpiado")
+
+    def _clear_form(self) -> None:
+        """Alias legado: mantener compatibilidad con conexiones antiguas."""
+        self._limpiar_formulario()
+
+    def _sincronizar_con_confirmacion(self) -> None:
         result = QMessageBox.question(
             self,
             "Confirmar sincronización",
@@ -1326,7 +1386,21 @@ class MainWindow(QMainWindow):
         if result != QMessageBox.StandardButton.Yes:
             return
 
-        self._on_sync()
+        sync_handler = getattr(self, "_on_sync", None)
+        if callable(sync_handler):
+            sync_handler()
+            return
+
+        logger.error("sync_handler_missing", extra={"handler": "_on_sync"})
+        QMessageBox.information(
+            self,
+            "Sincronización",
+            "La sincronización aún no está disponible en esta pantalla.",
+        )
+
+    def _on_sync_with_confirmation(self) -> None:
+        """Alias legado: mantener compatibilidad con conexiones antiguas."""
+        self._sincronizar_con_confirmacion()
 
     def _normalize_input_heights(self) -> None:
         controls = [

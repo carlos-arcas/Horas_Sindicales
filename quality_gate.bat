@@ -87,6 +87,14 @@ if errorlevel 1 (
     goto GATE_FAIL
 )
 
+call :log_debug "Paso PRECHECK_UI: smoke handlers main window"
+python scripts/ui_main_window_smoke.py >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+if errorlevel 1 (
+    set "FAIL_STEP=PRECHECK_UI"
+    call :log_debug "FAIL: PRECHECK_UI"
+    goto GATE_FAIL
+)
+
 call :log_debug "Paso A: Auditoria E2E dry-run"
 python -m app.entrypoints.cli_auditoria --dry-run >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
 if errorlevel 1 (
