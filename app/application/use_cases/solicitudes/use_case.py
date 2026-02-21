@@ -19,6 +19,11 @@ from app.application.dto import (
     TotalesGlobalesDTO,
 )
 from app.application.dtos.contexto_operacion import ContextoOperacion
+from app.application.operaciones.exportacion_pdf_historico_operacion import (
+    ExportacionPdfHistoricoOperacion,
+    RequestExportacionPdfHistorico,
+)
+from app.application.ports.sistema_archivos_puerto import SistemaArchivosPuerto
 from app.application.pending_conflicts import detect_pending_time_conflicts
 from app.application.ports.pdf_puerto import GeneradorPdfPuerto
 from app.core.errors import InfraError, PersistenceError
@@ -30,6 +35,31 @@ from app.domain.services import BusinessRuleError, ValidacionError, validar_soli
 from app.domain.time_utils import minutes_to_hhmm, parse_hhmm
 
 logger = logging.getLogger(__name__)
+
+
+class _PathFileSystem:
+    def existe(self, ruta: Path) -> bool:
+        return ruta.exists()
+
+    def leer_texto(self, ruta: Path) -> str:
+        return ruta.read_text(encoding="utf-8")
+
+    def leer_bytes(self, ruta: Path) -> bytes:
+        return ruta.read_bytes()
+
+    def escribir_texto(self, ruta: Path, contenido: str) -> None:
+        ruta.write_text(contenido, encoding="utf-8")
+
+    def escribir_bytes(self, ruta: Path, contenido: bytes) -> None:
+        ruta.write_bytes(contenido)
+
+    def mkdir(self, ruta: Path, *, parents: bool = True, exist_ok: bool = True) -> None:
+        ruta.mkdir(parents=parents, exist_ok=exist_ok)
+
+    def listar(self, base: Path) -> list[Path]:
+        if not base.exists():
+            return []
+        return sorted(base.iterdir())
 
 
 def _resolver_correlation_id(
@@ -127,11 +157,13 @@ class SolicitudUseCases:
         persona_repo: PersonaRepository,
         config_repo: GrupoConfigRepository | None = None,
         generador_pdf: GeneradorPdfPuerto | None = None,
+        fs: SistemaArchivosPuerto | None = None,
     ) -> None:
         self._repo = repo
         self._persona_repo = persona_repo
         self._config_repo = config_repo
         self._generador_pdf = generador_pdf
+        self._fs = fs or _PathFileSystem()
 
     def listar_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
         return self.listar_solicitudes_por_persona_y_periodo(persona_id, None, None)
@@ -589,15 +621,21 @@ class SolicitudUseCases:
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
         pdf_options = self._config_repo.get() if self._config_repo else None
-        if self._generador_pdf is None:
-            raise BusinessRuleError("No hay generador PDF configurado.")
-        pdf_path = self._generador_pdf.generar_pdf_historico(
-            solicitudes_list,
-            persona,
-            destino,
-            intro_text=_pdf_intro_text(pdf_options),
-            logo_path=pdf_options.pdf_logo_path if pdf_options else None,
+        operacion = ExportacionPdfHistoricoOperacion(fs=self._fs, generador_pdf=self._generador_pdf)
+        resultado = operacion.ejecutar(
+            RequestExportacionPdfHistorico(
+                solicitudes=solicitudes_list,
+                persona=persona,
+                destino=destino,
+                dry_run=False,
+                overwrite=True,
+                intro_text=_pdf_intro_text(pdf_options),
+                logo_path=pdf_options.pdf_logo_path if pdf_options else None,
+            )
         )
+        if resultado.conflictos.no_ejecutable:
+            raise BusinessRuleError("; ".join(resultado.conflictos.conflictos))
+        pdf_path = Path(resultado.artefactos_generados[0])
         if correlation_id:
             log_event(logger, "generar_pdf_historico_succeeded", {"path": str(pdf_path)}, correlation_id)
         return pdf_path
@@ -623,15 +661,21 @@ class SolicitudUseCases:
         if not solicitudes_list:
             raise BusinessRuleError("No hay solicitudes para generar el PDF.")
         pdf_options = self._config_repo.get() if self._config_repo else None
-        if self._generador_pdf is None:
-            raise BusinessRuleError("No hay generador PDF configurado.")
-        pdf_path = self._generador_pdf.generar_pdf_historico(
-            solicitudes_list,
-            persona,
-            destino,
-            intro_text=_pdf_intro_text(pdf_options),
-            logo_path=pdf_options.pdf_logo_path if pdf_options else None,
+        operacion = ExportacionPdfHistoricoOperacion(fs=self._fs, generador_pdf=self._generador_pdf)
+        resultado = operacion.ejecutar(
+            RequestExportacionPdfHistorico(
+                solicitudes=solicitudes_list,
+                persona=persona,
+                destino=destino,
+                dry_run=False,
+                overwrite=True,
+                intro_text=_pdf_intro_text(pdf_options),
+                logo_path=pdf_options.pdf_logo_path if pdf_options else None,
+            )
         )
+        if resultado.conflictos.no_ejecutable:
+            raise BusinessRuleError("; ".join(resultado.conflictos.conflictos))
+        pdf_path = Path(resultado.artefactos_generados[0])
         if correlation_id:
             log_event(logger, "exportar_historico_pdf_succeeded", {"path": str(pdf_path)}, correlation_id)
         return pdf_path

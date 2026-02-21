@@ -5,6 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
+from app.application.ports.sistema_archivos_puerto import SistemaArchivosPuerto as SistemaArchivosBasePuerto
+
 
 @dataclass(frozen=True)
 class RepoInfo:
@@ -21,14 +23,8 @@ class RepositorioInfoPuerto(Protocol):
     def obtener_info(self) -> RepoInfo: ...
 
 
-class SistemaArchivosPuerto(Protocol):
-    def existe(self, ruta: Path) -> bool: ...
-
-    def leer_texto(self, ruta: Path) -> str: ...
-
+class SistemaArchivosPuerto(SistemaArchivosBasePuerto, Protocol):
     def listar_python(self, base: Path) -> list[Path]: ...
-
-    def escribir_texto(self, ruta: Path, contenido: str) -> None: ...
 
     def mkdirs(self, ruta: Path) -> None: ...
 
