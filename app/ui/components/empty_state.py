@@ -17,7 +17,7 @@ class EmptyStateWidget(QWidget):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(10)
+        layout.setSpacing(16)
 
         icono = QLabel("🗂️")
         icono.setProperty("role", "title")

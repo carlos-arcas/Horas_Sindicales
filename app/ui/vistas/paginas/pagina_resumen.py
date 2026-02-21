@@ -16,7 +16,7 @@ class PaginaResumen(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
         title = QLabel("Resumen")
@@ -29,8 +29,8 @@ class PaginaResumen(QWidget):
         layout.addWidget(subtitle)
 
         kpi_grid = QGridLayout()
-        kpi_grid.setHorizontalSpacing(12)
-        kpi_grid.setVerticalSpacing(12)
+        kpi_grid.setHorizontalSpacing(16)
+        kpi_grid.setVerticalSpacing(16)
 
         self.kpi_solicitudes_hoy = self._build_kpi_card("Solicitudes hoy", "—")
         self.kpi_pendientes = self._build_kpi_card("Pendientes", "—")
@@ -45,7 +45,7 @@ class PaginaResumen(QWidget):
 
         acciones_card = CardWidget("Acciones rápidas")
         acciones_layout = QHBoxLayout()
-        acciones_layout.setSpacing(8)
+        acciones_layout.setSpacing(16)
 
         self.nueva_solicitud_button = PrimaryButton("Nueva solicitud")
         self.nueva_solicitud_button.clicked.connect(self.nueva_solicitud.emit)

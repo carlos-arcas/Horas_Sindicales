@@ -8,8 +8,8 @@ class PaginaSolicitudes(QWidget):
         super().__init__(parent)
         self._content_widget = content_widget
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 20)
-        layout.setSpacing(12)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
 
         title = QLabel("Solicitudes")
         title.setProperty("role", "sectionTitle")

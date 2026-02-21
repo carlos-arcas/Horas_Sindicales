@@ -1384,6 +1384,8 @@ class MainWindow(QMainWindow):
         column_count = model.columnCount() if model is not None else 6
         if column_count <= 0:
             return
+        table.setProperty("role", "dataTable")
+        table.setAlternatingRowColors(True)
         header = table.horizontalHeader()
         header.setMinimumSectionSize(78)
         for column in range(max(0, column_count - 1)):
