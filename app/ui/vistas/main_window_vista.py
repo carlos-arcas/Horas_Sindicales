@@ -80,6 +80,7 @@ from app.ui.controllers.sync_controller import SyncController
 from app.ui.controllers.pdf_controller import PdfController
 from app.ui.notification_service import ConfirmationSummaryPayload, NotificationService, OperationFeedback
 from app.ui.components.primary_button import PrimaryButton
+from app.ui.components.secondary_button import SecondaryButton
 from app.ui.components.saldos_card import SaldosCard
 from app.ui.components.status_badge import StatusBadge
 from app.ui.components.contexto_trabajo_widget import ContextoTrabajoWidget
@@ -1444,7 +1445,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _extraer_fecha_solicitud(item: object) -> date | None:
-        for attr_name in ("fecha_solicitud", "fecha", "fecha_inicio", "fecha_desde", "fecha_pedida"):
+        for attr_name in ("fecha_solicitud", "fecha_pedida"):
             valor = getattr(item, attr_name, None)
             if valor is None:
                 continue
