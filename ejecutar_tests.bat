@@ -141,14 +141,14 @@ if defined RUN_DIR set "COVERAGE_HTML_DIR=%RUN_DIR%\coverage_html"
 
 if not exist "%COVERAGE_HTML_DIR%" mkdir "%COVERAGE_HTML_DIR%" >nul 2>&1
 
-rem contrato: pytest --cov=. --cov-report=term-missing --cov-fail-under=85
-set "PYTEST_CMD=python -m pytest -q \"tests\" --cov=. --cov-report=term-missing \"--cov-report=html:%COVERAGE_HTML_DIR%\" --cov-fail-under=85"
+rem contrato: pytest --cov=app --cov-report=term-missing --cov-fail-under=85
+set "PYTEST_CMD=python -m pytest -q \"tests\" --cov=app --cov-report=term-missing \"--cov-report=html:%COVERAGE_HTML_DIR%\" --cov-fail-under=85"
 call :log_debug "Comando pytest: %PYTEST_CMD%"
 if defined RUN_SUMMARY_FILE (
     >>"%RUN_SUMMARY_FILE%" echo CMD_PYTEST=%PYTEST_CMD%
 )
 
-python -m pytest -q "tests" --cov=. --cov-report=term-missing "--cov-report=html:%COVERAGE_HTML_DIR%" --cov-fail-under=85 > "%LOG_PYTEST%" 2>&1
+python -m pytest -q "tests" --cov=app --cov-report=term-missing "--cov-report=html:%COVERAGE_HTML_DIR%" --cov-fail-under=85 > "%LOG_PYTEST%" 2>&1
 set "TEST_EXIT=%ERRORLEVEL%"
 
 findstr /i /c:"collected 0 items" "%LOG_PYTEST%" >nul 2>&1
