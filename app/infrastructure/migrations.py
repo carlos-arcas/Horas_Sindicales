@@ -8,6 +8,7 @@ import sqlite3
 
 from app.bootstrap.logging import configure_logging
 from app.bootstrap.settings import resolve_log_dir
+from app.infrastructure.db import _default_db_path
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -229,7 +230,7 @@ def run_data_fixups(connection: sqlite3.Connection) -> None:
 def build_cli() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Gestiona migraciones SQLite")
     parser.add_argument("command", choices=["up", "down", "status"], help="Operación a ejecutar")
-    parser.add_argument("--db", default="horas_sindicales.db", help="Ruta al archivo SQLite")
+    parser.add_argument("--db", default=str(_default_db_path()), help="Ruta al archivo SQLite")
     parser.add_argument("--steps", type=int, default=1, help="Número de migraciones a revertir")
     return parser
 
