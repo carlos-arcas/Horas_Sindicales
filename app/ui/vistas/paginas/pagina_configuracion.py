@@ -17,7 +17,8 @@ class PaginaConfiguracion(QWidget):
         self.empty_state = EmptyStateWidget(
             titulo="Ajustes de la aplicación",
             descripcion="Centraliza la configuración de uso diario sin exponer opciones técnicas innecesarias.",
-            accion_texto="Editar grupo",
-            on_action=self.editar_grupo.emit,
+            accion_primaria_texto="Editar grupo",
+            on_accion_primaria=self.editar_grupo.emit,
+            accion_secundaria_texto="Nueva solicitud",
         )
         layout.addWidget(self.empty_state)

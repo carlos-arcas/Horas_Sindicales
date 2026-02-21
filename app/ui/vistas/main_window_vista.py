@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
     QApplication,
@@ -98,10 +99,7 @@ from app.ui.sync_reporting import (
 )
 from app.core.observability import OperationContext, log_event
 from app.ui.workers.sincronizacion_workers import PushWorker, SyncWorker
-from app.ui.vistas.paginas.pagina_configuracion import PaginaConfiguracion
-from app.ui.vistas.paginas.pagina_historico import PaginaHistorico
 from app.ui.vistas.paginas.pagina_resumen import PaginaResumen
-from app.ui.vistas.paginas.pagina_sincronizacion import PaginaSincronizacion
 from app.ui.vistas.paginas.pagina_solicitudes import PaginaSolicitudes
 
 try:
@@ -314,6 +312,8 @@ class MainWindow(QMainWindow):
         self.page_sincronizacion: QWidget | None = None
         self.page_solicitudes: QWidget | None = None
         self.sidebar_buttons: list[QPushButton] = []
+        self._sidebar_routes: list[dict[str, int | None]] = []
+        self._active_sidebar_index = 0
         self.contexto_trabajo_widget: ContextoTrabajoWidget | None = None
         self._persona_change_guard = False
         self._last_persona_id: int | None = None
@@ -445,6 +445,7 @@ class MainWindow(QMainWindow):
         self.main_tabs = QTabWidget()
         self.main_tabs.setObjectName("mainTabs")
         self.main_tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.main_tabs.tabBar().hide()
         layout.addWidget(self.main_tabs, 1)
 
         operativa_tab = QWidget()
@@ -1231,22 +1232,25 @@ class MainWindow(QMainWindow):
         header_top.addWidget(self.header_state_badge)
         header_top.addStretch(1)
 
-        self.header_sync_button = SecondaryButton("Sincronizar")
-        # Para juniors: en Qt, una señal (`clicked`) se conecta a un slot (método).
-        # Usamos conexión segura por nombre para evitar que un refactor deje la UI rota
-        # por un handler faltante al arrancar.
-        self._conectar_click_seguro(self.header_sync_button, "_on_sync_with_confirmation")
-        header_top.addWidget(self.header_sync_button)
-
         self.header_new_button = PrimaryButton("Nueva solicitud")
-        # Para juniors: este botón dispara un "reset" de vista, no lógica de negocio.
-        # La vista sólo prepara estado UI y delega servicios/controladores cuando haga falta.
         self._conectar_click_seguro(self.header_new_button, "_clear_form")
         header_top.addWidget(self.header_new_button)
 
+        self.header_secondary_actions = QToolButton()
+        self.header_secondary_actions.setText("⋯")
+        self.header_secondary_actions.setPopupMode(QToolButton.InstantPopup)
+        self.header_secondary_actions.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        self.header_secondary_menu = QMenu(self.header_secondary_actions)
+        self.header_secondary_menu.addAction("Sincronizar ahora", self._on_sync_with_confirmation)
+        self.header_secondary_menu.addAction("Exportar histórico PDF", self._on_export_historico_pdf)
+        self.header_secondary_menu.addSeparator()
+        self.header_secondary_menu.addAction("Abrir configuración", lambda: self._switch_sidebar_page(4))
+        self.header_secondary_actions.setMenu(self.header_secondary_menu)
+        header_top.addWidget(self.header_secondary_actions)
+
         header_layout.addLayout(header_top)
         self.contexto_trabajo_widget = ContextoTrabajoWidget(self.header_shell)
-        self.contexto_trabajo_widget.editar_clicked.connect(lambda: self._switch_sidebar_page(3))
+        self.contexto_trabajo_widget.editar_clicked.connect(lambda: self._switch_sidebar_page(4))
         self.contexto_trabajo_widget.delegada_cambiada.connect(self._on_persona_changed)
         header_layout.addWidget(self.contexto_trabajo_widget)
 
@@ -1271,13 +1275,14 @@ class MainWindow(QMainWindow):
 
         self.sidebar_buttons = []
         sidebar_items = (
-            ("Resumen", "Visión diaria"),
-            ("Solicitudes", "Alta y pendientes"),
-            ("Google Sheets", "Estado y conflictos"),
-            ("Configuración", "Ajustes generales"),
-            ("Historial", "Registros y trazas"),
+            ("Resumen", "Visión diaria", 0, None),
+            ("Nueva solicitud", "Alta y pendientes", 1, 0),
+            ("Histórico", "Búsqueda y exportación", 1, 1),
+            ("Sincronización", "Estado y conflictos", 1, 3),
+            ("Configuración", "Ajustes generales", 1, 2),
         )
-        for index, (title, subtitle) in enumerate(sidebar_items):
+        self._sidebar_routes = []
+        for index, (title, subtitle, stack_index, tab_index) in enumerate(sidebar_items):
             button = QPushButton(f"{title}\n{subtitle}")
             button.setCheckable(True)
             button.setProperty("variant", "ghost")
@@ -1286,6 +1291,7 @@ class MainWindow(QMainWindow):
             button.clicked.connect(lambda _checked=False, page_index=index: self._switch_sidebar_page(page_index))
             sidebar_layout.addWidget(button)
             self.sidebar_buttons.append(button)
+            self._sidebar_routes.append({"stack_index": stack_index, "tab_index": tab_index})
         sidebar_layout.addStretch(1)
         body_layout.addWidget(self.sidebar)
 
@@ -1294,27 +1300,17 @@ class MainWindow(QMainWindow):
 
         self.page_resumen = PaginaResumen()
         self.page_solicitudes = PaginaSolicitudes(content_widget=self._scroll_area)
-        self.page_sincronizacion = PaginaSincronizacion()
-        self.page_configuracion = PaginaConfiguracion()
-        self.page_historico = PaginaHistorico()
 
         self.stacked_pages.addWidget(self.page_resumen)
         self.stacked_pages.addWidget(self.page_solicitudes)
-        self.stacked_pages.addWidget(self.page_sincronizacion)
-        self.stacked_pages.addWidget(self.page_configuracion)
-        self.stacked_pages.addWidget(self.page_historico)
 
         body_layout.addWidget(self.stacked_pages, 1)
         shell_layout.addWidget(body, 1)
 
-        self.stacked_pages.currentChanged.connect(self._sync_sidebar_state)
         self.page_resumen.nueva_solicitud.connect(self._limpiar_formulario)
         self.page_resumen.ver_pendientes.connect(lambda: self._switch_sidebar_page(1))
         self.page_resumen.sincronizar_ahora.connect(self._sincronizar_con_confirmacion)
         self.page_resumen.duplicar_ultima.connect(self._on_duplicate_latest_placeholder)
-        self.page_sincronizacion.configurar_credenciales.connect(self._on_open_opciones)
-        self.page_configuracion.editar_grupo.connect(self._on_edit_grupo)
-        self.page_historico.ver_solicitudes.connect(lambda: self._switch_sidebar_page(1))
 
         self._verificar_handlers_ui()
         self._switch_sidebar_page(0)
@@ -1333,7 +1329,6 @@ class MainWindow(QMainWindow):
         # Para juniors: este guard-rail evita crashes al construir la vista si se renombra
         # un método conectado a señales sin actualizar todos los puntos.
         handlers_criticos = {
-            "header_sync_button": "_on_sync_with_confirmation",
             "header_new_button": "_clear_form",
         }
         for boton_attr, handler_name in handlers_criticos.items():
@@ -1353,16 +1348,23 @@ class MainWindow(QMainWindow):
     def _switch_sidebar_page(self, index: int) -> None:
         if self.stacked_pages is None:
             return
+        if not (0 <= index < len(self._sidebar_routes)):
+            return
         if self.stacked_pages.currentIndex() == 1 and index != 1:
             self._save_current_draft(self._current_persona().id if self._current_persona() is not None else None)
-        if index == 1:
-            self.main_tabs.setCurrentIndex(0)
+        route = self._sidebar_routes[index]
+        tab_index = cast(int | None, route["tab_index"])
+        stack_index = cast(int, route["stack_index"])
+        if tab_index is not None:
+            self.main_tabs.setCurrentIndex(tab_index)
             persona = self._current_persona()
             self._restore_draft_for_persona(persona.id if persona is not None else None)
             self.fecha_input.setFocus()
-        if 0 <= index < self.stacked_pages.count():
-            self.stacked_pages.setCurrentIndex(index)
+        if 0 <= stack_index < self.stacked_pages.count():
+            self.stacked_pages.setCurrentIndex(stack_index)
+            self._active_sidebar_index = index
             self._sync_sidebar_state(index)
+            self._update_header_for_section(index)
 
     def _sync_sidebar_state(self, active_index: int) -> None:
         for index, button in enumerate(self.sidebar_buttons):
@@ -1371,6 +1373,27 @@ class MainWindow(QMainWindow):
             button.setProperty("active", is_active)
             button.style().unpolish(button)
             button.style().polish(button)
+
+    def _update_header_for_section(self, active_index: int) -> None:
+        page_titles = {
+            0: "Resumen",
+            1: "Nueva solicitud",
+            2: "Histórico",
+            3: "Sincronización",
+            4: "Configuración",
+        }
+        if self.header_title_label is not None:
+            self.header_title_label.setText(page_titles.get(active_index, "Horas Sindicales"))
+        if self.header_new_button is None:
+            return
+        if active_index == 1:
+            self.header_new_button.setText("Limpiar formulario")
+            self.header_new_button.clicked.disconnect()
+            self.header_new_button.clicked.connect(self._clear_form)
+            return
+        self.header_new_button.setText("Nueva solicitud")
+        self.header_new_button.clicked.disconnect()
+        self.header_new_button.clicked.connect(lambda: self._switch_sidebar_page(1))
 
     def _refresh_resumen_kpis(self) -> None:
         if self.page_resumen is None:
