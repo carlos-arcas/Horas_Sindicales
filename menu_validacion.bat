@@ -193,10 +193,6 @@ set "COVERAGE_TXT=%RUN_DIR%\coverage_report.txt"
 >"%LAST_RUN_ID_FILE%" echo %RUN_ID%
 exit /b 0
 
-:quote_path
-set "%~2=^"%~1^""
-exit /b 0
-
 :run_step
 set "STEP_NAME=%~1"
 set "STEP_CMD=%~2"
@@ -205,8 +201,10 @@ set "STEP_STDERR=%~4"
 set "STEP_REASON=%~5"
 
 echo [RUN_STEP] %STEP_NAME%: %STEP_CMD%
-call %STEP_CMD% 1>"%STEP_STDOUT%" 2>"%STEP_STDERR%"
+
+cmd /v:on /c "%STEP_CMD%" 1>"%STEP_STDOUT%" 2>"%STEP_STDERR%"
 set "STEP_EXIT=%ERRORLEVEL%"
+
 echo [RUN_STEP] %STEP_NAME% exit code: %STEP_EXIT%
 
 if not "%STEP_EXIT%"=="0" (
@@ -243,8 +241,8 @@ exit /b 0
 :RUN_TESTS
 set "TESTS_STATUS=NO_EJECUTADO"
 set "TESTS_CODE=NO_EJECUTADO"
-call :quote_path "%TESTS_SCRIPT%" TEST_CMD_Q
-call :run_step "tests" "%TEST_CMD_Q%" "%TESTS_STDOUT%" "%TESTS_STDERR%" "Fallo en ejecutar_tests.bat"
+set "TEST_CMD=call ""%TESTS_SCRIPT%"""
+call :run_step "tests" "%TEST_CMD%" "%TESTS_STDOUT%" "%TESTS_STDERR%" "Fallo en ejecutar_tests.bat"
 if errorlevel 1 (
     set "TESTS_STATUS=FAIL"
     set "TESTS_CODE=%LAST_ERROR_EXIT%"
@@ -258,8 +256,8 @@ exit /b 0
 :RUN_GATE
 set "GATE_STATUS=NO_EJECUTADO"
 set "GATE_CODE=NO_EJECUTADO"
-call :quote_path "%GATE_SCRIPT%" GATE_CMD_Q
-call :run_step "quality_gate" "%GATE_CMD_Q%" "%GATE_STDOUT%" "%GATE_STDERR%" "Fallo en quality_gate.bat"
+set "GATE_CMD=call ""%GATE_SCRIPT%"""
+call :run_step "quality_gate" "%GATE_CMD%" "%GATE_STDOUT%" "%GATE_STDERR%" "Fallo en quality_gate.bat"
 if errorlevel 1 (
     set "GATE_STATUS=FAIL"
     set "GATE_CODE=%LAST_ERROR_EXIT%"
