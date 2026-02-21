@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 from types import SimpleNamespace
 
 import gspread
 import pytest
 
+from app.bootstrap.logging import OPERATIONAL_ERROR_LOG_NAME, configure_logging
 from app.domain.sheets_errors import SheetsPermissionError, SheetsRateLimitError
 from app.infrastructure.sheets_client import SheetsClient
 from app.infrastructure.sheets_errors import map_gspread_exception
@@ -98,3 +100,28 @@ def test_with_rate_limit_retry_does_not_retry_attribute_error() -> None:
 
     assert "missing" in str(err.value)
     assert calls["count"] == 1
+
+
+def test_open_spreadsheet_logs_permission_error_to_operational_log(tmp_path, monkeypatch) -> None:
+    configure_logging(tmp_path, max_bytes=4096, backup_count=1)
+
+    def fake_open_by_key(_spreadsheet_id: str):
+        raise gspread.exceptions.APIError(_ForbiddenResp())
+
+    fake_client = SimpleNamespace(open_by_key=fake_open_by_key)
+    monkeypatch.setattr("gspread.service_account", lambda filename: fake_client)
+
+    client = SheetsClient()
+
+    with pytest.raises(SheetsPermissionError):
+        client.open_spreadsheet(Path("/tmp/cred.json"), "sheet-id")
+
+    operational_lines = (tmp_path / OPERATIONAL_ERROR_LOG_NAME).read_text(encoding="utf-8").splitlines()
+    assert operational_lines
+    event = next(
+        json.loads(line)
+        for line in reversed(operational_lines)
+        if json.loads(line).get("mensaje") == "Sync failed: permisos insuficientes en Google Sheets"
+    )
+    assert event["extra"]["operation"] == "sheets_permission_check"
+    assert event["extra"]["spreadsheet_id"] == "sheet-id"

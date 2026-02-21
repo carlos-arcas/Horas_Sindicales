@@ -9,6 +9,7 @@ from typing import Any, Callable, TypeVar
 import gspread
 from google.auth.exceptions import DefaultCredentialsError
 
+from app.bootstrap.logging import log_operational_error
 from app.core.observability import get_correlation_id
 from app.domain.ports import SheetsClientPort
 from app.domain.sheets_errors import SheetsPermissionError, SheetsRateLimitError
@@ -42,6 +43,7 @@ class SheetsClient(SheetsClientPort):
             spreadsheet = self._with_rate_limit_retry(
                 "open_spreadsheet",
                 lambda: client.open_by_key(spreadsheet_id),
+                spreadsheet_id=spreadsheet_id,
             )
             self._spreadsheet = spreadsheet
             self._worksheet_values_cache = {}
@@ -189,7 +191,7 @@ class SheetsClient(SheetsClientPort):
         )
         self._write_calls_count += 1
 
-    def _with_rate_limit_retry(self, operation_name: str, operation: Callable[[], T]) -> T:
+    def _with_rate_limit_retry(self, operation_name: str, operation: Callable[[], T], *, spreadsheet_id: str | None = None) -> T:
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
                 return operation()
@@ -199,7 +201,7 @@ class SheetsClient(SheetsClientPort):
                     if isinstance(mapped_error, SheetsPermissionError):
                         self._log_permission_error(
                             mapped_error,
-                            spreadsheet_id=getattr(self._spreadsheet, "id", None),
+                            spreadsheet_id=spreadsheet_id or getattr(self._spreadsheet, "id", None),
                             worksheet_name=self._worksheet_from_operation_name(operation_name),
                         )
                     raise mapped_error from exc
@@ -233,7 +235,7 @@ class SheetsClient(SheetsClientPort):
                     if isinstance(mapped_error, SheetsPermissionError):
                         self._log_permission_error(
                             mapped_error,
-                            spreadsheet_id=getattr(self._spreadsheet, "id", None),
+                            spreadsheet_id=spreadsheet_id or getattr(self._spreadsheet, "id", None),
                             worksheet_name=self._worksheet_from_operation_name(operation_name),
                         )
                     raise mapped_error from exc
@@ -285,14 +287,14 @@ class SheetsClient(SheetsClientPort):
         spreadsheet_id: str | None = None,
         worksheet_name: str | None = None,
     ) -> None:
-        logger.error(
-            "Google Sheets permisos insuficientes. correlation_id=%s spreadsheet_id=%s worksheet=%s error=%s",
-            get_correlation_id(),
-            spreadsheet_id or "n/a",
-            worksheet_name or "n/a",
-            error,
+        correlation_id = get_correlation_id()
+        log_operational_error(
+            logger,
+            "Sync failed: permisos insuficientes en Google Sheets",
+            exc=error,
             extra={
-                "correlation_id": get_correlation_id(),
+                "correlation_id": correlation_id,
+                "operation": "sheets_permission_check",
                 "spreadsheet_id": spreadsheet_id,
                 "worksheet": worksheet_name,
             },

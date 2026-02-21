@@ -97,6 +97,7 @@ from app.ui.sync_reporting import (
 )
 from app.core.observability import OperationContext, log_event
 from app.ui.workers.sincronizacion_workers import PushWorker
+from app.bootstrap.logging import log_operational_error
 from app.ui.vistas.paginas.pagina_resumen import PaginaResumen
 from app.ui.vistas.paginas.pagina_solicitudes import PaginaSolicitudes
 
@@ -1732,7 +1733,12 @@ class MainWindow(QMainWindow):
                 "Función pendiente",
             )
         except Exception as exc:  # pragma: no cover - fallback defensivo UI
-            logger.exception("sync_workflow_failed")
+            log_operational_error(
+                logger,
+                "Sync failed: no se pudo iniciar desde UI",
+                exc=exc,
+                extra={"operation": "sync_workflow_start"},
+            )
             QMessageBox.critical(self, "Sincronización", f"No se pudo iniciar la sincronización.\n\n{exc}")
 
     def _on_export_historico_pdf(self) -> None:
@@ -2029,7 +2035,15 @@ class MainWindow(QMainWindow):
                 warnings["cuadrante"] = "⚠ El cuadrante no está configurado y puede alterar el cálculo final."
         except sqlite3.OperationalError as exc:
             if "locked" in str(exc).lower():
-                logger.warning("preventive_validation_db_locked", exc_info=True)
+                log_operational_error(
+                    logger,
+                    "DB locked during preventive validation",
+                    exc=exc,
+                    extra={
+                        "operation": "preventive_validation",
+                        "persona_id": solicitud.persona_id,
+                    },
+                )
                 warnings["db"] = "⚠ Validación parcial temporal: base de datos ocupada."
             else:
                 raise
@@ -2287,7 +2301,16 @@ class MainWindow(QMainWindow):
         self._update_sync_button_state()
         error, details = self._normalize_sync_error(payload)
         if details:
-            logger.exception("Fallo técnico durante sincronización", exc_info=error)
+            log_operational_error(
+                logger,
+                "Sync failed",
+                exc=error,
+                extra={
+                    "operation": "sync_ui",
+                    "correlation_id": getattr(self._sync_operation_context, "correlation_id", None),
+                    "sync_id": self._active_sync_id,
+                },
+            )
         user_error = map_error_to_ui_message(error)
         user_message = user_error.as_text()
         report = build_failed_report(
@@ -2964,7 +2987,19 @@ class MainWindow(QMainWindow):
                     operation.correlation_id,
                 )
         except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error confirmando solicitudes")
+            if isinstance(exc, OSError):
+                log_operational_error(
+                    logger,
+                    "File export failed during confirm+PDF",
+                    exc=exc,
+                    extra={
+                        "operation": "confirmar_y_generar_pdf",
+                        "persona_id": persona.id or 0,
+                        "correlation_id": correlation_id,
+                    },
+                )
+            else:
+                logger.exception("Error confirmando solicitudes")
             self._show_critical_error(exc)
             return
         finally:
@@ -3602,7 +3637,15 @@ class MainWindow(QMainWindow):
             self.toast.warning(str(exc), title="Validación")
             return
         except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error generando previsualización de PDF histórico")
+            if isinstance(exc, OSError):
+                log_operational_error(
+                    logger,
+                    "File export failed during PDF preview",
+                    exc=exc,
+                    extra={"operation": "exportar_historico_pdf", "persona_id": persona.id or 0},
+                )
+            else:
+                logger.exception("Error generando previsualización de PDF histórico")
             self._show_critical_error(exc)
             return
         if result == QDialog.DialogCode.Accepted:
