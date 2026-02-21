@@ -58,6 +58,9 @@ Si vienes de backend, empieza por domain/application. Si vienes de frontend desk
 
 ## 4) Cómo depurar (práctico)
 
+Referencia rápida de persistencia local: `docs/db_runtime.md`.
+
+
 ### Logs
 - La app escribe logs en `app.log` dentro de `HORAS_LOG_DIR`, `./logs` o temp (fallback definido en `main.py`).
 - Crashes no controlados van a `crash.log`.
@@ -65,7 +68,7 @@ Si vienes de backend, empieza por domain/application. Si vienes de frontend desk
 ### Estrategia recomendada
 1. Reproducir con `python main.py --selfcheck` para aislar errores de recursos.
 2. Reproducir en UI (`python main.py`) y mirar `logs/app.log`.
-3. Si el problema es de datos, inspeccionar `horas_sindicales.db` (raíz del repo por defecto).
+3. Si el problema es de datos, inspeccionar `horas_sindicales.db` en la carpeta runtime (`%LOCALAPPDATA%\HorasSindicales\data` o `~/.local/share/HorasSindicales/data`).
 4. Si el problema es de reglas, escribir/ajustar test primero en `tests/`.
 
 ### Casos típicos

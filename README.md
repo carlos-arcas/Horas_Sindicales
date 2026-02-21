@@ -117,9 +117,10 @@ Se registra cada migración en la tabla `schema_migrations` (`version`, `name`, 
 CLI:
 
 ```bash
-python -m app.infrastructure.migrations_cli status --db horas_sindicales.db
-python -m app.infrastructure.migrations_cli up --db horas_sindicales.db
-python -m app.infrastructure.migrations_cli down --db horas_sindicales.db --steps 1
+# Por defecto usa la ruta runtime (%LOCALAPPDATA%/HorasSindicales/data o ~/.local/share/HorasSindicales/data)
+python -m app.infrastructure.migrations_cli status
+python -m app.infrastructure.migrations_cli up
+python -m app.infrastructure.migrations_cli down --steps 1
 ```
 
 ## Tests
