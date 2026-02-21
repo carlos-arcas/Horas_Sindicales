@@ -232,7 +232,10 @@ if defined LAST_ERROR_REASON echo [ERROR] Motivo: %LAST_ERROR_REASON%
 echo [ERROR] Log stdout: %LAST_ERROR_STDOUT%
 echo [ERROR] Log stderr: %LAST_ERROR_STDERR%
 if exist "%LAST_ERROR_STDERR%" (
-    powershell -NoProfile -Command "Get-Content -Path '%LAST_ERROR_STDERR%' -TotalCount 40"
+    echo [ERROR] Primeras 40 lineas de stderr:
+    for /f "usebackq tokens=1,* delims=:" %%A in (`findstr /n "^" "%LAST_ERROR_STDERR%"`) do (
+        if %%A LEQ 40 echo %%B
+    )
 )
 set "PAUSE_ALREADY_DONE=1"
 pause
@@ -246,6 +249,16 @@ call :run_step "tests" "%TEST_CMD%" "%TESTS_STDOUT%" "%TESTS_STDERR%" "Fallo en 
 if errorlevel 1 (
     set "TESTS_STATUS=FAIL"
     set "TESTS_CODE=%LAST_ERROR_EXIT%"
+    echo.
+    echo ===== RESUMEN PYTEST =====
+    set "PYTEST_SUMMARY_FOUND=0"
+    findstr /i "FAILED ERROR failed error" "%TESTS_STDOUT%"
+    if not errorlevel 1 set "PYTEST_SUMMARY_FOUND=1"
+    findstr /i "failed passed error" "%TESTS_STDOUT%"
+    if not errorlevel 1 set "PYTEST_SUMMARY_FOUND=1"
+    if "!PYTEST_SUMMARY_FOUND!"=="0" echo No se pudo detectar resumen automatico. Revisa tests_stdout.txt
+    echo ==========================
+    echo.
     exit /b %TESTS_CODE%
 )
 set "TESTS_STATUS=PASS"
