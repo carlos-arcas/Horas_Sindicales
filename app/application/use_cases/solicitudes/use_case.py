@@ -126,7 +126,7 @@ def _dto_to_solicitud(dto: SolicitudDTO) -> Solicitud:
     return Solicitud(
         id=dto.id,
         persona_id=dto.persona_id,
-        fecha_solicitud=dto.fecha_solicitud,
+        fecha_solicitud=dto.fecha_canon,
         fecha_pedida=dto.fecha_pedida,
         desde_min=desde_min,
         hasta_min=hasta_min,

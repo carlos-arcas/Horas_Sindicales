@@ -1423,7 +1423,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _extraer_fecha_solicitud(item: object) -> date | None:
-        for attr_name in ("fecha", "fecha_solicitud", "fecha_inicio", "fecha_desde"):
+        for attr_name in ("fecha_solicitud", "fecha", "fecha_inicio", "fecha_desde", "fecha_pedida"):
             valor = getattr(item, attr_name, None)
             if valor is None:
                 continue
