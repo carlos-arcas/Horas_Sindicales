@@ -2,49 +2,42 @@
 
 ## Objetivo
 
-Definir dónde se escriben los logs operativos y cómo consultarlos para trazabilidad y soporte.
+Definir canales separados para seguimiento, error operativo y crash real sin mezclar señales.
 
-## Archivos de log obligatorios
+## Archivos de log
 
-- `logs/seguimiento.log`: eventos de seguimiento funcional/técnico.
-- `logs/crashes.log`: errores no controlados, fallos críticos y stack traces relevantes.
+- `logs/seguimiento.log`: trazas funcionales/técnicas (INFO+).
+- `logs/error_operativo.log`: **solo `ERROR` manejados** (ej. sync, IO, `database is locked`, permisos de Sheets).
+- `logs/crash.log`: **solo `CRITICAL` y excepciones no controladas**.
+- Compatibilidad legacy: se mantiene `logs/crashes.log` para instalaciones/scripts previos.
+
+## Política de severidad
+
+- **warning de dominio**: anomalía esperable de negocio, no bloqueante.
+- **error_operativo (`ERROR`)**: fallo manejado pero relevante para operación/soporte.
+- **crash (`CRITICAL`)**: excepción no controlada o estado irrecuperable.
+
+> Política elegida: `CRITICAL` **no** entra en `error_operativo.log` para evitar duplicidad y mantener señales limpias.
+
+## Ejemplos
+
+- `database is locked` → `error_operativo.log`
+- `SheetsPermissionError` → `error_operativo.log`
+- excepción no controlada en runtime/UI/CLI → `crash.log`
 
 ## Formato
 
-Ambos logs se consumen como **JSONL** (un objeto JSON por línea). Estructura esperada mínima:
-
-```json
-{"event":"sync_started","correlation_id":"...","timestamp":"...","payload":{"...":"..."}}
-```
-
-Campos recomendados:
-
-- `event`: nombre del evento.
-- `timestamp`: fecha/hora ISO.
-- `correlation_id`: identificador transversal por operación.
-- `payload`: contexto estructurado del evento.
+Los archivos se emiten como JSONL con campos estructurados (timestamp, módulo, función, mensaje, `correlation_id`, `result_id` cuando aplica, y `exc_info` si hay excepción).
 
 ## Búsqueda por `correlation_id`
 
-Ejemplo con `rg`:
-
 ```bash
-rg '"correlation_id": "<ID>"' logs/seguimiento.log logs/crashes.log
-```
-
-Ejemplo de filtro por tipo de evento:
-
-```bash
-rg '"event": "sync_.*"' logs/seguimiento.log
+rg '"correlation_id": "<ID>"' logs/seguimiento.log logs/error_operativo.log logs/crash.log
 ```
 
 ## Buenas prácticas
 
-1. No registrar secretos ni datos sensibles en claro.
-2. Mantener nombres de evento estables para facilitar auditoría.
-3. Reutilizar el mismo `correlation_id` durante toda la operación.
-4. Revisar `crashes.log` en cada incidencia antes de abrir bug.
-
-## Pendiente de completar
-
-- Pendiente de completar política de retención/rotación por entorno (desarrollo, piloto, producción).
+1. No registrar secretos.
+2. Mantener `correlation_id` en toda la operación.
+3. Para errores manejados, usar helper de bootstrap `log_operational_error(...)`.
+4. Ante incidencias graves, revisar primero `crash.log`.

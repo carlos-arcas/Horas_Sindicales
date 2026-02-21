@@ -4,7 +4,7 @@ import json
 import logging
 import sys
 
-from app.bootstrap.logging import configure_logging, install_exception_hook
+from app.bootstrap.logging import CRASH_LOG_NAME, configure_logging, install_exception_hook
 
 
 def test_configure_logging_writes_jsonl_log_file(tmp_path) -> None:
@@ -32,7 +32,7 @@ def test_install_exception_hook_writes_crash_log(tmp_path) -> None:
             assert exc_type is not None and exc is not None and tb is not None
             sys.excepthook(exc_type, exc, tb)
 
-        crash_log = tmp_path / "crashes.log"
+        crash_log = tmp_path / CRASH_LOG_NAME
         assert crash_log.exists()
         crash_event = json.loads(crash_log.read_text(encoding="utf-8").strip().splitlines()[-1])
         assert crash_event["level"] == "CRITICAL"
