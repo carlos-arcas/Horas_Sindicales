@@ -14,6 +14,25 @@ ejecutar_tests.bat
 
 Este flujo prepara entorno y ejecuta la suite según la configuración vigente del proyecto.
 
+## Uso rápido: launcher.bat
+
+Para operación manual por doble clic en Windows, usar:
+
+```bat
+launcher.bat
+```
+
+Opciones del menú operativo:
+
+1. **Lanzar app**: delega en `lanzar_app.bat`.
+2. **Ejecutar tests**: delega en `ejecutar_tests.bat`.
+3. **Quality gate**: delega en `quality_gate.bat`.
+4. **Auditor E2E (dry-run)**: ejecuta auditoría sin escritura (`--dry-run`).
+5. **Auditor E2E (write)**: ejecuta auditoría con escritura (`--write`).
+0. **Salir**.
+
+El launcher informa la carpeta de logs (`logs\`) y muestra `PASS`/`FAIL` por opción según el exit code devuelto por cada script.
+
 ## Ejecución manual equivalente
 
 Desde la raíz del repositorio:
