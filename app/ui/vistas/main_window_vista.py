@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QStatusBar,
     QStackedWidget,
+    QSplitter,
     QTabWidget,
     QTableView,
     QToolButton,
@@ -306,6 +307,8 @@ class MainWindow(QMainWindow):
         self.header_new_button: QPushButton | None = None
         self.header_export_button: QPushButton | None = None
         self.header_config_button: QPushButton | None = None
+        self.header_secondary_actions: QToolButton | None = None
+        self.header_secondary_menu: QMenu | None = None
         self.sidebar: QFrame | None = None
         self.stacked_pages: QStackedWidget | None = None
         self.page_resumen: QWidget | None = None
@@ -313,6 +316,7 @@ class MainWindow(QMainWindow):
         self.page_configuracion: QWidget | None = None
         self.page_sincronizacion: QWidget | None = None
         self.page_solicitudes: QWidget | None = None
+        self.solicitudes_splitter: QSplitter | None = None
         self.sidebar_buttons: list[QPushButton] = []
         self._sidebar_routes: list[dict[str, int | None]] = []
         self._active_sidebar_index = 0
@@ -446,13 +450,23 @@ class MainWindow(QMainWindow):
 
         # UX: Operativa concentra solo tareas diarias (alta + pendientes + confirmación)
         # para reducir cambios de contexto y evitar mezclar navegación histórica.
-        self._content_row = QBoxLayout(QBoxLayout.LeftToRight)
-        self._content_row.setSpacing(14)
-        operativa_layout.addLayout(self._content_row, 1)
+        self.solicitudes_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.solicitudes_splitter.setObjectName("solicitudesSplitter")
+        self.solicitudes_splitter.setChildrenCollapsible(False)
+        self.solicitudes_splitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        operativa_layout.addWidget(self.solicitudes_splitter, 1)
 
-        left_column = QVBoxLayout()
-        left_column.setSpacing(14)
-        self._content_row.addLayout(left_column, 3)
+        solicitudes_list_panel = QWidget()
+        solicitudes_list_panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        solicitudes_list_layout = QVBoxLayout(solicitudes_list_panel)
+        solicitudes_list_layout.setContentsMargins(0, 0, 0, 0)
+        solicitudes_list_layout.setSpacing(0)
+
+        solicitudes_form_panel = QWidget()
+        solicitudes_form_panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        solicitudes_form_layout = QVBoxLayout(solicitudes_form_panel)
+        solicitudes_form_layout.setContentsMargins(0, 0, 0, 0)
+        solicitudes_form_layout.setSpacing(0)
 
         solicitud_card, solicitud_layout = self._create_card("Alta de solicitud")
         solicitud_layout.setSpacing(12)
@@ -646,7 +660,7 @@ class MainWindow(QMainWindow):
         self.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         notas_row.addWidget(self.notas_input, 1)
         solicitud_layout.addLayout(notas_row)
-        left_column.addWidget(solicitud_card)
+        solicitudes_form_layout.addWidget(solicitud_card)
 
         pendientes_card, pendientes_layout = self._create_card("Pendientes de confirmar")
         self._pendientes_group = pendientes_card
@@ -702,6 +716,7 @@ class MainWindow(QMainWindow):
         self.huerfanas_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.huerfanas_table.setShowGrid(False)
         self.huerfanas_table.setAlternatingRowColors(True)
+        self.huerfanas_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.huerfanas_table.setMinimumHeight(120)
         self._configure_solicitudes_table(self.huerfanas_table)
         self.huerfanas_table.setVisible(False)
@@ -765,7 +780,11 @@ class MainWindow(QMainWindow):
         pending_details_layout.addLayout(pendientes_footer)
         pendientes_layout.addWidget(self.pending_details_content, 1)
         self._configure_disclosure(self.pending_details_button, self.pending_details_content)
-        left_column.addWidget(pendientes_card, 1)
+        solicitudes_list_layout.addWidget(pendientes_card, 1)
+        self.solicitudes_splitter.addWidget(solicitudes_list_panel)
+        self.solicitudes_splitter.addWidget(solicitudes_form_panel)
+        self.solicitudes_splitter.setStretchFactor(0, 2)
+        self.solicitudes_splitter.setStretchFactor(1, 3)
 
         self.main_tabs.addTab(operativa_tab, "Operativa")
 
@@ -855,7 +874,12 @@ class MainWindow(QMainWindow):
         filtros_row_2.addWidget(self.historico_clear_filters_button)
         filtros_row_2.addStretch(1)
         filtros_layout.addLayout(filtros_row_2)
-        historico_details_layout.addLayout(filtros_layout)
+        historico_filters_panel = QWidget()
+        historico_filters_layout = QVBoxLayout(historico_filters_panel)
+        historico_filters_layout.setContentsMargins(0, 0, 0, 0)
+        historico_filters_layout.setSpacing(0)
+        historico_filters_layout.addLayout(filtros_layout)
+        historico_details_layout.addWidget(historico_filters_panel)
 
         self.historico_table = QTableView()
         self.historico_view_model = HistoricalViewModel([])
@@ -874,10 +898,7 @@ class MainWindow(QMainWindow):
         self._configure_solicitudes_table(self.historico_table)
         self.historico_table.setSortingEnabled(True)
         historico_header = self.historico_table.horizontalHeader()
-        historico_header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        historico_header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        historico_header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        historico_header.setSectionResizeMode(5, QHeaderView.Stretch)
+        historico_header.setSectionResizeMode(QHeaderView.Stretch)
         historico_details_layout.addWidget(self.historico_table, 1)
 
         historico_actions = QHBoxLayout()
@@ -914,9 +935,22 @@ class MainWindow(QMainWindow):
         self.main_tabs.addTab(historico_tab, "Histórico")
 
         config_tab = QWidget()
-        config_layout = QVBoxLayout(config_tab)
+        config_tab_layout = QVBoxLayout(config_tab)
+        config_tab_layout.setContentsMargins(0, 0, 0, 0)
+        config_tab_layout.setSpacing(0)
+
+        self.config_scroll_area = QScrollArea()
+        self.config_scroll_area.setWidgetResizable(True)
+        self.config_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.config_scroll_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        config_tab_layout.addWidget(self.config_scroll_area, 1)
+
+        config_content = QWidget()
+        config_content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        config_layout = QVBoxLayout(config_content)
         config_layout.setContentsMargins(0, 0, 0, 0)
         config_layout.setSpacing(12)
+        self.config_scroll_area.setWidget(config_content)
         config_help = QLabel("Define la configuración principal de la app: delegada, grupo/PDF y credenciales.")
         config_help.setWordWrap(True)
         config_help.setProperty("role", "secondary")
@@ -1795,18 +1829,12 @@ class MainWindow(QMainWindow):
         self.historico_search_input.selectAll()
 
     def _update_responsive_columns(self) -> None:
-        if not hasattr(self, "_content_row"):
+        if not hasattr(self, "solicitudes_splitter"):
             return
         available_width = self._scroll_area.viewport().width() if hasattr(self, "_scroll_area") else self.width()
-        # En ventanas estrechas apilamos columnas para evitar recortes horizontales.
-        if available_width < 1200:
-            self._content_row.setDirection(QBoxLayout.TopToBottom)
-            self._content_row.setStretch(0, 0)
-            self._content_row.setStretch(1, 0)
-        else:
-            self._content_row.setDirection(QBoxLayout.LeftToRight)
-            self._content_row.setStretch(0, 3)
-            self._content_row.setStretch(1, 2)
+        left_size = max(300, int(available_width * 0.4))
+        right_size = max(420, int(available_width * 0.6))
+        self.solicitudes_splitter.setSizes([left_size, right_size])
 
     def _load_personas(self, select_id: int | None = None) -> None:
         self.persona_combo.blockSignals(True)
