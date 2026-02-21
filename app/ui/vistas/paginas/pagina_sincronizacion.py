@@ -12,7 +12,7 @@ class PaginaSincronizacion(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setContentsMargins(24, 24, 24, 24)
 
         self.empty_state = EmptyStateWidget(
             titulo="Aún no has sincronizado",
