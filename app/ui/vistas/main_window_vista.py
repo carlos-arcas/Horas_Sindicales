@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import logging
 import json
-import traceback
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import cast
 
-from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, Signal, Slot, QThread
+from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, QThread
 from PySide6.QtWidgets import (
     QBoxLayout,
     QCheckBox,
@@ -26,7 +25,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QAbstractItemView,
     QPlainTextEdit,
-    QGridLayout,
     QFrame,
     QHeaderView,
     QProgressBar,
@@ -83,7 +81,6 @@ from app.ui.controllers.pdf_controller import PdfController
 from app.ui.notification_service import ConfirmationSummaryPayload, NotificationService, OperationFeedback
 from app.ui.components.primary_button import PrimaryButton
 from app.ui.components.saldos_card import SaldosCard
-from app.ui.components.secondary_button import SecondaryButton
 from app.ui.components.status_badge import StatusBadge
 from app.ui.components.contexto_trabajo_widget import ContextoTrabajoWidget
 from app.ui.sync_reporting import (
@@ -97,7 +94,7 @@ from app.ui.sync_reporting import (
     to_markdown,
 )
 from app.core.observability import OperationContext, log_event
-from app.ui.workers.sincronizacion_workers import PushWorker, SyncWorker
+from app.ui.workers.sincronizacion_workers import PushWorker
 from app.ui.vistas.paginas.pagina_resumen import PaginaResumen
 from app.ui.vistas.paginas.pagina_solicitudes import PaginaSolicitudes
 
@@ -243,7 +240,9 @@ class HistoricoDetalleDialog(QDialog):
         buttons.accepted.connect(self.accept)
         layout.addWidget(buttons)
 
-        apply_modal_behavior(self, primary_button=save_as)
+        close_button = buttons.button(QDialogButtonBox.Close)
+        assert close_button is not None, "QDialogButtonBox.Close debe existir para mantener foco principal"
+        apply_modal_behavior(self, primary_button=close_button)
 
 
 class MainWindow(QMainWindow):

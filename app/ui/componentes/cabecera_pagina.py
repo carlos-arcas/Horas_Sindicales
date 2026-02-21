@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 
 class CabeceraPagina(QWidget):
@@ -15,5 +15,3 @@ class CabeceraPagina(QWidget):
         text.addWidget(self.subtitulo)
         layout.addLayout(text)
         layout.addStretch(1)
-
-from PySide6.QtWidgets import QVBoxLayout

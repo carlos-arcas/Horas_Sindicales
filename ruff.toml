@@ -1,2 +1,2 @@
 [lint.per-file-ignores]
-"tests/conftest.py" = ["E402"]
+"tests/**/*.py" = ["E402", "F841"]

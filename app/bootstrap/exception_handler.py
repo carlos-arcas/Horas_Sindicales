@@ -4,7 +4,6 @@ import json
 import logging
 import traceback
 import uuid
-from pathlib import Path
 from types import TracebackType
 
 from app.bootstrap.logging import CRASH_LOG_NAME
@@ -71,4 +70,3 @@ def manejar_excepcion_global(
         )
 
     return incident_id
-
