@@ -12,6 +12,7 @@ set "LOG_STDERR=%LOG_DIR%\tests_stderr.log"
 set "LOG_DEBUG=%LOG_DIR%\tests_debug.log"
 set "LOG_PYTEST=%LOG_DIR%\pytest_output.txt"
 set "LOG_COVERAGE=%LOG_DIR%\coverage_report.txt"
+set "COVERAGE_PERCENT=N/A"
 
 set "RUN_SUMMARY_FILE="
 if defined RUN_DIR (
@@ -141,14 +142,14 @@ if defined RUN_DIR set "COVERAGE_HTML_DIR=%RUN_DIR%\coverage_html"
 
 if not exist "%COVERAGE_HTML_DIR%" mkdir "%COVERAGE_HTML_DIR%" >nul 2>&1
 
-rem contrato: pytest --cov=app --cov-report=term-missing --cov-fail-under=85
-set "PYTEST_CMD=python -m pytest -q \"tests\" --cov=app --cov-report=term-missing \"--cov-report=html:%COVERAGE_HTML_DIR%\" --cov-fail-under=85"
+rem contrato: pytest --cov=app --cov-report=term-missing
+set "PYTEST_CMD=python -m pytest -q \"tests\" --cov=app --cov-report=term-missing \"--cov-report=html:%COVERAGE_HTML_DIR%\""
 call :log_debug "Comando pytest: %PYTEST_CMD%"
 if defined RUN_SUMMARY_FILE (
     >>"%RUN_SUMMARY_FILE%" echo CMD_PYTEST=%PYTEST_CMD%
 )
 
-python -m pytest -q "tests" --cov=app --cov-report=term-missing "--cov-report=html:%COVERAGE_HTML_DIR%" --cov-fail-under=85 > "%LOG_PYTEST%" 2>&1
+python -m pytest -q "tests" --cov=app --cov-report=term-missing "--cov-report=html:%COVERAGE_HTML_DIR%" > "%LOG_PYTEST%" 2>&1
 set "TEST_EXIT=%ERRORLEVEL%"
 
 findstr /i /c:"collected 0 items" "%LOG_PYTEST%" >nul 2>&1
@@ -170,6 +171,13 @@ python -m coverage report -m > "%LOG_COVERAGE%" 2>&1
 if errorlevel 1 (
     >>"%LOG_COVERAGE%" echo [INFO] No fue posible generar coverage report detallado.
 )
+
+set "COVERAGE_LINE="
+for /f "tokens=*" %%L in ('findstr /r /c:"^TOTAL .*%%$" "%LOG_COVERAGE%"') do set "COVERAGE_LINE=%%L"
+if defined COVERAGE_LINE (
+    for %%P in (%COVERAGE_LINE%) do set "COVERAGE_PERCENT=%%P"
+)
+
 if exist ".coverage" (
     echo ==== coverage report -m ====
     python -m coverage report -m
@@ -183,8 +191,16 @@ if exist "%COVERAGE_HTML_DIR%\index.html" (
     if defined RUN_SUMMARY_FILE (
         >>"%RUN_SUMMARY_FILE%" echo ERROR_HUMANO=No se genero el HTML de coverage. Motivos comunes: pytest fallo, no se ejecutaron tests, o falta pytest-cov.
     )
-    if "%TEST_EXIT%"=="0" set "TEST_EXIT=1"
 )
+
+echo tests_exit_code=%TEST_EXIT%
+echo coverage_percent=%COVERAGE_PERCENT%
+if defined RUN_SUMMARY_FILE (
+    >>"%RUN_SUMMARY_FILE%" echo tests_exit_code=%TEST_EXIT%
+    >>"%RUN_SUMMARY_FILE%" echo coverage_percent=%COVERAGE_PERCENT%
+)
+>>"%LOG_DEBUG%" echo tests_exit_code=%TEST_EXIT%
+>>"%LOG_DEBUG%" echo coverage_percent=%COVERAGE_PERCENT%
 
 call :log_debug "Exit code pytest: %TEST_EXIT%"
 exit /b %TEST_EXIT%

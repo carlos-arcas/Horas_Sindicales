@@ -10,11 +10,20 @@ if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 set "LOG_STDOUT=%LOG_DIR%\quality_gate_stdout.log"
 set "LOG_STDERR=%LOG_DIR%\quality_gate_stderr.log"
 set "LOG_DEBUG=%LOG_DIR%\quality_gate_debug.log"
+set "LOG_COVERAGE=%LOG_DIR%\quality_gate_coverage_report.txt"
+
+set "RUN_SUMMARY_FILE="
+if defined RUN_DIR (
+    set "RUN_SUMMARY_FILE=%RUN_DIR%\summary.txt"
+)
 
 call :log_debug "==== quality_gate.bat ===="
 call :log_debug "Repositorio: %ROOT_DIR%"
 
 set "FAIL_STEP="
+set "TESTS_EXIT_CODE=N/A"
+set "GATE_EXIT_CODE=N/A"
+set "COVERAGE_PERCENT=N/A"
 set "PYTHON_CMD="
 set "PYTHON_EXE=.venv\Scripts\python.exe"
 
@@ -105,23 +114,42 @@ if errorlevel 1 (
 
 call :log_debug "Paso B: Pytest cobertura"
 pytest --cov=app --cov-report=term-missing --cov-fail-under=85 >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+set "TESTS_EXIT_CODE=%ERRORLEVEL%"
+
+python -m coverage report -m > "%LOG_COVERAGE%" 2>&1
 if errorlevel 1 (
+    >>"%LOG_COVERAGE%" echo [INFO] No fue posible generar coverage report detallado.
+)
+
+set "COVERAGE_LINE="
+for /f "tokens=*" %%L in ('findstr /r /c:"^TOTAL .*%%$" "%LOG_COVERAGE%"') do set "COVERAGE_LINE=%%L"
+if defined COVERAGE_LINE (
+    for %%P in (%COVERAGE_LINE%) do set "COVERAGE_PERCENT=%%P"
+)
+
+if not "%TESTS_EXIT_CODE%"=="0" (
     set "FAIL_STEP=PYTEST"
     call :log_debug "FAIL: PYTEST"
     goto GATE_FAIL
 )
 
 echo QUALITY GATE: PASS
+set "GATE_EXIT_CODE=0"
+call :write_summary
 goto END_OK
 
 :GATE_FAIL
 echo QUALITY GATE: FAIL
 if defined FAIL_STEP echo Paso con fallo: %FAIL_STEP%
+set "GATE_EXIT_CODE=2"
+call :write_summary
 exit /b 2
 
 :INTERNAL_ERROR
 echo QUALITY GATE: FAIL
 if not defined FAIL_STEP echo Paso con fallo: INTERNO
+set "GATE_EXIT_CODE=3"
+call :write_summary
 exit /b 3
 
 :END_OK
@@ -129,4 +157,18 @@ exit /b 0
 
 :log_debug
 echo [%date% %time%] %~1>> "%LOG_DEBUG%"
+exit /b 0
+
+:write_summary
+echo tests_exit_code=%TESTS_EXIT_CODE%
+echo coverage_percent=%COVERAGE_PERCENT%
+echo gate_exit_code=%GATE_EXIT_CODE%
+if defined RUN_SUMMARY_FILE (
+    >>"%RUN_SUMMARY_FILE%" echo tests_exit_code=%TESTS_EXIT_CODE%
+    >>"%RUN_SUMMARY_FILE%" echo coverage_percent=%COVERAGE_PERCENT%
+    >>"%RUN_SUMMARY_FILE%" echo gate_exit_code=%GATE_EXIT_CODE%
+)
+>>"%LOG_DEBUG%" echo tests_exit_code=%TESTS_EXIT_CODE%
+>>"%LOG_DEBUG%" echo coverage_percent=%COVERAGE_PERCENT%
+>>"%LOG_DEBUG%" echo gate_exit_code=%GATE_EXIT_CODE%
 exit /b 0
