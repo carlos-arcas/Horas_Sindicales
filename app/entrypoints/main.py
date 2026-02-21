@@ -3,10 +3,12 @@ from __future__ import annotations
 import argparse
 import faulthandler
 import logging
+import os
 import sys
 from pathlib import Path
 
-from app.bootstrap.logging import CRASH_LOG_NAME, configure_logging, install_exception_hook
+from app.bootstrap.exception_handler import manejar_excepcion_global
+from app.bootstrap.logging import CRASH_LOG_NAME, configure_logging
 from app.bootstrap.settings import project_root, resolve_log_dir
 from app.entrypoints.ui_main import run_ui
 
@@ -51,8 +53,11 @@ def main(argv: list[str] | None = None) -> int:
 
     log_dir = resolve_log_dir()
     configure_logging(log_dir)
-    install_exception_hook(log_dir)
+    sys.excepthook = manejar_excepcion_global
     faulthandler.enable()
+
+    if os.getenv("HORAS_FORCE_UNHANDLED_EXCEPTION") == "1":
+        raise RuntimeError("Excepción forzada para pruebas de robustez global")
 
     logger = logging.getLogger(__name__)
     logger.info("Log dir: %s", log_dir)
