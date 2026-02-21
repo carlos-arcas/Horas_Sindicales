@@ -5,6 +5,7 @@ from pathlib import Path
 
 DB_FILENAME = "horas_sindicales.db"
 DB_RUNTIME_DIR = Path("logs") / "runtime"
+DEFAULT_BUSY_TIMEOUT_MS = 5000
 
 
 def _default_db_path() -> Path:
@@ -12,9 +13,21 @@ def _default_db_path() -> Path:
     return root / DB_RUNTIME_DIR / DB_FILENAME
 
 
-def get_connection(db_path: Path | None = None) -> sqlite3.Connection:
+def configure_sqlite_connection(connection: sqlite3.Connection, busy_timeout_ms: int = DEFAULT_BUSY_TIMEOUT_MS) -> None:
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA journal_mode=WAL")
+    connection.execute("PRAGMA synchronous=NORMAL")
+    connection.execute(f"PRAGMA busy_timeout={int(busy_timeout_ms)}")
+
+
+def get_connection(
+    db_path: Path | None = None,
+    *,
+    busy_timeout_ms: int = DEFAULT_BUSY_TIMEOUT_MS,
+    check_same_thread: bool = False,
+) -> sqlite3.Connection:
     path = db_path or _default_db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(path)
-    connection.row_factory = sqlite3.Row
+    connection = sqlite3.connect(path, check_same_thread=check_same_thread)
+    configure_sqlite_connection(connection, busy_timeout_ms=busy_timeout_ms)
     return connection

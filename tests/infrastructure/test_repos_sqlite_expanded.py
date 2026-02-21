@@ -4,7 +4,11 @@ import sqlite3
 
 import pytest
 
-from app.infrastructure.repos_sqlite import PersonaRepositorySQLite, _execute_with_validation
+from app.infrastructure.repos_sqlite import (
+    PersonaRepositorySQLite,
+    _execute_with_validation,
+    _run_with_locked_retry,
+)
 
 
 def test_execute_with_validation_detects_param_mismatch() -> None:
@@ -41,3 +45,30 @@ def test_get_or_create_uuid_works_without_updated_at_column() -> None:
 
 def test_delete_by_ids_noop_when_ids_are_empty(solicitud_repo) -> None:
     solicitud_repo.delete_by_ids([])
+
+
+def test_run_with_locked_retry_retries_only_locked_operational_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    attempts = {"count": 0}
+    sleeps: list[float] = []
+
+    def _operation() -> str:
+        attempts["count"] += 1
+        if attempts["count"] < 3:
+            raise sqlite3.OperationalError("database is locked")
+        return "ok"
+
+    monkeypatch.setattr("app.infrastructure.repos_sqlite.time.sleep", lambda value: sleeps.append(value))
+
+    result = _run_with_locked_retry(_operation, context="test.locked")
+
+    assert result == "ok"
+    assert attempts["count"] == 3
+    assert sleeps == [0.05, 0.15]
+
+
+def test_run_with_locked_retry_does_not_retry_non_locked_operational_error() -> None:
+    def _operation() -> None:
+        raise sqlite3.OperationalError("no such table")
+
+    with pytest.raises(sqlite3.OperationalError, match="no such table"):
+        _run_with_locked_retry(_operation, context="test.non_locked")

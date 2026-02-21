@@ -3,14 +3,41 @@ from __future__ import annotations
 import logging
 import sqlite3
 import uuid
+import time
 from datetime import datetime, timezone
-from typing import Iterable
+from typing import Callable, Iterable, TypeVar
 
 from app.domain.models import GrupoConfig, Persona, Solicitud
 from app.domain.ports import CuadranteRepository, GrupoConfigRepository, PersonaRepository, SolicitudRepository
 
 
 logger = logging.getLogger(__name__)
+
+_LOCKED_RETRY_BACKOFF_SECONDS = (0.05, 0.15, 0.3)
+_T = TypeVar("_T")
+
+
+def _is_locked_operational_error(error: sqlite3.OperationalError) -> bool:
+    return "locked" in str(error).lower()
+
+
+def _run_with_locked_retry(operation: Callable[[], _T], *, context: str) -> _T:
+    for attempt, delay_seconds in enumerate(_LOCKED_RETRY_BACKOFF_SECONDS, start=1):
+        try:
+            return operation()
+        except sqlite3.OperationalError as error:
+            if not _is_locked_operational_error(error):
+                raise
+            logger.warning(
+                "SQLite locked in %s (attempt=%s/%s); retrying in %.0fms",
+                context,
+                attempt,
+                len(_LOCKED_RETRY_BACKOFF_SECONDS),
+                delay_seconds * 1000,
+            )
+            time.sleep(delay_seconds)
+
+    return operation()
 
 
 def _int_or_zero(value: int | None) -> int:
@@ -511,36 +538,40 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         self, persona_id: int, year: int, month: int | None = None
     ) -> Iterable[Solicitud]:
         cursor = self._connection.cursor()
-        if month is None:
-            cursor.execute(
-                """
-                SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                       horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
-                FROM solicitudes
-                WHERE persona_id = ?
-                  AND strftime('%Y', fecha_pedida) = ?
-                  AND generated = 1
-                  AND (deleted = 0 OR deleted IS NULL)
-                ORDER BY fecha_pedida DESC
-                """,
-                (persona_id, f"{year:04d}"),
-            )
-        else:
-            cursor.execute(
-                """
-                SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                       horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
-                FROM solicitudes
-                WHERE persona_id = ?
-                  AND strftime('%Y', fecha_pedida) = ?
-                  AND strftime('%m', fecha_pedida) = ?
-                  AND generated = 1
-                  AND (deleted = 0 OR deleted IS NULL)
-                ORDER BY fecha_pedida DESC
-                """,
-                (persona_id, f"{year:04d}", f"{month:02d}"),
-            )
-        return [self._row_to_solicitud(row) for row in cursor.fetchall()]
+
+        def _query() -> list[Solicitud]:
+            if month is None:
+                cursor.execute(
+                    """
+                    SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                           horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
+                    FROM solicitudes
+                    WHERE persona_id = ?
+                      AND strftime('%Y', fecha_pedida) = ?
+                      AND generated = 1
+                      AND (deleted = 0 OR deleted IS NULL)
+                    ORDER BY fecha_pedida DESC
+                    """,
+                    (persona_id, f"{year:04d}"),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                           horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
+                    FROM solicitudes
+                    WHERE persona_id = ?
+                      AND strftime('%Y', fecha_pedida) = ?
+                      AND strftime('%m', fecha_pedida) = ?
+                      AND generated = 1
+                      AND (deleted = 0 OR deleted IS NULL)
+                    ORDER BY fecha_pedida DESC
+                    """,
+                    (persona_id, f"{year:04d}", f"{month:02d}"),
+                )
+            return [self._row_to_solicitud(row) for row in cursor.fetchall()]
+
+        return _run_with_locked_retry(_query, context="solicitudes.list_by_persona_and_period")
 
     def list_by_persona_and_fecha(
         self, persona_id: int, fecha_pedida: str
@@ -563,19 +594,23 @@ class SolicitudRepositorySQLite(SolicitudRepository):
 
     def get_by_id(self, solicitud_id: int) -> Solicitud | None:
         cursor = self._connection.cursor()
-        cursor.execute(
-            """
-            SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
-            FROM solicitudes
-            WHERE id = ? AND (deleted = 0 OR deleted IS NULL)
-            """,
-            (solicitud_id,),
-        )
-        row = cursor.fetchone()
-        if not row:
-            return None
-        return self._row_to_solicitud(row)
+
+        def _query() -> Solicitud | None:
+            cursor.execute(
+                """
+                SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                       horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
+                FROM solicitudes
+                WHERE id = ? AND (deleted = 0 OR deleted IS NULL)
+                """,
+                (solicitud_id,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_solicitud(row)
+
+        return _run_with_locked_retry(_query, context="solicitudes.get_by_id")
 
     def get_by_uuid(self, solicitud_uuid: str) -> Solicitud | None:
         cursor = self._connection.cursor()
