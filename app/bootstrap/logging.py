@@ -14,9 +14,10 @@ from app.core.observability import get_correlation_id, get_result_id
 DEFAULT_LOG_MAX_BYTES = 1_048_576
 DEFAULT_LOG_BACKUP_COUNT = 10
 MAIN_LOG_NAME = "seguimiento.log"
-CRASH_LOG_NAME = "crashes.log"
+ERROR_OPERATIVO_LOG_NAME = "error_operativo.log"
+CRASH_LOG_NAME = "crash.log"
 LEGACY_MAIN_LOG_NAME = "app.log"
-LEGACY_CRASH_LOG_NAME = "crash.log"
+LEGACY_CRASH_LOG_NAME = "crashes.log"
 
 
 class JsonLinesFormatter(logging.Formatter):
@@ -53,14 +54,28 @@ class JsonLinesFormatter(logging.Formatter):
         return get_correlation_id()
 
 
+class LevelOnlyFilter(logging.Filter):
+    def __init__(self, level: int) -> None:
+        super().__init__()
+        self._level = level
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.levelno == self._level
 
 
 class CrashOnlyFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        return bool(record.exc_info) or record.levelno >= logging.CRITICAL
+        return record.levelno >= logging.CRITICAL
+
 
 def _build_rotating_handler(
-    log_path: Path, *, max_bytes: int, backup_count: int, level: int, only_crashes: bool = False
+    log_path: Path,
+    *,
+    max_bytes: int,
+    backup_count: int,
+    level: int,
+    level_only: int | None = None,
+    only_crashes: bool = False,
 ) -> RotatingFileHandler:
     handler = RotatingFileHandler(
         log_path,
@@ -70,6 +85,8 @@ def _build_rotating_handler(
     )
     handler.setLevel(level)
     handler.setFormatter(JsonLinesFormatter())
+    if level_only is not None:
+        handler.addFilter(LevelOnlyFilter(level_only))
     if only_crashes:
         handler.addFilter(CrashOnlyFilter())
     return handler
@@ -105,15 +122,23 @@ def configure_logging(
         backup_count=backup_count,
         level=level,
     )
+    operational_error_handler = _build_rotating_handler(
+        log_dir / ERROR_OPERATIVO_LOG_NAME,
+        max_bytes=resolved_max_bytes,
+        backup_count=backup_count,
+        level=logging.ERROR,
+        level_only=logging.ERROR,
+    )
     crash_handler = _build_rotating_handler(
         log_dir / CRASH_LOG_NAME,
         max_bytes=resolved_max_bytes,
         backup_count=backup_count,
-        level=logging.ERROR,
+        level=logging.CRITICAL,
         only_crashes=True,
     )
 
     root_logger.addHandler(main_handler)
+    root_logger.addHandler(operational_error_handler)
     root_logger.addHandler(crash_handler)
 
     # Compatibilidad controlada: conservamos logs legacy para instalaciones/scripts previos.
@@ -130,10 +155,25 @@ def configure_logging(
             log_dir / LEGACY_CRASH_LOG_NAME,
             max_bytes=resolved_max_bytes,
             backup_count=backup_count,
-            level=logging.ERROR,
+            level=logging.CRITICAL,
             only_crashes=True,
         )
     )
+
+
+def log_operational_error(
+    logger: logging.Logger,
+    message: str,
+    *,
+    exc: BaseException | None = None,
+    extra: dict[str, Any] | None = None,
+) -> None:
+    exc_info: Any = False
+    if exc is not None:
+        exc_info = (type(exc), exc, exc.__traceback__)
+
+    payload = {"extra": extra} if extra else None
+    logger.error(message, exc_info=exc_info, extra=payload)
 
 
 def write_crash_log(exc_type: type[BaseException], exc: BaseException, tb: Any, log_dir: Path) -> Path:

@@ -32,7 +32,7 @@ def test_install_exception_hook_writes_crash_log(tmp_path) -> None:
             assert exc_type is not None and exc is not None and tb is not None
             sys.excepthook(exc_type, exc, tb)
 
-        crash_log = tmp_path / "crashes.log"
+        crash_log = tmp_path / "crash.log"
         assert crash_log.exists()
         crash_event = json.loads(crash_log.read_text(encoding="utf-8").strip().splitlines()[-1])
         assert crash_event["level"] == "CRITICAL"

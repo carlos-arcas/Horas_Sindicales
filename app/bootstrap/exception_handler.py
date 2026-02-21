@@ -6,7 +6,7 @@ import traceback
 import uuid
 from types import TracebackType
 
-from app.bootstrap.logging import CRASH_LOG_NAME
+from app.bootstrap.logging import CRASH_LOG_NAME, write_crash_log
 from app.bootstrap.settings import resolve_log_dir
 from app.core.observability import generate_correlation_id, get_correlation_id, set_correlation_id
 
@@ -52,14 +52,16 @@ def manejar_excepcion_global(
     incident_id = generar_id_incidente()
     correlation_id = _asegurar_correlation_id()
     logger = logging.getLogger("app.global_exception")
+    log_dir = resolve_log_dir()
 
     try:
-        logger.exception(
+        logger.critical(
             "Excepción no controlada. incident_id=%s",
             incident_id,
             exc_info=(exc_type, exc_value, exc_traceback),
             extra={"incident_id": incident_id, "correlation_id": correlation_id},
         )
+        write_crash_log(exc_type, exc_value, exc_traceback, log_dir)
     except Exception:  # noqa: BLE001
         _escribir_fallback_crash_log(
             incident_id=incident_id,
