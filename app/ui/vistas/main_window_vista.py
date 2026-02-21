@@ -762,17 +762,31 @@ class MainWindow(QMainWindow):
         historico_tab_layout = QVBoxLayout(historico_tab)
         historico_tab_layout.setContentsMargins(0, 0, 0, 0)
         historico_tab_layout.setSpacing(12)
-        historico_help = QLabel("Consulta histórico y saldos solo cuando necesites más contexto.")
+        historico_help = QLabel("Consulta y filtra solicitudes confirmadas. Si no hay registros, crea la primera solicitud.")
         historico_help.setWordWrap(True)
         historico_help.setProperty("role", "secondary")
         historico_tab_layout.addWidget(historico_help)
 
-        self.saldos_card = SaldosCard()
-        historico_tab_layout.addWidget(self.saldos_card)
-
-        # UX: el histórico se separa para inspección y reporting sin contaminar el flujo operativo.
         historico_card, historico_layout = self._create_card("Histórico")
-        self.historico_details_button = QPushButton("Más información")
+
+        self.historico_empty_state = QWidget()
+        empty_layout = QVBoxLayout(self.historico_empty_state)
+        empty_layout.setContentsMargins(0, 8, 0, 8)
+        empty_layout.setSpacing(8)
+        empty_title = QLabel("Aún no hay histórico")
+        empty_title.setProperty("role", "sectionTitle")
+        empty_layout.addWidget(empty_title)
+        empty_text = QLabel("Cuando confirmes solicitudes aparecerán aquí con filtros por texto, estado y fechas.")
+        empty_text.setWordWrap(True)
+        empty_text.setProperty("role", "secondary")
+        empty_layout.addWidget(empty_text)
+        self.historico_empty_button = QPushButton("Crear primera solicitud")
+        self.historico_empty_button.setProperty("variant", "primary")
+        self.historico_empty_button.clicked.connect(lambda: self.main_tabs.setCurrentIndex(0))
+        empty_layout.addWidget(self.historico_empty_button, alignment=Qt.AlignLeft)
+        historico_layout.addWidget(self.historico_empty_state)
+
+        self.historico_details_button = QPushButton("Ver filtros y listado")
         self.historico_details_button.setProperty("variant", "secondary")
         historico_layout.addWidget(self.historico_details_button)
         self.historico_details_content = QWidget()
@@ -880,39 +894,35 @@ class MainWindow(QMainWindow):
         historico_actions.addWidget(self.generar_pdf_button)
         historico_details_layout.addLayout(historico_actions)
         historico_layout.addWidget(self.historico_details_content, 1)
-        self._configure_disclosure(
-            self.historico_details_button,
-            self.historico_details_content,
-            collapsed_text="Más información",
-            expanded_text="Ocultar información",
-        )
+        self._configure_disclosure(self.historico_details_button, self.historico_details_content, collapsed_text="Ver filtros y listado", expanded_text="Ocultar filtros y listado")
+
+        self.saldos_card = SaldosCard()
+        historico_tab_layout.addWidget(self.saldos_card)
         historico_tab_layout.addWidget(historico_card, 1)
 
-        self.main_tabs.addTab(historico_tab, "Consulta")
+        self.main_tabs.addTab(historico_tab, "Histórico")
 
         config_tab = QWidget()
         config_layout = QVBoxLayout(config_tab)
         config_layout.setContentsMargins(0, 0, 0, 0)
         config_layout.setSpacing(12)
-        config_help = QLabel(
-            "Gestiona delegada, ajustes del grupo y sincronización desde un único bloque."
-        )
+        config_help = QLabel("Define la configuración principal de la app: delegada, grupo/PDF y credenciales.")
         config_help.setWordWrap(True)
         config_help.setProperty("role", "secondary")
         config_layout.addWidget(config_help)
 
         # UX: Configuración reúne controles avanzados (delegado + ajustes + sync)
         # para que el uso diario no se distraiga con opciones administrativas.
-        persona_card, persona_layout = self._create_card("Delegado")
+        persona_card, persona_layout = self._create_card("Delegada seleccionada")
 
         persona_actions = QHBoxLayout()
         persona_actions.setSpacing(8)
-        self.add_persona_button = QPushButton("Nuevo delegado")
+        self.add_persona_button = QPushButton("Configurar")
         self.add_persona_button.setProperty("variant", "secondary")
         self.add_persona_button.clicked.connect(self._on_add_persona)
         persona_actions.addWidget(self.add_persona_button)
 
-        self.edit_persona_button = QPushButton("Editar delegado")
+        self.edit_persona_button = QPushButton("Editar")
         self.edit_persona_button.setProperty("variant", "secondary")
         self.edit_persona_button.clicked.connect(self._on_edit_persona)
         persona_actions.addWidget(self.edit_persona_button)
@@ -920,7 +930,7 @@ class MainWindow(QMainWindow):
 
         persona_selector = QHBoxLayout()
         persona_selector.setSpacing(8)
-        persona_label = QLabel("Delegado")
+        persona_label = QLabel("Delegada")
         persona_label.setProperty("role", "sectionTitle")
         persona_selector.addWidget(persona_label)
         self.persona_combo.currentIndexChanged.connect(self._on_persona_changed)
@@ -928,7 +938,7 @@ class MainWindow(QMainWindow):
         persona_layout.addLayout(persona_selector)
 
         persona_delete = QHBoxLayout()
-        self.delete_persona_button = QPushButton("Eliminar delegado")
+        self.delete_persona_button = QPushButton("Eliminar")
         self.delete_persona_button.setProperty("variant", "primary")
         self.delete_persona_button.setProperty("intent", "destructive")
         self.delete_persona_button.clicked.connect(self._on_delete_persona)
@@ -937,25 +947,25 @@ class MainWindow(QMainWindow):
         persona_layout.addLayout(persona_delete)
         config_layout.addWidget(persona_card)
 
-        ajustes_card, ajustes_layout = self._create_card("Opciones avanzadas")
-        ajustes_help = QLabel("Configura grupo, PDF y credenciales de sincronización.")
+        ajustes_card, ajustes_layout = self._create_card("Grupo y PDF")
+        ajustes_help = QLabel("Configura grupo y plantilla PDF del informe.")
         ajustes_help.setWordWrap(True)
         ajustes_help.setProperty("role", "secondary")
         ajustes_layout.addWidget(ajustes_help)
 
         ajustes_actions = QHBoxLayout()
         ajustes_actions.setSpacing(8)
-        self.edit_grupo_button = QPushButton("Editar grupo")
+        self.edit_grupo_button = QPushButton("Configurar grupo")
         self.edit_grupo_button.setProperty("variant", "secondary")
         self.edit_grupo_button.clicked.connect(self._on_edit_grupo)
         ajustes_actions.addWidget(self.edit_grupo_button)
 
-        self.editar_pdf_button = QPushButton("Opciones (PDF)")
+        self.editar_pdf_button = QPushButton("Configurar PDF")
         self.editar_pdf_button.setProperty("variant", "secondary")
         self.editar_pdf_button.clicked.connect(self._on_edit_pdf)
         ajustes_actions.addWidget(self.editar_pdf_button)
 
-        self.opciones_button = QPushButton("Sincronización Google Sheets")
+        self.opciones_button = QPushButton("Configurar credenciales")
         self.opciones_button.setProperty("variant", "secondary")
         self.opciones_button.clicked.connect(self._on_open_opciones)
         ajustes_actions.addWidget(self.opciones_button)
@@ -963,7 +973,40 @@ class MainWindow(QMainWindow):
         ajustes_layout.addLayout(ajustes_actions)
         config_layout.addWidget(ajustes_card)
 
-        sync_card, sync_layout = self._create_card("Sincronización")
+        credenciales_card, credenciales_layout = self._create_card("Google Sheets")
+        self.sync_source_label = QLabel("Fuente: --")
+        self.sync_source_label.setProperty("role", "secondary")
+        credenciales_layout.addWidget(self.sync_source_label)
+        self.sync_scope_label = QLabel("Rango: --")
+        self.sync_scope_label.setProperty("role", "secondary")
+        credenciales_layout.addWidget(self.sync_scope_label)
+        config_layout.addWidget(credenciales_card)
+        config_layout.addStretch(1)
+        self.main_tabs.addTab(config_tab, "Configuración")
+
+        sync_tab = QWidget()
+        sync_tab_layout = QVBoxLayout(sync_tab)
+        sync_tab_layout.setContentsMargins(0, 0, 0, 0)
+        sync_tab_layout.setSpacing(12)
+        sync_help = QLabel("Resumen de sincronización con acciones rápidas. El detalle técnico está en modo avanzado.")
+        sync_help.setWordWrap(True)
+        sync_help.setProperty("role", "secondary")
+        sync_tab_layout.addWidget(sync_help)
+
+        sync_state_card, sync_state_layout = self._create_card("Estado")
+        self.last_sync_label = QLabel("Última sync: --")
+        self.last_sync_label.setProperty("role", "secondary")
+        sync_state_layout.addWidget(self.last_sync_label)
+        self.sync_panel_status = QLabel("Estado: Pendiente")
+        self.sync_panel_status.setProperty("role", "secondary")
+        sync_state_layout.addWidget(self.sync_panel_status)
+        self.sync_status_badge = QLabel(self._status_to_label("IDLE"))
+        self.sync_status_badge.setProperty("role", "badge")
+        self.sync_status_badge.setProperty("syncStatus", "IDLE")
+        sync_state_layout.addWidget(self.sync_status_badge, alignment=Qt.AlignLeft)
+        sync_tab_layout.addWidget(sync_state_card)
+
+        sync_card, sync_layout = self._create_card("Acciones")
         sync_heading = QLabel("Google Sheets")
         sync_heading.setProperty("role", "sectionTitle")
         sync_layout.addWidget(sync_heading)
@@ -979,7 +1022,7 @@ class MainWindow(QMainWindow):
         self.simulate_sync_button.clicked.connect(self._on_simulate_sync)
         sync_actions.addWidget(self.simulate_sync_button)
 
-        self.confirm_sync_button = QPushButton("Confirmar sincronización")
+        self.confirm_sync_button = QPushButton("Sincronizar ahora")
         self.confirm_sync_button.setProperty("variant", "primary")
         self.confirm_sync_button.setEnabled(False)
         self.confirm_sync_button.clicked.connect(self._on_confirm_sync)
@@ -1020,10 +1063,6 @@ class MainWindow(QMainWindow):
         sync_actions.addWidget(self.review_conflicts_button)
         sync_layout.addLayout(sync_actions)
 
-        self.last_sync_label = QLabel("Última sync: --")
-        self.last_sync_label.setProperty("role", "secondary")
-        sync_layout.addWidget(self.last_sync_label)
-
         self.last_sync_metrics_label = QLabel("Duración: -- · Cambios: -- · Conflictos: -- · Errores: --")
         self.last_sync_metrics_label.setProperty("role", "secondary")
         sync_layout.addWidget(self.last_sync_metrics_label)
@@ -1031,30 +1070,6 @@ class MainWindow(QMainWindow):
         self.sync_trend_label = QLabel("Tendencia (5): --")
         self.sync_trend_label.setProperty("role", "secondary")
         sync_layout.addWidget(self.sync_trend_label)
-
-        sync_state_row = QHBoxLayout()
-        sync_state_row.setSpacing(8)
-        sync_state_caption = QLabel("Estado actual:")
-        sync_state_caption.setProperty("role", "secondary")
-        sync_state_row.addWidget(sync_state_caption)
-        self.sync_status_badge = QLabel(self._status_to_label("IDLE"))
-        self.sync_status_badge.setProperty("role", "badge")
-        self.sync_status_badge.setProperty("syncStatus", "IDLE")
-        sync_state_row.addWidget(self.sync_status_badge)
-        sync_state_row.addStretch(1)
-        sync_layout.addLayout(sync_state_row)
-
-        self.sync_panel_status = QLabel("Estado: Pendiente")
-        self.sync_panel_status.setProperty("role", "secondary")
-        sync_layout.addWidget(self.sync_panel_status)
-
-        self.sync_source_label = QLabel("Fuente: --")
-        self.sync_source_label.setProperty("role", "secondary")
-        sync_layout.addWidget(self.sync_source_label)
-
-        self.sync_scope_label = QLabel("Rango: --")
-        self.sync_scope_label.setProperty("role", "secondary")
-        sync_layout.addWidget(self.sync_scope_label)
 
         self.sync_idempotency_label = QLabel("Evita duplicados: --")
         self.sync_idempotency_label.setProperty("role", "secondary")
@@ -1092,6 +1107,23 @@ class MainWindow(QMainWindow):
         self.conflicts_reminder_label.setVisible(False)
         sync_layout.addWidget(self.conflicts_reminder_label)
 
+        sync_tab_layout.addWidget(sync_card)
+
+        resumen_card, resumen_layout = self._create_card("Resultado resumido")
+        resumen_layout.addWidget(self.sync_counts_label)
+        resumen_layout.addWidget(self.last_sync_metrics_label)
+        resumen_layout.addWidget(self.sync_trend_label)
+        sync_tab_layout.addWidget(resumen_card)
+
+        diagnostics_card, diagnostics_layout = self._create_card("Diagnóstico (avanzado)")
+        self.sync_diagnostics_button = QPushButton("Ver detalles")
+        self.sync_diagnostics_button.setProperty("variant", "secondary")
+        diagnostics_layout.addWidget(self.sync_diagnostics_button)
+        self.sync_diagnostics_content = QWidget()
+        diagnostics_content_layout = QVBoxLayout(self.sync_diagnostics_content)
+        diagnostics_content_layout.setContentsMargins(0, 0, 0, 0)
+        diagnostics_content_layout.setSpacing(8)
+
         health_card, health_layout = self._create_card("Salud del sistema")
         self.health_summary_label = QLabel("Estado general: pendiente de comprobación")
         self.health_summary_label.setProperty("role", "secondary")
@@ -1113,10 +1145,12 @@ class MainWindow(QMainWindow):
         health_actions.addStretch(1)
         health_layout.addLayout(health_actions)
 
-        config_layout.addWidget(sync_card)
-        config_layout.addWidget(health_card)
-        config_layout.addStretch(1)
-        self.main_tabs.addTab(config_tab, "Configuración")
+        diagnostics_content_layout.addWidget(health_card)
+        diagnostics_card.layout().addWidget(self.sync_diagnostics_content)
+        self._configure_disclosure(self.sync_diagnostics_button, self.sync_diagnostics_content)
+        sync_tab_layout.addWidget(diagnostics_card)
+        sync_tab_layout.addStretch(1)
+        self.main_tabs.addTab(sync_tab, "Sincronización")
 
         self._scroll_area.setWidget(content)
         self._build_shell_layout()
@@ -1165,7 +1199,7 @@ class MainWindow(QMainWindow):
         header_layout.setContentsMargins(16, 12, 16, 12)
         header_layout.setSpacing(8)
 
-        self.header_title_label = QLabel("Gestión de horas sindicales")
+        self.header_title_label = QLabel("Horas sindicales")
         self.header_title_label.setProperty("role", "sectionTitle")
         header_layout.addWidget(self.header_title_label)
 
@@ -1273,6 +1307,12 @@ class MainWindow(QMainWindow):
 
     def _switch_sidebar_page(self, index: int) -> None:
         if self.stacked_pages is None:
+            return
+        tab_map = {0: 0, 1: 3, 2: 2, 3: 1}
+        if index in tab_map:
+            self.stacked_pages.setCurrentIndex(0)
+            self.main_tabs.setCurrentIndex(tab_map[index])
+            self._sync_sidebar_state(index)
             return
         if 0 <= index < self.stacked_pages.count():
             self.stacked_pages.setCurrentIndex(index)
@@ -1580,6 +1620,14 @@ class MainWindow(QMainWindow):
         self.historico_proxy_model.set_estado_code(self.historico_estado_combo.currentData())
         self.historico_proxy_model.set_delegada_id(self.historico_delegada_combo.currentData())
         self._apply_historico_text_filter()
+        self._update_historico_empty_state()
+
+
+    def _update_historico_empty_state(self) -> None:
+        has_rows = self.historico_proxy_model.rowCount() > 0
+        self.historico_empty_state.setVisible(not has_rows)
+        self.historico_details_button.setVisible(has_rows)
+        self.historico_details_content.setVisible(has_rows and self.historico_details_button.isChecked())
 
     def _apply_historico_last_30_days(self) -> None:
         self.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
@@ -3567,7 +3615,7 @@ class MainWindow(QMainWindow):
             self._on_open_opciones()
             return
         if action_id == "open_sync_panel":
-            self.main_tabs.setCurrentIndex(2)
+            self.main_tabs.setCurrentIndex(3)
             return
         if action_id == "open_conflicts":
             self._on_review_conflicts()
