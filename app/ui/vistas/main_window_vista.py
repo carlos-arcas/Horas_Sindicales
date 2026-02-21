@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QTabWidget,
     QTableView,
+    QToolButton,
     QTimeEdit,
     QVBoxLayout,
     QWidget,
@@ -98,6 +99,7 @@ from app.core.observability import OperationContext, log_event
 from app.ui.workers.sincronizacion_workers import PushWorker, SyncWorker
 from app.ui.vistas.paginas.pagina_configuracion import PaginaConfiguracion
 from app.ui.vistas.paginas.pagina_historico import PaginaHistorico
+from app.ui.vistas.paginas.pagina_resumen import PaginaResumen
 from app.ui.vistas.paginas.pagina_sincronizacion import PaginaSincronizacion
 from app.ui.vistas.paginas.pagina_solicitudes import PaginaSolicitudes
 
@@ -305,6 +307,7 @@ class MainWindow(QMainWindow):
         self.header_new_button: QPushButton | None = None
         self.sidebar: QFrame | None = None
         self.stacked_pages: QStackedWidget | None = None
+        self.page_resumen: QWidget | None = None
         self.page_historico: QWidget | None = None
         self.page_configuracion: QWidget | None = None
         self.page_sincronizacion: QWidget | None = None
@@ -322,6 +325,7 @@ class MainWindow(QMainWindow):
         self.toast.attach_to(self)
         self._load_personas()
         self._reload_pending_views()
+        self._refresh_resumen_kpis()
         self.sync_source_label.setText(f"Fuente: {self._sync_source_text()}")
         self.sync_scope_label.setText(f"Rango: {self._sync_scope_text()}")
         self.sync_idempotency_label.setText("Evita duplicados: misma delegada, fecha y tramo")
@@ -1041,23 +1045,19 @@ class MainWindow(QMainWindow):
         self.sync_details_button.setProperty("variant", "secondary")
         self.sync_details_button.setEnabled(False)
         self.sync_details_button.clicked.connect(self._on_show_sync_details)
-        sync_actions.addWidget(self.sync_details_button)
 
         self.copy_sync_report_button = QPushButton("Copiar informe")
         self.copy_sync_report_button.setProperty("variant", "secondary")
         self.copy_sync_report_button.setEnabled(False)
         self.copy_sync_report_button.clicked.connect(self._on_copy_sync_report)
-        sync_actions.addWidget(self.copy_sync_report_button)
 
         self.open_sync_logs_button = QPushButton("Abrir carpeta de logs")
         self.open_sync_logs_button.setProperty("variant", "secondary")
         self.open_sync_logs_button.clicked.connect(self._on_open_sync_logs)
-        sync_actions.addWidget(self.open_sync_logs_button)
 
         self.sync_history_button = QPushButton("Ver historial")
         self.sync_history_button.setProperty("variant", "secondary")
         self.sync_history_button.clicked.connect(self._on_show_sync_history)
-        sync_actions.addWidget(self.sync_history_button)
 
         self.review_conflicts_button = QPushButton("Revisar conflictos")
         self.review_conflicts_button.setProperty("variant", "secondary")
@@ -1072,11 +1072,9 @@ class MainWindow(QMainWindow):
 
         self.sync_trend_label = QLabel("Tendencia (5): --")
         self.sync_trend_label.setProperty("role", "secondary")
-        sync_layout.addWidget(self.sync_trend_label)
 
         self.sync_idempotency_label = QLabel("Evita duplicados: --")
         self.sync_idempotency_label.setProperty("role", "secondary")
-        sync_layout.addWidget(self.sync_idempotency_label)
 
         self.sync_counts_label = QLabel("Resumen: creadas 0 · actualizadas 0 · omitidas 0 · conflictos 0 · errores 0")
         self.sync_counts_label.setProperty("role", "secondary")
@@ -1115,17 +1113,29 @@ class MainWindow(QMainWindow):
         resumen_card, resumen_layout = self._create_card("Resultado resumido")
         resumen_layout.addWidget(self.sync_counts_label)
         resumen_layout.addWidget(self.last_sync_metrics_label)
-        resumen_layout.addWidget(self.sync_trend_label)
         sync_tab_layout.addWidget(resumen_card)
 
-        diagnostics_card, diagnostics_layout = self._create_card("Diagnóstico (avanzado)")
-        self.sync_diagnostics_button = QPushButton("Ver detalles")
-        self.sync_diagnostics_button.setProperty("variant", "secondary")
-        diagnostics_layout.addWidget(self.sync_diagnostics_button)
+        diagnostics_card, diagnostics_layout = self._create_card("Panel avanzado")
+        self.sync_diagnostics_button = QToolButton()
+        self.sync_diagnostics_button.setText("Detalles técnicos")
+        self.sync_diagnostics_button.setCheckable(True)
+        self.sync_diagnostics_button.setChecked(False)
+        self.sync_diagnostics_button.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        diagnostics_layout.addWidget(self.sync_diagnostics_button, alignment=Qt.AlignLeft)
         self.sync_diagnostics_content = QWidget()
+        self.sync_diagnostics_content.setVisible(False)
         diagnostics_content_layout = QVBoxLayout(self.sync_diagnostics_content)
         diagnostics_content_layout.setContentsMargins(0, 0, 0, 0)
         diagnostics_content_layout.setSpacing(8)
+
+        diagnostics_content_layout.addWidget(self.sync_source_label)
+        diagnostics_content_layout.addWidget(self.sync_scope_label)
+        diagnostics_content_layout.addWidget(self.sync_idempotency_label)
+        diagnostics_content_layout.addWidget(self.sync_trend_label)
+        diagnostics_content_layout.addWidget(self.sync_details_button)
+        diagnostics_content_layout.addWidget(self.copy_sync_report_button)
+        diagnostics_content_layout.addWidget(self.open_sync_logs_button)
+        diagnostics_content_layout.addWidget(self.sync_history_button)
 
         health_card, health_layout = self._create_card("Salud del sistema")
         self.health_summary_label = QLabel("Estado general: pendiente de comprobación")
@@ -1150,7 +1160,7 @@ class MainWindow(QMainWindow):
 
         diagnostics_content_layout.addWidget(health_card)
         diagnostics_card.layout().addWidget(self.sync_diagnostics_content)
-        self._configure_disclosure(self.sync_diagnostics_button, self.sync_diagnostics_content)
+        self.sync_diagnostics_button.toggled.connect(self.sync_diagnostics_content.setVisible)
         sync_tab_layout.addWidget(diagnostics_card)
         sync_tab_layout.addStretch(1)
         self.main_tabs.addTab(sync_tab, "Sincronización")
@@ -1244,11 +1254,19 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(sidebar_title)
 
         self.sidebar_buttons = []
-        sidebar_items = ("Solicitudes", "Sincronización", "Configuración", "Histórico")
-        for index, label in enumerate(sidebar_items):
-            button = QPushButton(label)
+        sidebar_items = (
+            ("Resumen", "Visión diaria"),
+            ("Solicitudes", "Alta y pendientes"),
+            ("Google Sheets", "Estado y conflictos"),
+            ("Configuración", "Ajustes generales"),
+            ("Historial", "Registros y trazas"),
+        )
+        for index, (title, subtitle) in enumerate(sidebar_items):
+            button = QPushButton(f"{title}\n{subtitle}")
             button.setCheckable(True)
             button.setProperty("variant", "ghost")
+            button.setProperty("sidebarItem", True)
+            button.setProperty("active", False)
             button.clicked.connect(lambda _checked=False, page_index=index: self._switch_sidebar_page(page_index))
             sidebar_layout.addWidget(button)
             self.sidebar_buttons.append(button)
@@ -1258,11 +1276,13 @@ class MainWindow(QMainWindow):
         self.stacked_pages = QStackedWidget()
         self.stacked_pages.setObjectName("stacked_pages")
 
+        self.page_resumen = PaginaResumen()
         self.page_solicitudes = PaginaSolicitudes(content_widget=self._scroll_area)
         self.page_sincronizacion = PaginaSincronizacion()
         self.page_configuracion = PaginaConfiguracion()
         self.page_historico = PaginaHistorico()
 
+        self.stacked_pages.addWidget(self.page_resumen)
         self.stacked_pages.addWidget(self.page_solicitudes)
         self.stacked_pages.addWidget(self.page_sincronizacion)
         self.stacked_pages.addWidget(self.page_configuracion)
@@ -1272,6 +1292,13 @@ class MainWindow(QMainWindow):
         shell_layout.addWidget(body, 1)
 
         self.stacked_pages.currentChanged.connect(self._sync_sidebar_state)
+        self.page_resumen.nueva_solicitud.connect(self._limpiar_formulario)
+        self.page_resumen.ver_pendientes.connect(lambda: self._switch_sidebar_page(1))
+        self.page_resumen.sincronizar_ahora.connect(self._sincronizar_con_confirmacion)
+        self.page_sincronizacion.configurar_credenciales.connect(self._on_open_opciones)
+        self.page_configuracion.editar_grupo.connect(self._on_edit_grupo)
+        self.page_historico.ver_solicitudes.connect(lambda: self._switch_sidebar_page(1))
+
         self._verificar_handlers_ui()
         self._switch_sidebar_page(0)
         self.setCentralWidget(shell)
@@ -1309,12 +1336,8 @@ class MainWindow(QMainWindow):
     def _switch_sidebar_page(self, index: int) -> None:
         if self.stacked_pages is None:
             return
-        tab_map = {0: 0, 1: 3, 2: 2, 3: 1}
-        if index in tab_map:
-            self.stacked_pages.setCurrentIndex(0)
-            self.main_tabs.setCurrentIndex(tab_map[index])
-            self._sync_sidebar_state(index)
-            return
+        if index == 1:
+            self.main_tabs.setCurrentIndex(0)
         if 0 <= index < self.stacked_pages.count():
             self.stacked_pages.setCurrentIndex(index)
             self._sync_sidebar_state(index)
@@ -1326,6 +1349,20 @@ class MainWindow(QMainWindow):
             button.setProperty("active", is_active)
             button.style().unpolish(button)
             button.style().polish(button)
+
+    def _refresh_resumen_kpis(self) -> None:
+        if self.page_resumen is None:
+            return
+        hoy = datetime.now().date()
+        solicitudes_hoy = sum(1 for item in self._pending_solicitudes if item.fecha == hoy)
+        self.page_resumen.kpi_solicitudes_hoy.value_label.setText(str(solicitudes_hoy))
+        self.page_resumen.kpi_pendientes.value_label.setText(str(len(self._pending_solicitudes)))
+        last_sync = self._sync_service.get_last_sync_at()
+        if not last_sync:
+            self.page_resumen.kpi_ultima_sync.value_label.setText("No disponible")
+        else:
+            self.page_resumen.kpi_ultima_sync.value_label.setText(self._format_timestamp(last_sync))
+        self.page_resumen.kpi_saldo_restante.value_label.setText("No calculado")
 
     def _build_status_bar(self) -> None:
         status = QStatusBar(self)
@@ -1970,6 +2007,7 @@ class MainWindow(QMainWindow):
         self._refresh_historico()
         self._refresh_saldos()
         self._refresh_pending_ui_state()
+        self._refresh_resumen_kpis()
         if summary.inserted_local <= 0:
             return
         persona = self._current_persona()
@@ -3645,9 +3683,11 @@ class MainWindow(QMainWindow):
         last_sync = self._sync_service.get_last_sync_at()
         if not last_sync:
             self.last_sync_label.setText("Última sync: Nunca")
+            self._refresh_resumen_kpis()
             return
         formatted = self._format_timestamp(last_sync)
         self.last_sync_label.setText(f"Última sync: {formatted} · Delegada: {self._sync_actor_text()} · Alcance: {self._sync_scope_text()}")
+        self._refresh_resumen_kpis()
 
     @staticmethod
     def _format_timestamp(value: str) -> str:
