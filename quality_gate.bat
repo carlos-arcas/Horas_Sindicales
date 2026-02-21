@@ -12,6 +12,10 @@ set "LOG_STDERR=%LOG_DIR%\quality_gate_stderr.log"
 set "LOG_DEBUG=%LOG_DIR%\quality_gate_debug.log"
 set "RUN_SUMMARY_FILE=%LOG_DIR%\quality_gate_summary.txt"
 if defined RUN_DIR set "RUN_SUMMARY_FILE=%RUN_DIR%\quality_gate_summary.txt"
+set "COVERAGE_SUMMARY=%LOG_DIR%\coverage_summary.txt"
+set "COVERAGE_JSON=%LOG_DIR%\coverage.json"
+if defined RUN_DIR set "COVERAGE_SUMMARY=%RUN_DIR%\coverage_summary.txt"
+if defined RUN_DIR set "COVERAGE_JSON=%RUN_DIR%\coverage.json"
 set "MIN_COVERAGE=85"
 set "COVERAGE_TMP=%LOG_DIR%\quality_gate_coverage.txt"
 
@@ -120,6 +124,12 @@ if exist ".coverage" (
     python -m coverage report -m > "%COVERAGE_TMP%" 2>> "%LOG_STDERR%"
     for /f "tokens=4" %%P in ('findstr /r /c:"^TOTAL[ ]" "%COVERAGE_TMP%"') do set "CURRENT_COVERAGE=%%P"
     for /f "delims=%%" %%P in ("%CURRENT_COVERAGE%") do set "CURRENT_COVERAGE_INT=%%P"
+    python scripts/coverage_summary.py --package app --threshold %MIN_COVERAGE% --out-txt "%COVERAGE_SUMMARY%" --out-json "%COVERAGE_JSON%" >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+    if errorlevel 1 (
+        >> "%LOG_STDOUT%" echo [QUALITY] coverage_summary: no se pudo generar
+    ) else (
+        >> "%LOG_STDOUT%" echo [QUALITY] coverage_summary=%COVERAGE_SUMMARY%
+    )
 )
 
 if defined CURRENT_COVERAGE_INT (

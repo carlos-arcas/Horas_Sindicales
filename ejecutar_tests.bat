@@ -12,12 +12,16 @@ set "LOG_STDERR=%LOG_DIR%\tests_stderr.log"
 set "LOG_DEBUG=%LOG_DIR%\tests_debug.log"
 set "LOG_PYTEST=%LOG_DIR%\pytest_output.txt"
 set "LOG_COVERAGE=%LOG_DIR%\coverage_report.txt"
+set "COVERAGE_SUMMARY=%LOG_DIR%\coverage_summary.txt"
+set "COVERAGE_JSON=%LOG_DIR%\coverage.json"
 
 set "RUN_SUMMARY_FILE=%LOG_DIR%\summary.txt"
 if defined RUN_DIR set "RUN_SUMMARY_FILE=%RUN_DIR%\summary.txt"
 if defined RUN_DIR (
     set "LOG_STDOUT=%RUN_DIR%\tests_stdout.txt"
     set "LOG_STDERR=%RUN_DIR%\tests_stderr.txt"
+    set "COVERAGE_SUMMARY=%RUN_DIR%\coverage_summary.txt"
+    set "COVERAGE_JSON=%RUN_DIR%\coverage.json"
 )
 
 >"%LOG_PYTEST%" echo ==== pytest output ====
@@ -180,6 +184,12 @@ for /f "tokens=4" %%P in ('findstr /r /c:"^TOTAL[ ]" "%LOG_COVERAGE%"') do set "
 if exist ".coverage" (
     echo ==== coverage report -m ====
     python -m coverage report -m
+    python scripts/coverage_summary.py --package app --threshold 85 --out-txt "%COVERAGE_SUMMARY%" --out-json "%COVERAGE_JSON%" 1>>"%LOG_STDOUT%" 2>>"%LOG_STDERR%"
+    if errorlevel 1 (
+        >>"%LOG_COVERAGE%" echo [WARN] No fue posible generar coverage_summary.txt.
+    ) else (
+        >>"%LOG_COVERAGE%" echo [OK] Coverage summary generado en "%COVERAGE_SUMMARY%".
+    )
 )
 
 if exist "%COVERAGE_HTML_DIR%\index.html" (

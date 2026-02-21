@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "format": 2,
+    "version": "7.6.1"
+  },
+  "files": {
+    "app/module_ok.py": {
+      "summary": {
+        "covered_lines": 95,
+        "num_statements": 100,
+        "percent_covered": 95,
+        "missing_lines": 5
+      }
+    },
+    "app/module_bad.py": {
+      "summary": {
+        "covered_lines": 30,
+        "num_statements": 100,
+        "percent_covered": 30,
+        "missing_lines": 70
+      }
+    },
+    "app/module_mid.py": {
+      "summary": {
+        "covered_lines": 80,
+        "num_statements": 100,
+        "percent_covered": 80,
+        "missing_lines": 20
+      }
+    },
+    "other/outside.py": {
+      "summary": {
+        "covered_lines": 1,
+        "num_statements": 10,
+        "percent_covered": 10,
+        "missing_lines": 9
+      }
+    }
+  },
+  "totals": {
+    "covered_lines": 206,
+    "num_statements": 310,
+    "percent_covered": 66.45,
+    "missing_lines": 104
+  }
+}
