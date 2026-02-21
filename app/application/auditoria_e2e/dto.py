@@ -43,8 +43,8 @@ class PlanAuditoria:
 @dataclass(frozen=True)
 class RutasAuditoria:
     base_dir: str
-    informe_md: str
-    informe_json: str
+    auditoria_md: str
+    auditoria_json: str
     manifest_json: str
     status_txt: str
 

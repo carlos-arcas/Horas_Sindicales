@@ -86,8 +86,8 @@ def test_operaciones_write_crean_artefactos(tmp_path: Path) -> None:
     )
 
     assert len(resultado_auditoria.artefactos_generados) == 4
-    assert (repo_root / "logs" / "evidencias" / "AUD-WRITE-1" / "informe.md").exists()
-    assert (repo_root / "logs" / "evidencias" / "AUD-WRITE-1" / "informe.json").exists()
+    assert (repo_root / "logs" / "evidencias" / "AUD-WRITE-1" / "AUDITORIA.md").exists()
+    assert (repo_root / "logs" / "evidencias" / "AUD-WRITE-1" / "auditoria.json").exists()
     assert pdf_destino.exists()
     assert pdf_destino.read_bytes().startswith(b"%PDF-1.4")
     assert resultado_pdf.artefactos_generados == [str(pdf_destino)]

@@ -60,8 +60,8 @@ class AuditarE2E:
         base = root / "logs" / "evidencias" / plan.id_auditoria
         return RutasAuditoria(
             base_dir=str(base),
-            informe_md=str(base / "informe.md"),
-            informe_json=str(base / "informe.json"),
+            auditoria_md=str(base / "AUDITORIA.md"),
+            auditoria_json=str(base / "auditoria.json"),
             manifest_json=str(base / "manifest.json"),
             status_txt=str(base / "status.txt"),
         )
@@ -85,42 +85,44 @@ class AuditarE2E:
         exit_code = 2 if fallo else 0
 
         repo = self._repo_info.obtener_info()
-        payload = {
-            "metadatos": {
-                "fecha_utc": plan.fecha_utc.isoformat(),
-                "id_auditoria": plan.id_auditoria,
-                "repo": {
-                    "root": str(repo.root),
-                    "branch": repo.branch,
-                    "commit": repo.commit,
-                },
-                "dry_run": request.dry_run,
-            },
-            "resultado_global": global_result,
-            "score": score,
-            "checks": [asdict(check) for check in checks],
-            "rutas_previstas": asdict(rutas),
-            "conflictos": conflictos,
-        }
-        contenido_md = self._render_markdown(plan, repo.branch, repo.commit, checks, global_result, score)
+        payload = self.render_json(
+            plan=plan,
+            branch=repo.branch,
+            commit=repo.commit,
+            checks=checks,
+            global_result=global_result,
+            score=score,
+            conflictos=conflictos,
+            dry_run=request.dry_run,
+            rutas=rutas,
+            repo_root=repo.root,
+        )
+        contenido_md = self.render_markdown(
+            plan=plan,
+            branch=repo.branch,
+            commit=repo.commit,
+            checks=checks,
+            global_result=global_result,
+            score=score,
+        )
         artefactos: list[str] = []
 
         if not request.dry_run:
             base = Path(rutas.base_dir)
             self._fs.mkdirs(base)
-            self._fs.escribir_texto(Path(rutas.informe_md), contenido_md)
-            informe_json = json.dumps(payload, indent=2, ensure_ascii=False)
-            self._fs.escribir_texto(Path(rutas.informe_json), informe_json)
+            self._fs.escribir_texto(Path(rutas.auditoria_md), contenido_md)
+            auditoria_json = json.dumps(payload, indent=2, ensure_ascii=False)
+            self._fs.escribir_texto(Path(rutas.auditoria_json), auditoria_json)
             self._fs.escribir_texto(Path(rutas.status_txt), global_result)
 
             manifest = self._manifest({
-                "informe.md": contenido_md,
-                "informe.json": informe_json,
+                "AUDITORIA.md": contenido_md,
+                "auditoria.json": auditoria_json,
                 "status.txt": global_result,
             })
             manifest_text = json.dumps(manifest, indent=2, ensure_ascii=False)
             self._fs.escribir_texto(Path(rutas.manifest_json), manifest_text)
-            artefactos = [rutas.informe_md, rutas.informe_json, rutas.manifest_json, rutas.status_txt]
+            artefactos = [rutas.auditoria_md, rutas.auditoria_json, rutas.manifest_json, rutas.status_txt]
 
         return ResultadoAuditoria(
             id_auditoria=plan.id_auditoria,
@@ -135,6 +137,48 @@ class AuditarE2E:
             contenido_json=payload,
             artefactos_generados=artefactos,
         )
+
+    def render_json(
+        self,
+        *,
+        plan: PlanAuditoria,
+        branch: str | None,
+        commit: str | None,
+        checks: list[CheckAuditoria],
+        global_result: str,
+        score: float,
+        conflictos: list[str],
+        dry_run: bool,
+        rutas: RutasAuditoria,
+        repo_root: Path,
+    ) -> dict[str, object]:
+        backlog = [
+            {
+                "id_check": check.id_check,
+                "severidad": check.severidad.value,
+                "recomendacion": check.recomendacion,
+            }
+            for check in checks
+            if check.estado == EstadoCheck.FAIL
+        ]
+        return {
+            "metadatos": {
+                "fecha_utc": plan.fecha_utc.isoformat(),
+                "id_auditoria": plan.id_auditoria,
+                "repo": {
+                    "root": str(repo_root),
+                    "branch": branch,
+                    "commit": commit,
+                },
+                "dry_run": dry_run,
+            },
+            "resultado_global": global_result,
+            "scorecard": {"nota_sobre_10": score},
+            "checks": [asdict(check) for check in checks],
+            "backlog_recomendado": backlog,
+            "rutas_previstas": asdict(rutas),
+            "conflictos": conflictos,
+        }
 
     def _ejecutar_checks(self) -> list[CheckAuditoria]:
         root = self._repo_info.obtener_info().root
@@ -167,7 +211,8 @@ class AuditarE2E:
         return {"archivos": archivos}
 
     @staticmethod
-    def _render_markdown(
+    def render_markdown(
+        *,
         plan: PlanAuditoria,
         branch: str | None,
         commit: str | None,
@@ -175,33 +220,35 @@ class AuditarE2E:
         global_result: str,
         score: float,
     ) -> str:
-        filas = ["| Check | Estado | Severidad |", "|---|---|---|"]
+        filas = ["| Check | Estado | Severidad | Evidencias |", "|---|---|---|---|"]
         for check in checks:
-            filas.append(f"| {check.id_check} | {check.estado.value} | {check.severidad.value} |")
+            filas.append(
+                f"| {check.id_check} | {check.estado.value} | {check.severidad.value} | {'; '.join(check.evidencia)} |"
+            )
 
-        fallos = [
-            f"### {check.id_check}\n- Evidencias: {'; '.join(check.evidencia)}\n- Acción: {check.recomendacion}"
+        backlog = [
+            f"- [{check.id_check}] ({check.severidad.value}) {check.recomendacion}"
             for check in checks
             if check.estado == EstadoCheck.FAIL
         ]
-        seccion_fallos = "\n\n".join(fallos) if fallos else "Sin fallos críticos."
+        seccion_backlog = "\n".join(backlog) if backlog else "Sin backlog recomendado."
 
         return "\n".join(
             [
-                f"# Informe Auditoría E2E ({plan.id_auditoria})",
+                f"# AUDITORÍA E2E ({plan.id_auditoria})",
                 f"- Fecha UTC: {plan.fecha_utc.isoformat()}",
                 f"- Branch: {branch or 'N/D'}",
                 f"- Commit: {commit or 'N/D'}",
                 "",
                 "## Resumen",
                 f"- Resultado global: **{global_result}**",
-                f"- Nota: **{score}/10**",
+                f"- Scorecard: **{score}/10**",
                 "",
                 "## Tabla de checks",
                 *filas,
                 "",
-                "## Fallos",
-                seccion_fallos,
+                "## Backlog recomendado",
+                seccion_backlog,
                 "",
             ]
         )

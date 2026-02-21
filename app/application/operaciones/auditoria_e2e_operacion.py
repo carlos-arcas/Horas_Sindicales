@@ -45,7 +45,7 @@ class OperacionAuditoriaE2E(OperacionConPlan[RequestOperacionAuditoria]):
         )
         return RutasOperacion(
             base_dir=interno.base_dir,
-            archivos=[interno.informe_md, interno.informe_json, interno.manifest_json, interno.status_txt],
+            archivos=[interno.auditoria_md, interno.auditoria_json, interno.manifest_json, interno.status_txt],
             directorios=[interno.base_dir],
         )
 
