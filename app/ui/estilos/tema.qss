@@ -1,0 +1,8 @@
+QWidget { background: #F4F6FA; color: #17212F; font-size: 13px; }
+QFrame[card="true"] { background: #FFFFFF; border: 1px solid #DFE5F0; border-radius: 10px; }
+QPushButton { background: #FFFFFF; border: 1px solid #C2CBDA; border-radius: 6px; padding: 6px 12px; }
+QPushButton[variant="primary"] { background: #2D6CDF; color: #FFFFFF; border-color: #2D6CDF; }
+QPushButton[variant="secondary"] { background: #EAF0FF; color: #1D4AA6; border-color: #BED0FF; }
+QLabel[role="secondary"] { color: #5C6B80; }
+QListWidget#sidebar { background: #FFFFFF; border: 1px solid #DFE5F0; border-radius: 10px; padding: 8px; }
+QLabel#header_state_badge { background: #FFF4DD; color: #8A5B00; border-radius: 8px; padding: 4px 8px; }
