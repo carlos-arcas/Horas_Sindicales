@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import json
+import sqlite3
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -2026,6 +2027,12 @@ class MainWindow(QMainWindow):
 
             if solicitud.completo and self.cuadrante_warning_label.isVisible():
                 warnings["cuadrante"] = "⚠ El cuadrante no está configurado y puede alterar el cálculo final."
+        except sqlite3.OperationalError as exc:
+            if "locked" in str(exc).lower():
+                logger.warning("preventive_validation_db_locked", exc_info=True)
+                warnings["db"] = "⚠ Validación parcial temporal: base de datos ocupada."
+            else:
+                raise
         except (ValidacionError, BusinessRuleError) as exc:
             blocking.setdefault("tramo", f"⚠ {str(exc)}")
 
