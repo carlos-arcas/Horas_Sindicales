@@ -104,7 +104,7 @@ if errorlevel 1 (
 )
 
 call :log_debug "Paso B: Pytest cobertura"
-pytest --cov=. --cov-report=term-missing --cov-fail-under=85 >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+pytest --cov=app --cov-report=term-missing --cov-fail-under=85 >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
 if errorlevel 1 (
     set "FAIL_STEP=PYTEST"
     call :log_debug "FAIL: PYTEST"
