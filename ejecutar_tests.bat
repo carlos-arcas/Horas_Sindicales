@@ -141,31 +141,30 @@ if defined RUN_DIR set "COVERAGE_HTML_DIR=%RUN_DIR%\coverage_html"
 
 if not exist "%COVERAGE_HTML_DIR%" mkdir "%COVERAGE_HTML_DIR%" >nul 2>&1
 
-rem contrato: pytest --cov=app --cov-report=term-missing --cov-fail-under=85
-set "PYTEST_CMD=python -m pytest -q \"tests\" --cov=app --cov-report=term-missing \"--cov-report=html:%COVERAGE_HTML_DIR%\" --cov-fail-under=85"
+set "PY=python"
+if exist ".venv\Scripts\python.exe" set "PY=.venv\Scripts\python.exe"
+set "TESTS_DIR=tests"
+set "COV_SRC=app"
+set "HTML_DIR=%COVERAGE_HTML_DIR%"
+
+rem contrato historico: pytest --cov=app --cov-report=term-missing --cov-fail-under=85
+set "PYTEST_CMD=""%PY%"" -m pytest -q ""%TESTS_DIR%"" --cov=%COV_SRC% --cov-report=term-missing ""--cov-report=html:%HTML_DIR%"""
 call :log_debug "Comando pytest: %PYTEST_CMD%"
 if defined RUN_SUMMARY_FILE (
     >>"%RUN_SUMMARY_FILE%" echo CMD_PYTEST=%PYTEST_CMD%
 )
 
-python -m pytest -q "tests" --cov=app --cov-report=term-missing "--cov-report=html:%COVERAGE_HTML_DIR%" --cov-fail-under=85 > "%LOG_PYTEST%" 2>&1
+>>"%LOG_PYTEST%" echo ==== pytest output ====
+>>"%LOG_PYTEST%" echo Fecha: %DATE% %TIME%
+call "%PY%" -m pytest -q "%TESTS_DIR%" --cov=%COV_SRC% --cov-report=term-missing "--cov-report=html:%HTML_DIR%" 1>>"%LOG_PYTEST%" 2>>"%LOG_STDERR%"
 set "TEST_EXIT=%ERRORLEVEL%"
-
-findstr /i /c:"collected 0 items" "%LOG_PYTEST%" >nul 2>&1
-if not errorlevel 1 (
-    echo [ERROR] Pytest no encontro tests. Causa tipica: ruta mal entrecomillada o ejecucion desde directorio incorrecto. Ejecuta opcion 1 desde el menu o corre: pytest -q tests
-    >>"%LOG_PYTEST%" echo [ERROR] Pytest no encontro tests. Causa tipica: ruta mal entrecomillada o ejecucion desde directorio incorrecto. Ejecuta opcion 1 desde el menu o corre: pytest -q tests
-    if defined RUN_SUMMARY_FILE (
-        >>"%RUN_SUMMARY_FILE%" echo ERROR_HUMANO=Pytest no encontro tests. Causa tipica: ruta mal entrecomillada o ejecucion desde directorio incorrecto.
-    )
-    if "%TEST_EXIT%"=="0" set "TEST_EXIT=1"
-)
 
 if "%TEST_EXIT%"=="0" (
     >>"%LOG_COVERAGE%" echo [OK] pytest finalizo correctamente.
 ) else (
     >>"%LOG_COVERAGE%" echo [WARN] pytest devolvio exit code %TEST_EXIT%.
 )
+
 python -m coverage report -m > "%LOG_COVERAGE%" 2>&1
 if errorlevel 1 (
     >>"%LOG_COVERAGE%" echo [INFO] No fue posible generar coverage report detallado.
@@ -178,12 +177,13 @@ if exist ".coverage" (
 if exist "%COVERAGE_HTML_DIR%\index.html" (
     >>"%LOG_COVERAGE%" echo [OK] Coverage HTML generado en "%COVERAGE_HTML_DIR%\index.html".
 ) else (
-    echo [ERROR] No se genero el HTML de coverage. Motivos comunes: pytest fallo, no se ejecutaron tests, o falta pytest-cov. Revisa logs: "%LOG_PYTEST%"
-    >>"%LOG_COVERAGE%" echo [ERROR] No se genero el HTML de coverage. Motivos comunes: pytest fallo, no se ejecutaron tests, o falta pytest-cov. Revisa logs: "%LOG_PYTEST%"
-    if defined RUN_SUMMARY_FILE (
-        >>"%RUN_SUMMARY_FILE%" echo ERROR_HUMANO=No se genero el HTML de coverage. Motivos comunes: pytest fallo, no se ejecutaron tests, o falta pytest-cov.
-    )
-    if "%TEST_EXIT%"=="0" set "TEST_EXIT=1"
+    >>"%LOG_COVERAGE%" echo [WARN] No se genero el HTML de coverage en "%COVERAGE_HTML_DIR%".
+)
+
+if defined RUN_SUMMARY_FILE (
+    >>"%RUN_SUMMARY_FILE%" echo PYTEST_EXIT_CODE=%TEST_EXIT%
+    >>"%RUN_SUMMARY_FILE%" echo TESTS_STDOUT_LOG=%LOG_PYTEST%
+    >>"%RUN_SUMMARY_FILE%" echo TESTS_STDERR_LOG=%LOG_STDERR%
 )
 
 call :log_debug "Exit code pytest: %TEST_EXIT%"

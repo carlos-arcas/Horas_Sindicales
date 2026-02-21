@@ -1,6 +1,7 @@
 [run]
 source =
     app
+relative_files = True
 omit =
     .venv/*
     tests/*
