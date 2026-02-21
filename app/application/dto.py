@@ -47,9 +47,14 @@ class SolicitudDTO:
     generated: bool = False
 
     @property
+    def fecha_canon(self) -> str:
+        """Nombre canónico de fecha de alta/captura de la solicitud."""
+        return self.fecha_solicitud
+
+    @property
     def fecha(self) -> str:
         """Alias de compatibilidad para UI/fixtures antiguos."""
-        return self.fecha_solicitud
+        return self.fecha_canon
 
 
 @dataclass(frozen=True)
