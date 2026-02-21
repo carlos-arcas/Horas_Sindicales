@@ -142,6 +142,10 @@ python -m coverage report -m > "%LOG_COVERAGE%" 2>&1
 if errorlevel 1 (
     >>"%LOG_COVERAGE%" echo [INFO] No fue posible generar coverage report detallado.
 )
+if exist ".coverage" (
+    echo ==== coverage report -m ====
+    python -m coverage report -m
+)
 call :log_debug "Exit code pytest: %TEST_EXIT%"
 exit /b %TEST_EXIT%
 

@@ -128,7 +128,10 @@ Interfaz oficial en Windows (doble clic):
 
 ```bat
 ejecutar_tests.bat
+menu_validacion.bat
 ```
+
+`menu_validacion.bat` genera diagnósticos en `logs/` y, cuando hay archivo `.coverage`, publica cobertura en `logs/htmlcov/index.html`.
 
 Ejecución manual equivalente:
 
