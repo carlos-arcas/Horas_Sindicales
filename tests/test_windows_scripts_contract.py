@@ -29,6 +29,9 @@ def test_windows_scripts_contract_tokens() -> None:
     assert "pip install -r requirements-dev.txt" in tests_text, (
         "ejecutar_tests.bat debe instalar requirements-dev.txt"
     )
-    assert "pytest --cov=app --cov-report=term-missing --cov-fail-under=85" in tests_text, (
-        "ejecutar_tests.bat debe ejecutar pytest con cobertura"
+    assert "python -m pytest -q tests --cov=app --cov-report=term-missing" in tests_text, (
+        "ejecutar_tests.bat debe ejecutar pytest con cobertura sobre app"
+    )
+    assert "--cov-fail-under" not in tests_text, (
+        "ejecutar_tests.bat no debe aplicar quality gate de cobertura"
     )

@@ -1,0 +1,7 @@
+==== ejecutar_tests.bat audit summary ====
+Fecha: 2026-02-21
+Comando final ejecutado: python -m pytest -q tests --cov=app --cov-report=term-missing --cov-report=html:"<RUN_DIR>\coverage_html"
+Resultado pytest: PASS esperado cuando no hay tests fallidos
+Cobertura global: se extrae de la linea TOTAL del archivo coverage_report.txt
+Razon exacta del exit code final (antes del fix): pytest devolvia exit code 1 por --cov-fail-under=85 cuando la cobertura quedaba por debajo del umbral, aunque no hubiera FAILED en tests.
+Razon exacta del exit code final (despues del fix): ejecutar_tests.bat solo propaga el resultado de pytest (sin gate de cobertura); el quality gate de cobertura queda en quality_gate.bat y deja trazabilidad explicita MIN_COVERAGE vs CURRENT.
