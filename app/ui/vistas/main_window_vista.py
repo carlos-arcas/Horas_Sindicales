@@ -317,7 +317,6 @@ class MainWindow(QMainWindow):
         self._sidebar_routes: list[dict[str, int | None]] = []
         self._active_sidebar_index = 0
         self.contexto_trabajo_widget: ContextoTrabajoWidget | None = None
-        self._persona_change_guard = False
         self._last_persona_id: int | None = None
         self._draft_solicitud_por_persona: dict[int, dict[str, object]] = {}
         self.toast = ToastManager()
@@ -520,6 +519,16 @@ class MainWindow(QMainWindow):
         datos_basicos_label = QLabel("Datos básicos")
         datos_basicos_label.setProperty("role", "sectionTitle")
         solicitud_layout.addWidget(datos_basicos_label)
+
+        persona_row = QHBoxLayout()
+        persona_row.setSpacing(10)
+        persona_label = QLabel("Delegada")
+        persona_label.setProperty("role", "sectionTitle")
+        persona_row.addWidget(persona_label)
+        self.persona_combo.currentIndexChanged.connect(self._on_persona_changed)
+        persona_row.addWidget(self.persona_combo, 1)
+        persona_row.addStretch(1)
+        solicitud_layout.addLayout(persona_row)
 
         solicitud_row = QHBoxLayout()
         solicitud_row.setSpacing(10)
@@ -917,7 +926,7 @@ class MainWindow(QMainWindow):
 
         persona_actions = QHBoxLayout()
         persona_actions.setSpacing(8)
-        self.add_persona_button = QPushButton("Configurar")
+        self.add_persona_button = QPushButton("Nueva delegada")
         self.add_persona_button.setProperty("variant", "secondary")
         self.add_persona_button.clicked.connect(self._on_add_persona)
         persona_actions.addWidget(self.add_persona_button)
@@ -927,15 +936,6 @@ class MainWindow(QMainWindow):
         self.edit_persona_button.clicked.connect(self._on_edit_persona)
         persona_actions.addWidget(self.edit_persona_button)
         persona_layout.addLayout(persona_actions)
-
-        persona_selector = QHBoxLayout()
-        persona_selector.setSpacing(8)
-        persona_label = QLabel("Delegada")
-        persona_label.setProperty("role", "sectionTitle")
-        persona_selector.addWidget(persona_label)
-        self.persona_combo.currentIndexChanged.connect(self._on_persona_changed)
-        persona_selector.addWidget(self.persona_combo, 1)
-        persona_layout.addLayout(persona_selector)
 
         persona_delete = QHBoxLayout()
         self.delete_persona_button = QPushButton("Eliminar")
@@ -1249,7 +1249,6 @@ class MainWindow(QMainWindow):
         header_layout.addLayout(header_top)
         self.contexto_trabajo_widget = ContextoTrabajoWidget(self.header_shell)
         self.contexto_trabajo_widget.editar_clicked.connect(lambda: self._switch_sidebar_page(3))
-        self.contexto_trabajo_widget.delegada_cambiada.connect(self._on_persona_changed)
         header_layout.addWidget(self.contexto_trabajo_widget)
 
         shell_layout.addWidget(self.header_shell)
@@ -1810,24 +1809,15 @@ class MainWindow(QMainWindow):
     def _load_personas(self, select_id: int | None = None) -> None:
         self.persona_combo.blockSignals(True)
         self.persona_combo.clear()
-        if self.contexto_trabajo_widget is not None:
-            self.contexto_trabajo_widget.delegada_combo.blockSignals(True)
-            self.contexto_trabajo_widget.delegada_combo.clear()
         self._personas = list(self._persona_use_cases.listar())
         for persona in self._personas:
             self.persona_combo.addItem(persona.nombre, persona.id)
-            if self.contexto_trabajo_widget is not None:
-                self.contexto_trabajo_widget.delegada_combo.addItem(persona.nombre, persona.id)
         self.persona_combo.blockSignals(False)
-        if self.contexto_trabajo_widget is not None:
-            self.contexto_trabajo_widget.delegada_combo.blockSignals(False)
 
         if select_id is not None:
             for index in range(self.persona_combo.count()):
                 if self.persona_combo.itemData(index) == select_id:
                     self.persona_combo.setCurrentIndex(index)
-                    if self.contexto_trabajo_widget is not None:
-                        self.contexto_trabajo_widget.delegada_combo.setCurrentIndex(index)
                     break
         self._last_persona_id = self.persona_combo.currentData()
         persona_nombres = {int(persona.id): persona.nombre for persona in self._personas if persona.id is not None}
@@ -1853,28 +1843,13 @@ class MainWindow(QMainWindow):
         return None
 
     def _on_persona_changed(self, *_args) -> None:
-        if self._persona_change_guard:
-            return
         nueva_persona_id = self.persona_combo.currentData()
-        if self.contexto_trabajo_widget is not None and self.sender() is self.contexto_trabajo_widget.delegada_combo:
-            self._persona_change_guard = True
-            self.persona_combo.setCurrentIndex(self.contexto_trabajo_widget.delegada_combo.currentIndex())
-            self._persona_change_guard = False
-            nueva_persona_id = self.persona_combo.currentData()
-        elif self.contexto_trabajo_widget is not None:
-            self._persona_change_guard = True
-            self.contexto_trabajo_widget.delegada_combo.setCurrentIndex(self.persona_combo.currentIndex())
-            self._persona_change_guard = False
 
         if self._last_persona_id != nueva_persona_id and self._is_form_dirty() and not self._confirmar_cambio_delegada():
-            self._persona_change_guard = True
             for index in range(self.persona_combo.count()):
                 if self.persona_combo.itemData(index) == self._last_persona_id:
                     self.persona_combo.setCurrentIndex(index)
-                    if self.contexto_trabajo_widget is not None:
-                        self.contexto_trabajo_widget.delegada_combo.setCurrentIndex(index)
                     break
-            self._persona_change_guard = False
             return
 
         if self._last_persona_id != nueva_persona_id:
@@ -1887,7 +1862,6 @@ class MainWindow(QMainWindow):
         self.huerfanas_table.clearSelection()
         self._reload_pending_views()
         self._update_action_state()
-        self._refresh_historico()
         self._refresh_saldos()
         self._update_solicitud_preview()
         self._update_global_context()
