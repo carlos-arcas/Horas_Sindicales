@@ -176,7 +176,7 @@ class OpcionesDialog(QDialog):
                 "No se pudo validar la conexión",
                 "No se pudo validar la conexión.\n"
                 f"Causa probable: La hoja no está compartida con {email_hint}.\n"
-                "Acción recomendada: Comparte la hoja como Editor y reintenta.",
+                "Acción recomendada: Comparte la hoja con ese email como Editor.",
             )
             return
         except SheetsNotFoundError:

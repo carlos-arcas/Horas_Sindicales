@@ -9,8 +9,9 @@ from typing import Any, Callable, TypeVar
 import gspread
 from google.auth.exceptions import DefaultCredentialsError
 
+from app.core.observability import get_correlation_id
 from app.domain.ports import SheetsClientPort
-from app.domain.sheets_errors import SheetsRateLimitError
+from app.domain.sheets_errors import SheetsPermissionError, SheetsRateLimitError
 from app.infrastructure.sheets_errors import SheetsApiCompatibilityError, map_gspread_exception
 
 logger = logging.getLogger(__name__)
@@ -58,7 +59,13 @@ class SheetsClient(SheetsClientPort):
             AttributeError,
             OSError,
         ) as exc:
-            raise map_gspread_exception(exc) from exc
+            mapped_error = map_gspread_exception(exc)
+            if isinstance(mapped_error, SheetsPermissionError):
+                self._log_permission_error(
+                    mapped_error,
+                    spreadsheet_id=spreadsheet_id,
+                )
+            raise mapped_error from exc
 
     def read_all_values(self, worksheet_name: str) -> list[list[str]]:
         if worksheet_name in self._worksheet_values_cache:
@@ -189,6 +196,12 @@ class SheetsClient(SheetsClientPort):
             except gspread.exceptions.APIError as exc:
                 mapped_error = map_gspread_exception(exc)
                 if not isinstance(mapped_error, SheetsRateLimitError):
+                    if isinstance(mapped_error, SheetsPermissionError):
+                        self._log_permission_error(
+                            mapped_error,
+                            spreadsheet_id=getattr(self._spreadsheet, "id", None),
+                            worksheet_name=self._worksheet_from_operation_name(operation_name),
+                        )
                     raise mapped_error from exc
                 if attempt >= _MAX_RETRIES:
                     logger.error(
@@ -217,6 +230,12 @@ class SheetsClient(SheetsClientPort):
             except gspread.exceptions.APIError as exc:
                 mapped_error = map_gspread_exception(exc)
                 if not isinstance(mapped_error, SheetsRateLimitError):
+                    if isinstance(mapped_error, SheetsPermissionError):
+                        self._log_permission_error(
+                            mapped_error,
+                            spreadsheet_id=getattr(self._spreadsheet, "id", None),
+                            worksheet_name=self._worksheet_from_operation_name(operation_name),
+                        )
                     raise mapped_error from exc
                 if attempt >= _WRITE_MAX_RETRIES:
                     logger.error(
@@ -249,3 +268,32 @@ class SheetsClient(SheetsClientPort):
         if sheet_part.startswith("'") and sheet_part.endswith("'"):
             sheet_part = sheet_part[1:-1].replace("''", "'")
         return sheet_part
+
+    @staticmethod
+    def _worksheet_from_operation_name(operation_name: str) -> str | None:
+        start = operation_name.find("(")
+        end = operation_name.rfind(")")
+        if start < 0 or end <= start:
+            return None
+        worksheet_name = operation_name[start + 1 : end].strip()
+        return worksheet_name or None
+
+    @staticmethod
+    def _log_permission_error(
+        error: SheetsPermissionError,
+        *,
+        spreadsheet_id: str | None = None,
+        worksheet_name: str | None = None,
+    ) -> None:
+        logger.error(
+            "Google Sheets permisos insuficientes. correlation_id=%s spreadsheet_id=%s worksheet=%s error=%s",
+            get_correlation_id(),
+            spreadsheet_id or "n/a",
+            worksheet_name or "n/a",
+            error,
+            extra={
+                "correlation_id": get_correlation_id(),
+                "spreadsheet_id": spreadsheet_id,
+                "worksheet": worksheet_name,
+            },
+        )

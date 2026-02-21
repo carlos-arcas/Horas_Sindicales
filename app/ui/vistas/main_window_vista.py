@@ -3116,7 +3116,7 @@ class MainWindow(QMainWindow):
                 title,
                 "No se pudo sincronizar.\n"
                 f"Causa probable: La hoja no está compartida con {email_hint}.\n"
-                "Acción recomendada: Comparte la hoja como Editor y reintenta.",
+                "Acción recomendada: Comparte la hoja con ese email como Editor.",
                 None,
                 icon,
                 action_buttons=(("Ir a configuración", self._on_open_opciones), ("Reintentar", self._sync_controller.on_sync)),

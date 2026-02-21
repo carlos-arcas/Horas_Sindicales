@@ -31,6 +31,7 @@ def test_map_gspread_exception_403_to_permission_error() -> None:
     error = gspread.exceptions.APIError(_ForbiddenResp())
     mapped = map_gspread_exception(error)
     assert isinstance(mapped, SheetsPermissionError)
+    assert str(mapped) == "La hoja no está compartida con la cuenta de servicio."
 
 
 def test_open_spreadsheet_retries_rate_limit(monkeypatch) -> None:
