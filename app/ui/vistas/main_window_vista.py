@@ -34,8 +34,6 @@ from PySide6.QtWidgets import (
     QStatusBar,
     QStackedWidget,
     QTabWidget,
-    QListWidget,
-    QListWidgetItem,
     QTableView,
     QTimeEdit,
     QVBoxLayout,
@@ -94,6 +92,10 @@ from app.ui.sync_reporting import (
 )
 from app.core.observability import OperationContext, log_event
 from app.ui.workers.sincronizacion_workers import PushWorker, SyncWorker
+from app.ui.vistas.paginas.pagina_configuracion import PaginaConfiguracion
+from app.ui.vistas.paginas.pagina_historico import PaginaHistorico
+from app.ui.vistas.paginas.pagina_sincronizacion import PaginaSincronizacion
+from app.ui.vistas.paginas.pagina_solicitudes import PaginaSolicitudes
 
 try:
     from PySide6.QtPdf import QPdfDocument
@@ -297,11 +299,13 @@ class MainWindow(QMainWindow):
         self.header_state_badge: QLabel | None = None
         self.header_sync_button: QPushButton | None = None
         self.header_new_button: QPushButton | None = None
-        self.sidebar: QListWidget | None = None
+        self.sidebar: QFrame | None = None
         self.stacked_pages: QStackedWidget | None = None
-        self.page_personas: QWidget | None = None
+        self.page_historico: QWidget | None = None
         self.page_configuracion: QWidget | None = None
         self.page_sincronizacion: QWidget | None = None
+        self.page_solicitudes: QWidget | None = None
+        self.sidebar_buttons: list[QPushButton] = []
         self.toast = ToastManager()
         self.notifications = NotificationService(self.toast, self)
         self._personas_controller = PersonasController(self)
@@ -1186,38 +1190,64 @@ class MainWindow(QMainWindow):
         body_layout.setContentsMargins(12, 0, 12, 12)
         body_layout.setSpacing(12)
 
-        self.sidebar = QListWidget()
+        self.sidebar = QFrame()
         self.sidebar.setObjectName("sidebar")
-        self.sidebar.setFixedWidth(200)
-        for name in ("Solicitudes", "Personas", "Configuración", "Sincronización"):
-            QListWidgetItem(name, self.sidebar)
-        self.sidebar.setCurrentRow(0)
+        self.sidebar.setFixedWidth(220)
+        self.sidebar.setProperty("card", True)
+        sidebar_layout = QVBoxLayout(self.sidebar)
+        sidebar_layout.setContentsMargins(10, 12, 10, 12)
+        sidebar_layout.setSpacing(8)
+
+        sidebar_title = QLabel("Navegación")
+        sidebar_title.setProperty("role", "cardTitle")
+        sidebar_layout.addWidget(sidebar_title)
+
+        self.sidebar_buttons = []
+        sidebar_items = ("Solicitudes", "Sincronización", "Configuración", "Histórico")
+        for index, label in enumerate(sidebar_items):
+            button = QPushButton(label)
+            button.setCheckable(True)
+            button.setProperty("variant", "ghost")
+            button.clicked.connect(lambda _checked=False, page_index=index: self._switch_sidebar_page(page_index))
+            sidebar_layout.addWidget(button)
+            self.sidebar_buttons.append(button)
+        sidebar_layout.addStretch(1)
         body_layout.addWidget(self.sidebar)
 
         self.stacked_pages = QStackedWidget()
         self.stacked_pages.setObjectName("stacked_pages")
-        self.stacked_pages.addWidget(self._scroll_area)
 
-        self.page_personas = QWidget()
-        self.page_personas.setLayout(QVBoxLayout())
-        self.page_personas.layout().addWidget(QLabel("Administración de personas"))
-        self.stacked_pages.addWidget(self.page_personas)
+        self.page_solicitudes = PaginaSolicitudes(content_widget=self._scroll_area)
+        self.page_sincronizacion = PaginaSincronizacion()
+        self.page_configuracion = PaginaConfiguracion()
+        self.page_historico = PaginaHistorico()
 
-        self.page_configuracion = QWidget()
-        self.page_configuracion.setLayout(QVBoxLayout())
-        self.page_configuracion.layout().addWidget(QLabel("Configuración"))
-        self.stacked_pages.addWidget(self.page_configuracion)
-
-        self.page_sincronizacion = QWidget()
-        self.page_sincronizacion.setLayout(QVBoxLayout())
-        self.page_sincronizacion.layout().addWidget(QLabel("Sincronización"))
+        self.stacked_pages.addWidget(self.page_solicitudes)
         self.stacked_pages.addWidget(self.page_sincronizacion)
+        self.stacked_pages.addWidget(self.page_configuracion)
+        self.stacked_pages.addWidget(self.page_historico)
 
         body_layout.addWidget(self.stacked_pages, 1)
         shell_layout.addWidget(body, 1)
 
-        self.sidebar.currentRowChanged.connect(self.stacked_pages.setCurrentIndex)
+        self.stacked_pages.currentChanged.connect(self._sync_sidebar_state)
+        self._switch_sidebar_page(0)
         self.setCentralWidget(shell)
+
+    def _switch_sidebar_page(self, index: int) -> None:
+        if self.stacked_pages is None:
+            return
+        if 0 <= index < self.stacked_pages.count():
+            self.stacked_pages.setCurrentIndex(index)
+            self._sync_sidebar_state(index)
+
+    def _sync_sidebar_state(self, active_index: int) -> None:
+        for index, button in enumerate(self.sidebar_buttons):
+            is_active = index == active_index
+            button.setChecked(is_active)
+            button.setProperty("active", is_active)
+            button.style().unpolish(button)
+            button.style().polish(button)
 
     def _build_status_bar(self) -> None:
         status = QStatusBar(self)
