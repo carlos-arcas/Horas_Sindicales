@@ -1,0 +1,16 @@
+{
+  "archivos": [
+    {
+      "archivo": "AUDITORIA.md",
+      "sha256": "<HASH>"
+    },
+    {
+      "archivo": "auditoria.json",
+      "sha256": "<HASH>"
+    },
+    {
+      "archivo": "status.txt",
+      "sha256": "<HASH>"
+    }
+  ]
+}

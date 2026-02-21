@@ -83,3 +83,27 @@ El script realiza, en orden:
 3. Tests con cobertura y umbral mínimo: `pytest --cov=. --cov-report=term-missing --cov-fail-under=85`.
 
 También genera logs en `logs\quality_gate_stdout.log`, `logs\quality_gate_stderr.log` y `logs\quality_gate_debug.log`, e informa al final `QUALITY GATE: PASS` o `QUALITY GATE: FAIL`.
+
+## Snapshot/Golden tests (Auditor E2E)
+
+Los snapshots de reportes del auditor viven en `tests/golden/` y se validan con:
+
+```bash
+PYTHONPATH=. pytest -q tests/e2e/test_auditoria_e2e_snapshot_md.py tests/e2e/test_auditoria_e2e_snapshot_json.py tests/e2e/test_auditoria_e2e_snapshot_manifest_json.py
+```
+
+### Política de actualización de golden
+
+Por defecto, los tests **solo comparan** contra los golden existentes.
+
+Para actualizar snapshots de forma explícita y controlada:
+
+```bash
+UPDATE_GOLDEN=1 PYTHONPATH=. pytest -q tests/e2e/test_auditoria_e2e_snapshot_md.py tests/e2e/test_auditoria_e2e_snapshot_json.py tests/e2e/test_auditoria_e2e_snapshot_manifest_json.py
+```
+
+Reglas anti-flakiness aplicadas por normalización (`tests/utilidades/normalizar_reportes.py`):
+- IDs dinámicos (UUID/AUD-*) → `<ID>`.
+- Fechas ISO → `<FECHA>`.
+- Rutas absolutas → `<RUTA>`.
+- Orden determinista de listas con `id_check`.
