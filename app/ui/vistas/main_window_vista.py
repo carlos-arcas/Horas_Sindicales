@@ -10,7 +10,6 @@ from typing import cast
 
 from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, QThread
 from PySide6.QtWidgets import (
-    QBoxLayout,
     QCheckBox,
     QComboBox,
     QDateEdit,
@@ -31,6 +30,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QSizePolicy,
     QScrollArea,
+    QSplitter,
     QStatusBar,
     QStackedWidget,
     QTabWidget,
@@ -84,7 +84,6 @@ from app.ui.components.primary_button import PrimaryButton
 from app.ui.components.secondary_button import SecondaryButton
 from app.ui.components.saldos_card import SaldosCard
 from app.ui.components.status_badge import StatusBadge
-from app.ui.components.contexto_trabajo_widget import ContextoTrabajoWidget
 from app.ui.sync_reporting import (
     build_config_incomplete_report,
     build_failed_report,
@@ -97,7 +96,6 @@ from app.ui.sync_reporting import (
 )
 from app.core.observability import OperationContext, log_event
 from app.ui.workers.sincronizacion_workers import PushWorker
-from app.ui.vistas.paginas.pagina_resumen import PaginaResumen
 from app.ui.vistas.paginas.pagina_solicitudes import PaginaSolicitudes
 
 try:
@@ -316,7 +314,7 @@ class MainWindow(QMainWindow):
         self.sidebar_buttons: list[QPushButton] = []
         self._sidebar_routes: list[dict[str, int | None]] = []
         self._active_sidebar_index = 0
-        self.contexto_trabajo_widget: ContextoTrabajoWidget | None = None
+        self.contexto_trabajo_widget: QWidget | None = None
         self._persona_change_guard = False
         self._last_persona_id: int | None = None
         self._draft_solicitud_por_persona: dict[int, dict[str, object]] = {}
@@ -461,13 +459,20 @@ class MainWindow(QMainWindow):
 
         # UX: Operativa concentra solo tareas diarias (alta + pendientes + confirmación)
         # para reducir cambios de contexto y evitar mezclar navegación histórica.
-        self._content_row = QBoxLayout(QBoxLayout.LeftToRight)
-        self._content_row.setSpacing(14)
-        operativa_layout.addLayout(self._content_row, 1)
+        self._operativa_splitter = QSplitter(Qt.Horizontal)
+        self._operativa_splitter.setChildrenCollapsible(False)
+        self._operativa_splitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        operativa_layout.addWidget(self._operativa_splitter, 1)
 
-        left_column = QVBoxLayout()
-        left_column.setSpacing(14)
-        self._content_row.addLayout(left_column, 3)
+        pending_column = QWidget()
+        pending_column_layout = QVBoxLayout(pending_column)
+        pending_column_layout.setContentsMargins(0, 0, 0, 0)
+        pending_column_layout.setSpacing(14)
+
+        form_column = QWidget()
+        form_column_layout = QVBoxLayout(form_column)
+        form_column_layout.setContentsMargins(0, 0, 0, 0)
+        form_column_layout.setSpacing(14)
 
         solicitud_card, solicitud_layout = self._create_card("Alta de solicitud")
         solicitud_layout.setSpacing(12)
@@ -536,6 +541,14 @@ class MainWindow(QMainWindow):
         datos_basicos_label = QLabel("Datos básicos")
         datos_basicos_label.setProperty("role", "sectionTitle")
         solicitud_layout.addWidget(datos_basicos_label)
+
+        delegada_row = QHBoxLayout()
+        delegada_row.setSpacing(8)
+        delegada_row.addWidget(QLabel("Delegada"))
+        self.persona_combo.setObjectName("solicitudes_delegada_combo")
+        self.persona_combo.currentIndexChanged.connect(self._on_persona_changed)
+        delegada_row.addWidget(self.persona_combo, 1)
+        solicitud_layout.addLayout(delegada_row)
 
         solicitud_row = QHBoxLayout()
         solicitud_row.setSpacing(10)
@@ -651,7 +664,7 @@ class MainWindow(QMainWindow):
         self.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         notas_row.addWidget(self.notas_input, 1)
         solicitud_layout.addLayout(notas_row)
-        left_column.addWidget(solicitud_card)
+        form_column_layout.addWidget(solicitud_card)
 
         pendientes_card, pendientes_layout = self._create_card("Pendientes de confirmar")
         self._pendientes_group = pendientes_card
@@ -770,9 +783,15 @@ class MainWindow(QMainWindow):
         pending_details_layout.addLayout(pendientes_footer)
         pendientes_layout.addWidget(self.pending_details_content, 1)
         self._configure_disclosure(self.pending_details_button, self.pending_details_content)
-        left_column.addWidget(pendientes_card, 1)
+        pending_column_layout.addWidget(pendientes_card, 1)
 
-        self.main_tabs.addTab(operativa_tab, "Operativa")
+        self._operativa_splitter.addWidget(pending_column)
+        self._operativa_splitter.addWidget(form_column)
+        self._operativa_splitter.setStretchFactor(0, 2)
+        self._operativa_splitter.setStretchFactor(1, 3)
+        self._operativa_splitter.setSizes([520, 780])
+
+        self.main_tabs.addTab(operativa_tab, "Solicitudes")
 
         historico_tab = QWidget()
         historico_tab_layout = QVBoxLayout(historico_tab)
@@ -933,7 +952,7 @@ class MainWindow(QMainWindow):
 
         persona_actions = QHBoxLayout()
         persona_actions.setSpacing(8)
-        self.add_persona_button = QPushButton("Configurar")
+        self.add_persona_button = QPushButton("Nueva delegada")
         self.add_persona_button.setProperty("variant", "secondary")
         self.add_persona_button.clicked.connect(self._on_add_persona)
         persona_actions.addWidget(self.add_persona_button)
@@ -943,15 +962,6 @@ class MainWindow(QMainWindow):
         self.edit_persona_button.clicked.connect(self._on_edit_persona)
         persona_actions.addWidget(self.edit_persona_button)
         persona_layout.addLayout(persona_actions)
-
-        persona_selector = QHBoxLayout()
-        persona_selector.setSpacing(8)
-        persona_label = QLabel("Delegada")
-        persona_label.setProperty("role", "sectionTitle")
-        persona_selector.addWidget(persona_label)
-        self.persona_combo.currentIndexChanged.connect(self._on_persona_changed)
-        persona_selector.addWidget(self.persona_combo, 1)
-        persona_layout.addLayout(persona_selector)
 
         persona_delete = QHBoxLayout()
         self.delete_persona_button = QPushButton("Eliminar")
@@ -998,7 +1008,11 @@ class MainWindow(QMainWindow):
         credenciales_layout.addWidget(self.sync_scope_label)
         config_layout.addWidget(credenciales_card)
         config_layout.addStretch(1)
-        self.main_tabs.addTab(config_tab, "Configuración")
+        config_scroll = QScrollArea()
+        config_scroll.setWidgetResizable(True)
+        config_scroll.setFrameShape(QFrame.NoFrame)
+        config_scroll.setWidget(config_tab)
+        self.main_tabs.addTab(config_scroll, "Configuración")
 
         sync_tab = QWidget()
         sync_tab_layout = QVBoxLayout(sync_tab)
@@ -1247,7 +1261,7 @@ class MainWindow(QMainWindow):
         header_top.addWidget(self.header_export_button)
 
         self.header_config_button = SecondaryButton("Config")
-        self.header_config_button.clicked.connect(lambda: self._switch_sidebar_page(3))
+        self.header_config_button.clicked.connect(lambda: self._switch_sidebar_page(2))
         header_top.addWidget(self.header_config_button)
 
         self.header_secondary_actions = QToolButton()
@@ -1258,16 +1272,11 @@ class MainWindow(QMainWindow):
         self.header_secondary_menu.addAction("Actualizar salud del sistema", self._refresh_health_and_alerts)
         self.header_secondary_menu.addAction("Ver historial de sincronización", self._on_show_sync_history)
         self.header_secondary_menu.addSeparator()
-        self.header_secondary_menu.addAction("Abrir configuración", lambda: self._switch_sidebar_page(3))
+        self.header_secondary_menu.addAction("Abrir configuración", lambda: self._switch_sidebar_page(2))
         self.header_secondary_actions.setMenu(self.header_secondary_menu)
         header_top.addWidget(self.header_secondary_actions)
 
         header_layout.addLayout(header_top)
-        self.contexto_trabajo_widget = ContextoTrabajoWidget(self.header_shell)
-        self.contexto_trabajo_widget.editar_clicked.connect(lambda: self._switch_sidebar_page(3))
-        self.contexto_trabajo_widget.delegada_cambiada.connect(self._on_persona_changed)
-        header_layout.addWidget(self.contexto_trabajo_widget)
-
         shell_layout.addWidget(self.header_shell)
 
         body = QWidget()
@@ -1282,12 +1291,6 @@ class MainWindow(QMainWindow):
         body_layout.addWidget(self.stacked_pages, 1)
 
         shell_layout.addWidget(body, 1)
-
-
-        self.page_resumen.nueva_solicitud.connect(self._limpiar_formulario)
-        self.page_resumen.ver_pendientes.connect(lambda: self._switch_sidebar_page(1))
-        self.page_resumen.sincronizar_ahora.connect(self._sincronizar_con_confirmacion)
-        self.page_resumen.duplicar_ultima.connect(self._on_duplicate_latest_placeholder)
 
         self._verificar_handlers_ui()
         self._switch_sidebar_page(0)
@@ -1309,10 +1312,9 @@ class MainWindow(QMainWindow):
 
         self.sidebar_buttons = []
         sidebar_items = (
-            ("Resumen", 0, None),
-            ("Solicitudes", 1, 0),
-            ("Histórico", 1, 1),
-            ("Configuración", 1, 2),
+            ("Solicitudes", 0, 0),
+            ("Histórico", 0, 1),
+            ("Configuración", 0, 2),
         )
         self._sidebar_routes = []
         for index, (title, stack_index, tab_index) in enumerate(sidebar_items):
@@ -1332,10 +1334,7 @@ class MainWindow(QMainWindow):
         pages = QStackedWidget()
         pages.setObjectName("stacked_pages")
 
-        self.page_resumen = PaginaResumen()
         self.page_solicitudes = PaginaSolicitudes(content_widget=self._scroll_area)
-
-        pages.addWidget(self.page_resumen)
         pages.addWidget(self.page_solicitudes)
         return pages
 
@@ -1399,23 +1398,22 @@ class MainWindow(QMainWindow):
 
     def _update_header_for_section(self, active_index: int) -> None:
         page_titles = {
-            0: "Resumen",
-            1: "Solicitudes",
-            2: "Histórico",
-            3: "Configuración",
+            0: "Solicitudes",
+            1: "Histórico",
+            2: "Configuración",
         }
         if self.header_title_label is not None:
             self.header_title_label.setText(page_titles.get(active_index, "Horas Sindicales"))
         if self.header_new_button is None:
             return
-        if active_index == 1:
-            self.header_new_button.setText("Limpiar formulario")
+        if active_index == 0:
+            self.header_new_button.setText("Nuevo")
             self.header_new_button.clicked.disconnect()
             self.header_new_button.clicked.connect(self._clear_form)
             return
         self.header_new_button.setText("Nueva solicitud")
         self.header_new_button.clicked.disconnect()
-        self.header_new_button.clicked.connect(lambda: self._switch_sidebar_page(1))
+        self.header_new_button.clicked.connect(lambda: self._switch_sidebar_page(0))
 
     def _refresh_resumen_kpis(self) -> None:
         if self.page_resumen is None:
@@ -1805,18 +1803,15 @@ class MainWindow(QMainWindow):
         self.historico_search_input.selectAll()
 
     def _update_responsive_columns(self) -> None:
-        if not hasattr(self, "_content_row"):
+        if not hasattr(self, "_operativa_splitter"):
             return
         available_width = self._scroll_area.viewport().width() if hasattr(self, "_scroll_area") else self.width()
-        # En ventanas estrechas apilamos columnas para evitar recortes horizontales.
-        if available_width < 1200:
-            self._content_row.setDirection(QBoxLayout.TopToBottom)
-            self._content_row.setStretch(0, 0)
-            self._content_row.setStretch(1, 0)
+        if available_width < 1100:
+            self._operativa_splitter.setOrientation(Qt.Vertical)
+            self._operativa_splitter.setSizes([460, 560])
         else:
-            self._content_row.setDirection(QBoxLayout.LeftToRight)
-            self._content_row.setStretch(0, 3)
-            self._content_row.setStretch(1, 2)
+            self._operativa_splitter.setOrientation(Qt.Horizontal)
+            self._operativa_splitter.setSizes([available_width * 2 // 5, available_width * 3 // 5])
 
     def _load_personas(self, select_id: int | None = None) -> None:
         self.persona_combo.blockSignals(True)

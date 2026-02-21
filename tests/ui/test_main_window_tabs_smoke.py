@@ -6,8 +6,7 @@ import pytest
 
 qt = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
 QApplication = qt.QApplication
-QPushButton = qt.QPushButton
-QStackedWidget = qt.QStackedWidget
+QComboBox = qt.QComboBox
 
 from app.bootstrap.container import build_container
 from app.ui.main_window import MainWindow
@@ -19,7 +18,7 @@ def _in_memory_connection() -> sqlite3.Connection:
     return connection
 
 
-def test_main_window_layout_structure_sidebar_and_pages() -> None:
+def test_main_window_tabs_and_delegada_selectors() -> None:
     app = QApplication.instance() or QApplication([])
     container = build_container(connection_factory=_in_memory_connection)
 
@@ -34,11 +33,14 @@ def test_main_window_layout_structure_sidebar_and_pages() -> None:
         alert_engine=container.alert_engine,
     )
 
-    assert isinstance(window.stacked_pages, QStackedWidget)
-    assert window.stacked_pages.count() == 1
+    tab_names = [window.main_tabs.tabText(i) for i in range(window.main_tabs.count())]
+    assert "Solicitudes" in tab_names
+    assert "Histórico" in tab_names
+    assert "Configuración" in tab_names
+    assert "Resumen" not in tab_names
 
-    sidebar_buttons = [button.text() for button in window.sidebar.findChildren(QPushButton)]
-    assert sidebar_buttons[:3] == ["Solicitudes", "Histórico", "Configuración"]
+    assert isinstance(window.findChild(QComboBox, "solicitudes_delegada_combo"), QComboBox)
+    assert isinstance(window.historico_delegada_combo, QComboBox)
 
     window.close()
     app.processEvents()
