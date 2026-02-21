@@ -13,9 +13,11 @@ set "LOG_DEBUG=%LOG_DIR%\tests_debug.log"
 set "LOG_PYTEST=%LOG_DIR%\pytest_output.txt"
 set "LOG_COVERAGE=%LOG_DIR%\coverage_report.txt"
 
-set "RUN_SUMMARY_FILE="
+set "RUN_SUMMARY_FILE=%LOG_DIR%\summary.txt"
+if defined RUN_DIR set "RUN_SUMMARY_FILE=%RUN_DIR%\summary.txt"
 if defined RUN_DIR (
-    set "RUN_SUMMARY_FILE=%RUN_DIR%\summary.txt"
+    set "LOG_STDOUT=%RUN_DIR%\tests_stdout.txt"
+    set "LOG_STDERR=%RUN_DIR%\tests_stderr.txt"
 )
 
 >"%LOG_PYTEST%" echo ==== pytest output ====
@@ -141,24 +143,31 @@ if defined RUN_DIR set "COVERAGE_HTML_DIR=%RUN_DIR%\coverage_html"
 
 if not exist "%COVERAGE_HTML_DIR%" mkdir "%COVERAGE_HTML_DIR%" >nul 2>&1
 
-rem contrato: pytest --cov=app --cov-report=term-missing --cov-fail-under=85
-set "PYTEST_CMD=python -m pytest -q \"tests\" --cov=app --cov-report=term-missing \"--cov-report=html:%COVERAGE_HTML_DIR%\" --cov-fail-under=85"
+rem contrato: pytest --cov=app --cov-report=term-missing (sin gate de umbral en este paso)
+set "PYTEST_CMD=python -m pytest -q tests --cov=app --cov-report=term-missing --cov-report=html:\"%COVERAGE_HTML_DIR%\""
 call :log_debug "Comando pytest: %PYTEST_CMD%"
 if defined RUN_SUMMARY_FILE (
     >>"%RUN_SUMMARY_FILE%" echo CMD_PYTEST=%PYTEST_CMD%
 )
 
-python -m pytest -q "tests" --cov=app --cov-report=term-missing "--cov-report=html:%COVERAGE_HTML_DIR%" --cov-fail-under=85 > "%LOG_PYTEST%" 2>&1
+echo [INFO] Ejecutando: %PYTEST_CMD%
+>>"%LOG_PYTEST%" echo [INFO] CMD: %PYTEST_CMD%
+python -m pytest -q tests --cov=app --cov-report=term-missing --cov-report=html:"%COVERAGE_HTML_DIR%" 1>>"%LOG_STDOUT%" 2>>"%LOG_STDERR%"
 set "TEST_EXIT=%ERRORLEVEL%"
+set "FINAL_REASON=pytest devolvio exit code %TEST_EXIT%"
+if "%TEST_EXIT%"=="0" set "FINAL_REASON=pytest ok"
 
-findstr /i /c:"collected 0 items" "%LOG_PYTEST%" >nul 2>&1
+findstr /i /c:"collected 0 items" "%LOG_STDOUT%" >nul 2>&1
 if not errorlevel 1 (
     echo [ERROR] Pytest no encontro tests. Causa tipica: ruta mal entrecomillada o ejecucion desde directorio incorrecto. Ejecuta opcion 1 desde el menu o corre: pytest -q tests
     >>"%LOG_PYTEST%" echo [ERROR] Pytest no encontro tests. Causa tipica: ruta mal entrecomillada o ejecucion desde directorio incorrecto. Ejecuta opcion 1 desde el menu o corre: pytest -q tests
     if defined RUN_SUMMARY_FILE (
         >>"%RUN_SUMMARY_FILE%" echo ERROR_HUMANO=Pytest no encontro tests. Causa tipica: ruta mal entrecomillada o ejecucion desde directorio incorrecto.
     )
-    if "%TEST_EXIT%"=="0" set "TEST_EXIT=1"
+    if "%TEST_EXIT%"=="0" (
+        set "TEST_EXIT=1"
+        set "FINAL_REASON=pytest no recolecto tests"
+    )
 )
 
 if "%TEST_EXIT%"=="0" (
@@ -170,6 +179,8 @@ python -m coverage report -m > "%LOG_COVERAGE%" 2>&1
 if errorlevel 1 (
     >>"%LOG_COVERAGE%" echo [INFO] No fue posible generar coverage report detallado.
 )
+set "COVERAGE_TOTAL=N/D"
+for /f "tokens=4" %%P in ('findstr /r /c:"^TOTAL[ ]" "%LOG_COVERAGE%"') do set "COVERAGE_TOTAL=%%P"
 if exist ".coverage" (
     echo ==== coverage report -m ====
     python -m coverage report -m
@@ -183,10 +194,26 @@ if exist "%COVERAGE_HTML_DIR%\index.html" (
     if defined RUN_SUMMARY_FILE (
         >>"%RUN_SUMMARY_FILE%" echo ERROR_HUMANO=No se genero el HTML de coverage. Motivos comunes: pytest fallo, no se ejecutaron tests, o falta pytest-cov.
     )
-    if "%TEST_EXIT%"=="0" set "TEST_EXIT=1"
+    if "%TEST_EXIT%"=="0" (
+        set "TEST_EXIT=1"
+        set "FINAL_REASON=no se genero coverage html"
+    )
 )
 
 call :log_debug "Exit code pytest: %TEST_EXIT%"
+if "%TEST_EXIT%"=="0" (
+    set "PYTEST_RESULT=PASS"
+) else (
+    set "PYTEST_RESULT=FAIL"
+)
+set "EXIT_REASON=%FINAL_REASON%"
+>"%RUN_SUMMARY_FILE%" echo ==== ejecutar_tests summary ====
+>>"%RUN_SUMMARY_FILE%" echo Fecha: %DATE% %TIME%
+>>"%RUN_SUMMARY_FILE%" echo Command=%PYTEST_CMD%
+>>"%RUN_SUMMARY_FILE%" echo Pytest=%PYTEST_RESULT%
+>>"%RUN_SUMMARY_FILE%" echo Coverage_TOTAL=%COVERAGE_TOTAL%
+>>"%RUN_SUMMARY_FILE%" echo ExitCode=%TEST_EXIT%
+>>"%RUN_SUMMARY_FILE%" echo ExitReason=%EXIT_REASON%
 exit /b %TEST_EXIT%
 
 :log_debug

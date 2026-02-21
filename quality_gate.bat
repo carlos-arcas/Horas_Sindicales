@@ -10,6 +10,8 @@ if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 set "LOG_STDOUT=%LOG_DIR%\quality_gate_stdout.log"
 set "LOG_STDERR=%LOG_DIR%\quality_gate_stderr.log"
 set "LOG_DEBUG=%LOG_DIR%\quality_gate_debug.log"
+set "MIN_COVERAGE=85"
+set "COVERAGE_TMP=%LOG_DIR%\quality_gate_coverage.txt"
 
 call :log_debug "==== quality_gate.bat ===="
 call :log_debug "Repositorio: %ROOT_DIR%"
@@ -104,19 +106,56 @@ if errorlevel 1 (
 )
 
 call :log_debug "Paso B: Pytest cobertura"
-pytest --cov=app --cov-report=term-missing --cov-fail-under=85 >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
-if errorlevel 1 (
+set "PYTEST_CMD=python -m pytest -q tests --cov=app --cov-report=term-missing --cov-fail-under=%MIN_COVERAGE%"
+>> "%LOG_STDOUT%" echo [QUALITY] CMD=%PYTEST_CMD%
+%PYTEST_CMD% >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+set "PYTEST_EXIT=%ERRORLEVEL%"
+
+set "CURRENT_COVERAGE=N/D"
+set "CURRENT_COVERAGE_INT="
+if exist ".coverage" (
+    python -m coverage report -m > "%COVERAGE_TMP%" 2>> "%LOG_STDERR%"
+    for /f "tokens=4" %%P in ('findstr /r /c:"^TOTAL[ ]" "%COVERAGE_TMP%"') do set "CURRENT_COVERAGE=%%P"
+    for /f "delims=%%" %%P in ("%CURRENT_COVERAGE%") do set "CURRENT_COVERAGE_INT=%%P"
+)
+
+if defined CURRENT_COVERAGE_INT (
+    >> "%LOG_STDOUT%" echo [QUALITY] MIN_COVERAGE=%MIN_COVERAGE% CURRENT=%CURRENT_COVERAGE_INT%%%
+) else (
+    >> "%LOG_STDOUT%" echo [QUALITY] MIN_COVERAGE=%MIN_COVERAGE% CURRENT=%CURRENT_COVERAGE%
+)
+
+if not "%PYTEST_EXIT%"=="0" (
+    if defined CURRENT_COVERAGE_INT (
+        if %CURRENT_COVERAGE_INT% LSS %MIN_COVERAGE% (
+            set "FAIL_STEP=COVERAGE_THRESHOLD"
+            set "FAIL_REASON=MIN_COVERAGE=%MIN_COVERAGE%, current=%CURRENT_COVERAGE_INT% => FAIL"
+            call :log_debug "FAIL: COVERAGE_THRESHOLD"
+            goto GATE_FAIL
+        )
+    )
     set "FAIL_STEP=PYTEST"
+    set "FAIL_REASON=pytest devolvio exit %PYTEST_EXIT%"
     call :log_debug "FAIL: PYTEST"
     goto GATE_FAIL
 )
 
+if defined CURRENT_COVERAGE_INT if %CURRENT_COVERAGE_INT% LSS %MIN_COVERAGE% (
+    set "FAIL_STEP=COVERAGE_THRESHOLD"
+    set "FAIL_REASON=MIN_COVERAGE=%MIN_COVERAGE%, current=%CURRENT_COVERAGE_INT% => FAIL"
+    call :log_debug "FAIL: COVERAGE_THRESHOLD"
+    goto GATE_FAIL
+)
+
+set "FAIL_REASON=MIN_COVERAGE=%MIN_COVERAGE%, current=%CURRENT_COVERAGE% => PASS"
+>> "%LOG_STDOUT%" echo [QUALITY] %FAIL_REASON%
 echo QUALITY GATE: PASS
 goto END_OK
 
 :GATE_FAIL
 echo QUALITY GATE: FAIL
 if defined FAIL_STEP echo Paso con fallo: %FAIL_STEP%
+if defined FAIL_REASON echo %FAIL_REASON%
 exit /b 2
 
 :INTERNAL_ERROR
