@@ -26,10 +26,13 @@ env/
 # =========================
 # Bases de datos locales
 # =========================
+horas_sindicales.db
 *.db
 *.sqlite
 *.sqlite3
 *.db-journal
+*.db-wal
+*.db-shm
 
 # =========================
 # Secretos y credenciales

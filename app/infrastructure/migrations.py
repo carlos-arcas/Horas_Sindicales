@@ -5,14 +5,15 @@ import hashlib
 import importlib.util
 import logging
 import sqlite3
-
-from app.bootstrap.logging import configure_logging
-from app.bootstrap.settings import resolve_log_dir
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from types import ModuleType
 from typing import Callable
+
+from app.bootstrap.logging import configure_logging
+from app.bootstrap.settings import resolve_log_dir
+from app.infrastructure.db import _default_db_path
 
 MigrationHook = Callable[[sqlite3.Connection], None]
 
@@ -229,7 +230,7 @@ def run_data_fixups(connection: sqlite3.Connection) -> None:
 def build_cli() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Gestiona migraciones SQLite")
     parser.add_argument("command", choices=["up", "down", "status"], help="Operación a ejecutar")
-    parser.add_argument("--db", default="horas_sindicales.db", help="Ruta al archivo SQLite")
+    parser.add_argument("--db", default=str(_default_db_path()), help="Ruta al archivo SQLite")
     parser.add_argument("--steps", type=int, default=1, help="Número de migraciones a revertir")
     return parser
 
@@ -239,7 +240,10 @@ def main() -> int:
     parser = build_cli()
     args = parser.parse_args()
 
-    connection = sqlite3.connect(args.db)
+    db_path = Path(args.db)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    connection = sqlite3.connect(db_path)
     connection.row_factory = sqlite3.Row
     runner = MigrationRunner(connection)
 
