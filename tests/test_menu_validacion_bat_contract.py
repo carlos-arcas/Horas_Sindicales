@@ -61,3 +61,18 @@ def test_opcion_6_no_ejecuta_pytest() -> None:
     assert "coverage report" not in branch_6_lower
     assert "coverage html" not in branch_6_lower
     assert "call :safe_open" in branch_6_lower
+
+
+def test_run_step_usa_call_con_ruta_entrecomillada() -> None:
+    content = (ROOT / "menu_validacion.bat").read_text(encoding="utf-8").lower()
+    run_step = _branch(content, ":run_step")
+
+    assert 'call "%step_script%" %step_args%' in run_step
+    assert '[run_step] %step_name%: %step_cmd_display%' in run_step
+
+
+def test_error_branch_hace_pause() -> None:
+    content = (ROOT / "menu_validacion.bat").read_text(encoding="utf-8").lower()
+    err_branch = _branch(content, ":handle_step_error")
+
+    assert 'pause' in err_branch
