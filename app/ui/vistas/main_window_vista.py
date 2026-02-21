@@ -8,6 +8,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, Signal, Slot, QThread
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
     QBoxLayout,
     QCheckBox,
@@ -1255,20 +1256,30 @@ class MainWindow(QMainWindow):
         self._update_responsive_columns()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
-        submit_widgets = {
-            getattr(self, "persona_combo", None),
-            getattr(self, "fecha_input", None),
-            getattr(self, "desde_input", None),
-            getattr(self, "hasta_input", None),
-            getattr(self, "completo_check", None),
-            getattr(self, "notas_input", None),
-        }
-        if watched in submit_widgets and isinstance(event, QKeyEvent):
-            if event.key() in (Qt.Key_Return, Qt.Key_Enter) and event.modifiers() == Qt.NoModifier:
-                if self.primary_cta_button.isEnabled():
-                    self.primary_cta_button.click()
-                return True
-        return super().eventFilter(watched, event)
+        try:
+            submit_widgets = {
+                getattr(self, "persona_combo", None),
+                getattr(self, "fecha_input", None),
+                getattr(self, "desde_input", None),
+                getattr(self, "hasta_input", None),
+                getattr(self, "completo_check", None),
+                getattr(self, "notas_input", None),
+            }
+            if watched in submit_widgets and isinstance(event, QKeyEvent):
+                if event.key() in (Qt.Key_Return, Qt.Key_Enter) and event.modifiers() == Qt.NoModifier:
+                    if self.primary_cta_button.isEnabled():
+                        self.primary_cta_button.click()
+                    return True
+            return super().eventFilter(watched, event)
+        except Exception:
+            logger.exception(
+                "event_filter_failed",
+                extra={
+                    "watched": type(watched).__name__,
+                    "event_type": type(event).__name__,
+                },
+            )
+            return False
 
     def _normalize_input_heights(self) -> None:
         controls = [
