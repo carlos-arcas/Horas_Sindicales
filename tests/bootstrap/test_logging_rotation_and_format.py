@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 
-from app.bootstrap.logging import configure_logging
+from app.bootstrap.logging import CRASH_LOG_NAME, configure_logging
 
 
 MIN_FIELDS = {"timestamp", "level", "modulo", "funcion", "mensaje", "correlation_id"}
@@ -48,7 +48,7 @@ def test_crash_log_contains_exception_info(tmp_path) -> None:
     except ValueError:
         logger.exception("error al procesar")
 
-    crash_lines = (tmp_path / "crashes.log").read_text(encoding="utf-8").splitlines()
+    crash_lines = (tmp_path / CRASH_LOG_NAME).read_text(encoding="utf-8").splitlines()
     assert crash_lines
     crash_event = json.loads(crash_lines[-1])
     assert crash_event["level"] == "ERROR"
