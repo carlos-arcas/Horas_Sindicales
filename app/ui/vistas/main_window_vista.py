@@ -1630,10 +1630,13 @@ class MainWindow(QMainWindow):
         if callable(limpiar_formulario):
             try:
                 limpiar_formulario()
-                return
             except AttributeError:
                 # Fallback defensivo para entornos de inicialización parcial.
                 pass
+
+        persona_combo = getattr(self, "persona_combo", None)
+        if isinstance(persona_combo, QComboBox):
+            persona_combo.setCurrentIndex(-1)
 
         fecha_input = getattr(self, "fecha_input", None)
         if isinstance(fecha_input, QDateEdit):
@@ -1702,8 +1705,33 @@ class MainWindow(QMainWindow):
         )
 
     def _on_sync_with_confirmation(self) -> None:
-        """Alias legado: mantener compatibilidad con conexiones antiguas."""
-        self._sincronizar_con_confirmacion()
+        """Confirma sincronización y delega al controlador/UI workflow existente."""
+        result = QMessageBox.question(
+            self,
+            "Confirmar sincronización",
+            "¿Deseas iniciar la sincronización con Google Sheets ahora?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if result != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            if hasattr(self, "_sync_controller") and callable(getattr(self._sync_controller, "on_sync", None)):
+                self._sync_controller.on_sync()
+                return
+            if callable(getattr(self, "_on_sync", None)):
+                self._on_sync()
+                return
+            logger.warning("sync_workflow_not_available")
+            QMessageBox.information(
+                self,
+                "Sincronización",
+                "Función pendiente",
+            )
+        except Exception as exc:  # pragma: no cover - fallback defensivo UI
+            logger.exception("sync_workflow_failed")
+            QMessageBox.critical(self, "Sincronización", f"No se pudo iniciar la sincronización.\n\n{exc}")
 
     def _on_export_historico_pdf(self) -> None:
         """Alias estable para acciones de shell/header refactorizadas."""
@@ -1715,7 +1743,7 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "Exportación",
-            "No disponible aún.",
+            "Función pendiente",
         )
 
     def _normalize_input_heights(self) -> None:
