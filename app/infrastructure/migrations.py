@@ -13,7 +13,7 @@ from typing import Callable
 
 from app.bootstrap.logging import configure_logging
 from app.bootstrap.settings import resolve_log_dir
-from app.infrastructure.db import _default_db_path
+from app.infrastructure.db import _default_db_path, get_connection
 
 MigrationHook = Callable[[sqlite3.Connection], None]
 
@@ -243,8 +243,7 @@ def main() -> int:
     db_path = Path(args.db)
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    connection = sqlite3.connect(db_path)
-    connection.row_factory = sqlite3.Row
+    connection = get_connection(db_path)
     runner = MigrationRunner(connection)
 
     if args.command == "up":
