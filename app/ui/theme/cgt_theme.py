@@ -73,10 +73,16 @@ QPushButton[variant="ghost"] {{
 QPushButton[variant="ghost"]:hover {{
     background-color: #EFEFEF;
 }}
+QFrame#sidebar QPushButton {
+    text-align: left;
+    min-height: 52px;
+    padding: 10px 12px;
+}
 QFrame#sidebar QPushButton[active="true"] {{
     background-color: #F9E5E8;
     color: {COLOR_PRIMARY};
     border-color: #F0C4CB;
+    border-left: 3px solid {COLOR_PRIMARY};
     font-weight: 600;
 }}
 QLabel[role="secondary"] {{
