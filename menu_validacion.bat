@@ -232,7 +232,12 @@ if defined LAST_ERROR_REASON echo [ERROR] Motivo: %LAST_ERROR_REASON%
 echo [ERROR] Log stdout: %LAST_ERROR_STDOUT%
 echo [ERROR] Log stderr: %LAST_ERROR_STDERR%
 if exist "%LAST_ERROR_STDERR%" (
-    powershell -NoProfile -Command "Get-Content -Path '%LAST_ERROR_STDERR%' -TotalCount 40"
+    echo [ERROR] Preview stderr (primeras 40 lineas):
+    setlocal DisableDelayedExpansion
+    for /f "usebackq tokens=1,* delims=:" %%A in (`findstr /n "^" "%LAST_ERROR_STDERR%"`) do (
+        if %%A LEQ 40 echo(%%B
+    )
+    endlocal
 )
 set "PAUSE_ALREADY_DONE=1"
 pause
