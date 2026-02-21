@@ -28,6 +28,7 @@ set "LAST_ERROR_STDERR="
 set "LAST_ERROR_CMD="
 set "LAST_ERROR_EXIT="
 set "PAUSE_ALREADY_DONE=0"
+set "DEBUG_SANITY=0"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
 if not exist "%RUNS_DIR%" mkdir "%RUNS_DIR%" >nul 2>&1
@@ -127,11 +128,14 @@ if "%CHOICE%"=="6" (
 if "%CHOICE%"=="9" (
     set "LAST_ACTION=Debug self-test run_step"
     set "PAUSE_ALREADY_DONE=0"
+    set "DEBUG_SANITY=1"
     call :RUN_PREFLIGHT || (
+        set "DEBUG_SANITY=0"
         call :FINALIZE_ACTION
         goto MENU
     )
     call :RUN_DEBUG_SELF_TEST
+    set "DEBUG_SANITY=0"
     call :WRITE_SUMMARY
     call :PUBLISH_LAST_SUMMARY
     set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
@@ -197,11 +201,13 @@ exit /b 0
 set "STEP_NAME=%~1"
 set "STEP_SCRIPT=%~2"
 set "STEP_ARGS=%~3"
+if defined STEP_ARGS if "%STEP_ARGS:~0,1%"=="\"" if "%STEP_ARGS:~-1%"=="\"" set "STEP_ARGS=%STEP_ARGS:~1,-1%"
 set "STEP_STDOUT=%~4"
 set "STEP_STDERR=%~5"
 set "STEP_REASON=%~6"
 
-echo [RUN_STEP] %STEP_NAME%: "%STEP_SCRIPT%" %STEP_ARGS%
+set "CMDLINE=""%STEP_SCRIPT%"" %STEP_ARGS%"
+echo [RUN_STEP] %STEP_NAME%: %CMDLINE%
 
 call "%STEP_SCRIPT%" %STEP_ARGS% 1>"%STEP_STDOUT%" 2>"%STEP_STDERR%"
 set "STEP_EXIT=%ERRORLEVEL%"
@@ -209,7 +215,6 @@ set "STEP_EXIT=%ERRORLEVEL%"
 echo [RUN_STEP] %STEP_NAME% exit code: %STEP_EXIT%
 
 if not "%STEP_EXIT%"=="0" (
-    set "CMDLINE=%STEP_SCRIPT% %STEP_ARGS%"
     call :SET_ERROR_STATE "%STEP_NAME%" "!CMDLINE!" "%STEP_STDOUT%" "%STEP_STDERR%" "%STEP_EXIT%" "%STEP_REASON%"
     call :HANDLE_STEP_ERROR
     exit /b 1
@@ -242,6 +247,15 @@ if exist "%LAST_ERROR_STDERR%" (
             set /a ERR_LINE_COUNT+=1
         )
     )
+)
+if "%DEBUG_SANITY%"=="1" (
+    echo [DEBUG] Sanity error state:
+    echo [DEBUG] LAST_ERROR_STEP=%LAST_ERROR_STEP%
+    echo [DEBUG] LAST_ERROR_CMD=%LAST_ERROR_CMD%
+    echo [DEBUG] LAST_ERROR_EXIT=%LAST_ERROR_EXIT%
+    echo [DEBUG] LAST_ERROR_STDOUT=%LAST_ERROR_STDOUT%
+    echo [DEBUG] LAST_ERROR_STDERR=%LAST_ERROR_STDERR%
+    echo [DEBUG] LAST_ERROR_REASON=%LAST_ERROR_REASON%
 )
 set "PAUSE_ALREADY_DONE=1"
 pause
