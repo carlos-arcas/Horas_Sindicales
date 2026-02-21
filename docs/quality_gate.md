@@ -31,3 +31,14 @@ python scripts/coverage_summary.py --package app --threshold 85 --out-txt "logs\
 ```
 
 Este comando reutiliza `.coverage` si existe y exporta un resumen de texto legible para acción inmediata.
+
+## Paso `PRECHECK_UI` (smoke de MainWindow)
+
+`quality_gate.bat` ejecuta `python scripts/ui_main_window_smoke.py` antes de auditoría y pytest.
+
+- Inicializa Qt en modo `offscreen` para CI local (sin ventanas visibles).
+- Intenta construir `MainWindow` con un contenedor en memoria para validar wiring real de UI.
+- Si aparece un error operativo de wiring (`NameError`, `AttributeError`, `ImportError` o `TypeError` típico de signal/slot), el gate falla con salida corta:
+  - `SMOKE_UI_FAIL: <tipo> <mensaje> archivo:linea`
+- Además del resumen corto en consola, el detalle se registra en `error_operativo.log`.
+- Warnings benignos de Qt (por ejemplo, mensajes comunes de plataforma) se consideran `SMOKE_UI_WARN` y no bloquean el gate.
