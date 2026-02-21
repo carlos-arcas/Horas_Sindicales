@@ -35,7 +35,7 @@ if exist "%PYTHON_EXE%" (
 )
 
 if not defined PYTHON_CMD (
-    echo [ERROR] No se encontro Python (^".venv\\Scripts\\python.exe^", ^"py -3^" ni ^"python^"^).
+    echo [ERROR] No se encontro Python (^".venv\Scripts\python.exe^", ^"py -3^" ni ^"python^"^).
     call :log_debug "ERROR: No se encontro Python"
     exit /b 1
 )
@@ -87,17 +87,20 @@ if exist "requirements-dev.txt" (
     exit /b 1
 )
 
-python -m pytest --version >nul 2>> "%LOG_STDERR%"
-if errorlevel 1 (
-    echo [ERROR] pytest no esta instalado en .venv.
-    call :log_debug "ERROR: pytest no disponible"
-    exit /b 1
+python scripts/preflight_tests.py >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+if errorlevel 3 (
+    echo [ERROR] Preflight de tests fallo por error interno. Revisa logs.
+    call :log_debug "ERROR: preflight_tests.py error interno"
+    exit /b 3
 )
-
-python -m pytest --help | findstr /C:"--cov" >nul
+if errorlevel 2 (
+    echo [ERROR] Preflight de tests: faltan dependencias obligatorias (^"pytest-cov^" y/o ^"pytest^"^). Revisa logs.
+    call :log_debug "ERROR: preflight_tests.py dependencias faltantes"
+    exit /b 2
+)
 if errorlevel 1 (
-    echo [ERROR] pytest-cov no esta disponible en .venv.
-    call :log_debug "ERROR: pytest-cov no disponible"
+    echo [ERROR] Preflight de tests fallo.
+    call :log_debug "ERROR: preflight_tests.py fallo inesperado"
     exit /b 1
 )
 

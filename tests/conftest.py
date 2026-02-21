@@ -40,6 +40,7 @@ def _detect_ui_backend_issue() -> str | None:
 def pytest_configure(config: pytest.Config) -> None:
     global _UI_BACKEND_ERROR
     config.addinivalue_line("markers", "ui: tests de interfaz PySide6")
+    config.addinivalue_line("markers", "metrics: tests de métricas/calidad (radon opcional)")
     _UI_BACKEND_ERROR = _detect_ui_backend_issue()
 
 
