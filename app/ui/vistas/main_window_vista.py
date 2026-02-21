@@ -291,6 +291,16 @@ class MainWindow(QMainWindow):
         self.status_pending_label: QLabel | None = None
         self.saldos_card: SaldosCard | None = None
         self.horas_input: object | None = None
+        self.header_shell: QFrame | None = None
+        self.header_title_label: QLabel | None = None
+        self.header_state_badge: QLabel | None = None
+        self.header_sync_button: QPushButton | None = None
+        self.header_new_button: QPushButton | None = None
+        self.sidebar: QListWidget | None = None
+        self.stacked_pages: QStackedWidget | None = None
+        self.page_personas: QWidget | None = None
+        self.page_configuracion: QWidget | None = None
+        self.page_sincronizacion: QWidget | None = None
         self.toast = ToastManager()
         self.notifications = NotificationService(self.toast, self)
         self._personas_controller = PersonasController(self)
