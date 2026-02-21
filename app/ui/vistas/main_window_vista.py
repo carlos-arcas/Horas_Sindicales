@@ -432,6 +432,8 @@ class MainWindow(QMainWindow):
         self.main_tabs.setObjectName("mainTabs")
         self.main_tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.main_tabs.tabBar().hide()
+        # El header global vive en _build_shell_layout; no renderizamos un HeaderWidget
+        # dentro del contenido para evitar el efecto "ventana dentro de ventana".
         layout.addWidget(self.main_tabs, 1)
 
         operativa_tab = QWidget()

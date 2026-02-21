@@ -129,6 +129,15 @@ def main() -> int:
         header_title = getattr(window, "header_title_label", None)
         if header_title is None or header_title.text() != expected_title:
             raise AssertionError("El header externo no actualizó el título esperado tras navegar secciones")
+
+        # Guard-rail: el contenido no debe volver a montar un HeaderWidget interno.
+        header_module = importlib.import_module("app.ui.widgets.header")
+        header_widget_cls = getattr(header_module, "HeaderWidget")
+        content_page = getattr(window, "page_solicitudes", None)
+        search_root = content_page if content_page is not None else window
+        internal_headers = search_root.findChildren(header_widget_cls)
+        if internal_headers:
+            raise AssertionError("Se detectó HeaderWidget interno en la zona de contenido")
     except Exception as exc:  # pragma: no cover - fallo defensivo
         if "libGL.so.1" in str(exc):
             logger.warning("ui_import_fallback_ast: %s", exc)
