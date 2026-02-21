@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import json
 import traceback
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import cast
@@ -1235,13 +1235,13 @@ class MainWindow(QMainWindow):
         # Para juniors: en Qt, una señal (`clicked`) se conecta a un slot (método).
         # Usamos conexión segura por nombre para evitar que un refactor deje la UI rota
         # por un handler faltante al arrancar.
-        self._conectar_click_seguro(self.header_sync_button, "_sincronizar_con_confirmacion")
+        self._conectar_click_seguro(self.header_sync_button, "_on_sync_with_confirmation")
         header_top.addWidget(self.header_sync_button)
 
         self.header_new_button = PrimaryButton("Nueva solicitud")
         # Para juniors: este botón dispara un "reset" de vista, no lógica de negocio.
         # La vista sólo prepara estado UI y delega servicios/controladores cuando haga falta.
-        self._conectar_click_seguro(self.header_new_button, "_limpiar_formulario")
+        self._conectar_click_seguro(self.header_new_button, "_clear_form")
         header_top.addWidget(self.header_new_button)
 
         header_layout.addLayout(header_top)
@@ -1333,8 +1333,8 @@ class MainWindow(QMainWindow):
         # Para juniors: este guard-rail evita crashes al construir la vista si se renombra
         # un método conectado a señales sin actualizar todos los puntos.
         handlers_criticos = {
-            "header_sync_button": "_sincronizar_con_confirmacion",
-            "header_new_button": "_limpiar_formulario",
+            "header_sync_button": "_on_sync_with_confirmation",
+            "header_new_button": "_clear_form",
         }
         for boton_attr, handler_name in handlers_criticos.items():
             boton = getattr(self, boton_attr, None)
@@ -1376,7 +1376,11 @@ class MainWindow(QMainWindow):
         if self.page_resumen is None:
             return
         hoy = datetime.now().date()
-        solicitudes_hoy = sum(1 for item in self._pending_solicitudes if item.fecha == hoy)
+        solicitudes_hoy = sum(
+            1
+            for item in self._pending_solicitudes
+            if (fecha_solicitud := self._extraer_fecha_solicitud(item)) is not None and fecha_solicitud == hoy
+        )
         self.page_resumen.kpi_solicitudes_hoy.value_label.setText(str(solicitudes_hoy))
         self.page_resumen.kpi_pendientes.value_label.setText(str(len(self._pending_solicitudes)))
         last_sync = self._sync_service.get_last_sync_at()
@@ -1394,6 +1398,24 @@ class MainWindow(QMainWindow):
                 recientes.append(f"{solicitud.fecha_pedida} · {minutes_to_hhmm(solicitud.horas)}")
         self.page_resumen.set_recientes(recientes)
         self._update_global_context()
+
+    @staticmethod
+    def _extraer_fecha_solicitud(item: object) -> date | None:
+        for attr_name in ("fecha", "fecha_solicitud", "fecha_inicio", "fecha_desde"):
+            valor = getattr(item, attr_name, None)
+            if valor is None:
+                continue
+            if isinstance(valor, date):
+                return valor
+            if isinstance(valor, str):
+                texto = valor.strip()
+                if not texto:
+                    return None
+                try:
+                    return date.fromisoformat(texto)
+                except ValueError:
+                    return None
+        return None
 
     def _build_status_bar(self) -> None:
         status = QStatusBar(self)
