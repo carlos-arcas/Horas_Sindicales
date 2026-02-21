@@ -11,6 +11,8 @@ set "LAST_RUN_ID_FILE=%LOG_DIR%\menu_last_run_id.txt"
 set "ENV_SNAPSHOT_LEGACY=%REPO_ROOT%\logs\menu_tests_env.txt"
 set "TESTS_SCRIPT=%REPO_ROOT%\ejecutar_tests.bat"
 set "GATE_SCRIPT=%REPO_ROOT%\quality_gate.bat"
+set "PROJECT_DIR=D:\Proyecto Portfolio\Horas_Sindicales\Horas_Sindicales"
+if not exist "%PROJECT_DIR%\menu_validacion.bat" set "PROJECT_DIR=%REPO_ROOT%"
 
 rem Compat contract legacy checks:
 rem if not exist "%ROOT_DIR%ejecutar_tests.bat"
@@ -30,10 +32,11 @@ set "TESTS_EXEC=0"
 set "GATE_EXEC=0"
 set "RUN_DIR="
 set "RUN_ID="
+set "PAUSE_ALREADY_DONE=0"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
 if not exist "%RUNS_DIR%" mkdir "%RUNS_DIR%" >nul 2>&1
-cd /d "%REPO_ROOT%"
+cd /d "%PROJECT_DIR%"
 
 :MENU
 echo.
@@ -46,11 +49,13 @@ echo 3) Ejecutar ambos (tests + quality gate)
 echo 4) Abrir carpeta logs
 echo 5) Abrir el ultimo summary en Notepad
 echo 6) Abrir coverage html (index.html) del ultimo run
+echo 9) [debug] Self-test run_step con dummy_fail
 echo 0) Salir
 set /p "CHOICE=> "
 
 if "%CHOICE%"=="1" (
     set "LAST_ACTION=Ejecutar tests"
+    set "PAUSE_ALREADY_DONE=0"
     call :RUN_PREFLIGHT
     if errorlevel 1 (
         call :HANDLE_STEP_ERROR "preflight" "N/A" "%ENV_SNAPSHOT_LEGACY%" "%ENV_SNAPSHOT_LEGACY%" "%ERRORLEVEL%"
@@ -66,6 +71,7 @@ if "%CHOICE%"=="1" (
 )
 if "%CHOICE%"=="2" (
     set "LAST_ACTION=Ejecutar quality gate"
+    set "PAUSE_ALREADY_DONE=0"
     call :RUN_PREFLIGHT
     if errorlevel 1 (
         call :HANDLE_STEP_ERROR "preflight" "N/A" "%ENV_SNAPSHOT_LEGACY%" "%ENV_SNAPSHOT_LEGACY%" "%ERRORLEVEL%"
@@ -81,6 +87,7 @@ if "%CHOICE%"=="2" (
 )
 if "%CHOICE%"=="3" (
     set "LAST_ACTION=Ejecutar ambos"
+    set "PAUSE_ALREADY_DONE=0"
     call :RUN_PREFLIGHT
     if errorlevel 1 (
         call :HANDLE_STEP_ERROR "preflight" "N/A" "%ENV_SNAPSHOT_LEGACY%" "%ENV_SNAPSHOT_LEGACY%" "%ERRORLEVEL%"
@@ -120,12 +127,14 @@ if "%CHOICE%"=="3" (
     goto MENU
 )
 if "%CHOICE%"=="4" (
+    set "PAUSE_ALREADY_DONE=0"
     if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
     start "" "%LOG_DIR%"
     call :FINALIZE_ACTION
     goto MENU
 )
 if "%CHOICE%"=="5" (
+    set "PAUSE_ALREADY_DONE=0"
     if exist "%SUMMARY_FILE%" (
         start "" notepad "%SUMMARY_FILE%"
     ) else (
@@ -135,7 +144,24 @@ if "%CHOICE%"=="5" (
     goto MENU
 )
 if "%CHOICE%"=="6" (
+    set "PAUSE_ALREADY_DONE=0"
     call :OPEN_LAST_COVERAGE_HTML
+    call :FINALIZE_ACTION
+    goto MENU
+)
+if "%CHOICE%"=="9" (
+    set "LAST_ACTION=Debug self-test run_step"
+    set "PAUSE_ALREADY_DONE=0"
+    call :RUN_PREFLIGHT
+    if errorlevel 1 (
+        call :HANDLE_STEP_ERROR "preflight" "N/A" "%ENV_SNAPSHOT_LEGACY%" "%ENV_SNAPSHOT_LEGACY%" "%ERRORLEVEL%"
+        call :FINALIZE_ACTION
+        goto MENU
+    )
+    call :RUN_DEBUG_SELF_TEST
+    call :WRITE_SUMMARY
+    call :PUBLISH_LAST_SUMMARY
+    set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
     call :FINALIZE_ACTION
     goto MENU
 )
@@ -253,24 +279,36 @@ exit /b 0
 
 :run_step
 set "STEP_NAME=%~1"
-set "STEP_COMMAND=%~2"
+set "STEP_SCRIPT=%~2"
 set "STEP_STDOUT=%~3"
 set "STEP_STDERR=%~4"
-echo [RUN_STEP] !STEP_NAME!: !STEP_COMMAND!
->>"%RUN_SUMMARY%" echo CMD_!STEP_NAME!=!STEP_COMMAND!
->>"%RUN_SUMMARY%" echo LOG_STDOUT_!STEP_NAME!=!STEP_STDOUT!
->>"%RUN_SUMMARY%" echo LOG_STDERR_!STEP_NAME!=!STEP_STDERR!
-call !STEP_COMMAND! 1>>"!STEP_STDOUT!" 2>>"!STEP_STDERR!"
-set "STEP_EXIT=!ERRORLEVEL!"
-echo [RUN_STEP] !STEP_NAME! exit code: !STEP_EXIT!
-exit /b !STEP_EXIT!
+shift /4
+set "STEP_ARGS=%*"
+set "STEP_CMD_DISPLAY=call ""%STEP_SCRIPT%"""
+if defined STEP_ARGS set "STEP_CMD_DISPLAY=%STEP_CMD_DISPLAY% %STEP_ARGS%"
+echo [RUN_STEP] %STEP_NAME%: %STEP_CMD_DISPLAY%
+>>"%RUN_SUMMARY%" echo CMD_%STEP_NAME%=%STEP_CMD_DISPLAY%
+>>"%RUN_SUMMARY%" echo LOG_STDOUT_%STEP_NAME%=%STEP_STDOUT%
+>>"%RUN_SUMMARY%" echo LOG_STDERR_%STEP_NAME%=%STEP_STDERR%
+if not exist "%STEP_SCRIPT%" (
+    >>"%STEP_STDERR%" echo [ERROR] El sistema no puede encontrar la ruta especificada: "%STEP_SCRIPT%"
+    echo [RUN_STEP] %STEP_NAME% motivo: no existe el script "%STEP_SCRIPT%"
+    set "STEP_EXIT=1"
+    echo [RUN_STEP] %STEP_NAME% exit code: %STEP_EXIT%
+    exit /b %STEP_EXIT%
+)
+call "%STEP_SCRIPT%" %STEP_ARGS% 1>>"%STEP_STDOUT%" 2>>"%STEP_STDERR%"
+set "STEP_EXIT=%ERRORLEVEL%"
+if not "%STEP_EXIT%"=="0" echo [RUN_STEP] %STEP_NAME% motivo: revisar "%STEP_STDERR%"
+echo [RUN_STEP] %STEP_NAME% exit code: %STEP_EXIT%
+exit /b %STEP_EXIT%
 
 :RUN_TESTS
 set "TESTS_EXEC=1"
 set "TESTS_STATUS=NO_EJECUTADO"
 set "TESTS_CODE=NO_EJECUTADO"
-set "STEP_CMD=\"%TESTS_SCRIPT%\""
-call :run_step "tests" "%STEP_CMD%" "%TESTS_STDOUT%" "%TESTS_STDERR%"
+set "STEP_CMD=call ""%TESTS_SCRIPT%"""
+call :run_step "tests" "%TESTS_SCRIPT%" "%TESTS_STDOUT%" "%TESTS_STDERR%"
 set "TESTS_CODE=%ERRORLEVEL%"
 if "%TESTS_CODE%"=="0" (set "TESTS_STATUS=PASS") else (set "TESTS_STATUS=FAIL")
 if not "%TESTS_CODE%"=="0" call :HANDLE_STEP_ERROR "tests" "%STEP_CMD%" "%TESTS_STDOUT%" "%TESTS_STDERR%" "%TESTS_CODE%"
@@ -283,8 +321,8 @@ exit /b %TESTS_CODE%
 set "GATE_EXEC=1"
 set "GATE_STATUS=NO_EJECUTADO"
 set "GATE_CODE=NO_EJECUTADO"
-set "STEP_CMD=\"%GATE_SCRIPT%\""
-call :run_step "quality_gate" "%STEP_CMD%" "%GATE_STDOUT%" "%GATE_STDERR%"
+set "STEP_CMD=call ""%GATE_SCRIPT%"""
+call :run_step "quality_gate" "%GATE_SCRIPT%" "%GATE_STDOUT%" "%GATE_STDERR%"
 set "GATE_CODE=%ERRORLEVEL%"
 if "%GATE_CODE%"=="0" (set "GATE_STATUS=PASS") else (set "GATE_STATUS=FAIL")
 if not "%GATE_CODE%"=="0" call :HANDLE_STEP_ERROR "quality_gate" "%STEP_CMD%" "%GATE_STDOUT%" "%GATE_STDERR%" "%GATE_CODE%"
@@ -308,7 +346,25 @@ if defined RUN_SUMMARY (
     >>"%RUN_SUMMARY%" echo ERROR_CMD=!ERR_CMD!
     >>"%RUN_SUMMARY%" echo ERROR_EXIT_CODE=!ERR_CODE!
 )
+echo.
+echo ERROR: El paso "!ERR_STEP!" fallo con exit code !ERR_CODE!.
+echo Revisa: !ERR_STDERR!
+set "PAUSE_ALREADY_DONE=1"
+pause
 exit /b 0
+
+:RUN_DEBUG_SELF_TEST
+set "TESTS_EXEC=1"
+set "GATE_EXEC=0"
+set "TESTS_STATUS=NO_EJECUTADO"
+set "GATE_STATUS=NO_EJECUTADO"
+set "GATE_CODE=NO_EJECUTADO"
+set "DEBUG_DUMMY_FAIL=%REPO_ROOT%\scripts\bat\dummy_fail.bat"
+call :run_step "dummy_fail" "%DEBUG_DUMMY_FAIL%" "%TESTS_STDOUT%" "%TESTS_STDERR%"
+set "TESTS_CODE=%ERRORLEVEL%"
+if "%TESTS_CODE%"=="0" (set "TESTS_STATUS=PASS") else (set "TESTS_STATUS=FAIL")
+if not "%TESTS_CODE%"=="0" call :HANDLE_STEP_ERROR "dummy_fail" "call ""%DEBUG_DUMMY_FAIL%""" "%TESTS_STDOUT%" "%TESTS_STDERR%" "%TESTS_CODE%"
+exit /b %TESTS_CODE%
 
 :GENERATE_COVERAGE_ARTIFACTS
 if not exist "%REPO_ROOT%\.coverage" exit /b 0
@@ -424,7 +480,7 @@ exit /b 0
 :FINALIZE_ACTION
 call :PRINT_RESULTS
 echo Abre logs con la opcion 4.
-pause
+if not "%PAUSE_ALREADY_DONE%"=="1" pause
 exit /b 0
 
 :END
