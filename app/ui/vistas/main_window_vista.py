@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import json
 import traceback
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import cast
@@ -1225,13 +1225,13 @@ class MainWindow(QMainWindow):
         # Para juniors: en Qt, una señal (`clicked`) se conecta a un slot (método).
         # Usamos conexión segura por nombre para evitar que un refactor deje la UI rota
         # por un handler faltante al arrancar.
-        self._conectar_click_seguro(self.header_sync_button, "_sincronizar_con_confirmacion")
+        self._conectar_click_seguro(self.header_sync_button, "_on_sync_with_confirmation")
         header_layout.addWidget(self.header_sync_button)
 
         self.header_new_button = PrimaryButton("Nueva solicitud")
         # Para juniors: este botón dispara un "reset" de vista, no lógica de negocio.
         # La vista sólo prepara estado UI y delega servicios/controladores cuando haga falta.
-        self._conectar_click_seguro(self.header_new_button, "_limpiar_formulario")
+        self._conectar_click_seguro(self.header_new_button, "_clear_form")
         header_layout.addWidget(self.header_new_button)
 
         shell_layout.addWidget(self.header_shell)
@@ -1292,9 +1292,9 @@ class MainWindow(QMainWindow):
         shell_layout.addWidget(body, 1)
 
         self.stacked_pages.currentChanged.connect(self._sync_sidebar_state)
-        self.page_resumen.nueva_solicitud.connect(self._limpiar_formulario)
+        self.page_resumen.nueva_solicitud.connect(self._clear_form)
         self.page_resumen.ver_pendientes.connect(lambda: self._switch_sidebar_page(1))
-        self.page_resumen.sincronizar_ahora.connect(self._sincronizar_con_confirmacion)
+        self.page_resumen.sincronizar_ahora.connect(self._on_sync_with_confirmation)
         self.page_sincronizacion.configurar_credenciales.connect(self._on_open_opciones)
         self.page_configuracion.editar_grupo.connect(self._on_edit_grupo)
         self.page_historico.ver_solicitudes.connect(lambda: self._switch_sidebar_page(1))
@@ -1316,8 +1316,8 @@ class MainWindow(QMainWindow):
         # Para juniors: este guard-rail evita crashes al construir la vista si se renombra
         # un método conectado a señales sin actualizar todos los puntos.
         handlers_criticos = {
-            "header_sync_button": "_sincronizar_con_confirmacion",
-            "header_new_button": "_limpiar_formulario",
+            "header_sync_button": "_on_sync_with_confirmation",
+            "header_new_button": "_clear_form",
         }
         for boton_attr, handler_name in handlers_criticos.items():
             boton = getattr(self, boton_attr, None)
@@ -1354,7 +1354,11 @@ class MainWindow(QMainWindow):
         if self.page_resumen is None:
             return
         hoy = datetime.now().date()
-        solicitudes_hoy = sum(1 for item in self._pending_solicitudes if item.fecha == hoy)
+        solicitudes_hoy = sum(
+            1
+            for item in self._pending_solicitudes
+            if (fecha_solicitud := self._extraer_fecha_solicitud(item)) is not None and fecha_solicitud == hoy
+        )
         self.page_resumen.kpi_solicitudes_hoy.value_label.setText(str(solicitudes_hoy))
         self.page_resumen.kpi_pendientes.value_label.setText(str(len(self._pending_solicitudes)))
         last_sync = self._sync_service.get_last_sync_at()
@@ -1363,6 +1367,23 @@ class MainWindow(QMainWindow):
         else:
             self.page_resumen.kpi_ultima_sync.value_label.setText(self._format_timestamp(last_sync))
         self.page_resumen.kpi_saldo_restante.value_label.setText("No calculado")
+
+    @staticmethod
+    def _extraer_fecha_solicitud(item: object) -> date | None:
+        for atributo in ("fecha", "fecha_solicitud", "fecha_inicio", "fecha_desde"):
+            valor = getattr(item, atributo, None)
+            if valor is None:
+                continue
+            if isinstance(valor, datetime):
+                return valor.date()
+            if isinstance(valor, date):
+                return valor
+            if isinstance(valor, str):
+                try:
+                    return date.fromisoformat(valor)
+                except ValueError:
+                    continue
+        return None
 
     def _build_status_bar(self) -> None:
         status = QStatusBar(self)
