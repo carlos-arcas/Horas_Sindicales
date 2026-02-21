@@ -50,6 +50,9 @@ def test_auditoria_e2e_write_genera_reportes_canonicos(tmp_path: Path) -> None:
     assert "scorecard" in payload
     assert isinstance(payload["checks"], list)
 
+
+    assert not (tmp_path / "AUDITORIA.md").exists()
+    assert not (tmp_path / "auditoria.json").exists()
     markdown = (base / "AUDITORIA.md").read_text(encoding="utf-8")
     assert "Resultado global" in markdown
     assert "Backlog recomendado" in markdown
