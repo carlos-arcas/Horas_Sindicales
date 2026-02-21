@@ -6,6 +6,10 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 APP_ROOT = PROJECT_ROOT / "app"
+SPANISH_LAYER_ROOTS = {
+    "dominio": PROJECT_ROOT / "dominio",
+    "aplicacion": PROJECT_ROOT / "aplicacion",
+}
 
 ALLOWED_VIOLATIONS: set[tuple[str, str]] = set()
 
@@ -13,6 +17,17 @@ TECHNICAL_LIBRARIES_BLOCKED_IN_APPLICATION = {
     "sqlite3",
     "gspread",
     "googleapiclient",
+}
+
+LAYER_ALIASES = {
+    "domain": "domain",
+    "application": "application",
+    "infrastructure": "infrastructure",
+    "ui": "ui",
+    "dominio": "domain",
+    "aplicacion": "application",
+    "infraestructura": "infrastructure",
+    "presentacion": "ui",
 }
 
 
@@ -29,21 +44,23 @@ def _layer_from_file(path: Path) -> str | None:
     except ValueError:
         return None
 
-    if len(relative_parts) < 2 or relative_parts[0] != "app":
-        return None
+    if len(relative_parts) >= 2 and relative_parts[0] == "app":
+        return LAYER_ALIASES.get(relative_parts[1])
 
-    layer = relative_parts[1]
-    if layer in {"domain", "application", "infrastructure", "ui"}:
-        return layer
+    if relative_parts:
+        return LAYER_ALIASES.get(relative_parts[0])
+
     return None
 
 
 def _layer_from_module(module: str) -> str | None:
     parts = module.split(".")
     if len(parts) >= 2 and parts[0] == "app":
-        layer = parts[1]
-        if layer in {"domain", "application", "infrastructure", "ui"}:
-            return layer
+        return LAYER_ALIASES.get(parts[1])
+
+    if parts:
+        return LAYER_ALIASES.get(parts[0])
+
     return None
 
 
@@ -195,3 +212,35 @@ def test_application_pdf_and_infrastructure_boundary() -> None:
         "application no puede importar app.pdf ni app.infrastructure directamente. "
         "Use puertos en app.application.ports:\n" + "\n".join(violations)
     )
+
+
+def _iter_python_files_under(path: Path) -> list[Path]:
+    if not path.exists():
+        return []
+    return sorted(path.rglob("*.py"))
+
+
+def test_spanish_domain_does_not_import_infra_or_presentacion() -> None:
+    violations: list[str] = []
+    forbidden_prefixes = ("infraestructura", "presentacion", "app.infrastructure", "app.ui", "app.entrypoints")
+
+    for py_file in _iter_python_files_under(SPANISH_LAYER_ROOTS["dominio"]):
+        for record in _iter_imports(py_file):
+            imported = record.imported_module
+            if any(imported == prefix or imported.startswith(f"{prefix}.") for prefix in forbidden_prefixes):
+                violations.append(f"{record.source_file} -> {imported}")
+
+    assert not violations, "dominio no puede importar infraestructura/presentacion:\n" + "\n".join(violations)
+
+
+def test_spanish_application_does_not_import_infra_or_presentacion() -> None:
+    violations: list[str] = []
+    forbidden_prefixes = ("infraestructura", "presentacion", "app.infrastructure", "app.ui", "app.entrypoints")
+
+    for py_file in _iter_python_files_under(SPANISH_LAYER_ROOTS["aplicacion"]):
+        for record in _iter_imports(py_file):
+            imported = record.imported_module
+            if any(imported == prefix or imported.startswith(f"{prefix}.") for prefix in forbidden_prefixes):
+                violations.append(f"{record.source_file} -> {imported}")
+
+    assert not violations, "aplicacion no puede importar infraestructura/presentacion:\n" + "\n".join(violations)
