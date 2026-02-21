@@ -35,15 +35,10 @@ def test_main_window_layout_structure_sidebar_and_pages() -> None:
     )
 
     assert isinstance(window.stacked_pages, QStackedWidget)
-    assert window.stacked_pages.count() == 4
+    assert window.stacked_pages.count() == 2
 
     sidebar_buttons = [button.text() for button in window.sidebar.findChildren(QPushButton)]
-    assert sidebar_buttons[:4] == [
-        "Solicitudes",
-        "Sincronización",
-        "Configuración",
-        "Histórico",
-    ]
+    assert sidebar_buttons[:4] == ["Resumen", "Solicitudes", "Histórico", "Configuración"]
 
     window.close()
     app.processEvents()

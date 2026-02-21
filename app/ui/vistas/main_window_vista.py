@@ -303,6 +303,8 @@ class MainWindow(QMainWindow):
         self.header_state_badge: QLabel | None = None
         self.header_sync_button: QPushButton | None = None
         self.header_new_button: QPushButton | None = None
+        self.header_export_button: QPushButton | None = None
+        self.header_config_button: QPushButton | None = None
         self.sidebar: QFrame | None = None
         self.stacked_pages: QStackedWidget | None = None
         self.page_resumen: QWidget | None = None
@@ -1235,21 +1237,33 @@ class MainWindow(QMainWindow):
         self._conectar_click_seguro(self.header_new_button, "_clear_form")
         header_top.addWidget(self.header_new_button)
 
+        self.header_sync_button = SecondaryButton("Sync")
+        self._conectar_click_seguro(self.header_sync_button, "_on_sync_with_confirmation")
+        header_top.addWidget(self.header_sync_button)
+
+        self.header_export_button = SecondaryButton("Exportar")
+        self._conectar_click_seguro(self.header_export_button, "_on_export_historico_pdf")
+        header_top.addWidget(self.header_export_button)
+
+        self.header_config_button = SecondaryButton("Config")
+        self.header_config_button.clicked.connect(lambda: self._switch_sidebar_page(3))
+        header_top.addWidget(self.header_config_button)
+
         self.header_secondary_actions = QToolButton()
-        self.header_secondary_actions.setText("⋯")
+        self.header_secondary_actions.setText("Más")
         self.header_secondary_actions.setPopupMode(QToolButton.InstantPopup)
         self.header_secondary_actions.setToolButtonStyle(Qt.ToolButtonTextOnly)
         self.header_secondary_menu = QMenu(self.header_secondary_actions)
-        self.header_secondary_menu.addAction("Sincronizar ahora", self._on_sync_with_confirmation)
-        self.header_secondary_menu.addAction("Exportar histórico PDF", self._on_export_historico_pdf)
+        self.header_secondary_menu.addAction("Actualizar salud del sistema", self._refresh_health_and_alerts)
+        self.header_secondary_menu.addAction("Ver historial de sincronización", self._on_show_sync_history)
         self.header_secondary_menu.addSeparator()
-        self.header_secondary_menu.addAction("Abrir configuración", lambda: self._switch_sidebar_page(4))
+        self.header_secondary_menu.addAction("Abrir configuración", lambda: self._switch_sidebar_page(3))
         self.header_secondary_actions.setMenu(self.header_secondary_menu)
         header_top.addWidget(self.header_secondary_actions)
 
         header_layout.addLayout(header_top)
         self.contexto_trabajo_widget = ContextoTrabajoWidget(self.header_shell)
-        self.contexto_trabajo_widget.editar_clicked.connect(lambda: self._switch_sidebar_page(4))
+        self.contexto_trabajo_widget.editar_clicked.connect(lambda: self._switch_sidebar_page(3))
         self.contexto_trabajo_widget.delegada_cambiada.connect(self._on_persona_changed)
         header_layout.addWidget(self.contexto_trabajo_widget)
 
@@ -1260,51 +1274,14 @@ class MainWindow(QMainWindow):
         body_layout.setContentsMargins(16, 12, 16, 16)
         body_layout.setSpacing(16)
 
-        self.sidebar = QFrame()
-        self.sidebar.setObjectName("sidebar")
-        self.sidebar.setFixedWidth(220)
-        self.sidebar.setProperty("card", True)
-        sidebar_layout = QVBoxLayout(self.sidebar)
-        sidebar_layout.setContentsMargins(10, 12, 10, 12)
-        sidebar_layout.setSpacing(8)
-
-        sidebar_title = QLabel("Navegación")
-        sidebar_title.setProperty("role", "cardTitle")
-        sidebar_layout.addWidget(sidebar_title)
-
-        self.sidebar_buttons = []
-        sidebar_items = (
-            ("Resumen", "Visión diaria", 0, None),
-            ("Nueva solicitud", "Alta y pendientes", 1, 0),
-            ("Histórico", "Búsqueda y exportación", 1, 1),
-            ("Sincronización", "Estado y conflictos", 1, 3),
-            ("Configuración", "Ajustes generales", 1, 2),
-        )
-        self._sidebar_routes = []
-        for index, (title, subtitle, stack_index, tab_index) in enumerate(sidebar_items):
-            button = QPushButton(f"{title}\n{subtitle}")
-            button.setCheckable(True)
-            button.setProperty("variant", "ghost")
-            button.setProperty("sidebarItem", True)
-            button.setProperty("active", False)
-            button.clicked.connect(lambda _checked=False, page_index=index: self._switch_sidebar_page(page_index))
-            sidebar_layout.addWidget(button)
-            self.sidebar_buttons.append(button)
-            self._sidebar_routes.append({"stack_index": stack_index, "tab_index": tab_index})
-        sidebar_layout.addStretch(1)
+        self.sidebar = self._create_sidebar()
         body_layout.addWidget(self.sidebar)
 
-        self.stacked_pages = QStackedWidget()
-        self.stacked_pages.setObjectName("stacked_pages")
-
-        self.page_resumen = PaginaResumen()
-        self.page_solicitudes = PaginaSolicitudes(content_widget=self._scroll_area)
-
-        self.stacked_pages.addWidget(self.page_resumen)
-        self.stacked_pages.addWidget(self.page_solicitudes)
-
+        self.stacked_pages = self._create_pages_stack()
         body_layout.addWidget(self.stacked_pages, 1)
+
         shell_layout.addWidget(body, 1)
+
 
         self.page_resumen.nueva_solicitud.connect(self._limpiar_formulario)
         self.page_resumen.ver_pendientes.connect(lambda: self._switch_sidebar_page(1))
@@ -1314,6 +1291,52 @@ class MainWindow(QMainWindow):
         self._verificar_handlers_ui()
         self._switch_sidebar_page(0)
         self.setCentralWidget(shell)
+
+
+    def _create_sidebar(self) -> QFrame:
+        sidebar = QFrame()
+        sidebar.setObjectName("sidebar")
+        sidebar.setFixedWidth(220)
+        sidebar.setProperty("card", True)
+        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(10, 12, 10, 12)
+        sidebar_layout.setSpacing(8)
+
+        sidebar_title = QLabel("Navegación")
+        sidebar_title.setProperty("role", "cardTitle")
+        sidebar_layout.addWidget(sidebar_title)
+
+        self.sidebar_buttons = []
+        sidebar_items = (
+            ("Resumen", 0, None),
+            ("Solicitudes", 1, 0),
+            ("Histórico", 1, 1),
+            ("Configuración", 1, 2),
+        )
+        self._sidebar_routes = []
+        for index, (title, stack_index, tab_index) in enumerate(sidebar_items):
+            button = QPushButton(title)
+            button.setCheckable(True)
+            button.setProperty("variant", "ghost")
+            button.setProperty("sidebarItem", True)
+            button.setProperty("active", False)
+            button.clicked.connect(lambda _checked=False, page_index=index: self._switch_sidebar_page(page_index))
+            sidebar_layout.addWidget(button)
+            self.sidebar_buttons.append(button)
+            self._sidebar_routes.append({"stack_index": stack_index, "tab_index": tab_index})
+        sidebar_layout.addStretch(1)
+        return sidebar
+
+    def _create_pages_stack(self) -> QStackedWidget:
+        pages = QStackedWidget()
+        pages.setObjectName("stacked_pages")
+
+        self.page_resumen = PaginaResumen()
+        self.page_solicitudes = PaginaSolicitudes(content_widget=self._scroll_area)
+
+        pages.addWidget(self.page_resumen)
+        pages.addWidget(self.page_solicitudes)
+        return pages
 
     def _conectar_click_seguro(self, button: QPushButton, handler_name: str) -> None:
         handler = getattr(self, handler_name, None)
@@ -1376,10 +1399,9 @@ class MainWindow(QMainWindow):
     def _update_header_for_section(self, active_index: int) -> None:
         page_titles = {
             0: "Resumen",
-            1: "Nueva solicitud",
+            1: "Solicitudes",
             2: "Histórico",
-            3: "Sincronización",
-            4: "Configuración",
+            3: "Configuración",
         }
         if self.header_title_label is not None:
             self.header_title_label.setText(page_titles.get(active_index, "Horas Sindicales"))
