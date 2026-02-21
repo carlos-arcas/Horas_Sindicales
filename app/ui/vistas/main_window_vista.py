@@ -1372,8 +1372,63 @@ class MainWindow(QMainWindow):
         logger.info("formulario_limpiado")
 
     def _clear_form(self) -> None:
-        """Alias legado: mantener compatibilidad con conexiones antiguas."""
-        self._limpiar_formulario()
+        """Alias legado: mantener compatibilidad con conexiones antiguas.
+
+        Este método sólo debe tocar estado UI; no ejecuta lógica de negocio.
+        Incluye guard clauses para que sea seguro en escenarios de tests donde
+        parte de la vista aún no esté completamente inicializada.
+        """
+        limpiar_formulario = getattr(self, "_limpiar_formulario", None)
+        if callable(limpiar_formulario):
+            try:
+                limpiar_formulario()
+                return
+            except AttributeError:
+                # Fallback defensivo para entornos de inicialización parcial.
+                pass
+
+        fecha_input = getattr(self, "fecha_input", None)
+        if isinstance(fecha_input, QDateEdit):
+            fecha_input.setDate(QDate.currentDate())
+
+        desde_input = getattr(self, "desde_input", None)
+        if isinstance(desde_input, QTimeEdit):
+            desde_input.setTime(QTime(9, 0))
+
+        hasta_input = getattr(self, "hasta_input", None)
+        if isinstance(hasta_input, QTimeEdit):
+            hasta_input.setTime(QTime(17, 0))
+
+        completo_check = getattr(self, "completo_check", None)
+        if isinstance(completo_check, QCheckBox):
+            completo_check.setChecked(False)
+
+        notas_input = getattr(self, "notas_input", None)
+        if isinstance(notas_input, QPlainTextEdit):
+            notas_input.clear()
+
+        for attr_name in ("_field_touched", "_blocking_errors", "_warnings"):
+            state = getattr(self, attr_name, None)
+            if hasattr(state, "clear"):
+                state.clear()
+
+        for label_name in (
+            "solicitud_inline_error",
+            "delegada_field_error",
+            "fecha_field_error",
+            "tramo_field_error",
+        ):
+            label = getattr(self, label_name, None)
+            if isinstance(label, QLabel):
+                label.setVisible(False)
+
+        update_preview = getattr(self, "_update_solicitud_preview", None)
+        if callable(update_preview):
+            update_preview()
+
+        update_actions = getattr(self, "_update_action_state", None)
+        if callable(update_actions):
+            update_actions()
 
     def _sincronizar_con_confirmacion(self) -> None:
         result = QMessageBox.question(
