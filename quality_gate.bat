@@ -69,6 +69,24 @@ if errorlevel 1 (
     goto INTERNAL_ERROR
 )
 
+call :log_debug "Paso PRECHECK: preflight tests"
+python scripts/preflight_tests.py >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+if errorlevel 3 (
+    set "FAIL_STEP=PRECHECK_INTERNO"
+    call :log_debug "FAIL: PRECHECK_INTERNO"
+    goto INTERNAL_ERROR
+)
+if errorlevel 2 (
+    set "FAIL_STEP=PRECHECK_DEPS"
+    call :log_debug "FAIL: PRECHECK_DEPS"
+    goto GATE_FAIL
+)
+if errorlevel 1 (
+    set "FAIL_STEP=PRECHECK"
+    call :log_debug "FAIL: PRECHECK"
+    goto GATE_FAIL
+)
+
 call :log_debug "Paso A: Auditoria E2E dry-run"
 python -m app.entrypoints.cli_auditoria --dry-run >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
 if errorlevel 1 (

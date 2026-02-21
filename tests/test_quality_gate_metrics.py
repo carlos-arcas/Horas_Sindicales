@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from radon.complexity import cc_visit
-from radon.raw import analyze
+from importlib import import_module
+
+import pytest
 
 from app.configuracion.calidad import (
     EXCEPCIONES_CC,
@@ -81,7 +82,16 @@ def _format_cc_violations(violations: list[CcViolation]) -> str:
     return "\n".join(lines)
 
 
+@pytest.mark.metrics
 def test_quality_gate_size_and_complexity() -> None:
+    pytest.importorskip(
+        "radon",
+        reason="Métricas de complejidad requieren la dependencia dev opcional 'radon'.",
+        exc_type=ImportError,
+    )
+    cc_visit = import_module("radon.complexity").cc_visit
+    analyze = import_module("radon.raw").analyze
+
     root = Path(__file__).resolve().parents[1]
     loc_violations: list[LocViolation] = []
     cc_violations: list[CcViolation] = []
