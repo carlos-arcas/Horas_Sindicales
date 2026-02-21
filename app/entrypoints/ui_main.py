@@ -9,6 +9,9 @@ from app.ui.estilos.apply_theme import aplicar_tema
 from app.ui.theme import build_stylesheet
 
 
+_SHOWING_FATAL_ERROR_DIALOG = False
+
+
 def construir_mensaje_error_ui(incident_id: str) -> str:
     return f"Ha ocurrido un error inesperado.\nID de incidente: {incident_id}"
 
@@ -20,15 +23,22 @@ def manejar_excepcion_ui(
 ) -> str:
     from PySide6.QtWidgets import QApplication, QMessageBox
 
+    global _SHOWING_FATAL_ERROR_DIALOG
+
     incident_id = manejar_excepcion_global(exc_type, exc_value, exc_traceback)
     app = QApplication.instance()
     if app is None:
         return incident_id
+    if _SHOWING_FATAL_ERROR_DIALOG:
+        return incident_id
     try:
+        _SHOWING_FATAL_ERROR_DIALOG = True
         QMessageBox.critical(None, "Error inesperado", construir_mensaje_error_ui(incident_id))
     except Exception:
         # Respaldo: evitar un segundo crash al intentar pintar un diálogo de error.
         pass
+    finally:
+        _SHOWING_FATAL_ERROR_DIALOG = False
     return incident_id
 
 
