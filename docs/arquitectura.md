@@ -49,6 +49,15 @@ Cadena canónica de dependencias:
 - El proyecto sigue una arquitectura por capas pragmática, no una Clean Architecture estricta.
 - Existen integraciones con SQLite y Google Sheets aisladas mayormente en infraestructura.
 - La trazabilidad operativa se centraliza mediante eventos estructurados con `correlation_id`.
+- `app/` continúa siendo la implementación actual (sin renombres masivos en esta etapa).
+- `dominio/`, `aplicacion/`, `infraestructura/` y `presentacion/` funcionan como paquetes puente de compatibilidad que reexportan desde `app/`.
+
+### Estrategia de transición (sin big-bang)
+
+1. Mantener `app/` estable como fuente real mientras se evita romper entrypoints y scripts existentes.
+2. Exponer nuevas rutas de import en español mediante wrappers (`dominio`, `aplicacion`, `infraestructura`, `presentacion`).
+3. Redirigir gradualmente módulos nuevos hacia los paquetes en español, sin mover cientos de archivos de una sola vez.
+4. Una vez estabilizado el repositorio, planificar el movimiento físico definitivo hacia carpetas en español.
 
 ## Verificación automática relacionada
 
