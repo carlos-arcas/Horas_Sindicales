@@ -49,3 +49,18 @@ Los tests UI pueden requerir entorno gráfico o modo `offscreen` según platafor
 ## Pendiente de completar
 
 - Pendiente de completar matriz de tiempos objetivo por tipo de suite (smoke, unit, integración, UI).
+
+## Validación total: quality_gate.bat
+
+Para una validación "Nivel 4" con un único comando en Windows:
+
+```bat
+quality_gate.bat
+```
+
+El script realiza, en orden:
+1. Preparación de `.venv` e instalación de `requirements-dev.txt`.
+2. Auditoría E2E en modo dry-run: `python -m app.entrypoints.cli_auditoria --dry-run`.
+3. Tests con cobertura y umbral mínimo: `pytest --cov=. --cov-report=term-missing --cov-fail-under=85`.
+
+También genera logs en `logs\quality_gate_stdout.log`, `logs\quality_gate_stderr.log` y `logs\quality_gate_debug.log`, e informa al final `QUALITY GATE: PASS` o `QUALITY GATE: FAIL`.
