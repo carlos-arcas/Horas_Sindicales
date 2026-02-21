@@ -32,6 +32,22 @@ def parse_hhmm(valor: str) -> int:
     return hm_to_minutes(horas, minutos)
 
 
-def minutes_to_hhmm(minutos: int) -> str:
-    horas, mins = minutes_to_hm(minutos)
+def _normalize_minutes_input(minutos: int | float) -> int:
+    """Normaliza entradas históricas que llegan en minutos u horas decimales.
+
+    Regla defensiva para compatibilidad UI/legacy:
+    - enteros -> se interpretan como minutos.
+    - flotantes <= 24 -> se interpretan como horas (p.ej. 1.5h => 90 min).
+    - flotantes > 24 -> se interpretan como minutos (p.ej. 90.0 min).
+    """
+    if isinstance(minutos, float):
+        if minutos <= 24:
+            return int(round(minutos * 60))
+        return int(round(minutos))
+    return int(minutos)
+
+
+def minutes_to_hhmm(minutos: int | float) -> str:
+    minutos_normalizados = _normalize_minutes_input(minutos)
+    horas, mins = minutes_to_hm(minutos_normalizados)
     return f"{horas:02d}:{mins:02d}"
