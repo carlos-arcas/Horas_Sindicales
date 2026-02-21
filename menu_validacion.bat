@@ -28,6 +28,8 @@ set "PATH_ERROR_TESTS=0"
 set "PATH_ERROR_GATE=0"
 set "TESTS_EXEC=0"
 set "GATE_EXEC=0"
+set "RUN_DIR="
+set "RUN_ID="
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
 if not exist "%RUNS_DIR%" mkdir "%RUNS_DIR%" >nul 2>&1
@@ -49,45 +51,78 @@ set /p "CHOICE=> "
 
 if "%CHOICE%"=="1" (
     set "LAST_ACTION=Ejecutar tests"
-    call :RUN_PREFLIGHT || goto MENU
+    call :RUN_PREFLIGHT
+    if errorlevel 1 (
+        call :HANDLE_STEP_ERROR "preflight" "N/A" "%ENV_SNAPSHOT_LEGACY%" "%ENV_SNAPSHOT_LEGACY%" "%ERRORLEVEL%"
+        call :FINALIZE_ACTION
+        goto MENU
+    )
     call :RUN_TESTS
     call :WRITE_SUMMARY
     call :PUBLISH_LAST_SUMMARY
-    call :PRINT_RESULTS
     set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
+    call :FINALIZE_ACTION
     goto MENU
 )
 if "%CHOICE%"=="2" (
     set "LAST_ACTION=Ejecutar quality gate"
-    call :RUN_PREFLIGHT || goto MENU
+    call :RUN_PREFLIGHT
+    if errorlevel 1 (
+        call :HANDLE_STEP_ERROR "preflight" "N/A" "%ENV_SNAPSHOT_LEGACY%" "%ENV_SNAPSHOT_LEGACY%" "%ERRORLEVEL%"
+        call :FINALIZE_ACTION
+        goto MENU
+    )
     call :RUN_GATE
     call :WRITE_SUMMARY
     call :PUBLISH_LAST_SUMMARY
-    call :PRINT_RESULTS
     set "SCRIPT_EXIT_CODE=!GATE_CODE!"
+    call :FINALIZE_ACTION
     goto MENU
 )
 if "%CHOICE%"=="3" (
     set "LAST_ACTION=Ejecutar ambos"
-    call :RUN_PREFLIGHT || goto MENU
-    call :RUN_TESTS
-    if not "!TESTS_CODE!"=="0" (
-        set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
-        call :WRITE_SUMMARY
-        call :PUBLISH_LAST_SUMMARY
-        call :PRINT_RESULTS
+    call :RUN_PREFLIGHT
+    if errorlevel 1 (
+        call :HANDLE_STEP_ERROR "preflight" "N/A" "%ENV_SNAPSHOT_LEGACY%" "%ENV_SNAPSHOT_LEGACY%" "%ERRORLEVEL%"
+        call :FINALIZE_ACTION
         goto MENU
     )
+    call :WRITE_MENU_ENV "PRE"
+    call :RUN_TESTS
+    if not "!TESTS_CODE!"=="0" (
+        set "CONTINUE_GATE="
+        echo Tests con fallo (exit !TESTS_CODE!).
+        set /p "CONTINUE_GATE=Continuar con quality gate? (Y/N): "
+        if /i not "!CONTINUE_GATE!"=="Y" (
+            call :WRITE_MENU_ENV "POST"
+            set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
+            call :WRITE_SUMMARY
+            call :PUBLISH_LAST_SUMMARY
+            call :FINALIZE_ACTION
+            goto MENU
+        )
+        echo Continuando con quality gate por confirmacion del usuario.
+    )
     call :RUN_GATE
-    set "SCRIPT_EXIT_CODE=!GATE_CODE!"
+    call :WRITE_MENU_ENV "POST"
+    if "!TESTS_CODE!"=="0" (
+        set "SCRIPT_EXIT_CODE=!GATE_CODE!"
+    ) else (
+        if "!GATE_CODE!"=="0" (
+            set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
+        ) else (
+            set "SCRIPT_EXIT_CODE=!GATE_CODE!"
+        )
+    )
     call :WRITE_SUMMARY
     call :PUBLISH_LAST_SUMMARY
-    call :PRINT_RESULTS
+    call :FINALIZE_ACTION
     goto MENU
 )
 if "%CHOICE%"=="4" (
     if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
     start "" "%LOG_DIR%"
+    call :FINALIZE_ACTION
     goto MENU
 )
 if "%CHOICE%"=="5" (
@@ -96,15 +131,18 @@ if "%CHOICE%"=="5" (
     ) else (
         echo No existe aun "%SUMMARY_FILE%".
     )
+    call :FINALIZE_ACTION
     goto MENU
 )
 if "%CHOICE%"=="6" (
     call :OPEN_LAST_COVERAGE_HTML
+    call :FINALIZE_ACTION
     goto MENU
 )
 if "%CHOICE%"=="0" goto END
 
 echo Opcion invalida. Intenta de nuevo.
+call :FINALIZE_ACTION
 goto MENU
 
 :RUN_PREFLIGHT
@@ -161,8 +199,6 @@ set "GATE_STDOUT=%RUN_DIR%\gate_stdout.txt"
 set "GATE_STDERR=%RUN_DIR%\gate_stderr.txt"
 set "COVERAGE_TXT=%RUN_DIR%\coverage_report.txt"
 set "COVERAGE_HTML_DIR=%RUN_DIR%\coverage_html"
-set "PYTEST_COV_TERM=%RUN_DIR%\pytest_cov_term.txt"
-set "PYTEST_COV_HTML=%RUN_DIR%\pytest_cov_html"
 set "RUN_JUNIT=%RUN_DIR%\junit.xml"
 >"%RUN_SUMMARY%" echo MENU VALIDACION - EJECUCION %RUN_ID%
 >>"%RUN_SUMMARY%" echo Fecha: %DATE% %TIME%
@@ -183,9 +219,7 @@ if not errorlevel 1 (
     exit /b 0
 )
 where py >nul 2>&1
-if not errorlevel 1 (
-    set "PYTHON_CMD=py -3"
-)
+if not errorlevel 1 set "PYTHON_CMD=py -3"
 exit /b 0
 
 :CAPTURE_ENV
@@ -194,12 +228,6 @@ exit /b 0
 >>"%RUN_ENV%" echo ROOT_DIR=%ROOT_DIR%
 >>"%RUN_ENV%" echo REPO_ROOT=%REPO_ROOT%
 >>"%RUN_ENV%" echo RUN_DIR=%RUN_DIR%
->>"%RUN_ENV%" echo.
->>"%RUN_ENV%" echo [cd]
-cd >>"%RUN_ENV%" 2>&1
->>"%RUN_ENV%" echo.
->>"%RUN_ENV%" echo [dir repo]
-dir "%REPO_ROOT%" >>"%RUN_ENV%" 2>&1
 >>"%RUN_ENV%" echo.
 >>"%RUN_ENV%" echo [where python]
 where python >>"%RUN_ENV%" 2>&1
@@ -212,34 +240,42 @@ python --version >>"%RUN_ENV%" 2>&1
 copy /y "%RUN_ENV%" "%ENV_SNAPSHOT_LEGACY%" >nul 2>&1
 exit /b 0
 
+:WRITE_MENU_ENV
+set "MENU_ENV_PHASE=%~1"
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
+>>"%ENV_SNAPSHOT_LEGACY%" echo [%MENU_ENV_PHASE%] Fecha=%DATE% %TIME%
+>>"%ENV_SNAPSHOT_LEGACY%" echo [%MENU_ENV_PHASE%] RUN_DIR=%RUN_DIR%
+>>"%ENV_SNAPSHOT_LEGACY%" echo [%MENU_ENV_PHASE%] LAST_ACTION=%LAST_ACTION%
+>>"%ENV_SNAPSHOT_LEGACY%" echo [%MENU_ENV_PHASE%] TESTS_CODE=%TESTS_CODE%
+>>"%ENV_SNAPSHOT_LEGACY%" echo [%MENU_ENV_PHASE%] GATE_CODE=%GATE_CODE%
+>>"%ENV_SNAPSHOT_LEGACY%" echo.
+exit /b 0
+
+:run_step
+set "STEP_NAME=%~1"
+set "STEP_COMMAND=%~2"
+set "STEP_STDOUT=%~3"
+set "STEP_STDERR=%~4"
+echo [RUN_STEP] !STEP_NAME!: !STEP_COMMAND!
+>>"%RUN_SUMMARY%" echo CMD_!STEP_NAME!=!STEP_COMMAND!
+>>"%RUN_SUMMARY%" echo LOG_STDOUT_!STEP_NAME!=!STEP_STDOUT!
+>>"%RUN_SUMMARY%" echo LOG_STDERR_!STEP_NAME!=!STEP_STDERR!
+call !STEP_COMMAND! 1>>"!STEP_STDOUT!" 2>>"!STEP_STDERR!"
+set "STEP_EXIT=!ERRORLEVEL!"
+echo [RUN_STEP] !STEP_NAME! exit code: !STEP_EXIT!
+exit /b !STEP_EXIT!
+
 :RUN_TESTS
 set "TESTS_EXEC=1"
 set "TESTS_STATUS=NO_EJECUTADO"
 set "TESTS_CODE=NO_EJECUTADO"
->>"%RUN_SUMMARY%" echo CMD_TESTS_CALL=call "%TESTS_SCRIPT%"
-
-call "%TESTS_SCRIPT%" 1>"%TESTS_STDOUT%" 2>"%TESTS_STDERR%"
+set "STEP_CMD=\"%TESTS_SCRIPT%\""
+call :run_step "tests" "%STEP_CMD%" "%TESTS_STDOUT%" "%TESTS_STDERR%"
 set "TESTS_CODE=%ERRORLEVEL%"
 if "%TESTS_CODE%"=="0" (set "TESTS_STATUS=PASS") else (set "TESTS_STATUS=FAIL")
-
+if not "%TESTS_CODE%"=="0" call :HANDLE_STEP_ERROR "tests" "%STEP_CMD%" "%TESTS_STDOUT%" "%TESTS_STDERR%" "%TESTS_CODE%"
 findstr /c:"El sistema no puede encontrar la ruta especificada." "%TESTS_STDERR%" >nul 2>&1
 if not errorlevel 1 set "PATH_ERROR_TESTS=1"
-
-findstr /i /c:"collected 0 items" "%TESTS_STDOUT%" >nul 2>&1
-if not errorlevel 1 (
-    >>"%RUN_SUMMARY%" echo ERROR_HUMANO=Pytest no encontro tests. Causa tipica: ruta mal entrecomillada o ejecucion desde directorio incorrecto. Ejecuta opcion 1 desde el menu o corre: pytest -q tests
-)
-
-findstr /i /c:"No data to report." "%TESTS_STDOUT%" >nul 2>&1
-if not errorlevel 1 (
-    >>"%RUN_SUMMARY%" echo ERROR_HUMANO=Coverage indico "No data to report". Revisa si pytest ejecuto tests reales.
-)
-
-findstr /i /c:"pytest_cov_html" "%TESTS_STDOUT%" >nul 2>&1
-if not errorlevel 1 (
-    >>"%RUN_SUMMARY%" echo ERROR_HUMANO=Se detecto ruta sospechosa para pytest_cov_html. Posible truncado por espacios o comillas.
-)
-
 call :GENERATE_COVERAGE_ARTIFACTS
 exit /b %TESTS_CODE%
 
@@ -247,24 +283,39 @@ exit /b %TESTS_CODE%
 set "GATE_EXEC=1"
 set "GATE_STATUS=NO_EJECUTADO"
 set "GATE_CODE=NO_EJECUTADO"
-
->>"%RUN_SUMMARY%" echo CMD_GATE_CALL=call "%GATE_SCRIPT%"
-call "%GATE_SCRIPT%" 1>"%GATE_STDOUT%" 2>"%GATE_STDERR%"
+set "STEP_CMD=\"%GATE_SCRIPT%\""
+call :run_step "quality_gate" "%STEP_CMD%" "%GATE_STDOUT%" "%GATE_STDERR%"
 set "GATE_CODE=%ERRORLEVEL%"
 if "%GATE_CODE%"=="0" (set "GATE_STATUS=PASS") else (set "GATE_STATUS=FAIL")
-
+if not "%GATE_CODE%"=="0" call :HANDLE_STEP_ERROR "quality_gate" "%STEP_CMD%" "%GATE_STDOUT%" "%GATE_STDERR%" "%GATE_CODE%"
 findstr /c:"El sistema no puede encontrar la ruta especificada." "%GATE_STDERR%" >nul 2>&1
 if not errorlevel 1 set "PATH_ERROR_GATE=1"
 exit /b %GATE_CODE%
 
+:HANDLE_STEP_ERROR
+set "ERR_STEP=%~1"
+set "ERR_CMD=%~2"
+set "ERR_STDOUT=%~3"
+set "ERR_STDERR=%~4"
+set "ERR_CODE=%~5"
+echo [ERROR] Paso fallido: !ERR_STEP!
+echo [ERROR] Comando ejecutado: !ERR_CMD!
+echo [ERROR] Exit code: !ERR_CODE!
+echo [ERROR] Log stdout: !ERR_STDOUT!
+echo [ERROR] Log stderr: !ERR_STDERR!
+if defined RUN_SUMMARY (
+    >>"%RUN_SUMMARY%" echo ERROR_STEP=!ERR_STEP!
+    >>"%RUN_SUMMARY%" echo ERROR_CMD=!ERR_CMD!
+    >>"%RUN_SUMMARY%" echo ERROR_EXIT_CODE=!ERR_CODE!
+)
+exit /b 0
+
 :GENERATE_COVERAGE_ARTIFACTS
 if not exist "%REPO_ROOT%\.coverage" exit /b 0
 if not defined PYTHON_CMD exit /b 0
-
 "%PYTHON_CMD%" -m coverage report -m >"%COVERAGE_TXT%" 2>&1
 if not exist "%COVERAGE_HTML_DIR%" mkdir "%COVERAGE_HTML_DIR%" >nul 2>&1
 "%PYTHON_CMD%" -m coverage html -d "%COVERAGE_HTML_DIR%" >>"%COVERAGE_TXT%" 2>&1
-
 if exist "%REPO_ROOT%\junit.xml" copy /y "%REPO_ROOT%\junit.xml" "%RUN_JUNIT%" >nul 2>&1
 if exist "%REPO_ROOT%\logs\junit.xml" copy /y "%REPO_ROOT%\logs\junit.xml" "%RUN_JUNIT%" >nul 2>&1
 exit /b 0
@@ -282,24 +333,11 @@ exit /b 0
 >>"%RUN_SUMMARY%" echo tests_stderr: logs\runs\%RUN_ID%\tests_stderr.txt
 >>"%RUN_SUMMARY%" echo gate_stdout: logs\runs\%RUN_ID%\gate_stdout.txt
 >>"%RUN_SUMMARY%" echo gate_stderr: logs\runs\%RUN_ID%\gate_stderr.txt
-
 if exist "%COVERAGE_TXT%" >>"%RUN_SUMMARY%" echo coverage_report: logs\runs\%RUN_ID%\coverage_report.txt
 if exist "%COVERAGE_HTML_DIR%\index.html" >>"%RUN_SUMMARY%" echo coverage_html: logs\runs\%RUN_ID%\coverage_html\index.html
-if exist "%PYTEST_COV_TERM%" >>"%RUN_SUMMARY%" echo pytest_cov_term: logs\runs\%RUN_ID%\pytest_cov_term.txt
-if exist "%PYTEST_COV_HTML%\index.html" >>"%RUN_SUMMARY%" echo pytest_cov_html: logs\runs\%RUN_ID%\pytest_cov_html\index.html
 if exist "%RUN_JUNIT%" >>"%RUN_SUMMARY%" echo junit: logs\runs\%RUN_ID%\junit.xml
-
-if "%PATH_ERROR_TESTS%"=="1" (
-    >>"%RUN_SUMMARY%" echo.
-    >>"%RUN_SUMMARY%" echo [PISTA] El mensaje "El sistema no puede encontrar la ruta especificada." se ha producido durante la ejecucion de ejecutar_tests.bat.
-    >>"%RUN_SUMMARY%" echo [PISTA] Revisa logs\runs\%RUN_ID%\tests_stderr.txt
-)
-if "%PATH_ERROR_GATE%"=="1" (
-    >>"%RUN_SUMMARY%" echo.
-    >>"%RUN_SUMMARY%" echo [PISTA] El mensaje "El sistema no puede encontrar la ruta especificada." se ha producido durante la ejecucion de quality_gate.bat.
-    >>"%RUN_SUMMARY%" echo [PISTA] Revisa logs\runs\%RUN_ID%\gate_stderr.txt
-)
-
+if "%PATH_ERROR_TESTS%"=="1" >>"%RUN_SUMMARY%" echo [PISTA] Ruta no encontrada en ejecutar_tests.bat. Revisa tests_stderr.
+if "%PATH_ERROR_GATE%"=="1" >>"%RUN_SUMMARY%" echo [PISTA] Ruta no encontrada en quality_gate.bat. Revisa gate_stderr.
 if "%TESTS_EXEC%"=="1" (
     >>"%RUN_SUMMARY%" echo.
     >>"%RUN_SUMMARY%" echo --- Extracto tests stderr (max 120) ---
@@ -310,14 +348,14 @@ if "%GATE_EXEC%"=="1" (
     >>"%RUN_SUMMARY%" echo --- Extracto gate stderr (max 120) ---
     call :APPEND_HEAD "%GATE_STDERR%" 120 "%RUN_SUMMARY%"
 )
-
 if exist "%RUN_ENV%" copy /y "%RUN_ENV%" "%ENV_SNAPSHOT_LEGACY%" >nul 2>&1
+if "%LAST_ACTION%"=="Ejecutar ambos" call :WRITE_MENU_ENV "POST"
 exit /b 0
 
 :PUBLISH_LAST_SUMMARY
 copy /y "%RUN_SUMMARY%" "%SUMMARY_FILE%" >nul 2>&1
 if errorlevel 1 (
-    echo [WARN] No se pudo actualizar "%SUMMARY_FILE%" ^(posible archivo bloqueado^).
+    echo [WARN] No se pudo actualizar "%SUMMARY_FILE%" (posible archivo bloqueado).
     echo [WARN] Revisa directamente "%RUN_SUMMARY%".
 )
 exit /b 0
@@ -335,43 +373,58 @@ for /f "usebackq tokens=1,* delims=:" %%A in (`findstr /n "^" "%SRC_FILE%"`) do 
 )
 exit /b 0
 
+:safe_open
+set "TARGET_FILE=%~1"
+if not exist "%TARGET_FILE%" (
+    echo [ERROR] No existe el archivo: "%TARGET_FILE%"
+    echo [INFO] coverage_html puede faltar si pytest/coverage fallo.
+    echo [INFO] Sugerencia: ejecuta opcion 1 o 3.
+    if defined RUN_SUMMARY >>"%RUN_SUMMARY%" echo SAFE_OPEN_MISSING=%TARGET_FILE%
+    exit /b 1
+)
+start "" "%TARGET_FILE%"
+exit /b 0
+
 :OPEN_LAST_COVERAGE_HTML
-if not exist "%LAST_RUN_ID_FILE%" (
-    echo No existe aun "%LAST_RUN_ID_FILE%".
+set "LAST_RUN_ID="
+for /f "delims=" %%D in ('dir /b /ad /o-n "%RUNS_DIR%" 2^>nul') do (
+    if not defined LAST_RUN_ID set "LAST_RUN_ID=%%D"
+)
+if not defined LAST_RUN_ID (
+    echo No hay ejecuciones en "%RUNS_DIR%".
+    echo Sugerencia: ejecuta opcion 1 o 3 para generar un run.
     exit /b 0
 )
-set "LAST_RUN_ID="
-set /p "LAST_RUN_ID=" < "%LAST_RUN_ID_FILE%"
-if not defined LAST_RUN_ID (
-    echo El archivo "%LAST_RUN_ID_FILE%" esta vacio.
-    exit /b 0
+set "LAST_SUMMARY_MD=%RUNS_DIR%\%LAST_RUN_ID%\summary.md"
+set "LAST_SUMMARY_JSON=%RUNS_DIR%\%LAST_RUN_ID%\summary.json"
+set "LAST_SUMMARY_TXT=%RUNS_DIR%\%LAST_RUN_ID%\summary.txt"
+if exist "%LAST_SUMMARY_MD%" (
+    echo Ultimo summary detectado: "%LAST_SUMMARY_MD%"
+) else if exist "%LAST_SUMMARY_JSON%" (
+    echo Ultimo summary detectado: "%LAST_SUMMARY_JSON%"
+) else (
+    echo Ultimo summary detectado: "%LAST_SUMMARY_TXT%"
 )
 set "LAST_COV_INDEX=%RUNS_DIR%\%LAST_RUN_ID%\coverage_html\index.html"
-if exist "%LAST_COV_INDEX%" (
-    start "" "%LAST_COV_INDEX%"
-) else (
-    echo No existe coverage html para el ultimo run.
-    echo 1) Ruta buscada: "%LAST_COV_INDEX%"
-    if exist "%RUNS_DIR%\%LAST_RUN_ID%\summary.txt" (
-        echo 2) Estado del ultimo run ^(summary^):
-        for /f "usebackq tokens=1,* delims=:" %%A in (`findstr /n "^" "%RUNS_DIR%\%LAST_RUN_ID%\summary.txt"`) do (
-            if %%A LEQ 20 echo    %%B
-        )
-    ) else (
-        echo 2) Estado del ultimo run: no existe summary en "%RUNS_DIR%\%LAST_RUN_ID%\summary.txt"
-    )
-    echo 3) Siguiente accion recomendada:
-    echo    - Ejecuta 1 ^(tests^) o 3 ^(ambos^) para generar coverage HTML.
-    echo    - Si ya ejecutaste, abre el ultimo summary ^(opcion 5^) y revisa si pytest corrio.
-)
+call :safe_open "%LAST_COV_INDEX%"
 exit /b 0
 
 :PRINT_RESULTS
 echo.
+if defined RUN_ID (
+    echo Resumen ultimo run: logs\runs\%RUN_ID%
+) else (
+    echo Resumen ultimo run: [sin run activo]
+)
 echo TESTS: %TESTS_STATUS% ^(exit %TESTS_CODE%^)
 echo QUALITY GATE: %GATE_STATUS% ^(exit %GATE_CODE%^)
-echo Run: logs\runs\%RUN_ID%
 echo Resumen: logs\menu_ultima_ejecucion.txt
+exit /b 0
+
+:FINALIZE_ACTION
+call :PRINT_RESULTS
+echo Abre logs con la opcion 4.
+pause
 exit /b 0
 
 :END
