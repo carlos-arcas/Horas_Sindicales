@@ -4,14 +4,19 @@ from __future__ import annotations
 import ast
 import importlib
 import logging
+import os
 import sys
+import traceback
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s event=%(message)s")
+from app.bootstrap.container import build_container
+from app.bootstrap.logging import configure_logging, log_operational_error
+
+configure_logging(ROOT / "logs", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 REQUIRED_HANDLERS = (
@@ -21,6 +26,19 @@ REQUIRED_HANDLERS = (
     "_clear_form",
     "_verificar_handlers_ui",
     "eventFilter",
+)
+
+FAIL_GATE_EXCEPTIONS = (NameError, AttributeError, ImportError)
+BENIGN_QT_WARNING_HINTS = (
+    "QStandardPaths: XDG_RUNTIME_DIR not set",
+    "This plugin does not support propagateSizeHints",
+)
+WIRING_TYPE_ERROR_HINTS = (
+    "connect",
+    "signal",
+    "slot",
+    "positional argument",
+    "unexpected keyword",
 )
 
 
@@ -40,25 +58,93 @@ def _validar_handlers_por_ast() -> int:
     return 1
 
 
+def _in_memory_connection():
+    import sqlite3
+
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def _format_exception_summary(exc: BaseException) -> str:
+    last_frame = traceback.extract_tb(exc.__traceback__)[-1] if exc.__traceback__ else None
+    if last_frame is None:
+        return f"SMOKE_UI_FAIL: {type(exc).__name__} {exc} archivo:linea N/D"
+    file_name = Path(last_frame.filename).name
+    return f"SMOKE_UI_FAIL: {type(exc).__name__} {exc} archivo:linea {file_name}:{last_frame.lineno}"
+
+
+def _is_wiring_type_error(exc: BaseException) -> bool:
+    if not isinstance(exc, TypeError):
+        return False
+    message = str(exc).lower()
+    return any(hint in message for hint in WIRING_TYPE_ERROR_HINTS)
+
+
+def _is_benign_qt_warning(exc: BaseException) -> bool:
+    message = str(exc)
+    return any(hint in message for hint in BENIGN_QT_WARNING_HINTS)
+
+
+def _should_fail_gate(exc: BaseException) -> bool:
+    if _is_benign_qt_warning(exc):
+        return False
+    if isinstance(exc, FAIL_GATE_EXCEPTIONS):
+        return True
+    if _is_wiring_type_error(exc):
+        return True
+    return True
+
+
 def main() -> int:
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     try:
-        module = importlib.import_module("app.ui.vistas.main_window_vista")
+        qt_widgets = importlib.import_module("PySide6.QtWidgets")
+        app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+        module = importlib.import_module("app.ui.main_window")
+        main_window_cls = getattr(module, "MainWindow", None)
+        if main_window_cls is None:
+            raise AttributeError("MainWindow no está definido en app.ui.main_window")
+
+        container = build_container(connection_factory=_in_memory_connection)
+        window = main_window_cls(
+            container.persona_use_cases,
+            container.solicitud_use_cases,
+            container.grupo_use_cases,
+            container.sheets_service,
+            container.sync_service,
+            container.conflicts_service,
+            health_check_use_case=None,
+            alert_engine=container.alert_engine,
+        )
+        app.processEvents()
     except Exception as exc:  # pragma: no cover - fallo defensivo
         if "libGL.so.1" in str(exc):
             logger.warning("ui_import_fallback_ast: %s", exc)
             return _validar_handlers_por_ast()
-        logger.exception("ui_import_failed: %s", exc)
-        return 1
+        log_operational_error(
+            logger,
+            "ui_main_window_smoke_failed",
+            exc=sys.exc_info(),
+            extra={"script": "ui_main_window_smoke.py", "error_type": type(exc).__name__},
+        )
+        if _should_fail_gate(exc):
+            print(_format_exception_summary(exc))
+            return 1
+        print(f"SMOKE_UI_WARN: {type(exc).__name__} {exc}")
+        return 0
 
-    main_window_cls = getattr(module, "MainWindow", None)
-    if main_window_cls is None:
-        logger.error("main_window_class_missing")
-        return 1
-
-    missing = [name for name in REQUIRED_HANDLERS if not callable(getattr(main_window_cls, name, None))]
+    missing = [name for name in REQUIRED_HANDLERS if not callable(getattr(type(window), name, None))]
     if missing:
-        logger.error("missing_handlers: %s", ", ".join(missing))
+        message = f"Missing handlers: {', '.join(missing)}"
+        log_operational_error(logger, "ui_main_window_smoke_missing_handlers", exc=AttributeError(message))
+        print(f"SMOKE_UI_FAIL: AttributeError {message} archivo:linea ui_main_window_smoke.py:0")
+        window.close()
+        app.processEvents()
         return 1
+
+    window.close()
+    app.processEvents()
 
     logger.info("ui_main_window_smoke_ok")
     return 0
