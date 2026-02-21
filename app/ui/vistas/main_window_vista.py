@@ -1287,6 +1287,10 @@ class MainWindow(QMainWindow):
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
         try:
+            if watched is None or event is None:
+                return False
+            if not isinstance(event, QEvent):
+                return super().eventFilter(watched, event)
             submit_widgets = {
                 getattr(self, "persona_combo", None),
                 getattr(self, "fecha_input", None),
@@ -1310,6 +1314,19 @@ class MainWindow(QMainWindow):
                 },
             )
             return False
+
+    def _on_sync_with_confirmation(self) -> None:
+        result = QMessageBox.question(
+            self,
+            "Confirmar sincronización",
+            "¿Deseas iniciar la sincronización con Google Sheets ahora?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if result != QMessageBox.StandardButton.Yes:
+            return
+
+        self._on_sync()
 
     def _normalize_input_heights(self) -> None:
         controls = [

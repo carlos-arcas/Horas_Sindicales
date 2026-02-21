@@ -33,6 +33,8 @@ def test_main_window_smoke_initialization() -> None:
 
     assert window.persona_combo is not None
     assert isinstance(window.isVisible(), bool)
+    assert hasattr(window, "_on_sync_with_confirmation")
+    assert callable(window._on_sync_with_confirmation)
 
     window.close()
     app.processEvents()
