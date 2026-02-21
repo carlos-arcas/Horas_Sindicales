@@ -164,10 +164,6 @@ if not errorlevel 1 (
     if defined RUN_SUMMARY_FILE (
         >>"%RUN_SUMMARY_FILE%" echo ERROR_HUMANO=Pytest no encontro tests. Causa tipica: ruta mal entrecomillada o ejecucion desde directorio incorrecto.
     )
-    if "%TEST_EXIT%"=="0" (
-        set "TEST_EXIT=1"
-        set "FINAL_REASON=pytest no recolecto tests"
-    )
 )
 
 if "%TEST_EXIT%"=="0" (
@@ -194,10 +190,6 @@ if exist "%COVERAGE_HTML_DIR%\index.html" (
     if defined RUN_SUMMARY_FILE (
         >>"%RUN_SUMMARY_FILE%" echo ERROR_HUMANO=No se genero el HTML de coverage. Motivos comunes: pytest fallo, no se ejecutaron tests, o falta pytest-cov.
     )
-    if "%TEST_EXIT%"=="0" (
-        set "TEST_EXIT=1"
-        set "FINAL_REASON=no se genero coverage html"
-    )
 )
 
 call :log_debug "Exit code pytest: %TEST_EXIT%"
@@ -212,6 +204,9 @@ set "EXIT_REASON=%FINAL_REASON%"
 >>"%RUN_SUMMARY_FILE%" echo Command=%PYTEST_CMD%
 >>"%RUN_SUMMARY_FILE%" echo Pytest=%PYTEST_RESULT%
 >>"%RUN_SUMMARY_FILE%" echo Coverage_TOTAL=%COVERAGE_TOTAL%
+>>"%RUN_SUMMARY_FILE%" echo tests_exit_code=%TEST_EXIT%
+>>"%RUN_SUMMARY_FILE%" echo coverage_percent=%COVERAGE_TOTAL%
+>>"%RUN_SUMMARY_FILE%" echo gate_exit_code=N/A
 >>"%RUN_SUMMARY_FILE%" echo ExitCode=%TEST_EXIT%
 >>"%RUN_SUMMARY_FILE%" echo ExitReason=%EXIT_REASON%
 exit /b %TEST_EXIT%

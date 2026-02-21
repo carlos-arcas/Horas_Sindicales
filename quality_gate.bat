@@ -10,6 +10,8 @@ if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 set "LOG_STDOUT=%LOG_DIR%\quality_gate_stdout.log"
 set "LOG_STDERR=%LOG_DIR%\quality_gate_stderr.log"
 set "LOG_DEBUG=%LOG_DIR%\quality_gate_debug.log"
+set "RUN_SUMMARY_FILE=%LOG_DIR%\quality_gate_summary.txt"
+if defined RUN_DIR set "RUN_SUMMARY_FILE=%RUN_DIR%\quality_gate_summary.txt"
 set "MIN_COVERAGE=85"
 set "COVERAGE_TMP=%LOG_DIR%\quality_gate_coverage.txt"
 
@@ -17,6 +19,9 @@ call :log_debug "==== quality_gate.bat ===="
 call :log_debug "Repositorio: %ROOT_DIR%"
 
 set "FAIL_STEP="
+set "FAIL_REASON="
+set "CURRENT_COVERAGE=N/D"
+set "CURRENT_COVERAGE_INT="
 set "PYTHON_CMD="
 set "PYTHON_EXE=.venv\Scripts\python.exe"
 
@@ -111,8 +116,6 @@ set "PYTEST_CMD=python -m pytest -q tests --cov=app --cov-report=term-missing --
 %PYTEST_CMD% >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
 set "PYTEST_EXIT=%ERRORLEVEL%"
 
-set "CURRENT_COVERAGE=N/D"
-set "CURRENT_COVERAGE_INT="
 if exist ".coverage" (
     python -m coverage report -m > "%COVERAGE_TMP%" 2>> "%LOG_STDERR%"
     for /f "tokens=4" %%P in ('findstr /r /c:"^TOTAL[ ]" "%COVERAGE_TMP%"') do set "CURRENT_COVERAGE=%%P"
@@ -149,23 +152,41 @@ if defined CURRENT_COVERAGE_INT if %CURRENT_COVERAGE_INT% LSS %MIN_COVERAGE% (
 
 set "FAIL_REASON=MIN_COVERAGE=%MIN_COVERAGE%, current=%CURRENT_COVERAGE% => PASS"
 >> "%LOG_STDOUT%" echo [QUALITY] %FAIL_REASON%
+>> "%LOG_STDOUT%" echo [QUALITY] tests_exit_code=%PYTEST_EXIT% coverage_percent=%CURRENT_COVERAGE% gate_exit_code=0
 echo QUALITY GATE: PASS
 goto END_OK
 
 :GATE_FAIL
+>> "%LOG_STDOUT%" echo [QUALITY] tests_exit_code=%PYTEST_EXIT% coverage_percent=%CURRENT_COVERAGE% gate_exit_code=2
 echo QUALITY GATE: FAIL
 if defined FAIL_STEP echo Paso con fallo: %FAIL_STEP%
 if defined FAIL_REASON echo %FAIL_REASON%
+call :write_summary 2
 exit /b 2
 
 :INTERNAL_ERROR
+>> "%LOG_STDOUT%" echo [QUALITY] tests_exit_code=%PYTEST_EXIT% coverage_percent=%CURRENT_COVERAGE% gate_exit_code=3
 echo QUALITY GATE: FAIL
 if not defined FAIL_STEP echo Paso con fallo: INTERNO
+call :write_summary 3
 exit /b 3
 
 :END_OK
+call :write_summary 0
 exit /b 0
 
 :log_debug
 echo [%date% %time%] %~1>> "%LOG_DEBUG%"
+exit /b 0
+
+:write_summary
+set "GATE_EXIT=%~1"
+>"%RUN_SUMMARY_FILE%" echo ==== quality_gate summary ====
+>>"%RUN_SUMMARY_FILE%" echo Fecha: %DATE% %TIME%
+>>"%RUN_SUMMARY_FILE%" echo min_coverage=%MIN_COVERAGE%
+>>"%RUN_SUMMARY_FILE%" echo fail_step=%FAIL_STEP%
+>>"%RUN_SUMMARY_FILE%" echo fail_reason=%FAIL_REASON%
+>>"%RUN_SUMMARY_FILE%" echo tests_exit_code=%PYTEST_EXIT%
+>>"%RUN_SUMMARY_FILE%" echo coverage_percent=%CURRENT_COVERAGE%
+>>"%RUN_SUMMARY_FILE%" echo gate_exit_code=%GATE_EXIT%
 exit /b 0
