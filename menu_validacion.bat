@@ -195,20 +195,21 @@ exit /b 0
 
 :run_step
 set "STEP_NAME=%~1"
-set "STEP_CMD=%~2"
-set "STEP_STDOUT=%~3"
-set "STEP_STDERR=%~4"
-set "STEP_REASON=%~5"
+set "STEP_SCRIPT=%~2"
+set "STEP_ARGS=%~3"
+set "STEP_STDOUT=%~4"
+set "STEP_STDERR=%~5"
+set "STEP_REASON=%~6"
 
-echo [RUN_STEP] %STEP_NAME%: %STEP_CMD%
+echo [RUN_STEP] %STEP_NAME%: "%STEP_SCRIPT%" %STEP_ARGS%
 
-cmd /v:on /c "%STEP_CMD%" 1>"%STEP_STDOUT%" 2>"%STEP_STDERR%"
+call "%STEP_SCRIPT%" %STEP_ARGS% 1>"%STEP_STDOUT%" 2>"%STEP_STDERR%"
 set "STEP_EXIT=%ERRORLEVEL%"
 
 echo [RUN_STEP] %STEP_NAME% exit code: %STEP_EXIT%
 
 if not "%STEP_EXIT%"=="0" (
-    call :SET_ERROR_STATE "%STEP_NAME%" "%STEP_CMD%" "%STEP_STDOUT%" "%STEP_STDERR%" "%STEP_EXIT%" "%STEP_REASON%"
+    call :SET_ERROR_STATE "%STEP_NAME%" "\"%STEP_SCRIPT%\" %STEP_ARGS%" "%STEP_STDOUT%" "%STEP_STDERR%" "%STEP_EXIT%" "%STEP_REASON%"
     call :HANDLE_STEP_ERROR
     exit /b 1
 )
@@ -232,9 +233,13 @@ if defined LAST_ERROR_REASON echo [ERROR] Motivo: %LAST_ERROR_REASON%
 echo [ERROR] Log stdout: %LAST_ERROR_STDOUT%
 echo [ERROR] Log stderr: %LAST_ERROR_STDERR%
 if exist "%LAST_ERROR_STDERR%" (
-    echo [ERROR] Primeras 40 lineas de stderr:
-    for /f "usebackq tokens=1,* delims=:" %%A in (`findstr /n "^" "%LAST_ERROR_STDERR%"`) do (
-        if %%A LEQ 40 echo %%B
+    echo [ERROR] Primeras 60 lineas de stderr:
+    set /a ERR_LINE_COUNT=0
+    for /f "usebackq delims=" %%L in (`more +0 "%LAST_ERROR_STDERR%"`) do (
+        if !ERR_LINE_COUNT! LSS 60 (
+            echo %%L
+            set /a ERR_LINE_COUNT+=1
+        )
     )
 )
 set "PAUSE_ALREADY_DONE=1"
@@ -244,20 +249,20 @@ exit /b 0
 :RUN_TESTS
 set "TESTS_STATUS=NO_EJECUTADO"
 set "TESTS_CODE=NO_EJECUTADO"
-set "TEST_CMD=call ""%TESTS_SCRIPT%"""
-call :run_step "tests" "%TEST_CMD%" "%TESTS_STDOUT%" "%TESTS_STDERR%" "Fallo en ejecutar_tests.bat"
+call :run_step "tests" "%TESTS_SCRIPT%" "" "%TESTS_STDOUT%" "%TESTS_STDERR%" "Fallo en ejecutar_tests.bat"
 if errorlevel 1 (
     set "TESTS_STATUS=FAIL"
     set "TESTS_CODE=%LAST_ERROR_EXIT%"
     echo.
-    echo ===== RESUMEN PYTEST =====
-    set "PYTEST_SUMMARY_FOUND=0"
-    findstr /i "FAILED ERROR failed error" "%TESTS_STDOUT%"
-    if not errorlevel 1 set "PYTEST_SUMMARY_FOUND=1"
-    findstr /i "failed passed error" "%TESTS_STDOUT%"
-    if not errorlevel 1 set "PYTEST_SUMMARY_FOUND=1"
-    if "!PYTEST_SUMMARY_FOUND!"=="0" echo No se pudo detectar resumen automatico. Revisa tests_stdout.txt
-    echo ==========================
+    echo ===== RESUMEN PYTEST ^(stdout^) =====
+    if exist "%TESTS_STDOUT%" (
+      findstr /i /c:"FAILED" /c:"ERROR" "%TESTS_STDOUT%"
+      findstr /i /r "^[0-9][0-9]* failed" "%TESTS_STDOUT%"
+      findstr /i /r "^[0-9][0-9]* passed" "%TESTS_STDOUT%"
+    ) else (
+      echo No existe %TESTS_STDOUT%
+    )
+    echo ==================================
     echo.
     exit /b %TESTS_CODE%
 )
@@ -269,8 +274,7 @@ exit /b 0
 :RUN_GATE
 set "GATE_STATUS=NO_EJECUTADO"
 set "GATE_CODE=NO_EJECUTADO"
-set "GATE_CMD=call ""%GATE_SCRIPT%"""
-call :run_step "quality_gate" "%GATE_CMD%" "%GATE_STDOUT%" "%GATE_STDERR%" "Fallo en quality_gate.bat"
+call :run_step "quality_gate" "%GATE_SCRIPT%" "" "%GATE_STDOUT%" "%GATE_STDERR%" "Fallo en quality_gate.bat"
 if errorlevel 1 (
     set "GATE_STATUS=FAIL"
     set "GATE_CODE=%LAST_ERROR_EXIT%"
@@ -283,7 +287,7 @@ exit /b 0
 :RUN_DEBUG_SELF_TEST
 set "TESTS_STATUS=NO_EJECUTADO"
 set "TESTS_CODE=NO_EJECUTADO"
-call :run_step "dummy_fail" "cmd /c exit /b 1" "%TESTS_STDOUT%" "%TESTS_STDERR%" "Self-test dummy fail"
+call :run_step "dummy_fail" "%ComSpec%" "/c exit /b 1" "%TESTS_STDOUT%" "%TESTS_STDERR%" "Self-test dummy fail"
 if errorlevel 1 (
     set "TESTS_STATUS=FAIL"
     set "TESTS_CODE=%LAST_ERROR_EXIT%"
