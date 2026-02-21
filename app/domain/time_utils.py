@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from numbers import Real
+
 
 def hm_to_minutes(horas: int, minutos: int) -> int:
     """Normaliza una pareja horas/minutos a minutos totales no negativos."""
@@ -33,18 +35,18 @@ def parse_hhmm(valor: str) -> int:
 
 
 def _normalize_minutes_input(minutos: int | float) -> int:
-    """Normaliza entradas históricas que llegan en minutos u horas decimales.
+    """Acepta minutos en int/float y redondea al minuto más cercano.
 
-    Regla defensiva para compatibilidad UI/legacy:
-    - enteros -> se interpretan como minutos.
-    - flotantes <= 24 -> se interpretan como horas (p.ej. 1.5h => 90 min).
-    - flotantes > 24 -> se interpretan como minutos (p.ej. 90.0 min).
+    Política: se aplica ``int(round(minutos))`` para floats.
     """
-    if isinstance(minutos, float):
-        if minutos <= 24:
-            return int(round(minutos * 60))
-        return int(round(minutos))
-    return int(minutos)
+    if minutos is None:
+        raise TypeError("'minutos' no puede ser None.")
+    if isinstance(minutos, bool) or not isinstance(minutos, Real):
+        raise TypeError("'minutos' debe ser un número (int o float).")
+    if minutos < 0:
+        raise ValueError("Los minutos deben ser no negativos.")
+
+    return int(round(float(minutos)))
 
 
 def minutes_to_hhmm(minutos: int | float) -> str:
