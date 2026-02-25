@@ -137,3 +137,12 @@ class ResumenSaldosDTO:
     individual: ResumenIndividualDTO
     global_anual: ResumenGlobalAnualDTO
     grupo_anual: ResumenGrupoAnualDTO
+
+
+@dataclass(frozen=True)
+class ResultadoCrearSolicitudDTO:
+    success: bool
+    warnings: list[str]
+    errores: list[str]
+    entidad: SolicitudDTO | None
+    saldos: SaldosDTO | None = None

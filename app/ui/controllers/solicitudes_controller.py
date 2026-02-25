@@ -73,11 +73,18 @@ class SolicitudesController:
                     {"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
                     operation.correlation_id,
                 )
-                creada, _ = w._solicitud_use_cases.agregar_solicitud(
+                resultado = w._solicitud_use_cases.crear_resultado(
                     solicitud,
                     correlation_id=operation.correlation_id,
                     contexto=operation_ctx,
                 )
+                if not resultado.success:
+                    raise BusinessRuleError(resultado.errores[0] if resultado.errores else "No se pudo guardar la solicitud.")
+                creada = resultado.entidad
+                if creada is None:
+                    raise BusinessRuleError("No se pudo guardar la solicitud.")
+                if resultado.warnings:
+                    w.toast.info("\n".join(resultado.warnings), title="Solicitud registrada con advertencias")
                 log_event(logger, "agregar_pendiente_succeeded", {}, operation.correlation_id)
             w._reload_pending_views()
         except (ValidacionError, BusinessRuleError) as exc:
