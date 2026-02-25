@@ -111,3 +111,28 @@ def test_run_with_locked_retry_supera_bloqueo_transitorio_de_otra_conexion(tmp_p
     finally:
         worker_conn.close()
         lock_conn.close()
+
+
+def test_is_locked_operational_error_detecta_mayusculas() -> None:
+    from app.infrastructure.repos_sqlite import _is_locked_operational_error
+
+    assert _is_locked_operational_error(sqlite3.OperationalError("DATABASE IS LOCKED")) is True
+    assert _is_locked_operational_error(sqlite3.OperationalError("no such table")) is False
+
+
+def test_run_with_locked_retry_agota_reintentos_y_relanza(monkeypatch: pytest.MonkeyPatch) -> None:
+    intentos = {"n": 0}
+    pausas: list[float] = []
+
+    def _operation() -> None:
+        intentos["n"] += 1
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(time, "sleep", lambda segundos: pausas.append(segundos))
+
+    with pytest.raises(sqlite3.OperationalError, match="locked"):
+        _run_with_locked_retry(_operation, context="test.locked.exhausted")
+
+    # 3 intentos en bucle + 1 intento final fuera del bucle
+    assert intentos["n"] == 4
+    assert pausas == [0.05, 0.15, 0.3]
