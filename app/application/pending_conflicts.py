@@ -20,14 +20,16 @@ def detect_pending_time_conflicts(
 ) -> set[int]:
     """Devuelve índices de solicitudes pendientes con solapes horarios.
 
-    Agrupa por fecha pedida porque las reglas de negocio sólo consideran
-    conflicto cuando dos peticiones del mismo delegado se pisan en el mismo día.
+    Una colisión temporal se define por la tupla
+    ``(persona_id, fecha_pedida, intervalo_horario)``.
+    Por ello, los solapes sólo se evalúan dentro de la misma delegada
+    en la misma fecha, nunca entre delegadas distintas.
     """
 
-    grouped: dict[str, list[PendingInterval]] = defaultdict(list)
+    grouped: dict[tuple[int, str], list[PendingInterval]] = defaultdict(list)
     for index, solicitud in enumerate(solicitudes):
         start_min, end_min = interval_resolver(solicitud)
-        grouped[solicitud.fecha_pedida].append(
+        grouped[(solicitud.persona_id, solicitud.fecha_pedida)].append(
             PendingInterval(index=index, start_min=start_min, end_min=end_min)
         )
 
