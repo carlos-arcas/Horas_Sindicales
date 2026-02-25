@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
-    QMenu,
     QMessageBox,
     QPushButton,
     QApplication,
@@ -80,11 +79,7 @@ from app.ui.controllers.solicitudes_controller import SolicitudesController
 from app.ui.controllers.sync_controller import SyncController
 from app.ui.controllers.pdf_controller import PdfController
 from app.ui.notification_service import ConfirmationSummaryPayload, NotificationService, OperationFeedback
-from app.ui.components.primary_button import PrimaryButton
-from app.ui.components.secondary_button import SecondaryButton
 from app.ui.components.saldos_card import SaldosCard
-from app.ui.components.status_badge import StatusBadge
-from app.ui.components.contexto_trabajo_widget import ContextoTrabajoWidget
 from app.ui.sync_reporting import (
     build_config_incomplete_report,
     build_failed_report,
@@ -300,15 +295,8 @@ class MainWindow(QMainWindow):
         self.status_pending_label: QLabel | None = None
         self.saldos_card: SaldosCard | None = None
         self.horas_input: object | None = None
-        self.header_shell: QFrame | None = None
-        self.header_title_label: QLabel | None = None
-        self.header_state_badge: QLabel | None = None
-        self.header_sync_button: QPushButton | None = None
-        self.header_new_button: QPushButton | None = None
-        self.header_export_button: QPushButton | None = None
-        self.header_config_button: QPushButton | None = None
-        self.header_secondary_actions: QToolButton | None = None
-        self.header_secondary_menu: QMenu | None = None
+        self.nueva_solicitud_button: QPushButton | None = None
+        self.exportar_historico_button: QPushButton | None = None
         self.sidebar: QFrame | None = None
         self.stacked_pages: QStackedWidget | None = None
         self.page_resumen: QWidget | None = None
@@ -320,7 +308,6 @@ class MainWindow(QMainWindow):
         self.sidebar_buttons: list[QPushButton] = []
         self._sidebar_routes: list[dict[str, int | None]] = []
         self._active_sidebar_index = 0
-        self.contexto_trabajo_widget: ContextoTrabajoWidget | None = None
         self._last_persona_id: int | None = None
         self._draft_solicitud_por_persona: dict[int, dict[str, object]] = {}
         self.toast = ToastManager()
@@ -436,8 +423,7 @@ class MainWindow(QMainWindow):
         self.main_tabs.setObjectName("mainTabs")
         self.main_tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.main_tabs.tabBar().hide()
-        # El header global vive en _build_shell_layout; no renderizamos un HeaderWidget
-        # dentro del contenido para evitar el efecto "ventana dentro de ventana".
+        # La navegación principal vive en sidebar + páginas.
         layout.addWidget(self.main_tabs, 1)
 
         operativa_tab = QWidget()
@@ -448,6 +434,15 @@ class MainWindow(QMainWindow):
         operativa_help.setWordWrap(True)
         operativa_help.setProperty("role", "secondary")
         operativa_layout.addWidget(operativa_help)
+
+        operativa_actions = QHBoxLayout()
+        operativa_actions.setSpacing(8)
+        self.nueva_solicitud_button = QPushButton("Nueva solicitud")
+        self.nueva_solicitud_button.setProperty("variant", "primary")
+        self.nueva_solicitud_button.clicked.connect(self._clear_form)
+        operativa_actions.addWidget(self.nueva_solicitud_button)
+        operativa_actions.addStretch(1)
+        operativa_layout.addLayout(operativa_actions)
 
         # UX: Operativa concentra solo tareas diarias (alta + pendientes + confirmación)
         # para reducir cambios de contexto y evitar mezclar navegación histórica.
@@ -930,10 +925,10 @@ class MainWindow(QMainWindow):
         self.resync_historico_button.clicked.connect(self._on_resync_historico)
         historico_actions.addWidget(self.resync_historico_button)
 
-        self.generar_pdf_button = QPushButton("Generar PDF (0)")
-        self.generar_pdf_button.setProperty("variant", "secondary")
-        self.generar_pdf_button.clicked.connect(self._on_generar_pdf_historico)
-        historico_actions.addWidget(self.generar_pdf_button)
+        self.exportar_historico_button = QPushButton("Exportar histórico PDF (0)")
+        self.exportar_historico_button.setProperty("variant", "secondary")
+        self.exportar_historico_button.clicked.connect(self._on_export_historico_pdf)
+        historico_actions.addWidget(self.exportar_historico_button)
         historico_details_layout.addLayout(historico_actions)
         historico_layout.addWidget(self.historico_details_content, 1)
         self._configure_disclosure(
@@ -1251,63 +1246,9 @@ class MainWindow(QMainWindow):
         shell_layout.setContentsMargins(0, 0, 0, 0)
         shell_layout.setSpacing(0)
 
-        self.header_shell = QFrame()
-        self.header_shell.setObjectName("header_shell")
-        header_layout = QVBoxLayout(self.header_shell)
-        header_layout.setContentsMargins(16, 16, 16, 16)
-        header_layout.setSpacing(10)
-
-        header_top = QHBoxLayout()
-        header_top.setContentsMargins(0, 0, 0, 0)
-        header_top.setSpacing(12)
-
-        self.header_title_label = QLabel("Gestión de horas sindicales")
-        self.header_title_label.setProperty("role", "title")
-        header_top.addWidget(self.header_title_label)
-
-        self.header_state_badge = StatusBadge("Pendiente", variant="warning")
-        self.header_state_badge.setObjectName("header_state_badge")
-        header_top.addWidget(self.header_state_badge)
-        header_top.addStretch(1)
-
-        self.header_new_button = PrimaryButton("Nueva solicitud")
-        self._conectar_click_seguro(self.header_new_button, "_clear_form")
-        header_top.addWidget(self.header_new_button)
-
-        self.header_sync_button = SecondaryButton("Sync")
-        self._conectar_click_seguro(self.header_sync_button, "_on_sync_with_confirmation")
-        header_top.addWidget(self.header_sync_button)
-
-        self.header_export_button = SecondaryButton("Exportar")
-        self._conectar_click_seguro(self.header_export_button, "_on_export_historico_pdf")
-        header_top.addWidget(self.header_export_button)
-
-        self.header_config_button = SecondaryButton("Config")
-        self.header_config_button.clicked.connect(lambda: self._switch_sidebar_page(3))
-        header_top.addWidget(self.header_config_button)
-
-        self.header_secondary_actions = QToolButton()
-        self.header_secondary_actions.setText("Más")
-        self.header_secondary_actions.setPopupMode(QToolButton.InstantPopup)
-        self.header_secondary_actions.setToolButtonStyle(Qt.ToolButtonTextOnly)
-        self.header_secondary_menu = QMenu(self.header_secondary_actions)
-        self.header_secondary_menu.addAction("Actualizar salud del sistema", self._refresh_health_and_alerts)
-        self.header_secondary_menu.addAction("Ver historial de sincronización", self._on_show_sync_history)
-        self.header_secondary_menu.addSeparator()
-        self.header_secondary_menu.addAction("Abrir configuración", lambda: self._switch_sidebar_page(3))
-        self.header_secondary_actions.setMenu(self.header_secondary_menu)
-        header_top.addWidget(self.header_secondary_actions)
-
-        header_layout.addLayout(header_top)
-        self.contexto_trabajo_widget = ContextoTrabajoWidget(self.header_shell)
-        self.contexto_trabajo_widget.editar_clicked.connect(lambda: self._switch_sidebar_page(3))
-        header_layout.addWidget(self.contexto_trabajo_widget)
-
-        shell_layout.addWidget(self.header_shell)
-
         body = QWidget()
         body_layout = QHBoxLayout(body)
-        body_layout.setContentsMargins(16, 12, 16, 16)
+        body_layout.setContentsMargins(16, 16, 16, 16)
         body_layout.setSpacing(16)
 
         self.sidebar = self._create_sidebar()
@@ -1324,7 +1265,6 @@ class MainWindow(QMainWindow):
         self.page_resumen.sincronizar_ahora.connect(self._sincronizar_con_confirmacion)
         self.page_resumen.duplicar_ultima.connect(self._on_duplicate_latest_placeholder)
 
-        self._verificar_handlers_ui()
         self._switch_sidebar_page(0)
         self.setCentralWidget(shell)
 
@@ -1374,31 +1314,6 @@ class MainWindow(QMainWindow):
         pages.addWidget(self.page_solicitudes)
         return pages
 
-    def _conectar_click_seguro(self, button: QPushButton, handler_name: str) -> None:
-        handler = getattr(self, handler_name, None)
-        if callable(handler):
-            button.clicked.connect(handler)
-            return
-        logger.error("ui_handler_missing", extra={"handler": handler_name, "button": button.text()})
-        button.clicked.connect(lambda _checked=False, name=handler_name: self._mostrar_funcion_no_disponible(name))
-
-    def _verificar_handlers_ui(self) -> None:
-        """Valida handlers críticos y asegura fallback para que la UI nunca reviente."""
-        # Para juniors: este guard-rail evita crashes al construir la vista si se renombra
-        # un método conectado a señales sin actualizar todos los puntos.
-        handlers_criticos = {
-            "header_new_button": "_clear_form",
-        }
-        for boton_attr, handler_name in handlers_criticos.items():
-            boton = getattr(self, boton_attr, None)
-            if not isinstance(boton, QPushButton):
-                logger.error("ui_button_missing", extra={"button_attr": boton_attr})
-                continue
-            if callable(getattr(self, handler_name, None)):
-                continue
-            logger.error("ui_handler_missing", extra={"handler": handler_name, "button": boton.text()})
-            boton.clicked.connect(lambda _checked=False, name=handler_name: self._mostrar_funcion_no_disponible(name))
-
     def _mostrar_funcion_no_disponible(self, handler_name: str) -> None:
         logger.error("ui_fallback_handler_triggered", extra={"handler": handler_name})
         QMessageBox.warning(self, "Función no disponible", "Esta acción no está disponible temporalmente.")
@@ -1422,7 +1337,6 @@ class MainWindow(QMainWindow):
             self.stacked_pages.setCurrentIndex(stack_index)
             self._active_sidebar_index = index
             self._sync_sidebar_state(index)
-            self._update_header_for_section(index)
 
     def _sync_sidebar_state(self, active_index: int) -> None:
         for index, button in enumerate(self.sidebar_buttons):
@@ -1431,26 +1345,6 @@ class MainWindow(QMainWindow):
             button.setProperty("active", is_active)
             button.style().unpolish(button)
             button.style().polish(button)
-
-    def _update_header_for_section(self, active_index: int) -> None:
-        page_titles = {
-            0: "Resumen",
-            1: "Solicitudes",
-            2: "Histórico",
-            3: "Configuración",
-        }
-        if self.header_title_label is not None:
-            self.header_title_label.setText(page_titles.get(active_index, "Horas Sindicales"))
-        if self.header_new_button is None:
-            return
-        if active_index == 1:
-            self.header_new_button.setText("Limpiar formulario")
-            self.header_new_button.clicked.disconnect()
-            self.header_new_button.clicked.connect(self._clear_form)
-            return
-        self.header_new_button.setText("Nueva solicitud")
-        self.header_new_button.clicked.disconnect()
-        self.header_new_button.clicked.connect(lambda: self._switch_sidebar_page(1))
 
     def _refresh_resumen_kpis(self) -> None:
         if self.page_resumen is None:
@@ -1628,21 +1522,17 @@ class MainWindow(QMainWindow):
 
     def _update_global_context(self) -> None:
         persona = self._current_persona()
-        estado_texto, estado_variant = self._resolve_context_status()
-        if self.contexto_trabajo_widget is not None:
-            self.contexto_trabajo_widget.set_aviso_delegada(persona is None)
-            self.contexto_trabajo_widget.set_grupo_servicio("—")
-            self.contexto_trabajo_widget.set_sync_estado(estado_texto, variant=estado_variant)
-        if self.header_state_badge is not None:
-            self.header_state_badge.setText(estado_texto)
+        estado_texto, _estado_variant = self._resolve_context_status()
+        if self.sync_panel_status is not None:
+            self.sync_panel_status.setText(f"Estado: {estado_texto}")
         if self.page_resumen is not None:
             self.page_resumen.nueva_solicitud_button.setEnabled(persona is not None)
             self.page_resumen.nueva_solicitud_button.setToolTip("" if persona is not None else "Selecciona delegada")
             self.page_resumen.delegada_nombre_label.setText(persona.nombre if persona is not None else "Sin delegada")
             self.page_resumen.delegada_saldo_label.setText("Saldo disponible: No calculado")
-        if self.header_new_button is not None:
-            self.header_new_button.setEnabled(persona is not None)
-            self.header_new_button.setToolTip("" if persona is not None else "Selecciona delegada")
+        if self.nueva_solicitud_button is not None:
+            self.nueva_solicitud_button.setEnabled(persona is not None)
+            self.nueva_solicitud_button.setToolTip("" if persona is not None else "Selecciona delegada")
 
     def _resolve_context_status(self) -> tuple[str, str]:
         if not self._sync_service.is_configured():
@@ -1815,7 +1705,7 @@ class MainWindow(QMainWindow):
             self.eliminar_button,
             self.ver_detalle_button,
             self.resync_historico_button,
-            self.generar_pdf_button,
+            self.exportar_historico_button,
         ]
         for control in controls:
             control.setMinimumHeight(40)
@@ -2465,12 +2355,12 @@ class MainWindow(QMainWindow):
         self.eliminar_pendiente_button.setEnabled(bool(self._pending_solicitudes))
         self.ver_detalle_button.setEnabled(persona_selected and len(selected_historico) == 1)
         self.resync_historico_button.setEnabled(persona_selected and bool(selected_historico))
-        self.generar_pdf_button.setEnabled(persona_selected and bool(selected_historico))
+        self.exportar_historico_button.setEnabled(persona_selected and bool(selected_historico))
         selected_count = len(selected_historico)
         self.eliminar_button.setText(f"Eliminar ({selected_count})")
         self.ver_detalle_button.setText(f"Ver detalle ({selected_count})")
         self.resync_historico_button.setText(f"Re-sincronizar ({selected_count})")
-        self.generar_pdf_button.setText(f"Generar PDF ({selected_count})")
+        self.exportar_historico_button.setText(f"Exportar histórico PDF ({selected_count})")
 
         form_step_valid = form_valid and not has_blocking_errors
         self.stepper_labels[1].setEnabled(form_step_valid)

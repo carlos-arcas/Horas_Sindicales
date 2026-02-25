@@ -2,23 +2,24 @@
 
 ## Inventario previo (problema detectado)
 
-- **Sidebar** coexistía con navegación interna por tabs, generando duplicación de rutas.
-- **Tabs internas** existentes en `main_window_vista.py`:
+- **Sidebar** coexistía con una **cabecera global** con accesos rápidos duplicados.
+- **Tabs internas** en `main_window_vista.py`:
   - Operativa (solicitudes)
   - Histórico
   - Configuración
   - Sincronización
 - **QStackedWidget** shell:
   - Página Resumen
-  - Página contenedora de tabs (Solicitudes/Histórico/Config/Sync)
-- **Acciones repetidas** (múltiples entradas al mismo flujo):
-  - Sincronizar ahora (menu y sección sync)
-  - Nueva solicitud / limpiar formulario (resumen, header y operativa)
-  - Configuración (sidebar y menú)
+  - Página contenedora de tabs
+- **Duplicaciones de acciones**:
+  - Sync (cabecera + sincronización)
+  - Exportar (cabecera + histórico)
+  - Nueva solicitud (cabecera + resumen/operativa)
+  - Config (cabecera + navegación)
 
 ## Mapa final (mínimo, patrón principal = Sidebar)
 
-Patrón principal elegido: **Sidebar + stacked pages**.
+Patrón principal: **Sidebar + stacked pages**.
 
 Páginas visibles de navegación principal:
 1. **Resumen**
@@ -26,21 +27,18 @@ Páginas visibles de navegación principal:
 3. **Histórico**
 4. **Configuración**
 
-## Header global
+## Sin cabecera global
 
-Acciones globales primarias:
-- **Nuevo**
-- **Sync**
-- **Exportar**
-- **Config**
+La cabecera global se eliminó para reducir ruido visual y evitar acciones redundantes.
 
-Acciones secundarias:
-- Menú **Más** (`QMenu`) con acciones de soporte (salud del sistema, historial de sincronización, acceso rápido a configuración).
+Acciones reubicadas:
+- **Nueva solicitud**: en **Solicitudes/Operativa**.
+- **Sincronizar ahora**: en **Sincronización**.
+- **Exportar histórico PDF**: en **Histórico**.
+- **Configurar**: solo desde **Sidebar > Configuración**.
 
 ## Notas de implementación
 
-- Se mantuvo `MainWindow` como orquestador.
-- Se extrajeron builders para simplificar estructura:
-  - `_build_shell_layout`
-  - `_create_sidebar`
-  - `_create_pages_stack`
+- `MainWindow` se mantiene como orquestador UI.
+- Se conserva separación entre UI y casos de uso (Clean Architecture).
+- Se retiraron señales y handlers exclusivos de cabecera para evitar código muerto.

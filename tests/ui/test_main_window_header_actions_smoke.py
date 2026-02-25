@@ -43,7 +43,7 @@ def test_main_window_smoke_instantiation_no_crash() -> None:
     app.processEvents()
 
 
-def test_header_sync_button_click_no_crash(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sync_button_en_pagina_sincronizacion_no_crash(monkeypatch: pytest.MonkeyPatch) -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
@@ -53,25 +53,28 @@ def test_header_sync_button_click_no_crash(monkeypatch: pytest.MonkeyPatch) -> N
         lambda *args, **kwargs: QMessageBox.StandardButton.No,
     )
 
-    if window.header_sync_button.isEnabled():
-        window.header_sync_button.click()
+    window._switch_sidebar_page(0)
+    if window.sync_button.isEnabled():
+        window.sync_button.click()
         assert True
     else:
-        assert "" != window.header_sync_button.toolTip()
+        assert "" != window.sync_button.toolTip()
 
     window.close()
     app.processEvents()
 
 
-def test_header_new_button_click_no_crash() -> None:
+def test_nueva_solicitud_button_en_operativa_no_crash() -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
-    if window.header_new_button.isEnabled():
-        window.header_new_button.click()
+    window._switch_sidebar_page(1)
+    if window.nueva_solicitud_button is not None and window.nueva_solicitud_button.isEnabled():
+        window.nueva_solicitud_button.click()
         assert True
     else:
-        assert window.header_new_button.toolTip() != ""
+        assert window.nueva_solicitud_button is not None
+        assert window.nueva_solicitud_button.toolTip() != ""
 
     window.close()
     app.processEvents()

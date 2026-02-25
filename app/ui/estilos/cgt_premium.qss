@@ -223,7 +223,6 @@ QTableView::item:selected {
 }
 
 /* Badges y estados */
-QLabel#header_state_badge,
 QLabel[role="badge"] {
     border-radius: 10px;
     padding: 4px 10px;
@@ -261,7 +260,3 @@ QToolTip {
     font-size: 11px;
 }
 
-QFrame#header_shell {
-    background: #FFFFFF;
-    border-bottom: 1px solid #E2E2E2;
-}

@@ -6,10 +6,10 @@ import pytest
 
 qtwidgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
 QApplication = qtwidgets.QApplication
+QPushButton = qtwidgets.QPushButton
 
 from app.bootstrap.container import build_container
 from app.ui.main_window import MainWindow
-from app.ui.widgets.header import HeaderWidget
 
 
 def _in_memory_connection() -> sqlite3.Connection:
@@ -32,40 +32,37 @@ def _build_window() -> MainWindow:
     )
 
 
-def test_content_area_has_no_internal_header_widget() -> None:
+def test_main_window_no_renderiza_header_global() -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
-    content_headers = window.page_solicitudes.findChildren(HeaderWidget)
-    assert content_headers == []
+    assert window.findChild(qtwidgets.QWidget, "header_shell") is None
+
+    root_buttons = {button.text() for button in window.findChildren(QPushButton)}
+    assert "Sync" not in root_buttons
+    assert "Exportar" not in root_buttons
+    assert "Config" not in root_buttons
 
     window.close()
     app.processEvents()
 
 
-def test_header_shell_actions_still_update_on_section_switch() -> None:
+def test_acciones_reubicadas_estan_disponibles() -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
-    window._update_header_for_section(2)
-    assert window.header_title_label.text() == "Histórico"
-    assert window.header_new_button.text() == "Nueva solicitud"
+    assert window.nueva_solicitud_button is not None
+    assert window.nueva_solicitud_button.text() == "Nueva solicitud"
 
-    window.header_new_button.setEnabled(True)
-    window.header_new_button.click()
-    app.processEvents()
-    assert window._active_sidebar_index == 1
+    window._switch_sidebar_page(2)
+    assert window.exportar_historico_button is not None
+    assert window.exportar_historico_button.text().startswith("Exportar histórico PDF")
 
-    called: list[bool] = []
-    window._clear_form = lambda: called.append(True)
-    window._update_header_for_section(1)
-    assert window.header_title_label.text() == "Solicitudes"
-    assert window.header_new_button.text() == "Limpiar formulario"
+    window._switch_sidebar_page(3)
+    assert window.main_tabs.tabText(window.main_tabs.currentIndex()) == "Configuración"
 
-    window.header_new_button.setEnabled(True)
-    window.header_new_button.click()
-    app.processEvents()
-    assert called == [True]
+    window._switch_sidebar_page(0)
+    assert window.sync_button.text() == "Sincronizar ahora"
 
     window.close()
     app.processEvents()

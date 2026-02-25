@@ -31,7 +31,6 @@ def test_main_window_incluye_shell_nuevo() -> None:
         alert_engine=container.alert_engine,
     )
     assert window.sidebar is not None
-    assert window.header_shell is not None
     assert window.stacked_pages is not None
     assert window.statusBar() is not None
     window.close()

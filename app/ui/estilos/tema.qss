@@ -7,4 +7,3 @@ QLabel[role="secondary"] { color: #5C6B80; }
 QFrame#sidebar { background: #FFFFFF; border: 1px solid #DFE5F0; border-radius: 10px; }
 QFrame#sidebar QPushButton { text-align: left; padding: 10px 12px; min-height: 52px; }
 QFrame#sidebar QPushButton[active="true"] { background: #FFF1F3; color: #8B1E2D; border-color: #F4C8CF; border-left: 3px solid #C62839; font-weight: 600; }
-QLabel#header_state_badge { background: #FFF4DD; color: #8A5B00; border-radius: 8px; padding: 4px 8px; }
