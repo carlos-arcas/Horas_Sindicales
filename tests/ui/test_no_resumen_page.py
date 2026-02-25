@@ -7,7 +7,6 @@ import pytest
 qt = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
 QApplication = qt.QApplication
 QPushButton = qt.QPushButton
-QStackedWidget = qt.QStackedWidget
 
 from app.bootstrap.container import build_container
 from app.ui.main_window import MainWindow
@@ -19,7 +18,7 @@ def _in_memory_connection() -> sqlite3.Connection:
     return connection
 
 
-def test_main_window_layout_structure_sidebar_and_pages() -> None:
+def test_navegacion_no_expone_resumen() -> None:
     app = QApplication.instance() or QApplication([])
     container = build_container(connection_factory=_in_memory_connection)
 
@@ -34,11 +33,10 @@ def test_main_window_layout_structure_sidebar_and_pages() -> None:
         alert_engine=container.alert_engine,
     )
 
-    assert isinstance(window.stacked_pages, QStackedWidget)
-    assert window.stacked_pages.count() == 1
-
-    sidebar_buttons = [button.text() for button in window.sidebar.findChildren(QPushButton)]
-    assert sidebar_buttons[:3] == ["Solicitudes", "Histórico", "Configuración"]
+    sidebar_buttons = [button.text().strip().lower() for button in window.sidebar.findChildren(QPushButton)]
+    assert all(texto != "resumen" for texto in sidebar_buttons)
+    assert all("resumen" not in texto for texto in sidebar_buttons)
+    assert all("resumen" not in button.objectName().strip().lower() for button in window.sidebar.findChildren(QPushButton))
 
     window.close()
     app.processEvents()

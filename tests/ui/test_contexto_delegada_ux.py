@@ -39,7 +39,6 @@ def test_sin_delegada_nueva_solicitud_bloqueada_con_tooltip() -> None:
 
     assert window.header_new_button.isEnabled() is False
     assert window.header_new_button.toolTip() == "Selecciona delegada"
-    assert window.page_resumen.nueva_solicitud_button.isEnabled() is False
 
     window.close()
     app.processEvents()
