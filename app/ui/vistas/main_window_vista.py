@@ -649,14 +649,19 @@ class MainWindow(QMainWindow):
         notas_row.addWidget(QLabel("Notas"))
         self.notas_input = QPlainTextEdit()
         self.notas_input.setPlaceholderText("Notas para la solicitud")
-        self.notas_input.setMinimumHeight(74)
+        lineas_visibles_notas = 3
+        altura_linea_notas = self.notas_input.fontMetrics().lineSpacing()
+        margen_documento_notas = int(self.notas_input.document().documentMargin() * 2)
+        altura_borde_notas = self.notas_input.frameWidth() * 2
+        altura_compacta_notas = (altura_linea_notas * lineas_visibles_notas) + margen_documento_notas + altura_borde_notas
+        self.notas_input.setFixedHeight(altura_compacta_notas)
         self.notas_input.installEventFilter(self)
         self.persona_combo.installEventFilter(self)
         self.fecha_input.installEventFilter(self)
         self.desde_input.installEventFilter(self)
         self.hasta_input.installEventFilter(self)
         self.completo_check.installEventFilter(self)
-        self.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         notas_row.addWidget(self.notas_input, 1)
         solicitud_layout.addLayout(notas_row)
         solicitudes_form_layout.addWidget(solicitud_card)
