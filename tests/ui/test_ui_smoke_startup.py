@@ -37,7 +37,6 @@ def test_ui_smoke_startup_without_real_infra(monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.setattr(main_window_vista.MainWindow, "_load_personas", lambda self, select_id=None: None)
     monkeypatch.setattr(main_window_vista.MainWindow, "_reload_pending_views", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_refresh_resumen_kpis", lambda self: None)
     monkeypatch.setattr(main_window_vista.MainWindow, "_update_global_context", lambda self: None)
     monkeypatch.setattr(main_window_vista.MainWindow, "_refresh_last_sync_label", lambda self: None)
     monkeypatch.setattr(main_window_vista.MainWindow, "_update_sync_button_state", lambda self: None)

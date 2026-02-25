@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import json
 import sqlite3
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import cast
@@ -98,7 +98,6 @@ from app.ui.sync_reporting import (
 from app.core.observability import OperationContext, log_event
 from app.ui.workers.sincronizacion_workers import PushWorker
 from app.bootstrap.logging import log_operational_error
-from app.ui.vistas.paginas.pagina_resumen import PaginaResumen
 from app.ui.vistas.paginas.pagina_solicitudes import PaginaSolicitudes
 
 try:
@@ -311,7 +310,6 @@ class MainWindow(QMainWindow):
         self.header_secondary_menu: QMenu | None = None
         self.sidebar: QFrame | None = None
         self.stacked_pages: QStackedWidget | None = None
-        self.page_resumen: QWidget | None = None
         self.page_historico: QWidget | None = None
         self.page_configuracion: QWidget | None = None
         self.page_sincronizacion: QWidget | None = None
@@ -335,7 +333,6 @@ class MainWindow(QMainWindow):
         self.toast.attach_to(self)
         self._load_personas()
         self._reload_pending_views()
-        self._refresh_resumen_kpis()
         self._update_global_context()
         self.sync_source_label.setText(f"Fuente: {self._sync_source_text()}")
         self.sync_scope_label.setText(f"Rango: {self._sync_scope_text()}")
@@ -1283,7 +1280,7 @@ class MainWindow(QMainWindow):
         header_top.addWidget(self.header_export_button)
 
         self.header_config_button = SecondaryButton("Config")
-        self.header_config_button.clicked.connect(lambda: self._switch_sidebar_page(3))
+        self.header_config_button.clicked.connect(lambda: self._switch_sidebar_page(2))
         header_top.addWidget(self.header_config_button)
 
         self.header_secondary_actions = QToolButton()
@@ -1294,13 +1291,13 @@ class MainWindow(QMainWindow):
         self.header_secondary_menu.addAction("Actualizar salud del sistema", self._refresh_health_and_alerts)
         self.header_secondary_menu.addAction("Ver historial de sincronización", self._on_show_sync_history)
         self.header_secondary_menu.addSeparator()
-        self.header_secondary_menu.addAction("Abrir configuración", lambda: self._switch_sidebar_page(3))
+        self.header_secondary_menu.addAction("Abrir configuración", lambda: self._switch_sidebar_page(2))
         self.header_secondary_actions.setMenu(self.header_secondary_menu)
         header_top.addWidget(self.header_secondary_actions)
 
         header_layout.addLayout(header_top)
         self.contexto_trabajo_widget = ContextoTrabajoWidget(self.header_shell)
-        self.contexto_trabajo_widget.editar_clicked.connect(lambda: self._switch_sidebar_page(3))
+        self.contexto_trabajo_widget.editar_clicked.connect(lambda: self._switch_sidebar_page(2))
         header_layout.addWidget(self.contexto_trabajo_widget)
 
         shell_layout.addWidget(self.header_shell)
@@ -1317,12 +1314,6 @@ class MainWindow(QMainWindow):
         body_layout.addWidget(self.stacked_pages, 1)
 
         shell_layout.addWidget(body, 1)
-
-
-        self.page_resumen.nueva_solicitud.connect(self._limpiar_formulario)
-        self.page_resumen.ver_pendientes.connect(lambda: self._switch_sidebar_page(1))
-        self.page_resumen.sincronizar_ahora.connect(self._sincronizar_con_confirmacion)
-        self.page_resumen.duplicar_ultima.connect(self._on_duplicate_latest_placeholder)
 
         self._verificar_handlers_ui()
         self._switch_sidebar_page(0)
@@ -1344,10 +1335,9 @@ class MainWindow(QMainWindow):
 
         self.sidebar_buttons = []
         sidebar_items = (
-            ("Resumen", 0, None),
-            ("Solicitudes", 1, 0),
-            ("Histórico", 1, 1),
-            ("Configuración", 1, 2),
+            ("Solicitudes", 0, 0),
+            ("Histórico", 0, 1),
+            ("Configuración", 0, 2),
         )
         self._sidebar_routes = []
         for index, (title, stack_index, tab_index) in enumerate(sidebar_items):
@@ -1367,10 +1357,8 @@ class MainWindow(QMainWindow):
         pages = QStackedWidget()
         pages.setObjectName("stacked_pages")
 
-        self.page_resumen = PaginaResumen()
         self.page_solicitudes = PaginaSolicitudes(content_widget=self._scroll_area)
 
-        pages.addWidget(self.page_resumen)
         pages.addWidget(self.page_solicitudes)
         return pages
 
@@ -1434,68 +1422,22 @@ class MainWindow(QMainWindow):
 
     def _update_header_for_section(self, active_index: int) -> None:
         page_titles = {
-            0: "Resumen",
-            1: "Solicitudes",
-            2: "Histórico",
-            3: "Configuración",
+            0: "Solicitudes",
+            1: "Histórico",
+            2: "Configuración",
         }
         if self.header_title_label is not None:
             self.header_title_label.setText(page_titles.get(active_index, "Horas Sindicales"))
         if self.header_new_button is None:
             return
-        if active_index == 1:
+        if active_index == 0:
             self.header_new_button.setText("Limpiar formulario")
             self.header_new_button.clicked.disconnect()
             self.header_new_button.clicked.connect(self._clear_form)
             return
         self.header_new_button.setText("Nueva solicitud")
         self.header_new_button.clicked.disconnect()
-        self.header_new_button.clicked.connect(lambda: self._switch_sidebar_page(1))
-
-    def _refresh_resumen_kpis(self) -> None:
-        if self.page_resumen is None:
-            return
-        hoy = datetime.now().date()
-        solicitudes_hoy = sum(
-            1
-            for item in self._pending_solicitudes
-            if (fecha_solicitud := self._extraer_fecha_solicitud(item)) is not None and fecha_solicitud == hoy
-        )
-        self.page_resumen.kpi_solicitudes_hoy.value_label.setText(str(solicitudes_hoy))
-        self.page_resumen.kpi_pendientes.value_label.setText(str(len(self._pending_solicitudes)))
-        last_sync = self._sync_service.get_last_sync_at()
-        if not last_sync:
-            self.page_resumen.kpi_ultima_sync.value_label.setText("No disponible")
-        else:
-            self.page_resumen.kpi_ultima_sync.value_label.setText(self._format_timestamp(last_sync))
-        self.page_resumen.kpi_saldo_restante.value_label.setText("No calculado")
-
-        recientes: list[str] = []
-        persona = self._current_persona()
-        if persona is not None and persona.id is not None:
-            historico = list(self._solicitud_use_cases.listar_solicitudes_por_persona(persona.id))
-            for solicitud in historico[-5:][::-1]:
-                recientes.append(f"{solicitud.fecha_pedida} · {minutes_to_hhmm(solicitud.horas)}")
-        self.page_resumen.set_recientes(recientes)
-        self._update_global_context()
-
-    @staticmethod
-    def _extraer_fecha_solicitud(item: object) -> date | None:
-        for attr_name in ("fecha_solicitud", "fecha_pedida"):
-            valor = getattr(item, attr_name, None)
-            if valor is None:
-                continue
-            if isinstance(valor, date):
-                return valor
-            if isinstance(valor, str):
-                texto = valor.strip()
-                if not texto:
-                    return None
-                try:
-                    return date.fromisoformat(texto)
-                except ValueError:
-                    return None
-        return None
+        self.header_new_button.clicked.connect(lambda: self._switch_sidebar_page(0))
 
     def _build_status_bar(self) -> None:
         status = QStatusBar(self)
@@ -1635,11 +1577,6 @@ class MainWindow(QMainWindow):
             self.contexto_trabajo_widget.set_sync_estado(estado_texto, variant=estado_variant)
         if self.header_state_badge is not None:
             self.header_state_badge.setText(estado_texto)
-        if self.page_resumen is not None:
-            self.page_resumen.nueva_solicitud_button.setEnabled(persona is not None)
-            self.page_resumen.nueva_solicitud_button.setToolTip("" if persona is not None else "Selecciona delegada")
-            self.page_resumen.delegada_nombre_label.setText(persona.nombre if persona is not None else "Sin delegada")
-            self.page_resumen.delegada_saldo_label.setText("Saldo disponible: No calculado")
         if self.header_new_button is not None:
             self.header_new_button.setEnabled(persona is not None)
             self.header_new_button.setToolTip("" if persona is not None else "Selecciona delegada")
@@ -1652,9 +1589,6 @@ class MainWindow(QMainWindow):
         if self._pending_solicitudes:
             return "Pendiente", "warning"
         return "Sincronizado", "success"
-
-    def _on_duplicate_latest_placeholder(self) -> None:
-        self.toast.info("Disponible próximamente", title="Duplicar última solicitud")
 
     def _clear_form(self) -> None:
         """Alias legado: mantener compatibilidad con conexiones antiguas.
@@ -2281,7 +2215,6 @@ class MainWindow(QMainWindow):
         self._refresh_historico()
         self._refresh_saldos()
         self._refresh_pending_ui_state()
-        self._refresh_resumen_kpis()
         if summary.inserted_local <= 0:
             return
         persona = self._current_persona()
@@ -3988,11 +3921,9 @@ class MainWindow(QMainWindow):
         last_sync = self._sync_service.get_last_sync_at()
         if not last_sync:
             self.last_sync_label.setText("Última sync: Nunca")
-            self._refresh_resumen_kpis()
             return
         formatted = self._format_timestamp(last_sync)
         self.last_sync_label.setText(f"Última sync: {formatted} · Delegada: {self._sync_actor_text()} · Alcance: {self._sync_scope_text()}")
-        self._refresh_resumen_kpis()
 
     @staticmethod
     def _format_timestamp(value: str) -> str:
