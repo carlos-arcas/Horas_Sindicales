@@ -225,7 +225,7 @@ class SheetsClient(SheetsClientPort):
                 time.sleep(backoff_seconds)
         raise RuntimeError("No se pudo completar la operación de Google Sheets.")
 
-    def _with_write_retry(self, operation_name: str, operation: Callable[[], T]) -> T:
+    def _with_write_retry(self, operation_name: str, operation: Callable[[], T], *, spreadsheet_id: str | None = None) -> T:
         for attempt in range(1, _WRITE_MAX_RETRIES + 1):
             try:
                 return operation()
@@ -233,11 +233,15 @@ class SheetsClient(SheetsClientPort):
                 mapped_error = map_gspread_exception(exc)
                 if not isinstance(mapped_error, SheetsRateLimitError):
                     if isinstance(mapped_error, SheetsPermissionError):
-                        self._log_permission_error(
-                            mapped_error,
-                            spreadsheet_id=spreadsheet_id or getattr(self._spreadsheet, "id", None),
-                            worksheet_name=self._worksheet_from_operation_name(operation_name),
-                        )
+                        resolved_spreadsheet_id = self._resolve_spreadsheet_id(spreadsheet_id=spreadsheet_id)
+                        try:
+                            self._log_permission_error(
+                                mapped_error,
+                                spreadsheet_id=resolved_spreadsheet_id,
+                                worksheet_name=self._worksheet_from_operation_name(operation_name),
+                            )
+                        except Exception:  # pragma: no cover - logging should never break sync flows
+                            logger.exception("No se pudo registrar un error de permisos de Google Sheets")
                     raise mapped_error from exc
                 if attempt >= _WRITE_MAX_RETRIES:
                     logger.error(
@@ -279,6 +283,16 @@ class SheetsClient(SheetsClientPort):
             return None
         worksheet_name = operation_name[start + 1 : end].strip()
         return worksheet_name or None
+
+    def _resolve_spreadsheet_id(self, *, spreadsheet_id: str | None = None) -> str | None:
+        if spreadsheet_id:
+            return spreadsheet_id
+
+        current_spreadsheet = self._spreadsheet
+        if current_spreadsheet is None:
+            return None
+
+        return getattr(current_spreadsheet, "id", None)
 
     @staticmethod
     def _log_permission_error(
