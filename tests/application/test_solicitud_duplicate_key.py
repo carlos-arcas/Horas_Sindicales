@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.application.dto import SolicitudDTO
+from app.domain.models import Persona
 from app.domain.services import BusinessRuleError
 
 
@@ -34,10 +35,46 @@ def test_no_es_duplicado_mismo_dia_horarios_distintos(solicitud_use_cases, perso
 
 
 def test_es_duplicado_solicitud_identica(solicitud_use_cases, persona_id: int) -> None:
-    original = _build_solicitud(persona_id, fecha="2025/01/15", desde="9:00", hasta="11:00")
+    original = _build_solicitud(persona_id, fecha="2025-01-15", desde="9:00", hasta="11:00")
     igual = _build_solicitud(persona_id, fecha="2025-01-15", desde="09:00", hasta="11:00")
 
     solicitud_use_cases.agregar_solicitud(original)
 
     with pytest.raises(BusinessRuleError, match="Duplicado"):
         solicitud_use_cases.agregar_solicitud(igual)
+
+
+def test_mismo_tramo_en_distintas_delegadas_es_permitido(solicitud_use_cases, persona_id: int, persona_repo) -> None:
+    segunda = persona_repo.create(
+        Persona(
+            id=None,
+            nombre="Delegada B",
+            genero="F",
+            horas_mes_min=600,
+            horas_ano_min=7200,
+            is_active=True,
+            cuad_lun_man_min=240,
+            cuad_lun_tar_min=240,
+            cuad_mar_man_min=240,
+            cuad_mar_tar_min=240,
+            cuad_mie_man_min=240,
+            cuad_mie_tar_min=240,
+            cuad_jue_man_min=240,
+            cuad_jue_tar_min=240,
+            cuad_vie_man_min=240,
+            cuad_vie_tar_min=240,
+            cuad_sab_man_min=0,
+            cuad_sab_tar_min=0,
+            cuad_dom_man_min=0,
+            cuad_dom_tar_min=0,
+        )
+    )
+    segunda_id = int(segunda.id or 0)
+
+    original = _build_solicitud(persona_id, fecha="2025-01-15", desde="09:00", hasta="11:00")
+    otra_delegada = _build_solicitud(segunda_id, fecha="2025-01-15", desde="09:00", hasta="11:00")
+
+    solicitud_use_cases.agregar_solicitud(original)
+    creada, _ = solicitud_use_cases.agregar_solicitud(otra_delegada)
+
+    assert creada.id is not None

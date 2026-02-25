@@ -22,6 +22,9 @@
 - **2026-02-20 — Duplicidad de changelog: canonical en raíz (`CHANGELOG.md`) — Vigente**  
   `docs/CHANGELOG.md` queda como stub/enlace de compatibilidad para consulta rápida.
 
+- **2026-02-25 — Colisiones horarias de pendientes acotadas por delegada (`persona_id`) — Vigente**  
+  Diagnóstico: la detección de solapes en pendientes agrupaba sólo por `fecha_pedida`, lo que marcaba falsos conflictos entre delegadas distintas. Se corrige para evaluar por `(persona_id, fecha_pedida)` y mantener el bloqueo sólo dentro de la misma delegada.
+
 ## Procedimiento de actualización
 
 1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).
