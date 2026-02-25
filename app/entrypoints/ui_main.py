@@ -5,8 +5,6 @@ from types import TracebackType
 
 from app.bootstrap.container import AppContainer, build_container
 from app.bootstrap.exception_handler import manejar_excepcion_global
-from app.ui.estilos.apply_theme import aplicar_tema
-from app.ui.theme import build_stylesheet
 
 
 def construir_mensaje_error_ui(incident_id: str) -> str:
@@ -35,7 +33,9 @@ def manejar_excepcion_ui(
 def run_ui(container: AppContainer | None = None) -> int:
     from PySide6.QtWidgets import QApplication
 
+    from app.ui.estilos.apply_theme import aplicar_tema
     from app.ui.main_window import MainWindow
+    from app.ui.theme import build_stylesheet
 
     resolved_container = container or build_container()
     app = QApplication([])
