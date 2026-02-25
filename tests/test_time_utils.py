@@ -19,21 +19,27 @@ from app.domain.time_utils import hm_to_minutes, minutes_to_hhmm, minutes_to_hm,
         (90.4, "01:30"),
         (90.5, "01:30"),
         (90.6, "01:31"),
+        ("90", "01:30"),
+        ("1439", "23:59"),
     ],
 )
-def test_minutes_to_hhmm_cases(minutos: int | float, esperado: str) -> None:
+def test_minutes_to_hhmm_cases(minutos: int | float | str, esperado: str) -> None:
     assert minutes_to_hhmm(minutos) == esperado
 
 
 @pytest.mark.parametrize("valor", [None, "abc"])
 def test_minutes_to_hhmm_rechaza_tipos_invalidos(valor: object) -> None:
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError, match="minutos"):
         minutes_to_hhmm(valor)  # type: ignore[arg-type]
 
 
 def test_minutes_to_hhmm_rechaza_valores_negativos() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="no negativos"):
         minutes_to_hhmm(-1)
+
+
+def test_minutes_to_hhmm_caso_limite_59() -> None:
+    assert minutes_to_hhmm(59) == "00:59"
 
 
 def test_minutes_to_hm_inverse_split() -> None:
