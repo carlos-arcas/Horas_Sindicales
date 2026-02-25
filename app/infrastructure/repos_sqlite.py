@@ -17,6 +17,16 @@ _LOCKED_RETRY_BACKOFF_SECONDS = (0.05, 0.15, 0.3)
 _T = TypeVar("_T")
 
 
+def _configure_connection_for_runtime(connection: sqlite3.Connection) -> None:
+    """Aplica pragmas defensivos para minimizar conflictos de lock en runtime."""
+    try:
+        connection.execute("PRAGMA busy_timeout=5000")
+        connection.execute("PRAGMA synchronous=NORMAL")
+        connection.execute("PRAGMA journal_mode=WAL")
+    except sqlite3.Error:
+        logger.debug("sqlite_runtime_pragmas_skipped", exc_info=True)
+
+
 def _is_locked_operational_error(error: sqlite3.OperationalError) -> bool:
     return "locked" in str(error).lower()
 
@@ -68,6 +78,7 @@ def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: Iterable[
 class PersonaRepositorySQLite(PersonaRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
+        _configure_connection_for_runtime(self._connection)
 
     def list_all(self, include_inactive: bool = False) -> Iterable[Persona]:
         cursor = self._connection.cursor()
@@ -405,6 +416,7 @@ class PersonaRepositorySQLite(PersonaRepository):
 class CuadranteRepositorySQLite(CuadranteRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
+        _configure_connection_for_runtime(self._connection)
 
     def exists_for_delegada(self, delegada_uuid: str, dia_semana: str) -> bool:
         cursor = self._connection.cursor()
@@ -438,6 +450,7 @@ class CuadranteRepositorySQLite(CuadranteRepository):
 class SolicitudRepositorySQLite(SolicitudRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
+        _configure_connection_for_runtime(self._connection)
 
     @staticmethod
     def _row_to_solicitud(row: sqlite3.Row) -> Solicitud:
@@ -835,6 +848,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
 class GrupoConfigRepositorySQLite(GrupoConfigRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
+        _configure_connection_for_runtime(self._connection)
 
     def get(self) -> GrupoConfig | None:
         cursor = self._connection.cursor()

@@ -87,6 +87,27 @@ def test_with_write_retry_context_handles_missing_spreadsheet_id(monkeypatch) ->
     assert captured["worksheet_name"] == "SinID"
 
 
+def test_with_write_retry_usa_spreadsheet_id_explicito(monkeypatch) -> None:
+    client = SheetsClient()
+
+    def fail_operation():
+        raise gspread.exceptions.APIError(_ForbiddenResp())
+
+    captured: dict[str, str | None] = {}
+
+    def fake_log_permission_error(_error: SheetsPermissionError, *, spreadsheet_id: str | None = None, worksheet_name: str | None = None) -> None:
+        captured["spreadsheet_id"] = spreadsheet_id
+        captured["worksheet_name"] = worksheet_name
+
+    monkeypatch.setattr(client, "_log_permission_error", fake_log_permission_error)
+
+    with pytest.raises(SheetsPermissionError):
+        client._with_write_retry("worksheet.append_rows(Explícito)", fail_operation, spreadsheet_id="sheet-explicit")
+
+    assert captured["spreadsheet_id"] == "sheet-explicit"
+    assert captured["worksheet_name"] == "Explícito"
+
+
 def test_with_write_retry_non_api_exception_is_reraised() -> None:
     client = SheetsClient()
 
