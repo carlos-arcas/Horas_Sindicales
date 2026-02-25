@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import sqlite3
+import threading
+import time
+from pathlib import Path
 
 import pytest
 
@@ -72,3 +75,39 @@ def test_run_with_locked_retry_does_not_retry_non_locked_operational_error() -> 
 
     with pytest.raises(sqlite3.OperationalError, match="no such table"):
         _run_with_locked_retry(_operation, context="test.non_locked")
+
+
+def test_run_with_locked_retry_supera_bloqueo_transitorio_de_otra_conexion(tmp_path: Path) -> None:
+    db_path = tmp_path / "locks.db"
+    schema_conn = sqlite3.connect(db_path)
+    schema_conn.execute("CREATE TABLE demo (id INTEGER PRIMARY KEY, valor TEXT)")
+    schema_conn.commit()
+    schema_conn.close()
+
+    lock_conn = sqlite3.connect(db_path, timeout=0.05, check_same_thread=False)
+    lock_conn.execute("BEGIN EXCLUSIVE")
+    lock_conn.execute("INSERT INTO demo(valor) VALUES ('lock')")
+
+    worker_conn = sqlite3.connect(db_path, timeout=0.05)
+    try:
+        def _release_lock() -> None:
+            time.sleep(0.02)
+            lock_conn.rollback()
+
+        release_thread = threading.Thread(target=_release_lock)
+        release_thread.start()
+
+        def _operation() -> str:
+            worker_conn.execute("INSERT INTO demo(valor) VALUES ('ok')")
+            worker_conn.commit()
+            return "ok"
+
+        result = _run_with_locked_retry(_operation, context="integration.transient_lock")
+        release_thread.join(timeout=1)
+
+        assert result == "ok"
+        total = worker_conn.execute("SELECT COUNT(*) FROM demo WHERE valor = 'ok'").fetchone()[0]
+        assert total == 1
+    finally:
+        worker_conn.close()
+        lock_conn.close()

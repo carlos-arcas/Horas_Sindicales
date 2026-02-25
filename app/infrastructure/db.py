@@ -28,6 +28,10 @@ def get_connection(
 ) -> sqlite3.Connection:
     path = db_path or _default_db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(path, check_same_thread=check_same_thread)
+    connection = sqlite3.connect(
+        path,
+        check_same_thread=check_same_thread,
+        timeout=max(1.0, busy_timeout_ms / 1000),
+    )
     configure_sqlite_connection(connection, busy_timeout_ms=busy_timeout_ms)
     return connection

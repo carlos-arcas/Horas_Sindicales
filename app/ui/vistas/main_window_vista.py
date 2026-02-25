@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 from typing import cast
 
 from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, QThread
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -1549,7 +1550,7 @@ class MainWindow(QMainWindow):
                 getattr(self, "completo_check", None),
                 getattr(self, "notas_input", None),
             }
-            if watched in submit_widgets and event.type() == QEvent.KeyPress:
+            if watched in submit_widgets and event.type() == QEvent.KeyPress and isinstance(event, QKeyEvent):
                 key_getter = getattr(event, "key", None)
                 modifiers_getter = getattr(event, "modifiers", None)
                 if not callable(key_getter):

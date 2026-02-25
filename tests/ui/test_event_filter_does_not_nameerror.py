@@ -24,9 +24,31 @@ def _in_memory_connection() -> sqlite3.Connection:
     return connection
 
 
-def test_event_filter_handles_keypress_without_crash_when_qkeyevent_symbol_missing(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_event_filter_handles_qkeyevent_keypress_without_crash() -> None:
+    app = QApplication.instance() or QApplication([])
+    container = build_container(connection_factory=_in_memory_connection)
+
+    window = MainWindow(
+        container.persona_use_cases,
+        container.solicitud_use_cases,
+        container.grupo_use_cases,
+        container.sheets_service,
+        container.sync_service,
+        container.conflicts_service,
+        health_check_use_case=None,
+        alert_engine=container.alert_engine,
+    )
+
+    event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key_Return, Qt.NoModifier)
+    handled = window.eventFilter(window.notas_input, event)
+
+    assert isinstance(handled, bool)
+
+    window.close()
+    app.processEvents()
+
+
+def test_event_filter_if_qkeyevent_symbol_missing_no_nameerror(monkeypatch: pytest.MonkeyPatch) -> None:
     app = QApplication.instance() or QApplication([])
     container = build_container(connection_factory=_in_memory_connection)
 
@@ -43,6 +65,7 @@ def test_event_filter_handles_keypress_without_crash_when_qkeyevent_symbol_missi
 
     monkeypatch.setattr(main_window_vista, "QKeyEvent", None, raising=False)
     event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key_Return, Qt.NoModifier)
+
     handled = window.eventFilter(window.notas_input, event)
 
     assert isinstance(handled, bool)

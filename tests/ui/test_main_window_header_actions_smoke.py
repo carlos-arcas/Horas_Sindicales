@@ -75,3 +75,16 @@ def test_header_new_button_click_no_crash() -> None:
 
     window.close()
     app.processEvents()
+
+
+def test_build_shell_layout_no_lanza_attribute_error() -> None:
+    app = QApplication.instance() or QApplication([])
+    window = _build_window()
+
+    try:
+        window._build_shell_layout()
+    except AttributeError as exc:  # pragma: no cover - regresión explícita de wiring UI
+        pytest.fail(f"_build_shell_layout lanzó AttributeError: {exc}")
+
+    window.close()
+    app.processEvents()
