@@ -5,7 +5,7 @@ import logging
 import uuid
 from unittest.mock import Mock
 
-from app.application.dto import SolicitudDTO
+from app.application.dto import ResultadoCrearSolicitudDTO, SolicitudDTO
 from app.ui.controllers.pdf_controller import PdfController
 from app.ui.controllers.personas_controller import PersonasController
 from app.ui.controllers.solicitudes_controller import SolicitudesController
@@ -18,7 +18,13 @@ def _build_window_for_solicitudes(solicitud: SolicitudDTO | None) -> SimpleNames
     use_cases.minutes_to_hours_float.return_value = 1.0
     use_cases.buscar_duplicado.return_value = None
     creada = replace(solicitud, id=55) if solicitud else None
-    use_cases.agregar_solicitud.return_value = (creada, None)
+    use_cases.crear_resultado.return_value = ResultadoCrearSolicitudDTO(
+        success=True,
+        warnings=[],
+        errores=[],
+        entidad=creada,
+        saldos=None,
+    )
     return SimpleNamespace(
         _build_preview_solicitud=Mock(return_value=solicitud),
         _solicitud_use_cases=use_cases,
@@ -70,7 +76,7 @@ def test_solicitudes_controller_calls_agregar() -> None:
     controller = SolicitudesController(window)
     controller.on_add_pendiente()
 
-    window._solicitud_use_cases.agregar_solicitud.assert_called_once()
+    window._solicitud_use_cases.crear_resultado.assert_called_once()
 
 
 def test_solicitudes_controller_no_permite_anadir_sin_delegada() -> None:
@@ -80,7 +86,7 @@ def test_solicitudes_controller_no_permite_anadir_sin_delegada() -> None:
     controller.on_add_pendiente()
 
     window.notifications.notify_validation_error.assert_called_once()
-    window._solicitud_use_cases.agregar_solicitud.assert_not_called()
+    window._solicitud_use_cases.crear_resultado.assert_not_called()
 
 
 def test_solicitudes_controller_duplicate_guides_to_existing() -> None:
@@ -106,8 +112,40 @@ def test_solicitudes_controller_duplicate_guides_to_existing() -> None:
     controller.on_add_pendiente()
 
     window._handle_duplicate_detected.assert_called_once()
-    window._solicitud_use_cases.agregar_solicitud.assert_not_called()
+    window._solicitud_use_cases.crear_resultado.assert_not_called()
 
+
+
+
+def test_solicitudes_controller_muestra_warning_no_bloqueante() -> None:
+    solicitud = SolicitudDTO(
+        id=None,
+        persona_id=1,
+        fecha_solicitud="2024-01-01",
+        fecha_pedida="2024-01-01",
+        desde="10:00",
+        hasta="11:00",
+        completo=False,
+        horas=0,
+        observaciones=None,
+        pdf_path=None,
+        pdf_hash=None,
+        notas=None,
+    )
+    window = _build_window_for_solicitudes(solicitud)
+    window._solicitud_use_cases.crear_resultado.return_value = ResultadoCrearSolicitudDTO(
+        success=True,
+        warnings=["Saldo insuficiente. La petición se ha registrado igualmente."],
+        errores=[],
+        entidad=replace(solicitud, id=77),
+        saldos=None,
+    )
+
+    controller = SolicitudesController(window)
+    controller.on_add_pendiente()
+
+    window.toast.info.assert_called_once()
+    window._reload_pending_views.assert_called_once()
 
 def test_sync_controller_updates_button_state() -> None:
     window = SimpleNamespace(
@@ -185,8 +223,8 @@ def test_solicitudes_controller_logs_correlation_id(caplog) -> None:
     with caplog.at_level(logging.INFO):
         controller.on_add_pendiente()
 
-    assert window._solicitud_use_cases.agregar_solicitud.called
-    kwargs = window._solicitud_use_cases.agregar_solicitud.call_args.kwargs
+    assert window._solicitud_use_cases.crear_resultado.called
+    kwargs = window._solicitud_use_cases.crear_resultado.call_args.kwargs
     correlation_id = kwargs["correlation_id"]
     uuid.UUID(correlation_id)
 

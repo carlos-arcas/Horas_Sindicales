@@ -15,6 +15,7 @@ from app.application.dto import (
     ResumenGrupoAnualDTO,
     ResumenIndividualDTO,
     ResumenSaldosDTO,
+    ResultadoCrearSolicitudDTO,
     SaldosDTO,
     SolicitudDTO,
     TotalesGlobalesDTO,
@@ -205,6 +206,93 @@ class SolicitudUseCases:
     ) -> SolicitudDTO:
         solicitud, _ = self.agregar_solicitud(dto, correlation_id=correlation_id, contexto=contexto)
         return solicitud
+
+    def crear_resultado(
+        self,
+        dto: SolicitudDTO,
+        correlation_id: str | None = None,
+        contexto: ContextoOperacion | None = None,
+    ) -> ResultadoCrearSolicitudDTO:
+        correlation_id = _resolver_correlation_id(correlation_id, contexto)
+        errores: list[str] = []
+        warnings: list[str] = []
+
+        if dto.persona_id <= 0:
+            errores.append("Selecciona una delegada válida antes de guardar la solicitud.")
+            return ResultadoCrearSolicitudDTO(success=False, warnings=warnings, errores=errores, entidad=None)
+
+        try:
+            validar_solicitud_dto_declarativo(dto)
+        except (ValidacionError, BusinessRuleError) as exc:
+            errores.append(str(exc))
+            return ResultadoCrearSolicitudDTO(success=False, warnings=warnings, errores=errores, entidad=None)
+
+        persona = self._persona_repo.get_by_id(dto.persona_id)
+        if persona is None:
+            errores.append("Persona no encontrada.")
+            return ResultadoCrearSolicitudDTO(success=False, warnings=warnings, errores=errores, entidad=None)
+
+        dto_normalizado = replace(
+            dto,
+            fecha_pedida=normalize_date(dto.fecha_pedida),
+            fecha_solicitud=normalize_date(dto.fecha_solicitud),
+            desde=None if dto.desde is None else normalize_time(dto.desde),
+            hasta=None if dto.hasta is None else normalize_time(dto.hasta),
+        )
+
+        conflicto = self.validar_conflicto_dia(dto_normalizado.persona_id, dto_normalizado.fecha_pedida, dto_normalizado.completo)
+        if not conflicto.ok:
+            errores.append(
+                "Conflicto completo/parcial en la misma fecha. "
+                f"Acción sugerida: {conflicto.accion_sugerida}."
+            )
+            return ResultadoCrearSolicitudDTO(success=False, warnings=warnings, errores=errores, entidad=None)
+
+        duplicate = self.buscar_duplicado(dto_normalizado)
+        if duplicate is not None:
+            errores.append("Duplicado confirmado" if duplicate.generated else "Duplicado pendiente")
+            return ResultadoCrearSolicitudDTO(success=False, warnings=warnings, errores=errores, entidad=None)
+
+        try:
+            minutos = _calcular_minutos(dto_normalizado, persona)
+            year, month = _parse_year_month(dto_normalizado.fecha_pedida)
+            saldos_previos = self.calcular_saldos(dto_normalizado.persona_id, year, month)
+            if saldos_previos.restantes_mes < minutos or saldos_previos.restantes_ano < minutos:
+                warning_msg = "Saldo insuficiente. La petición se ha registrado igualmente."
+                warnings.append(warning_msg)
+                logger.warning(
+                    warning_msg,
+                    extra={
+                        "extra": {
+                            "operation": "crear_solicitud",
+                            "persona_id": dto_normalizado.persona_id,
+                            "fecha_pedida": dto_normalizado.fecha_pedida,
+                            "minutos_solicitados": minutos,
+                            "restantes_mes": saldos_previos.restantes_mes,
+                            "restantes_ano": saldos_previos.restantes_ano,
+                        }
+                    },
+                )
+
+            creada, saldos = self.agregar_solicitud(
+                dto_normalizado,
+                correlation_id=correlation_id,
+                contexto=contexto,
+            )
+        except (ValidacionError, BusinessRuleError) as exc:
+            errores.append(str(exc))
+            return ResultadoCrearSolicitudDTO(success=False, warnings=warnings, errores=errores, entidad=None)
+        except (InfraError, PersistenceError) as exc:
+            errores.append(str(exc))
+            return ResultadoCrearSolicitudDTO(success=False, warnings=warnings, errores=errores, entidad=None)
+
+        return ResultadoCrearSolicitudDTO(
+            success=True,
+            warnings=warnings,
+            errores=errores,
+            entidad=creada,
+            saldos=saldos,
+        )
 
     def agregar_solicitud(
         self,

@@ -1999,7 +1999,7 @@ class MainWindow(QMainWindow):
             year, month, _ = (int(part) for part in solicitud.fecha_pedida.split("-"))
             saldos = self._solicitud_use_cases.calcular_saldos(solicitud.persona_id, year, month)
             if saldos.restantes_mes < minutos or saldos.restantes_ano < minutos:
-                blocking["saldo"] = "⚠ Saldo insuficiente para esta solicitud."
+                warnings["saldo"] = "Saldo insuficiente. La petición se ha registrado igualmente."
 
             duplicate = self._solicitud_use_cases.buscar_duplicado(solicitud)
             if duplicate is not None:
@@ -2084,13 +2084,10 @@ class MainWindow(QMainWindow):
             return False
         if self._warnings:
             warning_text = "\n".join(f"• {msg}" for msg in self._warnings.values())
-            result = QMessageBox.question(
-                self,
-                "Advertencias",
-                f"Se detectaron advertencias no bloqueantes:\n\n{warning_text}\n\n¿Deseas continuar?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            self.toast.info(
+                f"Se detectaron advertencias no bloqueantes:\n{warning_text}",
+                title="Advertencias",
             )
-            return result == QMessageBox.StandardButton.Yes
         return True
 
     def _bind_manual_hours_preview_refresh(self) -> None:
