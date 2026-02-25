@@ -10,7 +10,6 @@ from typing import cast
 
 from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, QThread
 from PySide6.QtWidgets import (
-    QBoxLayout,
     QCheckBox,
     QComboBox,
     QDateEdit,

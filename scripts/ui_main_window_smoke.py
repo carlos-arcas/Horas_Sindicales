@@ -10,13 +10,6 @@ import traceback
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from app.bootstrap.container import build_container
-from app.bootstrap.logging import configure_logging, log_operational_error
-
-configure_logging(ROOT / "logs", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 REQUIRED_HANDLERS = (
@@ -98,6 +91,15 @@ def _should_fail_gate(exc: BaseException) -> bool:
 
 def main() -> int:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+
+    from app.bootstrap.container import build_container
+    from app.bootstrap.logging import configure_logging, log_operational_error
+
+    configure_logging(ROOT / "logs", level=logging.INFO)
+
     try:
         qt_widgets = importlib.import_module("PySide6.QtWidgets")
         app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
@@ -149,16 +151,16 @@ def main() -> int:
             extra={"script": "ui_main_window_smoke.py", "error_type": type(exc).__name__},
         )
         if _should_fail_gate(exc):
-            print(_format_exception_summary(exc))
+            logger.error(_format_exception_summary(exc))
             return 1
-        print(f"SMOKE_UI_WARN: {type(exc).__name__} {exc}")
+        logger.warning("SMOKE_UI_WARN: %s %s", type(exc).__name__, exc)
         return 0
 
     missing = [name for name in REQUIRED_HANDLERS if not callable(getattr(type(window), name, None))]
     if missing:
         message = f"Missing handlers: {', '.join(missing)}"
         log_operational_error(logger, "ui_main_window_smoke_missing_handlers", exc=AttributeError(message))
-        print(f"SMOKE_UI_FAIL: AttributeError {message} archivo:linea ui_main_window_smoke.py:0")
+        logger.error("SMOKE_UI_FAIL: AttributeError %s archivo:linea ui_main_window_smoke.py:0", message)
         window.close()
         app.processEvents()
         return 1
