@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import uuid
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -23,6 +24,10 @@ from app.application.operaciones.exportacion_pdf_historico_operacion import (
     ExportacionPdfHistoricoOperacion,
     RequestExportacionPdfHistorico,
 )
+from app.application.operaciones.confirmacion_pdf_operacion import (
+    ConfirmacionPdfOperacion,
+    RequestConfirmacionPdf,
+)
 from app.application.ports.sistema_archivos_puerto import SistemaArchivosPuerto
 from app.application.pending_conflicts import detect_pending_time_conflicts
 from app.application.ports.pdf_puerto import GeneradorPdfPuerto
@@ -33,8 +38,19 @@ from app.domain.ports import GrupoConfigRepository, PersonaRepository, Solicitud
 from app.domain.request_time import compute_request_minutes, minutes_to_hours_float
 from app.domain.services import BusinessRuleError, ValidacionError, validar_solicitud
 from app.domain.time_utils import minutes_to_hhmm, parse_hhmm
+from app.application.use_cases.solicitudes.validaciones import validar_solicitud_dto_declarativo
 
 logger = logging.getLogger(__name__)
+
+
+class ErrorAplicacionSolicitud(BusinessRuleError):
+    def __init__(self, mensaje: str, *, incident_id: str) -> None:
+        super().__init__(f"{mensaje}. ID de incidente: {incident_id}")
+        self.incident_id = incident_id
+
+
+def _generar_incident_id() -> str:
+    return f"INC-{uuid.uuid4().hex[:12].upper()}"
 
 
 class _PathFileSystem:
@@ -202,6 +218,8 @@ class SolicitudUseCases:
         una vista consistente después de validar duplicados y conflictos del día.
         """
         correlation_id = _resolver_correlation_id(correlation_id, contexto)
+        if not correlation_id:
+            correlation_id = str(uuid.uuid4())
         logger.info(
             "Creando solicitud persona_id=%s fecha_pedida=%s completo=%s desde=%s hasta=%s",
             dto.persona_id,
@@ -219,6 +237,7 @@ class SolicitudUseCases:
             )
         if dto.persona_id <= 0:
             raise BusinessRuleError("Selecciona una delegada válida antes de guardar la solicitud.")
+        validar_solicitud_dto_declarativo(dto)
         persona = self._persona_repo.get_by_id(dto.persona_id)
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
@@ -483,8 +502,25 @@ class SolicitudUseCases:
         correlation_id: str | None = None,
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:
         solicitudes_list = list(solicitudes)
+        if not correlation_id:
+            correlation_id = str(uuid.uuid4())
         if correlation_id:
             log_event(logger, "confirmar_lote_pdf_started", {"count": len(solicitudes_list)}, correlation_id)
+
+        for solicitud in solicitudes_list:
+            validar_solicitud_dto_declarativo(solicitud)
+
+        preflight = ConfirmacionPdfOperacion(fs=self._fs, generador_pdf=self._generador_pdf).ejecutar(
+            RequestConfirmacionPdf(
+                solicitudes=solicitudes_list,
+                destino=destino,
+                dry_run=True,
+                overwrite=False,
+            )
+        )
+        if preflight.conflictos.no_ejecutable:
+            raise BusinessRuleError("; ".join(preflight.conflictos.conflictos))
+
         creadas: list[SolicitudDTO] = []
         pendientes: list[SolicitudDTO] = []
         errores: list[str] = []
@@ -504,10 +540,16 @@ class SolicitudUseCases:
             except PersistenceError:
                 raise
             except InfraError:  # pragma: no cover - fallback
+                incident_id = _generar_incident_id()
                 logger.exception("Error técnico creando solicitud")
                 if correlation_id:
-                    log_event(logger, "confirmar_lote_pdf_failed", {"error": "crear_solicitud"}, correlation_id)
-                errores.append("Se produjo un error técnico al guardar la solicitud.")
+                    log_event(
+                        logger,
+                        "confirmar_lote_pdf_failed",
+                        {"error": "crear_solicitud", "incident_id": incident_id},
+                        correlation_id,
+                    )
+                errores.append(f"Se produjo un error técnico al guardar la solicitud. ID de incidente: {incident_id}")
                 pendientes.append(solicitud)
 
         pdf_path: Path | None = None
@@ -537,11 +579,19 @@ class SolicitudUseCases:
             except PersistenceError:
                 raise
             except InfraError:  # pragma: no cover - fallback
+                incident_id = _generar_incident_id()
                 logger.exception("Error técnico generando PDF")
                 if correlation_id:
-                    log_event(logger, "confirmar_lote_pdf_failed", {"error": "generar_pdf"}, correlation_id)
-                errores.append("No se pudo generar el PDF por un error técnico.")
-                pdf_path = None
+                    log_event(
+                        logger,
+                        "confirmar_lote_pdf_failed",
+                        {"error": "generar_pdf", "incident_id": incident_id},
+                        correlation_id,
+                    )
+                raise ErrorAplicacionSolicitud(
+                    "No se pudo generar el PDF por un error técnico",
+                    incident_id=incident_id,
+                )
 
         if correlation_id:
             log_event(
