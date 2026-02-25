@@ -390,8 +390,8 @@ class MainWindow(QMainWindow):
         *,
         collapsed_text: str = "Ver detalles",
         expanded_text: str = "Ocultar detalles",
+        expandido_por_defecto: bool = False,
     ) -> None:
-        content.setVisible(False)
         button.setCheckable(True)
 
         def _toggle(checked: bool) -> None:
@@ -399,7 +399,8 @@ class MainWindow(QMainWindow):
             button.setText(expanded_text if checked else collapsed_text)
 
         button.toggled.connect(_toggle)
-        _toggle(False)
+        _toggle(expandido_por_defecto)
+        button.setChecked(expandido_por_defecto)
 
     def _build_ui(self) -> None:
         self._create_widgets()
@@ -449,7 +450,7 @@ class MainWindow(QMainWindow):
 
         # UX: Operativa concentra solo tareas diarias (alta + pendientes + confirmación)
         # para reducir cambios de contexto y evitar mezclar navegación histórica.
-        self.solicitudes_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.solicitudes_splitter = QSplitter(Qt.Orientation.Vertical)
         self.solicitudes_splitter.setObjectName("solicitudesSplitter")
         self.solicitudes_splitter.setChildrenCollapsible(False)
         self.solicitudes_splitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -778,12 +779,16 @@ class MainWindow(QMainWindow):
         pendientes_footer.addLayout(right_actions)
         pending_details_layout.addLayout(pendientes_footer)
         pendientes_layout.addWidget(self.pending_details_content, 1)
-        self._configure_disclosure(self.pending_details_button, self.pending_details_content)
+        self._configure_disclosure(
+            self.pending_details_button,
+            self.pending_details_content,
+            expandido_por_defecto=True,
+        )
         solicitudes_list_layout.addWidget(pendientes_card, 1)
-        self.solicitudes_splitter.addWidget(solicitudes_list_panel)
         self.solicitudes_splitter.addWidget(solicitudes_form_panel)
-        self.solicitudes_splitter.setStretchFactor(0, 2)
-        self.solicitudes_splitter.setStretchFactor(1, 3)
+        self.solicitudes_splitter.addWidget(solicitudes_list_panel)
+        self.solicitudes_splitter.setStretchFactor(0, 3)
+        self.solicitudes_splitter.setStretchFactor(1, 2)
 
         self.main_tabs.addTab(operativa_tab, "Operativa")
 
@@ -925,7 +930,13 @@ class MainWindow(QMainWindow):
         historico_actions.addWidget(self.generar_pdf_button)
         historico_details_layout.addLayout(historico_actions)
         historico_layout.addWidget(self.historico_details_content, 1)
-        self._configure_disclosure(self.historico_details_button, self.historico_details_content, collapsed_text="Ver filtros y listado", expanded_text="Ocultar filtros y listado")
+        self._configure_disclosure(
+            self.historico_details_button,
+            self.historico_details_content,
+            collapsed_text="Ver filtros y listado",
+            expanded_text="Ocultar filtros y listado",
+            expandido_por_defecto=True,
+        )
 
         self.saldos_card = SaldosCard()
         historico_tab_layout.addWidget(self.saldos_card)
