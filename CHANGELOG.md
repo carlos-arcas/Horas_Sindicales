@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Established SemVer and release documentation workflow for future versions.
+- UI: eliminada cabecera tipo wizard en Solicitudes para ganar altura útil.
 
 ### Fixed
 - Ajustada la validación preventiva de duplicados para ignorar la propia pendiente en edición y evitar falsos positivos por eco del formulario.

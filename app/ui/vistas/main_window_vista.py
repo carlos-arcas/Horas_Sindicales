@@ -344,8 +344,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.pendientes_table = self.huerfanas_table = None
         self.pendientes_model = self.huerfanas_model = None
         self.huerfanas_label = None
-        self.confirmation_summary_label = self.stepper_context_label = None
-        self.stepper_labels = None
+        self.confirmation_summary_label = None
         self.sync_button = self.confirm_sync_button = None
         self.retry_failed_button = self.simulate_sync_button = self.review_conflicts_button = None
         self.go_to_sync_config_button = self.copy_sync_report_button = None
@@ -1534,11 +1533,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.resync_historico_button.setText(f"Re-sincronizar ({selected_count})")
         self.generar_pdf_button.setText(f"Generar PDF ({selected_count})")
 
-        self._update_stepper_state(form_valid, has_blocking_errors, first_blocking_error, form_message)
-
-        active_step = self._resolve_operativa_step(form_valid and not has_blocking_errors, has_pending, selected_pending, can_confirm)
-        self._set_operativa_step(active_step)
-        self._update_step_context(active_step)
         self._update_confirmation_summary(selected_pending)
 
         self._update_primary_cta(
@@ -1552,18 +1546,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             has_pending=has_pending,
         )
         self._dump_estado_pendientes("after_update_action_state")
-
-    def _update_stepper_state(
-        self,
-        form_valid: bool,
-        has_blocking_errors: bool,
-        first_blocking_error: str,
-        form_message: str,
-    ) -> None:
-        form_step_valid = form_valid and not has_blocking_errors
-        self.stepper_labels[1].setEnabled(form_step_valid)
-        stepper_message = first_blocking_error or form_message or "Completa la solicitud para poder añadirla"
-        self.stepper_labels[1].setToolTip("" if form_step_valid else stepper_message)
 
     def _update_primary_cta(
         self,
@@ -1609,53 +1591,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
         self.primary_cta_button.setEnabled(False)
         self.primary_cta_hint.setText("Completa el formulario para continuar")
-
-    def _resolve_operativa_step(
-        self,
-        form_valid: bool,
-        has_pending: bool,
-        selected_pending: list[SolicitudDTO],
-        can_confirm: bool,
-    ) -> int:
-        if selected_pending and can_confirm:
-            return 3
-        if has_pending:
-            return 2
-        if form_valid:
-            return 2
-        return 1
-
-    def _set_operativa_step(self, active_step: int) -> None:
-        for index, label in enumerate(self.stepper_labels, start=1):
-            if index < active_step:
-                label.setProperty("role", "stepDone")
-            elif index == active_step:
-                label.setProperty("role", "stepActive")
-            else:
-                label.setProperty("role", "stepIdle")
-            label.style().unpolish(label)
-            label.style().polish(label)
-
-        for index, bullet in enumerate(self._step_bullets, start=1):
-            if index < active_step:
-                bullet.setText("✓")
-                bullet.setProperty("role", "stepBulletDone")
-            elif index == active_step:
-                bullet.setText(str(index))
-                bullet.setProperty("role", "stepBulletActive")
-            else:
-                bullet.setText(str(index))
-                bullet.setProperty("role", "stepBulletIdle")
-            bullet.style().unpolish(bullet)
-            bullet.style().polish(bullet)
-
-    def _update_step_context(self, active_step: int) -> None:
-        messages = {
-            1: "Pendientes: 0 · Seleccionadas: 0 · Modo: Delegada",
-            2: "Pendientes en revisión",
-            3: "Lista para confirmar y generar PDF",
-        }
-        self.stepper_context_label.setText(messages.get(active_step, ""))
 
     def _update_confirmation_summary(self, selected_pending: list[SolicitudDTO]) -> None:
         if not selected_pending:
