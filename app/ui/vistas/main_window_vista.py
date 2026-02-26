@@ -91,6 +91,7 @@ from app.core.observability import OperationContext, log_event
 from app.ui.workers.sincronizacion_workers import PushWorker
 from app.bootstrap.logging import log_operational_error
 from app.ui.vistas.main_window_health_mixin import MainWindowHealthMixin
+from app.ui.vistas.init_refresh import run_init_refresh
 from app.ui.vistas.builders.main_window_builders import (
     build_main_window_widgets,
     build_shell_layout,
@@ -388,6 +389,15 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._update_sync_button_state()
         self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
+        QTimer.singleShot(0, self._init_refresh)
+
+    def _init_refresh(self) -> None:
+        run_init_refresh(
+            refresh_resumen=self._refresh_saldos,
+            refresh_pendientes=self._reload_pending_views,
+            refresh_historico=self._refresh_historico,
+            emit_log=logger.info,
+        )
 
     def _validate_required_widgets(self) -> None:
         required_widgets = (
@@ -3155,11 +3165,25 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         )
 
     def _refresh_historico(self) -> None:
+        persona = self._current_persona()
+        historico_filters = {
+            "delegada_id": self.historico_delegada_combo.currentData(),
+            "estado": self.historico_estado_combo.currentData(),
+            "desde": self.historico_desde_date.date().toString("yyyy-MM-dd"),
+            "hasta": self.historico_hasta_date.date().toString("yyyy-MM-dd"),
+            "search": self.historico_search_input.text().strip(),
+        }
+        logger.info(
+            "UI_HISTORICO_FETCH_START persona_id=%s filtros=%s",
+            persona.id if persona is not None else None,
+            historico_filters,
+        )
         solicitudes: list[SolicitudDTO] = []
         for persona in self._personas:
             if persona.id is None:
                 continue
             solicitudes.extend(self._solicitud_use_cases.listar_solicitudes_por_persona(persona.id))
+        logger.info("UI_HISTORICO_FETCH_OK count=%s", len(solicitudes))
         self.historico_model.set_solicitudes(solicitudes)
         self.historico_table.sortByColumn(0, Qt.DescendingOrder)
         self._apply_historico_filters()
