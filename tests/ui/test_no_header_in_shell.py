@@ -32,24 +32,29 @@ def _build_window() -> MainWindow:
     )
 
 
-def test_no_existe_cabecera_shell_global() -> None:
+def test_main_window_no_renderiza_header_global() -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
     assert window.findChild(qtwidgets.QWidget, "header_shell") is None
 
-    window.close()
-    app.processEvents()
-
-
-def test_botones_header_eliminados_del_root() -> None:
-    app = QApplication.instance() or QApplication([])
-    window = _build_window()
-
     textos = {boton.text() for boton in window.findChildren(QPushButton)}
     assert "Sync" not in textos
     assert "Exportar" not in textos
     assert "Config" not in textos
+
+    window.close()
+    app.processEvents()
+
+
+def test_acciones_reubicadas_siguen_disponibles() -> None:
+    app = QApplication.instance() or QApplication([])
+    window = _build_window()
+
+    assert window.nueva_solicitud_button is not None
+    assert window.sync_button is not None
+    assert window.generar_pdf_button is not None
+    assert window.generar_pdf_button.text().startswith("Exportar histórico PDF")
 
     window.close()
     app.processEvents()
