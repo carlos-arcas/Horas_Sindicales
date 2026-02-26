@@ -104,21 +104,20 @@ class SolicitudesTableModel(QAbstractTableModel):
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
         if not index.isValid():
             return None
+        role_handlers = {
+            Qt.DisplayRole: self._data_display,
+            Qt.ToolTipRole: self._data_tooltip,
+            Qt.ForegroundRole: self._data_foreground,
+            Qt.FontRole: self._data_font,
+        }
+        handler = role_handlers.get(role)
+        if handler is None:
+            return None
+        return handler(index)
+
+    def _data_display(self, index: QModelIndex):
         solicitud = self._solicitudes[index.row()]
         column = index.column()
-        if role == Qt.ToolTipRole and column == 5:
-            return solicitud.notas or ""
-        if index.row() in self._conflict_rows:
-            if role == Qt.ForegroundRole and column == 0:
-                return QColor("#c62828")
-            if role == Qt.FontRole and column == 0:
-                font = QFont()
-                font.setUnderline(True)
-                return font
-            if role == Qt.ToolTipRole and column == 0:
-                return "⚠ Horario solapado con otra petición pendiente del mismo día."
-        if role != Qt.DisplayRole:
-            return None
         if column == 0:
             return solicitud.fecha_pedida
         if column == 1:
@@ -143,6 +142,29 @@ class SolicitudesTableModel(QAbstractTableModel):
         if self._show_delegada and column == dynamic_column:
             return self._persona_nombres.get(solicitud.persona_id, "(sin delegada)")
         return None
+
+    def _data_tooltip(self, index: QModelIndex):
+        column = index.column()
+        if column == 5:
+            return self._solicitudes[index.row()].notas or ""
+        if self._is_conflict_marker_column(index):
+            return "⚠ Horario solapado con otra petición pendiente del mismo día."
+        return None
+
+    def _data_foreground(self, index: QModelIndex):
+        if self._is_conflict_marker_column(index):
+            return QColor("#c62828")
+        return None
+
+    def _data_font(self, index: QModelIndex):
+        if not self._is_conflict_marker_column(index):
+            return None
+        font = QFont()
+        font.setUnderline(True)
+        return font
+
+    def _is_conflict_marker_column(self, index: QModelIndex) -> bool:
+        return index.row() in self._conflict_rows and index.column() == 0
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
         if role != Qt.DisplayRole:
