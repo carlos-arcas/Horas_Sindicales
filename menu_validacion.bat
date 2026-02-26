@@ -7,6 +7,7 @@ set "REPO_ROOT=%ROOT_DIR%"
 set "LOG_DIR=%REPO_ROOT%\logs"
 set "RUNS_DIR=%LOG_DIR%\runs"
 set "SUMMARY_FILE=%LOG_DIR%\menu_ultima_ejecucion.txt"
+set "TESTS_ENV_FILE=%LOG_DIR%\menu_tests_env.txt"
 set "LAST_RUN_ID_FILE=%LOG_DIR%\menu_last_run_id.txt"
 set "TESTS_SCRIPT=%REPO_ROOT%\ejecutar_tests.bat"
 set "GATE_SCRIPT=%REPO_ROOT%\quality_gate.bat"
@@ -30,8 +31,7 @@ set "LAST_ERROR_EXIT="
 set "PAUSE_ALREADY_DONE=0"
 set "DEBUG_SANITY=0"
 
-if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
-if not exist "%RUNS_DIR%" mkdir "%RUNS_DIR%" >nul 2>&1
+call :ENSURE_LOG_DIRS
 cd /d "%REPO_ROOT%"
 
 :MENU
@@ -60,6 +60,7 @@ if "%CHOICE%"=="1" (
     call :WRITE_SUMMARY
     call :PUBLISH_LAST_SUMMARY
     set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
+    call :WRITE_MENU_EXECUTION_LOG "%LAST_ACTION%" "!SCRIPT_EXIT_CODE!"
     call :FINALIZE_ACTION
     goto MENU
 )
@@ -75,6 +76,7 @@ if "%CHOICE%"=="2" (
     call :WRITE_SUMMARY
     call :PUBLISH_LAST_SUMMARY
     set "SCRIPT_EXIT_CODE=!GATE_CODE!"
+    call :WRITE_MENU_EXECUTION_LOG "%LAST_ACTION%" "!SCRIPT_EXIT_CODE!"
     call :FINALIZE_ACTION
     goto MENU
 )
@@ -92,6 +94,7 @@ if "%CHOICE%"=="3" (
         call :WRITE_SUMMARY
         call :PUBLISH_LAST_SUMMARY
         set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
+        call :WRITE_MENU_EXECUTION_LOG "%LAST_ACTION%" "!SCRIPT_EXIT_CODE!"
         call :FINALIZE_ACTION
         goto MENU
     )
@@ -99,6 +102,7 @@ if "%CHOICE%"=="3" (
     call :WRITE_SUMMARY
     call :PUBLISH_LAST_SUMMARY
     set "SCRIPT_EXIT_CODE=!GATE_CODE!"
+    call :WRITE_MENU_EXECUTION_LOG "%LAST_ACTION%" "!SCRIPT_EXIT_CODE!"
     call :FINALIZE_ACTION
     goto MENU
 )
@@ -106,6 +110,7 @@ if "%CHOICE%"=="4" (
     set "PAUSE_ALREADY_DONE=0"
     if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
     start "" "%LOG_DIR%"
+    call :WRITE_MENU_EXECUTION_LOG "Abrir carpeta logs" "0"
     call :FINALIZE_ACTION
     goto MENU
 )
@@ -116,12 +121,14 @@ if "%CHOICE%"=="5" (
     ) else (
         echo No existe aun "%SUMMARY_FILE%".
     )
+    call :WRITE_MENU_EXECUTION_LOG "Abrir el ultimo summary en Notepad" "0"
     call :FINALIZE_ACTION
     goto MENU
 )
 if "%CHOICE%"=="6" (
     set "PAUSE_ALREADY_DONE=0"
     call :OPEN_LAST_COVERAGE_HTML
+    call :WRITE_MENU_EXECUTION_LOG "Abrir coverage html (index.html) del ultimo run" "%ERRORLEVEL%"
     call :FINALIZE_ACTION
     goto MENU
 )
@@ -139,18 +146,19 @@ if "%CHOICE%"=="9" (
     call :WRITE_SUMMARY
     call :PUBLISH_LAST_SUMMARY
     set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
+    call :WRITE_MENU_EXECUTION_LOG "%LAST_ACTION%" "!SCRIPT_EXIT_CODE!"
     call :FINALIZE_ACTION
     goto MENU
 )
 if "%CHOICE%"=="0" goto END
 
 echo Opcion invalida. Intenta de nuevo.
+call :WRITE_MENU_EXECUTION_LOG "Opcion invalida" "1"
 call :FINALIZE_ACTION
 goto MENU
 
 :RUN_PREFLIGHT
-if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
-if not exist "%RUNS_DIR%" mkdir "%RUNS_DIR%" >nul 2>&1
+call :ENSURE_LOG_DIRS
 if not exist "%TESTS_SCRIPT%" (
     call :SET_ERROR_STATE "preflight" "" "%SUMMARY_FILE%" "%SUMMARY_FILE%" "2" "No existe ejecutar_tests.bat"
     call :HANDLE_STEP_ERROR
@@ -264,6 +272,7 @@ exit /b 0
 :RUN_TESTS
 set "TESTS_STATUS=NO_EJECUTADO"
 set "TESTS_CODE=NO_EJECUTADO"
+call :WRITE_TESTS_ENV
 call :run_step "tests" "%TESTS_SCRIPT%" "" "%TESTS_STDOUT%" "%TESTS_STDERR%" "Fallo en ejecutar_tests.bat"
 if errorlevel 1 (
     set "TESTS_STATUS=FAIL"
@@ -343,6 +352,41 @@ exit /b 0
 if defined RUN_SUMMARY copy /y "%RUN_SUMMARY%" "%SUMMARY_FILE%" >nul 2>&1
 exit /b 0
 
+:ENSURE_LOG_DIRS
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
+if not exist "%RUNS_DIR%" mkdir "%RUNS_DIR%" >nul 2>&1
+exit /b 0
+
+:WRITE_MENU_EXECUTION_LOG
+call :ENSURE_LOG_DIRS
+set "EXEC_LOG_TS=%DATE% %TIME%"
+>>"%SUMMARY_FILE%" echo [!EXEC_LOG_TS!] opcion=%~1 exitcode=%~2
+exit /b 0
+
+:WRITE_TESTS_ENV
+call :ENSURE_LOG_DIRS
+>"%TESTS_ENV_FILE%" echo [%DATE% %TIME%] Entorno previo a tests
+>>"%TESTS_ENV_FILE%" echo python --version
+python --version >>"%TESTS_ENV_FILE%" 2>&1
+>>"%TESTS_ENV_FILE%" echo pip --version
+pip --version >>"%TESTS_ENV_FILE%" 2>&1
+>>"%TESTS_ENV_FILE%" echo where python
+where python >>"%TESTS_ENV_FILE%" 2>&1
+exit /b 0
+
+:safe_open
+set "SAFE_OPEN_TARGET=%~1"
+if not defined SAFE_OPEN_TARGET (
+    echo [ERROR] safe_open requiere ruta destino.
+    exit /b 1
+)
+if not exist "%SAFE_OPEN_TARGET%" (
+    echo [ERROR] No existe el fichero: "%SAFE_OPEN_TARGET%"
+    exit /b 1
+)
+start "" "%SAFE_OPEN_TARGET%"
+exit /b 0
+
 :OPEN_LAST_COVERAGE_HTML
 set "LAST_RUN_ID="
 for /f "delims=" %%D in ('dir /b /ad /o-n "%RUNS_DIR%" 2^>nul') do if not defined LAST_RUN_ID set "LAST_RUN_ID=%%D"
@@ -372,8 +416,8 @@ if not exist "%LAST_COV_INDEX%" (
     pause
     exit /b 1
 )
-start "" "%LAST_COV_INDEX%"
-exit /b 0
+call :safe_open "%LAST_COV_INDEX%"
+exit /b %ERRORLEVEL%
 
 :PRINT_RESULTS
 echo.
@@ -394,5 +438,6 @@ if not "%PAUSE_ALREADY_DONE%"=="1" pause
 exit /b 0
 
 :END
+call :WRITE_MENU_EXECUTION_LOG "Salir" "%SCRIPT_EXIT_CODE%"
 echo Saliendo del menu de validacion.
 exit /b %SCRIPT_EXIT_CODE%
