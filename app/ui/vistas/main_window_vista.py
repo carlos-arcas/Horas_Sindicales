@@ -72,7 +72,7 @@ from app.ui.person_dialog import PersonaDialog
 from app.ui.patterns import apply_modal_behavior, build_modal_actions, status_badge, STATUS_PATTERNS
 from app.ui.widgets.toast import ToastManager
 from app.ui.controllers.personas_controller import PersonasController
-from app.ui.controllers.solicitudes_controller import SolicitudesController, aplicar_confirmacion
+from app.ui.controllers.solicitudes_controller import SolicitudesController
 from app.ui.controllers.sync_controller import SyncController
 from app.ui.controllers.pdf_controller import PdfController
 from app.ui.notification_service import ConfirmationSummaryPayload, NotificationService, OperationFeedback
@@ -1767,13 +1767,36 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _refrescar_historico(self) -> None:
         self._refresh_historico()
 
-    def _procesar_resultado_confirmacion(self, confirmadas_ids: list[int], errores: list[str]) -> None:
-        self._pending_all_solicitudes = aplicar_confirmacion(self._pending_all_solicitudes, confirmadas_ids)
-        self._pending_solicitudes = aplicar_confirmacion(self._pending_solicitudes, confirmadas_ids)
-        self._hidden_pendientes = aplicar_confirmacion(self._hidden_pendientes, confirmadas_ids)
-        self._orphan_pendientes = aplicar_confirmacion(self._orphan_pendientes, confirmadas_ids)
+    def _post_confirm_success(
+        self,
+        confirmadas_ids: list[int],
+        pendientes_restantes: list[SolicitudDTO] | None = None,
+    ) -> None:
+        if not confirmadas_ids:
+            logger.warning("UI_POST_CONFIRM_NO_IDS")
+        self._solicitudes_controller.aplicar_confirmacion(confirmadas_ids, pendientes_restantes)
         self._reconstruir_tabla_pendientes()
         self._refrescar_historico()
+        self._clear_form()
+        self.pendientes_table.clearSelection()
+        self._editing_solicitud_id = None
+        self._update_global_context()
+        logger.info(
+            "UI_POST_CONFIRM_OK",
+            extra={
+                "confirmadas": len(confirmadas_ids),
+                "pendientes_restantes": len(self._pending_solicitudes),
+                "historico_total": self.historico_model.rowCount() if self.historico_model is not None else None,
+            },
+        )
+
+    def _procesar_resultado_confirmacion(
+        self,
+        confirmadas_ids: list[int],
+        errores: list[str],
+        pendientes_restantes: list[SolicitudDTO] | None = None,
+    ) -> None:
+        self._post_confirm_success(confirmadas_ids, pendientes_restantes)
         self._refresh_saldos()
         self.toast.success(f"{len(confirmadas_ids)} solicitudes confirmadas", title="Confirmación")
         if errores:
@@ -2121,12 +2144,12 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self._set_processing_state(True)
             with OperationContext("confirmar_sin_pdf") as operation:
                 log_event(logger, "confirmar_sin_pdf_started", {"count": len(selected)}, operation.correlation_id)
-                confirmadas_ids, errores, _ruta, creadas = self._solicitudes_controller.confirmar_lote(
+                confirmadas_ids, errores, _ruta, creadas, pendientes_restantes = self._solicitudes_controller.confirmar_lote(
                     selected,
                     correlation_id=operation.correlation_id,
                     generar_pdf=False,
                 )
-                self._procesar_resultado_confirmacion(confirmadas_ids, errores)
+                self._procesar_resultado_confirmacion(confirmadas_ids, errores, pendientes_restantes)
                 log_event(
                     logger,
                     "confirmar_sin_pdf_finished",
@@ -2216,10 +2239,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 logger.info("_on_confirmar early_return motivo=execute_confirmar_none")
                 _return_early("execute_confirmar_none")
                 return
-            correlation_id, generado, creadas, confirmadas_ids, errores = outcome
+            correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes = outcome
             logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(generado) if generado else None)
 
-            self._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, confirmadas_ids, errores)
+            self._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes)
         except Exception:
             logger.exception("UI_CONFIRMAR_PDF_EXCEPTION")
             raise
@@ -2280,7 +2303,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         persona: PersonaDTO,
         selected: list[SolicitudDTO],
         pdf_path: str,
-    ) -> tuple[str | None, Path | None, list[SolicitudDTO], list[int], list[str]] | None:
+    ) -> tuple[str | None, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None] | None:
         correlation_id: str | None = None
         try:
             self._set_processing_state(True)
@@ -2294,7 +2317,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                     {"count": len(selected), "destino": pdf_path},
                     operation.correlation_id,
                 )
-                confirmadas_ids, errores, generado, creadas = self._solicitudes_controller.confirmar_lote(
+                confirmadas_ids, errores, generado, creadas, pendientes_restantes = self._solicitudes_controller.confirmar_lote(
                     selected,
                     correlation_id=operation.correlation_id,
                     generar_pdf=True,
@@ -2309,7 +2332,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                     {"creadas": len(creadas), "errores": len(errores), "pdf_generado": bool(generado)},
                     operation.correlation_id,
                 )
-                return correlation_id, generado, creadas, confirmadas_ids, errores
+                return correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes
         except Exception as exc:  # pragma: no cover - fallback
             if isinstance(exc, OSError):
                 log_operational_error(
@@ -2337,6 +2360,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         creadas: list[SolicitudDTO],
         confirmadas_ids: list[int],
         errores: list[str],
+        pendientes_restantes: list[SolicitudDTO] | None,
     ) -> None:
         logger.debug("_finalize_confirmar_with_pdf paso=ruta_pdf_final ruta=%s", str(generado) if generado else None)
         if generado and self.abrir_pdf_check.isChecked():
@@ -2361,7 +2385,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 action_callback=lambda: _abrir_archivo_local(generado),
             )
             _abrir_archivo_local(generado)
-        self._procesar_resultado_confirmacion(confirmadas_ids, errores)
+        self._procesar_resultado_confirmacion(confirmadas_ids, errores, pendientes_restantes)
         self._show_confirmation_closure(
             creadas,
             errores,
