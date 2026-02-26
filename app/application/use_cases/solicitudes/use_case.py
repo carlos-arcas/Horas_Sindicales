@@ -119,6 +119,22 @@ class SolicitudUseCases:
         """Lista todas las solicitudes de una persona sin filtrar por periodo."""
         return [_solicitud_to_dto(s) for s in self._repo.list_by_persona(persona_id)]
 
+    def listar_historico(self) -> Iterable[SolicitudDTO]:
+        """Lista el histórico consolidado para todas las delegadas (incluyendo inactivas)."""
+        solicitudes: list[SolicitudDTO] = []
+        seen_ids: set[int] = set()
+        for persona in self._persona_repo.list_all(include_inactive=True):
+            if persona.id is None:
+                continue
+            for solicitud in self._repo.list_by_persona(persona.id):
+                dto = _solicitud_to_dto(solicitud)
+                if dto.id is not None and dto.id in seen_ids:
+                    continue
+                if dto.id is not None:
+                    seen_ids.add(dto.id)
+                solicitudes.append(dto)
+        return solicitudes
+
     def listar_pendientes_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
         return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_by_persona(persona_id)]
 
@@ -367,7 +383,7 @@ class SolicitudUseCases:
                     desde_min=existente.desde_min,
                     hasta_min=existente.hasta_min,
                 )
-            except ValidationError:
+            except ValidacionError:
                 continue
             if overlaps(nuevo_inicio, nuevo_fin, existente_inicio, existente_fin):
                 similares.append(_solicitud_to_dto(existente))

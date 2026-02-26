@@ -92,7 +92,6 @@ from app.ui.workers.sincronizacion_workers import PushWorker
 from app.bootstrap.logging import log_operational_error
 from app.ui.vistas.main_window_health_mixin import MainWindowHealthMixin
 from app.ui.vistas.init_refresh import run_init_refresh
-from app.ui.vistas.historico_refresh_logic import build_historico_rows
 from app.ui.vistas.builders.main_window_builders import (
     build_main_window_widgets,
     build_shell_layout,
@@ -948,6 +947,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.historico_details_button.setVisible(has_rows)
         self.historico_details_content.setVisible(has_rows and self.historico_details_button.isChecked())
 
+    def _apply_historico_default_range(self) -> None:
+        self.historico_desde_date.setDate(QDate(2000, 1, 1))
+        self.historico_hasta_date.setDate(QDate.currentDate().addYears(1))
+
     def _apply_historico_last_30_days(self) -> None:
         self.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
         self.historico_hasta_date.setDate(QDate.currentDate())
@@ -957,7 +960,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.historico_search_input.clear()
         self.historico_estado_combo.setCurrentIndex(0)
         self.historico_delegada_combo.setCurrentIndex(0)
-        self._apply_historico_last_30_days()
+        self._apply_historico_default_range()
+        self._apply_historico_filters()
 
     def _on_historico_escape(self) -> None:
         if self.historico_search_input.hasFocus():
@@ -3090,16 +3094,22 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             persona.id if persona is not None else None,
             historico_filters,
         )
-        solicitudes = build_historico_rows(
-            self._personas,
-            self._solicitud_use_cases.listar_solicitudes_por_persona,
+        solicitudes = self._solicitudes_controller.refresh_historico()
+        solicitud_ids = [sol.id for sol in solicitudes if sol.id is not None]
+        logger.info(
+            "UI_HISTORICO_QUERY_RESULT count=%s ids_first_5=%s",
+            len(solicitudes),
+            solicitud_ids[:5],
         )
         self.historico_model.set_solicitudes(solicitudes)
         self.historico_table.sortByColumn(0, Qt.DescendingOrder)
         self._apply_historico_filters()
         self._update_action_state()
-        logger.info("UI_HISTORICO_REFRESH_RESULT num_rows=%s", self.historico_proxy_model.rowCount())
-        if self.historico_proxy_model.rowCount() == 0:
+        row_count = self.historico_proxy_model.rowCount()
+        logger.info("UI_HISTORICO_TABLE_RENDER row_count=%s", row_count)
+        if len(solicitudes) > 0 and row_count == 0:
+            logger.error("UI_HISTORICO_RENDER_MISMATCH count=%s row_count=%s", len(solicitudes), row_count)
+        if row_count == 0:
             logger.info("UI_HISTORICO_REFRESH_EMPTY")
 
     def _refresh_saldos(self) -> None:
