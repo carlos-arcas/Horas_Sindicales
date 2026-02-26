@@ -37,15 +37,26 @@ def _has_module(module_name: str) -> bool:
 
 
 def _pytest_cov_available() -> bool:
-    if _has_module("pytest_cov"):
-        return True
-
     cmd = [sys.executable, "-m", "pytest", "--help"]
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         _log(logging.ERROR, "pytest_help_failed", f"returncode={result.returncode}")
         return False
-    return "--cov" in result.stdout
+    has_cov_flag = "--cov" in result.stdout
+    has_plugin = _has_module("pytest_cov")
+    if not has_plugin:
+        _log(
+            logging.ERROR,
+            "dependency_missing",
+            "pytest-cov no importable; instala con: python -m pip install -r requirements-dev.txt",
+        )
+    if not has_cov_flag:
+        _log(
+            logging.ERROR,
+            "pytest_cov_option_missing",
+            "pytest --help no expone --cov; reinstala pytest-cov con requirements-dev.txt",
+        )
+    return has_plugin and has_cov_flag
 
 
 def run_preflight(require_radon: bool = False) -> PreflightResult:

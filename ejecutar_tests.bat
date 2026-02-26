@@ -147,8 +147,8 @@ if defined RUN_DIR set "COVERAGE_HTML_DIR=%RUN_DIR%\coverage_html"
 
 if not exist "%COVERAGE_HTML_DIR%" mkdir "%COVERAGE_HTML_DIR%" >nul 2>&1
 
-rem contrato: pytest --cov=app --cov-report=term-missing (sin gate de umbral en este paso)
-set "PYTEST_CMD=python -m pytest -q tests --cov=app --cov-report=term-missing --cov-report=html:\"%COVERAGE_HTML_DIR%\""
+rem contrato: ejecutar cobertura global con gate minimo del 85%
+set "PYTEST_CMD=pytest --cov=. --cov-report=term-missing --cov-fail-under=85"
 call :log_debug "Comando pytest: %PYTEST_CMD%"
 if defined RUN_SUMMARY_FILE (
     >>"%RUN_SUMMARY_FILE%" echo CMD_PYTEST=%PYTEST_CMD%
@@ -156,7 +156,7 @@ if defined RUN_SUMMARY_FILE (
 
 echo [INFO] Ejecutando: %PYTEST_CMD%
 >>"%LOG_PYTEST%" echo [INFO] CMD: %PYTEST_CMD%
-python -m pytest -q tests --cov=app --cov-report=term-missing --cov-report=html:"%COVERAGE_HTML_DIR%" 1>>"%LOG_STDOUT%" 2>>"%LOG_STDERR%"
+pytest --cov=. --cov-report=term-missing --cov-fail-under=85 1>>"%LOG_STDOUT%" 2>>"%LOG_STDERR%"
 set "TEST_EXIT=%ERRORLEVEL%"
 set "FINAL_REASON=pytest devolvio exit code %TEST_EXIT%"
 if "%TEST_EXIT%"=="0" set "FINAL_REASON=pytest ok"

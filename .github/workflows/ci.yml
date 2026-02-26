@@ -27,5 +27,9 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
+      - name: Verificar pytest-cov
+        run: |
+          python -c "import pytest_cov" || (echo "ERROR: Falta pytest-cov. Instala requirements-dev.txt" && exit 1)
+
       - name: Quality gate (single source)
         run: python scripts/quality_gate.py
