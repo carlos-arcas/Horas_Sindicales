@@ -28,7 +28,6 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QProgressBar,
     QSizePolicy,
-    QStackedWidget,
     QSplitter,
     QTableView,
     QTimeEdit,
@@ -96,10 +95,6 @@ from app.ui.vistas.builders.main_window_builders import (
     build_main_window_widgets,
     build_shell_layout,
     build_status_bar,
-    create_pages_stack,
-    create_sidebar,
-    switch_sidebar_page,
-    sync_sidebar_state,
 )
 from app.ui.vistas.confirmar_pdf_state import debe_habilitar_confirmar_pdf
 
@@ -319,7 +314,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.saldos_card: SaldosCard | None = None
         self.horas_input: object | None = None
         self.sidebar: QFrame | None = None
-        self.stacked_pages: QStackedWidget | None = None
+        self.stacked_pages: QWidget | None = None
         self.page_historico: QWidget | None = None
         self.page_configuracion: QWidget | None = None
         self.page_sincronizacion: QWidget | None = None
@@ -477,17 +472,12 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         build_shell_layout(self)
 
 
-    def _create_sidebar(self) -> QFrame:
-        return create_sidebar(self)
-
-    def _create_pages_stack(self) -> QStackedWidget:
-        return create_pages_stack(self)
-
     def _switch_sidebar_page(self, index: int) -> None:
-        switch_sidebar_page(self, index)
-
-    def _sync_sidebar_state(self, active_index: int) -> None:
-        sync_sidebar_state(self, active_index)
+        """Compatibilidad con tests legados: ahora navega por pestañas."""
+        if self.main_tabs is None:
+            return
+        if 0 <= index <= 2:
+            self.main_tabs.setCurrentIndex(index)
 
     def _build_status_bar(self) -> None:
         build_status_bar(self)
