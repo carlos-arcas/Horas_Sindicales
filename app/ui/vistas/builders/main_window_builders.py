@@ -52,7 +52,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     content = QWidget()
     content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
     layout = QVBoxLayout(content)
-    layout.setContentsMargins(20, 16, 20, 20)
+    layout.setContentsMargins(20, 8, 20, 20)
     layout.setSpacing(16)
 
     window.main_tabs = QTabWidget()
@@ -91,44 +91,8 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     solicitudes_form_layout.setContentsMargins(0, 0, 0, 0)
     solicitudes_form_layout.setSpacing(0)
 
-    solicitud_card, solicitud_layout = window._create_card("Alta de solicitud")
+    solicitud_card, solicitud_layout = window._create_card("Solicitud")
     solicitud_layout.setSpacing(12)
-
-    window.stepper_labels: list[QLabel] = []
-    window._step_bullets: list[QLabel] = []
-    window._step_titles = [
-        "Completar datos",
-        "Revisar pendientes",
-        "Confirmar",
-    ]
-    stepper_layout = QHBoxLayout()
-    stepper_layout.setSpacing(8)
-    stepper_layout.setContentsMargins(0, 0, 0, 0)
-    for step_text in window._step_titles:
-        step_container = QFrame()
-        step_container.setProperty("role", "stepContainer")
-        step_container.setFixedHeight(30)
-        step_container_layout = QHBoxLayout(step_container)
-        step_container_layout.setContentsMargins(8, 4, 8, 4)
-        step_container_layout.setSpacing(6)
-
-        bullet = QLabel("1")
-        bullet.setProperty("role", "stepBulletIdle")
-        window._step_bullets.append(bullet)
-        step_container_layout.addWidget(bullet)
-
-        step_label = QLabel(step_text)
-        step_label.setProperty("role", "stepIdle")
-        window.stepper_labels.append(step_label)
-        step_container_layout.addWidget(step_label)
-
-        stepper_layout.addWidget(step_container)
-    stepper_layout.addStretch(1)
-    solicitud_layout.addLayout(stepper_layout)
-
-    window.stepper_context_label = QLabel("Pendientes: 0 · Seleccionadas: 0 · Modo: Delegada")
-    window.stepper_context_label.setProperty("role", "secondary")
-    solicitud_layout.addWidget(window.stepper_context_label)
 
     window.confirmation_summary_label = QLabel("")
     window.confirmation_summary_label.setProperty("role", "secondary")
@@ -419,8 +383,8 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     solicitudes_list_layout.addWidget(pendientes_card, 1)
     window.solicitudes_splitter.addWidget(solicitudes_form_panel)
     window.solicitudes_splitter.addWidget(solicitudes_list_panel)
-    window.solicitudes_splitter.setStretchFactor(0, 3)
-    window.solicitudes_splitter.setStretchFactor(1, 2)
+    window.solicitudes_splitter.setStretchFactor(0, 2)
+    window.solicitudes_splitter.setStretchFactor(1, 3)
 
     window.main_tabs.addTab(operativa_tab, "Operativa")
 
