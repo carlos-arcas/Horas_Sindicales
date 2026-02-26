@@ -44,6 +44,36 @@ def test_es_duplicado_solicitud_identica(solicitud_use_cases, persona_id: int) -
         solicitud_use_cases.agregar_solicitud(igual)
 
 
+def test_no_duplicado_si_dias_distintos_mismo_tramo_misma_delegada(solicitud_use_cases, persona_id: int) -> None:
+    primera = _build_solicitud(persona_id, fecha="2026-03-02", desde="17:00", hasta="18:00")
+    segunda = _build_solicitud(persona_id, fecha="2026-03-03", desde="17:00", hasta="18:00")
+
+    solicitud_use_cases.agregar_solicitud(primera)
+    creada, _ = solicitud_use_cases.agregar_solicitud(segunda)
+
+    assert creada.id is not None
+
+
+def test_duplicado_si_mismo_dia_mismo_tramo_misma_delegada(solicitud_use_cases, persona_id: int) -> None:
+    base = _build_solicitud(persona_id, fecha="2026-03-03", desde="17:00", hasta="18:00")
+    solapada = _build_solicitud(persona_id, fecha="2026-03-03", desde="17:30", hasta="18:30")
+
+    solicitud_use_cases.agregar_solicitud(base)
+
+    with pytest.raises(BusinessRuleError, match="Duplicado"):
+        solicitud_use_cases.agregar_solicitud(solapada)
+
+
+def test_no_duplicado_si_mismo_dia_pero_tramos_no_solapan(solicitud_use_cases, persona_id: int) -> None:
+    primera = _build_solicitud(persona_id, fecha="2026-03-03", desde="17:00", hasta="18:00")
+    segunda = _build_solicitud(persona_id, fecha="2026-03-03", desde="18:00", hasta="19:00")
+
+    solicitud_use_cases.agregar_solicitud(primera)
+    creada, _ = solicitud_use_cases.agregar_solicitud(segunda)
+
+    assert creada.id is not None
+
+
 def test_mismo_tramo_en_distintas_delegadas_es_permitido(solicitud_use_cases, persona_id: int, persona_repo) -> None:
     segunda = persona_repo.create(
         Persona(

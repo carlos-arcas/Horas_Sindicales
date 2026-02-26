@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from app.core.errors import BusinessError, ValidationError
+from datetime import date, datetime
+
 from app.domain.models import Persona, SheetsConfig, Solicitud
 
 
@@ -53,3 +55,40 @@ def validar_sheets_config(config: SheetsConfig) -> None:
         raise ValidacionError("La URL o ID de la spreadsheet es obligatoria.")
     if not config.credentials_path.strip():
         raise ValidacionError("Debe seleccionar un archivo de credenciales JSON.")
+
+
+def es_duplicada(solicitud_a: Solicitud, solicitud_b: Solicitud) -> bool:
+    """Regla canónica de deduplicación de solicitudes.
+
+    Dos solicitudes se consideran duplicadas solo si pertenecen a la misma
+    delegada, al mismo día natural (YYYY-MM-DD) y sus tramos horarios solapan.
+    """
+
+    if solicitud_a.persona_id != solicitud_b.persona_id:
+        return False
+
+    if _to_day(solicitud_a.fecha_pedida) != _to_day(solicitud_b.fecha_pedida):
+        return False
+
+    return _solapa_tramo(solicitud_a, solicitud_b)
+
+
+def _to_day(value: str) -> date:
+    raw = value.strip()
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).date()
+    except ValueError:
+        return datetime.strptime(raw[:10], "%Y-%m-%d").date()
+
+
+def _solapa_tramo(solicitud_a: Solicitud, solicitud_b: Solicitud) -> bool:
+    if solicitud_a.completo or solicitud_b.completo:
+        return True
+    if (
+        solicitud_a.desde_min is None
+        or solicitud_a.hasta_min is None
+        or solicitud_b.desde_min is None
+        or solicitud_b.hasta_min is None
+    ):
+        return False
+    return solicitud_a.desde_min < solicitud_b.hasta_min and solicitud_b.desde_min < solicitud_a.hasta_min
