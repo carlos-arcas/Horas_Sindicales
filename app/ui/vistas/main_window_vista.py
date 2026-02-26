@@ -100,6 +100,7 @@ from app.ui.vistas.builders.main_window_builders import (
     switch_sidebar_page,
     sync_sidebar_state,
 )
+from app.ui.vistas.confirmar_pdf_state import debe_habilitar_confirmar_pdf
 
 try:
     from PySide6.QtPdf import QPdfDocument
@@ -1521,7 +1522,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         can_confirm = has_pending and not self._pending_conflict_rows and not has_blocking_errors
         self.insertar_sin_pdf_button.setEnabled(persona_selected and can_confirm)
         selected_pending = self._selected_pending_solicitudes()
-        self.confirmar_button.setEnabled(persona_selected and can_confirm and bool(selected_pending))
+        pendientes_count = len(self._iterar_pendientes_en_tabla())
+        self.confirmar_button.setEnabled(debe_habilitar_confirmar_pdf(pendientes_count))
         self.edit_persona_button.setEnabled(persona_selected)
         self.delete_persona_button.setEnabled(persona_selected)
         self.edit_grupo_button.setEnabled(True)
@@ -2153,7 +2155,17 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         try:
             logger.info("CLICK confirmar_pdf handler=_on_confirmar")
             self._dump_estado_pendientes("click_confirmar_pdf")
-            selected = self._selected_pending_solicitudes()
+            pendientes_en_tabla = self._iterar_pendientes_en_tabla()
+            print("DEBUG_PENDIENTES_COUNT", len(pendientes_en_tabla))
+            for pendiente in pendientes_en_tabla:
+                print("DEBUG_PENDIENTE", pendiente)
+
+            selected = [
+                self.pendientes_model.solicitud_at(item["row"])
+                for item in pendientes_en_tabla
+                if self.pendientes_model is not None
+            ]
+            selected = [sol for sol in selected if sol is not None]
             selected_ids = [sol.id for sol in selected]
             editing = self._selected_pending_for_editing()
             persona = self._current_persona()
@@ -2176,6 +2188,11 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 _return_early("ui_not_ready")
                 return
             logger.debug("_on_confirmar paso=validar_preconfirm_checks")
+            if not selected:
+                self.toast.warning("No hay pendientes", title="Sin pendientes")
+                logger.info("_on_confirmar early_return motivo=no_pending_rows")
+                _return_early("no_pending_rows")
+                return
             if not self._run_preconfirm_checks():
                 logger.info("_on_confirmar early_return motivo=preconfirm_checks")
                 _return_early("preconfirm_checks")
@@ -2184,12 +2201,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             if persona is None:
                 logger.info("_on_confirmar early_return motivo=no_persona")
                 _return_early("no_persona")
-                return
-            warning_message = validar_seleccion_confirmacion(len(selected))
-            if warning_message:
-                self.toast.warning(warning_message, title="Selección requerida")
-                logger.info("_on_confirmar early_return motivo=sin_seleccion")
-                _return_early("no_selection")
                 return
             if self._pending_conflict_rows:
                 logger.info("_on_confirmar early_return motivo=conflictos_pendientes")
@@ -2220,6 +2231,42 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         except Exception:
             logger.exception("UI_CONFIRMAR_PDF_EXCEPTION")
             raise
+
+    def _iterar_pendientes_en_tabla(self) -> list[dict[str, object]]:
+        if self.pendientes_table is None:
+            return []
+        model = self.pendientes_table.model()
+        if model is None:
+            return []
+
+        total_rows = model.rowCount()
+        total_cols = model.columnCount()
+        delegada_col: int | None = None
+        for col in range(total_cols):
+            header = model.headerData(col, Qt.Horizontal, Qt.DisplayRole)
+            if str(header).strip().lower() == "delegada":
+                delegada_col = col
+                break
+
+        pendientes: list[dict[str, object]] = []
+        for row in range(total_rows):
+            solicitud = self.pendientes_model.solicitud_at(row) if self.pendientes_model is not None else None
+            fecha = model.index(row, 0).data() if total_cols > 0 else ""
+            desde = model.index(row, 1).data() if total_cols > 1 else ""
+            hasta = model.index(row, 2).data() if total_cols > 2 else ""
+            delegada = model.index(row, delegada_col).data() if delegada_col is not None else None
+            pendientes.append(
+                {
+                    "row": row,
+                    "id": solicitud.id if solicitud is not None else None,
+                    "fecha": fecha if fecha not in (None, "-") else "",
+                    "desde": desde if desde not in (None, "-") else "",
+                    "hasta": hasta if hasta not in (None, "-") else "",
+                    "persona_id": solicitud.persona_id if solicitud is not None else None,
+                    "delegada": delegada if delegada not in (None, "-") else None,
+                }
+            )
+        return pendientes
 
     def _prompt_confirm_pdf_path(self, selected: list[SolicitudDTO]) -> str | None:
         try:
