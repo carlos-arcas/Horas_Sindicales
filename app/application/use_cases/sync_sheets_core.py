@@ -199,6 +199,41 @@ def remote_hhmm(hours: Any, minutes: Any, full_value: Any) -> str | None:
     return normalize_hhmm(f"{hours}:{minutes}")
 
 
+def canonical_remote_solicitud_person_fields(row: dict[str, Any]) -> tuple[Any, str]:
+    delegada_uuid = row.get("delegada_uuid") or ""
+    if row.get("delegada_uuid") in (None, "") and row.get("delegado_uuid") not in (None, ""):
+        delegada_uuid = row.get("delegado_uuid")
+    delegada_nombre = row.get("delegada_nombre") or row.get("Delegada") or ""
+    if row.get("delegada_nombre") in (None, ""):
+        delegada_nombre = (
+            row.get("Delegada") or row.get("delegado_nombre") or row.get("delegada") or row.get("delegado") or ""
+        )
+    return delegada_uuid, delegada_nombre
+
+
+def canonical_remote_solicitud_time_parts(row: dict[str, Any]) -> tuple[Any, Any, Any, Any]:
+    desde_hhmm = remote_hhmm(row.get("desde_h"), row.get("desde_m"), row.get("desde") or row.get("hora_desde"))
+    hasta_hhmm = remote_hhmm(row.get("hasta_h"), row.get("hasta_m"), row.get("hasta") or row.get("hora_hasta"))
+    if not desde_hhmm:
+        desde_h, desde_m = "", ""
+    else:
+        desde_h, desde_m = (int(value) for value in desde_hhmm.split(":"))
+    if not hasta_hhmm:
+        hasta_h, hasta_m = "", ""
+    else:
+        hasta_h, hasta_m = (int(value) for value in hasta_hhmm.split(":"))
+    return desde_h, desde_m, hasta_h, hasta_m
+
+
+def canonical_remote_solicitud_estado(row: dict[str, Any], worksheet_name: str) -> str:
+    estado = str(row.get("estado", "")).strip().lower()
+    if estado:
+        return estado
+    if worksheet_name.strip().lower() in {"histórico", "historico"}:
+        return "historico"
+    return ""
+
+
 def normalize_remote_solicitud_row(row: dict[str, Any], worksheet_name: str) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "uuid": row.get("uuid") or "",
@@ -227,22 +262,11 @@ def normalize_remote_solicitud_row(row: dict[str, Any], worksheet_name: str) -> 
     if row.get("minutos_total") in (None, "") and row.get("horas") not in (None, ""):
         payload["minutos_total"] = int_or_zero(row.get("horas"))
 
-    if row.get("delegada_uuid") in (None, "") and row.get("delegado_uuid") not in (None, ""):
-        payload["delegada_uuid"] = row.get("delegado_uuid")
-    if row.get("delegada_nombre") in (None, ""):
-        payload["delegada_nombre"] = (
-            row.get("Delegada") or row.get("delegado_nombre") or row.get("delegada") or row.get("delegado") or ""
-        )
+    payload["delegada_uuid"], payload["delegada_nombre"] = canonical_remote_solicitud_person_fields(row)
 
-    desde_hhmm = remote_hhmm(row.get("desde_h"), row.get("desde_m"), row.get("desde") or row.get("hora_desde"))
-    hasta_hhmm = remote_hhmm(row.get("hasta_h"), row.get("hasta_m"), row.get("hasta") or row.get("hora_hasta"))
-    payload["desde_h"] = int(desde_hhmm.split(":")[0]) if desde_hhmm else ""
-    payload["desde_m"] = int(desde_hhmm.split(":")[1]) if desde_hhmm else ""
-    payload["hasta_h"] = int(hasta_hhmm.split(":")[0]) if hasta_hhmm else ""
-    payload["hasta_m"] = int(hasta_hhmm.split(":")[1]) if hasta_hhmm else ""
+    payload["desde_h"], payload["desde_m"], payload["hasta_h"], payload["hasta_m"] = (
+        canonical_remote_solicitud_time_parts(row)
+    )
 
-    estado = str(row.get("estado", "")).strip().lower()
-    payload["estado"] = estado
-    if not estado and worksheet_name.strip().lower() in {"histórico", "historico"}:
-        payload["estado"] = "historico"
+    payload["estado"] = canonical_remote_solicitud_estado(row, worksheet_name)
     return payload
