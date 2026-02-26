@@ -348,7 +348,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.sync_status_label = self.sync_status_badge = None
         self.sync_counts_label = self.sync_details_button = None
         self.sync_source_label = self.sync_scope_label = self.sync_idempotency_label = None
-        self.last_sync_metrics_label = self.conflicts_reminder_label = self.consequence_microcopy_label = None
+        self.last_sync_metrics_label = self.conflicts_reminder_label = None
         self.historico_search_input = self.historico_estado_combo = self.historico_delegada_combo = None
         self.historico_desde_date = self.historico_hasta_date = None
         self.historico_apply_filters_button = self.historico_clear_filters_button = None
@@ -440,14 +440,15 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         card_layout.setContentsMargins(14, 14, 14, 14)
         card_layout.setSpacing(10)
 
-        title_label = QLabel(title)
-        title_label.setProperty("role", "cardTitle")
-        card_layout.addWidget(title_label)
+        if title.strip():
+            title_label = QLabel(title)
+            title_label.setProperty("role", "cardTitle")
+            card_layout.addWidget(title_label)
 
-        separator = QFrame()
-        separator.setProperty("role", "cardSeparator")
-        separator.setFixedHeight(1)
-        card_layout.addWidget(separator)
+            separator = QFrame()
+            separator.setProperty("role", "cardSeparator")
+            separator.setFixedHeight(1)
+            card_layout.addWidget(separator)
         return card, card_layout
 
     def _configure_disclosure(
@@ -1560,12 +1561,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         minutos, warning = self._calculate_preview_minutes()
         total_txt = "—" if minutos is None or not valid else self._format_minutes(minutos)
         self.total_preview_input.setText(total_txt)
-        if minutos is None or not valid:
-            self.consequence_microcopy_label.setText("Esta acción consumirá 0 horas del saldo disponible.")
-        else:
-            self.consequence_microcopy_label.setText(
-                f"Esta acción consumirá {self._format_minutes(minutos)} del saldo disponible."
-            )
         self.cuadrante_warning_label.setVisible(warning)
         self.cuadrante_warning_label.setText("Cuadrante no configurado" if warning else "")
         self.solicitud_inline_error.setVisible(False)
@@ -3312,7 +3307,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _on_toggle_ver_todas_pendientes(self, checked: bool) -> None:
         self._pending_view_all = checked
-        self.ver_todas_pendientes_button.setText("Ver solo delegada" if checked else "Ver todas")
+        self.persona_combo.setEnabled(not checked)
         self._reload_pending_views()
 
     def _reload_pending_views(self) -> None:

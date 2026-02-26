@@ -100,7 +100,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     solicitudes_form_layout.setContentsMargins(0, 0, 0, 0)
     solicitudes_form_layout.setSpacing(0)
 
-    solicitud_card, solicitud_layout = window._create_card("Solicitud")
+    solicitud_card, solicitud_layout = window._create_card("")
     solicitud_layout.setSpacing(12)
 
     window.confirmation_summary_label = QLabel("")
@@ -109,8 +109,14 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.confirmation_summary_label.setWordWrap(True)
     solicitud_layout.addWidget(window.confirmation_summary_label)
 
+    header_separator = QFrame()
+    header_separator.setFrameShape(QFrame.Shape.HLine)
+    header_separator.setFrameShadow(QFrame.Shadow.Plain)
+    header_separator.setProperty("role", "subtleSeparator")
+    solicitud_layout.addWidget(header_separator)
+
     window.pending_errors_frame = QFrame()
-    window.pending_errors_frame.setProperty("role", "error")
+    window.pending_errors_frame.setProperty("role", "notice")
     pending_errors_layout = QVBoxLayout(window.pending_errors_frame)
     pending_errors_layout.setContentsMargins(10, 8, 10, 8)
     pending_errors_layout.setSpacing(6)
@@ -126,9 +132,8 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.goto_existing_button.setVisible(False)
     pending_errors_layout.addWidget(window.goto_existing_button)
     window.pending_errors_frame.setVisible(False)
-    solicitud_layout.addWidget(window.pending_errors_frame)
 
-    datos_basicos_label = QLabel("Datos de la Reserva")
+    datos_basicos_label = QLabel("Datos de la reserva")
     datos_basicos_label.setProperty("role", "sectionTitle")
     solicitud_layout.addWidget(datos_basicos_label)
 
@@ -183,7 +188,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.completo_check.toggled.connect(window._on_completo_changed)
     solicitud_row.addWidget(window.completo_check)
 
-    window.total_preview_label = QLabel("Información de saldo")
+    window.total_preview_label = QLabel("Saldo reservado")
     window.total_preview_label.setProperty("role", "secondary")
     solicitud_row.addWidget(window.total_preview_label)
 
@@ -192,10 +197,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.total_preview_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
     window.total_preview_input.setMaximumWidth(84)
     solicitud_row.addWidget(window.total_preview_input)
-
-    window.consequence_microcopy_label = QLabel("Esta acción consumirá 0 horas del saldo disponible.")
-    window.consequence_microcopy_label.setProperty("role", "secondary")
-    solicitud_row.addWidget(window.consequence_microcopy_label)
 
     window.cuadrante_warning_label = QLabel("")
     window.cuadrante_warning_label.setProperty("role", "secondary")
@@ -211,31 +212,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     solicitud_row.addWidget(window.agregar_button)
     solicitud_row.addStretch(1)
     solicitud_layout.addLayout(solicitud_row)
-
-    validacion_label = QLabel("Errores pendientes")
-    validacion_label.setProperty("role", "sectionTitle")
-    solicitud_layout.addWidget(validacion_label)
-
-    window.solicitud_inline_error = QLabel("")
-    window.solicitud_inline_error.setProperty("role", "error")
-    window.solicitud_inline_error.setVisible(False)
-    solicitud_layout.addWidget(window.solicitud_inline_error)
-
-    window.delegada_field_error = QLabel("")
-    window.delegada_field_error.setProperty("role", "error")
-    window.delegada_field_error.setVisible(False)
-    solicitud_layout.addWidget(window.delegada_field_error)
-
-    window.fecha_field_error = QLabel("")
-    window.fecha_field_error.setProperty("role", "error")
-    window.fecha_field_error.setVisible(False)
-    solicitud_layout.addWidget(window.fecha_field_error)
-
-    window.tramo_field_error = QLabel("")
-    window.tramo_field_error.setProperty("role", "error")
-    window.tramo_field_error.setVisible(False)
-    solicitud_layout.addWidget(window.tramo_field_error)
-
 
     notas_row = QHBoxLayout()
     notas_row.setSpacing(8)
@@ -257,15 +233,36 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
     notas_row.addWidget(window.notas_input, 1)
     solicitud_layout.addLayout(notas_row)
+
+    window.solicitud_inline_error = QLabel("")
+    window.solicitud_inline_error.setProperty("role", "error")
+    window.solicitud_inline_error.setVisible(False)
+    solicitud_layout.addWidget(window.solicitud_inline_error)
+
+    window.delegada_field_error = QLabel("")
+    window.delegada_field_error.setProperty("role", "error")
+    window.delegada_field_error.setVisible(False)
+    solicitud_layout.addWidget(window.delegada_field_error)
+
+    window.fecha_field_error = QLabel("")
+    window.fecha_field_error.setProperty("role", "error")
+    window.fecha_field_error.setVisible(False)
+    solicitud_layout.addWidget(window.fecha_field_error)
+
+    window.tramo_field_error = QLabel("")
+    window.tramo_field_error.setProperty("role", "error")
+    window.tramo_field_error.setVisible(False)
+    solicitud_layout.addWidget(window.tramo_field_error)
+
+    solicitud_layout.addWidget(window.pending_errors_frame)
     solicitudes_form_layout.addWidget(solicitud_card)
 
     pendientes_card, pendientes_layout = window._create_card("Pendientes de confirmar")
     window._pendientes_group = pendientes_card
     pending_tools = QHBoxLayout()
     pending_tools.setSpacing(8)
-    window.ver_todas_pendientes_button = QPushButton("Ver todas")
-    window.ver_todas_pendientes_button.setProperty("variant", "ghost")
-    window.ver_todas_pendientes_button.setCheckable(True)
+    window.ver_todas_pendientes_button = QCheckBox("Ver peticiones de todas las delegadas")
+    window.ver_todas_pendientes_button.setCursor(Qt.CursorShape.PointingHandCursor)
     window.ver_todas_pendientes_button.toggled.connect(window._on_toggle_ver_todas_pendientes)
     pending_tools.addWidget(window.ver_todas_pendientes_button)
     window.revisar_ocultas_button = QPushButton("Revisar pendientes ocultas")
@@ -273,9 +270,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.revisar_ocultas_button.setVisible(False)
     window.revisar_ocultas_button.clicked.connect(window._on_review_hidden_pendientes)
     pending_tools.addWidget(window.revisar_ocultas_button)
-    window.pending_details_button = QPushButton("Detalles activos")
-    window.pending_details_button.setProperty("variant", "ghost")
-    pending_tools.addWidget(window.pending_details_button)
     window.pending_filter_warning = QLabel("")
     window.pending_filter_warning.setProperty("role", "secondary")
     window.pending_filter_warning.setVisible(False)
@@ -371,8 +365,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     pendientes_footer.addLayout(right_actions)
     pending_details_layout.addLayout(pendientes_footer)
     pendientes_layout.addWidget(window.pending_details_content, 1)
-    window.pending_details_button.setCheckable(False)
-    window.pending_details_button.setEnabled(False)
     window.pending_details_content.setVisible(True)
     solicitudes_list_layout.addWidget(pendientes_card, 1)
     window.solicitudes_splitter.addWidget(solicitudes_form_panel)

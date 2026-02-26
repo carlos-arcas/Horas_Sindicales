@@ -75,17 +75,14 @@ QLabel[role="stepBulletDone"] {
 QLabel[role="stepBulletIdle"] {
     color: #a4a4a4;
     border: 1px solid #4a4a4a;
-    background-color: #212121;
 }
 QLabel[role="stepBulletActive"] {
     color: #ffe2e2;
     border: 1px solid #8f2d2d;
-    background-color: #2a1a1a;
 }
 QLabel[role="stepBulletDone"] {
     color: #d8ffd5;
     border: 1px solid #3f8f4a;
-    background-color: #1d2a1d;
 }
 
 QFrame[card="true"] {
@@ -108,6 +105,11 @@ QFrame[role="subtleSeparator"] {
     background-color: #303030;
 }
 
+QFrame[role="notice"] {
+    border: 1px solid #8f2d2d;
+    border-radius: 8px;
+}
+
 QLabel[role="badge"] {
     border: 1px solid #8f2d2d;
     border-radius: 7px;
@@ -118,37 +120,31 @@ QLabel[role="badge"] {
 QLabel[role="badge"][syncStatus="IDLE"] {
     color: #d9d9d9;
     border-color: #5a5a5a;
-    background-color: #2f2f2f;
 }
 
 QLabel[role="badge"][syncStatus="RUNNING"] {
     color: #cfe3ff;
     border-color: #3d6fb0;
-    background-color: #21324b;
 }
 
 QLabel[role="badge"][syncStatus="OK"] {
     color: #b9f5cf;
     border-color: #2f7a4b;
-    background-color: #1f3a2a;
 }
 
 QLabel[role="badge"][syncStatus="OK_WARN"] {
     color: #ffdca8;
     border-color: #9b6a21;
-    background-color: #3c2e1a;
 }
 
 QLabel[role="badge"][syncStatus="ERROR"] {
     color: #ffb8b8;
     border-color: #8f2d2d;
-    background-color: #3d1f1f;
 }
 
 QLabel[role="badge"][syncStatus="CONFIG_INCOMPLETE"] {
     color: #d2d2d2;
     border-color: #6f6f6f;
-    background-color: #2a2a2a;
 }
 
 QPushButton {
@@ -291,7 +287,6 @@ QCheckBox::indicator {
 }
 QCheckBox::indicator:unchecked:hover {
     border: 1px solid #b3b3b3;
-    background-color: #2a2a2a;
 }
 QCheckBox::indicator:checked {
     border: 2px solid #ffd8d8;
