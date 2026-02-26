@@ -619,7 +619,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     persona_delete.addStretch(1)
     persona_layout.addLayout(persona_delete)
     window.config_delegada_combo = QComboBox()
-    window.config_delegada_combo.addItem("Todas", None)
     window.config_delegada_combo.currentIndexChanged.connect(window._on_config_delegada_changed)
     persona_layout.addWidget(QLabel("Delegada activa"))
     persona_layout.addWidget(window.config_delegada_combo)
