@@ -8,7 +8,7 @@ from unittest.mock import Mock
 from app.application.dto import ResultadoCrearSolicitudDTO, SolicitudDTO
 from app.ui.controllers.pdf_controller import PdfController
 from app.ui.controllers.personas_controller import PersonasController
-from app.ui.controllers.solicitudes_controller import SolicitudesController
+from app.ui.controllers.solicitudes_controller import SolicitudesController, aplicar_confirmacion
 from app.ui.controllers.sync_controller import SyncController
 
 
@@ -259,3 +259,37 @@ def test_solicitudes_controller_actualiza_pendiente_en_edicion() -> None:
     window._solicitud_use_cases.eliminar_solicitud.assert_called_once()
     assert window._solicitud_use_cases.eliminar_solicitud.call_args.args[0] == 9
     window.toast.success.assert_called_once()
+
+
+def test_aplicar_confirmacion_deja_solo_no_confirmadas() -> None:
+    pendientes = [
+        SolicitudDTO(id=1, persona_id=1, fecha_solicitud="2024-01-01", fecha_pedida="2024-01-01", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
+        SolicitudDTO(id=2, persona_id=1, fecha_solicitud="2024-01-02", fecha_pedida="2024-01-02", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
+        SolicitudDTO(id=3, persona_id=1, fecha_solicitud="2024-01-03", fecha_pedida="2024-01-03", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
+    ]
+
+    nuevas = aplicar_confirmacion(pendientes, [1, 3])
+
+    assert [sol.id for sol in nuevas] == [2]
+
+
+def test_aplicar_confirmacion_todas_confirmadas_lista_vacia() -> None:
+    pendientes = [
+        SolicitudDTO(id=10, persona_id=1, fecha_solicitud="2024-01-01", fecha_pedida="2024-01-01", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
+        SolicitudDTO(id=11, persona_id=1, fecha_solicitud="2024-01-02", fecha_pedida="2024-01-02", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
+    ]
+
+    nuevas = aplicar_confirmacion(pendientes, [10, 11])
+
+    assert nuevas == []
+
+
+def test_aplicar_confirmacion_sin_confirmadas_lista_intacta() -> None:
+    pendientes = [
+        SolicitudDTO(id=20, persona_id=1, fecha_solicitud="2024-01-01", fecha_pedida="2024-01-01", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
+        SolicitudDTO(id=21, persona_id=1, fecha_solicitud="2024-01-02", fecha_pedida="2024-01-02", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
+    ]
+
+    nuevas = aplicar_confirmacion(pendientes, [])
+
+    assert [sol.id for sol in nuevas] == [20, 21]

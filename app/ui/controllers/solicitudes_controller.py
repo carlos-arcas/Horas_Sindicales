@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 import logging
+from pathlib import Path
+
+from app.application.dto import SolicitudDTO
 
 from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.core.observability import OperationContext, log_event
@@ -117,3 +120,37 @@ class SolicitudesController:
         w.notifications.notify_added_pending(creada, on_undo=lambda: w._undo_last_added_pending(creada.id))
         if pendiente_en_edicion is not None:
             w.toast.success("Pendiente actualizada", title="Operación completada")
+
+    def confirmar_lote(
+        self,
+        pendientes_actuales: list[SolicitudDTO],
+        *,
+        correlation_id: str | None,
+        generar_pdf: bool,
+        pdf_path: str | None = None,
+        filtro_delegada: int | None = None,
+    ) -> tuple[list[int], list[str], Path | None, list[SolicitudDTO]]:
+        if generar_pdf:
+            if not pdf_path:
+                raise ValueError("pdf_path es obligatorio cuando generar_pdf=True")
+            ruta, confirmadas_ids, resumen = self.window._solicitud_use_cases.confirmar_y_generar_pdf_por_filtro(
+                filtro_delegada=filtro_delegada,
+                pendientes=pendientes_actuales,
+                destino=Path(pdf_path),
+                correlation_id=correlation_id,
+            )
+            errores = [] if confirmadas_ids else [resumen]
+            confirmadas = [sol for sol in pendientes_actuales if sol.id in set(confirmadas_ids)]
+            return confirmadas_ids, errores, ruta, confirmadas
+
+        creadas, _pendientes_restantes, errores = self.window._solicitud_use_cases.confirmar_sin_pdf(
+            pendientes_actuales,
+            correlation_id=correlation_id,
+        )
+        confirmadas_ids = [sol.id for sol in creadas if sol.id is not None]
+        return confirmadas_ids, errores, None, creadas
+
+
+def aplicar_confirmacion(pendientes: list[SolicitudDTO], confirmadas_ids: list[int]) -> list[SolicitudDTO]:
+    confirmadas_set = set(confirmadas_ids)
+    return [solicitud for solicitud in pendientes if solicitud.id is None or solicitud.id not in confirmadas_set]
