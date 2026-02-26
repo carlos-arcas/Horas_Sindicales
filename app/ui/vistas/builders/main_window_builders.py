@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QFrame,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QPlainTextEdit,
