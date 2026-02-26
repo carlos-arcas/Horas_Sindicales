@@ -1700,8 +1700,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             "params": {
                 "solicitud": None,
                 "existentes_count": len(self._pending_solicitudes),
-                "excluir_id": editing_pending.id if editing_pending is not None else None,
-                "excluir_index": selected_rows[0] if editing_pending is not None and selected_rows else None,
+                "excluir_por_id": editing_pending.id if editing_pending is not None else None,
+                "excluir_por_indice": selected_rows[0] if editing_pending is not None and selected_rows else None,
             },
             "resultado": None,
         }
@@ -1718,8 +1718,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             duplicate_eval["resultado"] = hay_duplicado_distinto(
                 solicitud,
                 self._pending_solicitudes,
-                excluir_id=duplicate_eval["params"]["excluir_id"],
-                excluir_index=duplicate_eval["params"]["excluir_index"],
+                excluir_por_id=duplicate_eval["params"]["excluir_por_id"],
+                excluir_por_indice=duplicate_eval["params"]["excluir_por_indice"],
             )
 
         lista_pendientes = []
@@ -1928,20 +1928,49 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _find_pending_duplicate_row(self, solicitud: SolicitudDTO) -> int | None:
         editing = self._selected_pending_for_editing()
         editing_row = self._selected_pending_row_indexes()[0] if editing is not None else None
+        excluir_por_id = editing.id if editing is not None else None
+        excluir_por_indice = editing_row
+
+        try:
+            clave_objetivo = clave_duplicado_solicitud(solicitud)
+        except Exception:
+            return None
+
+        logger.info(
+            "UI_PREVENTIVE_DUPLICATE_CHECK clave=%s excluir_id=%s excluir_idx=%s",
+            list(clave_objetivo),
+            excluir_por_id,
+            excluir_por_indice,
+        )
+
+        coincidencias: list[int] = []
+        for row, pending in enumerate(self._pending_solicitudes):
+            if excluir_por_id is not None and pending.id is not None and str(pending.id) == str(excluir_por_id):
+                continue
+            if pending.id is None and excluir_por_indice is not None and row == excluir_por_indice:
+                continue
+            try:
+                if clave_duplicado_solicitud(pending) == clave_objetivo:
+                    coincidencias.append(row)
+            except Exception:
+                continue
+
+        is_duplicate = bool(coincidencias)
+        logger.info(
+            "UI_PREVENTIVE_DUPLICATE_RESULT is_duplicate=%s coincidencias=%s",
+            is_duplicate,
+            coincidencias,
+        )
+
         hay_duplicado = hay_duplicado_distinto(
             solicitud,
             self._pending_solicitudes,
-            excluir_id=editing.id if editing is not None else None,
-            excluir_index=editing_row,
+            excluir_por_id=excluir_por_id,
+            excluir_por_indice=excluir_por_indice,
         )
         if not hay_duplicado:
             return None
-        for row, pending in enumerate(self._pending_solicitudes):
-            if editing_row is not None and row == editing_row:
-                continue
-            if pending.persona_id == solicitud.persona_id and pending.fecha_pedida == solicitud.fecha_pedida:
-                return row
-        return 0 if self._pending_solicitudes else None
+        return coincidencias[0] if coincidencias else (0 if self._pending_solicitudes else None)
 
     def _find_pending_row_by_id(self, solicitud_id: int | None) -> int | None:
         if solicitud_id is None:
