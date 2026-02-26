@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from app.core.errors import BusinessError, ValidationError
 from datetime import date, datetime
+import logging
+
+from app.core.errors import BusinessError, ValidationError
 
 from app.domain.models import Persona, SheetsConfig, Solicitud
 
@@ -12,6 +14,9 @@ class ValidacionError(ValidationError):
 
 class BusinessRuleError(BusinessError):
     pass
+
+
+logger = logging.getLogger(__name__)
 
 
 def validar_persona(persona: Persona) -> None:
@@ -67,10 +72,33 @@ def es_duplicada(solicitud_a: Solicitud, solicitud_b: Solicitud) -> bool:
     if solicitud_a.persona_id != solicitud_b.persona_id:
         return False
 
-    if _to_day(solicitud_a.fecha_pedida) != _to_day(solicitud_b.fecha_pedida):
+    fecha_a = _to_day(solicitud_a.fecha_pedida)
+    fecha_b = _to_day(solicitud_b.fecha_pedida)
+    if fecha_a != fecha_b:
+        logger.debug(
+            "Deduplicación sin conflicto por fecha: persona_id=%s fecha_a=%s fecha_b=%s inicio_a=%s fin_a=%s inicio_b=%s fin_b=%s",
+            solicitud_a.persona_id,
+            fecha_a.isoformat(),
+            fecha_b.isoformat(),
+            solicitud_a.desde_min,
+            solicitud_a.hasta_min,
+            solicitud_b.desde_min,
+            solicitud_b.hasta_min,
+        )
         return False
 
-    return _solapa_tramo(solicitud_a, solicitud_b)
+    solapa = _solapa_tramo(solicitud_a, solicitud_b)
+    logger.debug(
+        "Decisión deduplicación: persona_id=%s fecha_normalizada=%s inicio_a=%s fin_a=%s inicio_b=%s fin_b=%s solape=%s",
+        solicitud_a.persona_id,
+        fecha_a.isoformat(),
+        solicitud_a.desde_min,
+        solicitud_a.hasta_min,
+        solicitud_b.desde_min,
+        solicitud_b.hasta_min,
+        solapa,
+    )
+    return solapa
 
 
 def _to_day(value: str) -> date:

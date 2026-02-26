@@ -695,7 +695,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
 
         clauses = [
             "s.persona_id = ?",
-            "date(s.fecha_pedida) = date(?)",
+            "s.fecha_pedida = ?",
             "(s.deleted = 0 OR s.deleted IS NULL)",
         ]
         params: list[object] = [persona_id, fecha_pedida]
