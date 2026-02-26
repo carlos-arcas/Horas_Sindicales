@@ -2150,49 +2150,76 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._notify_historico_filter_if_hidden(creadas)
 
     def _on_confirmar(self) -> None:
-        logger.info("CLICK confirmar_pdf handler=_on_confirmar")
-        self._dump_estado_pendientes("click_confirmar_pdf")
-        if not self._ui_ready:
-            logger.info("_on_confirmar early_return motivo=ui_not_ready")
-            return
-        logger.debug("_on_confirmar paso=validar_preconfirm_checks")
-        if not self._run_preconfirm_checks():
-            logger.info("_on_confirmar early_return motivo=preconfirm_checks")
-            return
-        persona = self._current_persona()
-        selected = self._selected_pending_solicitudes()
-        logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", self._selected_pending_row_indexes(), [sol.id for sol in selected])
-        if persona is None:
-            logger.info("_on_confirmar early_return motivo=no_persona")
-            return
-        warning_message = validar_seleccion_confirmacion(len(selected))
-        if warning_message:
-            self.toast.warning(warning_message, title="Selección requerida")
-            logger.info("_on_confirmar early_return motivo=sin_seleccion")
-            return
-        if self._pending_conflict_rows:
-            logger.info("_on_confirmar early_return motivo=conflictos_pendientes")
-            self.toast.warning(
-                "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
-                title="Conflictos detectados",
-            )
-            return
+        try:
+            logger.info("CLICK confirmar_pdf handler=_on_confirmar")
+            self._dump_estado_pendientes("click_confirmar_pdf")
+            selected = self._selected_pending_solicitudes()
+            selected_ids = [sol.id for sol in selected]
+            editing = self._selected_pending_for_editing()
+            persona = self._current_persona()
+            log_extra = {
+                "selected_count": len(selected),
+                "selected_ids": selected_ids,
+                "editing_id": editing.id if editing is not None else None,
+                "persona_id": persona.id if persona is not None else None,
+                "fecha": self.fecha_input.date().toString("yyyy-MM-dd"),
+                "desde": self.desde_input.time().toString("HH:mm"),
+                "hasta": self.hasta_input.time().toString("HH:mm"),
+            }
+            logger.info("UI_CLICK_CONFIRMAR_PDF", extra=log_extra)
 
-        pdf_path = self._prompt_confirm_pdf_path(selected)
-        if pdf_path is None:
-            logger.info("_on_confirmar early_return motivo=pdf_path_cancelado")
-            return
-        logger.debug("_on_confirmar paso=pdf_path_seleccionado path=%s", pdf_path)
+            def _return_early(reason: str) -> None:
+                logger.warning("UI_CONFIRMAR_PDF_RETURN_EARLY", extra={**log_extra, "reason": reason})
 
-        logger.debug("_on_confirmar paso=llamar_execute_confirmar_with_pdf")
-        outcome = self._execute_confirmar_with_pdf(persona, selected, pdf_path)
-        if outcome is None:
-            logger.info("_on_confirmar early_return motivo=execute_confirmar_none")
-            return
-        correlation_id, generado, creadas, pendientes_restantes, errores = outcome
-        logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(generado) if generado else None)
+            if not self._ui_ready:
+                logger.info("_on_confirmar early_return motivo=ui_not_ready")
+                _return_early("ui_not_ready")
+                return
+            logger.debug("_on_confirmar paso=validar_preconfirm_checks")
+            if not self._run_preconfirm_checks():
+                logger.info("_on_confirmar early_return motivo=preconfirm_checks")
+                _return_early("preconfirm_checks")
+                return
+            logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", self._selected_pending_row_indexes(), selected_ids)
+            if persona is None:
+                logger.info("_on_confirmar early_return motivo=no_persona")
+                _return_early("no_persona")
+                return
+            warning_message = validar_seleccion_confirmacion(len(selected))
+            if warning_message:
+                self.toast.warning(warning_message, title="Selección requerida")
+                logger.info("_on_confirmar early_return motivo=sin_seleccion")
+                _return_early("no_selection")
+                return
+            if self._pending_conflict_rows:
+                logger.info("_on_confirmar early_return motivo=conflictos_pendientes")
+                self.toast.warning(
+                    "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
+                    title="Conflictos detectados",
+                )
+                _return_early("conflictos_pendientes")
+                return
 
-        self._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, pendientes_restantes, errores)
+            pdf_path = self._prompt_confirm_pdf_path(selected)
+            if pdf_path is None:
+                logger.info("_on_confirmar early_return motivo=pdf_path_cancelado")
+                _return_early("pdf_path_cancelado")
+                return
+            logger.debug("_on_confirmar paso=pdf_path_seleccionado path=%s", pdf_path)
+
+            logger.debug("_on_confirmar paso=llamar_execute_confirmar_with_pdf")
+            outcome = self._execute_confirmar_with_pdf(persona, selected, pdf_path)
+            if outcome is None:
+                logger.info("_on_confirmar early_return motivo=execute_confirmar_none")
+                _return_early("execute_confirmar_none")
+                return
+            correlation_id, generado, creadas, pendientes_restantes, errores = outcome
+            logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(generado) if generado else None)
+
+            self._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, pendientes_restantes, errores)
+        except Exception:
+            logger.exception("UI_CONFIRMAR_PDF_EXCEPTION")
+            raise
 
     def _prompt_confirm_pdf_path(self, selected: list[SolicitudDTO]) -> str | None:
         try:
