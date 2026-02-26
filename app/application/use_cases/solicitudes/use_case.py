@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import hashlib
 import logging
 import uuid
 from dataclasses import replace
-from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
@@ -34,12 +32,33 @@ from app.application.pending_conflicts import detect_pending_time_conflicts
 from app.application.ports.pdf_puerto import GeneradorPdfPuerto
 from app.core.errors import InfraError, PersistenceError
 from app.core.observability import log_event
-from app.domain.models import GrupoConfig, Persona, Solicitud
+from app.domain.models import Persona, Solicitud
 from app.domain.ports import GrupoConfigRepository, PersonaRepository, SolicitudRepository
 from app.domain.request_time import compute_request_minutes, minutes_to_hours_float
 from app.domain.services import BusinessRuleError, ValidacionError, validar_solicitud
-from app.domain.time_utils import minutes_to_hhmm, parse_hhmm
+from app.domain.time_utils import parse_hhmm
 from app.application.use_cases.solicitudes.validaciones import validar_solicitud_dto_declarativo
+from app.application.use_cases.solicitudes.mapping_service import (
+    solicitud_to_dto as _solicitud_to_dto,
+)
+from app.application.use_cases.solicitudes.confirmacion_pdf_service import (
+    PathFileSystem,
+    actualizar_pdf_en_repo as _actualizar_pdf_en_repo,
+    generar_incident_id as _generar_incident_id,
+    hash_file as _hash_file,
+    pdf_intro_text as _pdf_intro_text,
+)
+from app.application.use_cases.solicitudes.validacion_service import (
+    build_periodo_filtro as _build_periodo_filtro,
+    calcular_minutos as _calcular_minutos,
+    calcular_saldos as _calcular_saldos,
+    normalize_date,
+    normalize_time,
+    parse_year_month as _parse_year_month,
+    solapa_rango as _solapa_rango,
+    solicitud_key,
+    total_cuadrante_por_fecha as _total_cuadrante_por_fecha,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,35 +67,6 @@ class ErrorAplicacionSolicitud(BusinessRuleError):
     def __init__(self, mensaje: str, *, incident_id: str) -> None:
         super().__init__(f"{mensaje}. ID de incidente: {incident_id}")
         self.incident_id = incident_id
-
-
-def _generar_incident_id() -> str:
-    return f"INC-{uuid.uuid4().hex[:12].upper()}"
-
-
-class _PathFileSystem:
-    def existe(self, ruta: Path) -> bool:
-        return ruta.exists()
-
-    def leer_texto(self, ruta: Path) -> str:
-        return ruta.read_text(encoding="utf-8")
-
-    def leer_bytes(self, ruta: Path) -> bytes:
-        return ruta.read_bytes()
-
-    def escribir_texto(self, ruta: Path, contenido: str) -> None:
-        ruta.write_text(contenido, encoding="utf-8")
-
-    def escribir_bytes(self, ruta: Path, contenido: bytes) -> None:
-        ruta.write_bytes(contenido)
-
-    def mkdir(self, ruta: Path, *, parents: bool = True, exist_ok: bool = True) -> None:
-        ruta.mkdir(parents=parents, exist_ok=exist_ok)
-
-    def listar(self, base: Path) -> list[Path]:
-        if not base.exists():
-            return []
-        return sorted(base.iterdir())
 
 
 def _resolver_correlation_id(
@@ -102,66 +92,6 @@ MONTH_NAMES = {
     12: "DICIEMBRE",
 }
 
-def _minutes_to_hours(minutos: int) -> float:
-    return minutes_to_hours_float(minutos)
-
-
-def _hours_to_minutes(horas: float) -> int:
-    return int(round(horas * 60))
-
-
-def _total_cuadrante_min(persona: Persona, dia_prefix: str) -> int:
-    man = getattr(persona, f"{dia_prefix}_man_min")
-    tar = getattr(persona, f"{dia_prefix}_tar_min")
-    return man + tar
-
-def _solicitud_to_dto(solicitud: Solicitud) -> SolicitudDTO:
-    desde = minutes_to_hhmm(solicitud.desde_min) if solicitud.desde_min is not None else None
-    hasta = minutes_to_hhmm(solicitud.hasta_min) if solicitud.hasta_min is not None else None
-    notas = solicitud.notas if solicitud.notas is not None else solicitud.observaciones
-    return SolicitudDTO(
-        id=solicitud.id,
-        persona_id=solicitud.persona_id,
-        fecha_solicitud=solicitud.fecha_solicitud,
-        fecha_pedida=solicitud.fecha_pedida,
-        desde=desde,
-        hasta=hasta,
-        completo=solicitud.completo,
-        horas=_minutes_to_hours(solicitud.horas_solicitadas_min),
-        observaciones=solicitud.observaciones,
-        pdf_path=solicitud.pdf_path,
-        pdf_hash=solicitud.pdf_hash,
-        notas=notas,
-        generated=solicitud.generated,
-    )
-
-
-def _dto_to_solicitud(dto: SolicitudDTO) -> Solicitud:
-    desde_min = parse_hhmm(dto.desde) if dto.desde else None
-    hasta_min = parse_hhmm(dto.hasta) if dto.hasta else None
-    notas = dto.notas if dto.notas is not None else dto.observaciones
-    return Solicitud(
-        id=dto.id,
-        persona_id=dto.persona_id,
-        fecha_solicitud=dto.fecha_canon,
-        fecha_pedida=dto.fecha_pedida,
-        desde_min=desde_min,
-        hasta_min=hasta_min,
-        completo=dto.completo,
-        horas_solicitadas_min=_hours_to_minutes(dto.horas),
-        observaciones=dto.observaciones,
-        notas=notas,
-        pdf_path=dto.pdf_path,
-        pdf_hash=dto.pdf_hash,
-        generated=dto.generated,
-    )
-
-def _pdf_intro_text(config: GrupoConfig | None) -> str | None:
-    if config is None:
-        return None
-    intro = (config.pdf_intro_text or "").strip()
-    return intro or None
-
 class SolicitudUseCases:
     """Casos de uso para altas, sustituciones y saldos de solicitudes.
 
@@ -180,7 +110,7 @@ class SolicitudUseCases:
         self._persona_repo = persona_repo
         self._config_repo = config_repo
         self._generador_pdf = generador_pdf
-        self._fs = fs or _PathFileSystem()
+        self._fs = fs or PathFileSystem()
 
     def listar_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
         return self.listar_solicitudes_por_persona_y_periodo(persona_id, None, None)
@@ -952,137 +882,3 @@ class SolicitudUseCases:
         return ResumenSaldosDTO(
             individual=individuales, global_anual=global_anual, grupo_anual=grupo_anual
         )
-
-def _parse_year_month(fecha: str) -> tuple[int, int]:
-    parsed = datetime.strptime(fecha, "%Y-%m-%d")
-    return parsed.year, parsed.month
-
-
-def normalize_date(value: str) -> str:
-    value_norm = value.strip()
-    for pattern in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y", "%d-%m-%Y"):
-        try:
-            parsed = datetime.strptime(value_norm, pattern)
-            return parsed.strftime("%Y-%m-%d")
-        except ValueError:
-            continue
-    raise BusinessRuleError("Fecha inválida para deduplicación.")
-
-
-def normalize_time(value: str) -> str:
-    return minutes_to_hhmm(parse_hhmm(value.strip()))
-
-
-def _build_periodo_filtro(year: int, month: int | None) -> PeriodoFiltro:
-    return PeriodoFiltro.anual(year) if month is None else PeriodoFiltro.mensual(year, month)
-
-
-def _derived_interval_for_key(dto: SolicitudDTO, persona: Persona) -> tuple[str, str]:
-    if dto.completo:
-        total_dia = _total_cuadrante_por_fecha(persona, normalize_date(dto.fecha_pedida))
-        return "00:00", minutes_to_hhmm(total_dia)
-    if not dto.desde or not dto.hasta:
-        raise BusinessRuleError("Desde y hasta son obligatorios para solicitudes parciales.")
-    return normalize_time(dto.desde), normalize_time(dto.hasta)
-
-
-def solicitud_key(
-    dto: SolicitudDTO,
-    *,
-    persona: Persona,
-    delegada_uuid: str,
-) -> tuple[object, ...]:
-    fecha = normalize_date(dto.fecha_pedida)
-    desde, hasta = _derived_interval_for_key(dto, persona)
-    return (delegada_uuid, fecha, bool(dto.completo), desde, hasta)
-
-
-def _total_cuadrante_por_fecha(persona: Persona, fecha: str) -> int:
-    """Obtiene el total de minutos de cuadrante para la fecha solicitada.
-
-    Si la persona no trabaja fines de semana, sábado y domingo se fuerzan a
-    cero para respetar la política de consumo por jornada laborable.
-    """
-    weekday = datetime.strptime(fecha, "%Y-%m-%d").weekday()
-    dia_map = {
-        0: "cuad_lun",
-        1: "cuad_mar",
-        2: "cuad_mie",
-        3: "cuad_jue",
-        4: "cuad_vie",
-        5: "cuad_sab",
-        6: "cuad_dom",
-    }
-    dia_prefix = dia_map[weekday]
-    if weekday >= 5 and not persona.trabaja_finde:
-        return 0
-    return _total_cuadrante_min(persona, dia_prefix)
-
-
-def _calcular_minutos(dto: SolicitudDTO, persona: Persona | None) -> int:
-    """Resuelve minutos finales priorizando entradas explícitas cuando existen.
-
-    Mantiene compatibilidad con formularios que envían horas manuales, pero en
-    solicitudes completas usa el cuadrante diario para preservar reglas de negocio
-    aunque cambie la interfaz de captura.
-    """
-    if dto.horas < 0:
-        raise BusinessRuleError("Las horas deben ser mayores a cero.")
-    minutos_manual = _hours_to_minutes(dto.horas) if dto.horas > 0 else 0
-
-    if dto.completo:
-        if persona is None:
-            raise BusinessRuleError("Persona no encontrada.")
-        total_dia = _total_cuadrante_por_fecha(persona, dto.fecha_pedida)
-        minutos_calculados = compute_request_minutes(
-            dto.desde,
-            dto.hasta,
-            dto.completo,
-            cuadrante_base=total_dia,
-        )
-        return minutos_manual if minutos_manual > 0 else minutos_calculados
-
-    minutos_calculados = compute_request_minutes(dto.desde, dto.hasta, dto.completo)
-    return minutos_manual if minutos_manual > 0 else minutos_calculados
-
-
-def _calcular_saldos(
-    persona: Persona,
-    solicitudes_mes: Iterable[Solicitud],
-    solicitudes_ano: Iterable[Solicitud],
-) -> SaldosDTO:
-    consumidas_mes = sum(s.horas_solicitadas_min for s in solicitudes_mes)
-    consumidas_ano = sum(s.horas_solicitadas_min for s in solicitudes_ano)
-    restantes_mes = persona.horas_mes_min - consumidas_mes
-    restantes_ano = persona.horas_ano_min - consumidas_ano
-    exceso_mes = abs(restantes_mes) if restantes_mes < 0 else 0
-    exceso_ano = abs(restantes_ano) if restantes_ano < 0 else 0
-    return SaldosDTO(
-        consumidas_mes=consumidas_mes,
-        restantes_mes=restantes_mes,
-        consumidas_ano=consumidas_ano,
-        restantes_ano=restantes_ano,
-        exceso_mes=exceso_mes,
-        exceso_ano=exceso_ano,
-        excedido_mes=exceso_mes > 0,
-        excedido_ano=exceso_ano > 0,
-    )
-
-
-def _hash_file(path: Path) -> str:
-    data = path.read_bytes()
-    return hashlib.sha256(data).hexdigest()
-
-
-def _actualizar_pdf_en_repo(
-    repo: SolicitudRepository, solicitud: SolicitudDTO, pdf_path: Path, pdf_hash: str | None
-) -> SolicitudDTO:
-    if solicitud.id is None:
-        return solicitud
-    repo.update_pdf_info(solicitud.id, str(pdf_path), pdf_hash)
-    return replace(solicitud, pdf_path=str(pdf_path), pdf_hash=pdf_hash)
-
-
-def _solapa_rango(inicio_a: int, fin_a: int, inicio_b: int, fin_b: int) -> bool:
-    return inicio_a < fin_b and inicio_b < fin_a
-
