@@ -49,8 +49,8 @@ from app.application.use_cases.retry_sync_use_case import RetrySyncUseCase
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
+from app.application.use_cases.solicitudes.validaciones import hay_duplicado_distinto, validar_seleccion_confirmacion
 from app.domain.services import BusinessRuleError, ValidacionError
-from app.domain.time_range import TimeRangeValidationError, normalize_range, overlaps
 from app.domain.request_time import validate_request_inputs
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
 from app.domain.sheets_errors import (
@@ -1052,7 +1052,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         blocking: dict[str, str],
     ) -> None:
         duplicate_message = "⚠ Ya existe una solicitud duplicada para la misma delegada, fecha y tramo."
-        if duplicate is not None:
+        editing = self._selected_pending_for_editing()
+        if duplicate is not None and (editing is None or duplicate.id != editing.id):
             blocking["duplicado"] = duplicate_message
             self._duplicate_target = duplicate
 
@@ -1428,8 +1429,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         desde = None if completo else self.desde_input.time().toString("HH:mm")
         hasta = None if completo else self.hasta_input.time().toString("HH:mm")
         manual_minutes = self._manual_hours_minutes()
+        editing_pending = self._selected_pending_for_editing()
         return SolicitudDTO(
-            id=None,
+            id=editing_pending.id if editing_pending is not None else None,
             persona_id=persona.id or 0,
             fecha_solicitud=datetime.now().strftime("%Y-%m-%d"),
             fecha_pedida=fecha_pedida,
@@ -1496,7 +1498,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         blocking_errors = getattr(self, "_blocking_errors", {})
         has_blocking_errors = bool(blocking_errors)
         first_blocking_error = next(iter(blocking_errors.values()), "")
+        editing_pending = self._selected_pending_for_editing()
         self.agregar_button.setEnabled(persona_selected and form_valid and not has_blocking_errors)
+        self.agregar_button.setText("Actualizar pendiente" if editing_pending is not None else "Añadir a pendientes")
         has_pending = bool(self._pending_solicitudes)
         can_confirm = has_pending and not self._pending_conflict_rows and not has_blocking_errors
         self.insertar_sin_pdf_button.setEnabled(persona_selected and can_confirm)
@@ -1561,7 +1565,13 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         has_pending: bool,
     ) -> None:
         can_confirm_selection = bool(selected_pending) and can_confirm
-        cta_text = "Confirmar seleccionadas" if can_confirm_selection else "Añadir a pendientes"
+        editing_pending = self._selected_pending_for_editing()
+        if can_confirm_selection:
+            cta_text = "Confirmar seleccionadas"
+        elif editing_pending is not None:
+            cta_text = "Actualizar pendiente"
+        else:
+            cta_text = "Añadir a pendientes"
         self.primary_cta_button.setText(cta_text)
 
         if has_blocking_errors:
@@ -1650,15 +1660,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.confirmation_summary_label.setVisible(True)
 
     def _selected_pending_solicitudes(self) -> list[SolicitudDTO]:
-        selection_model = self.pendientes_table.selectionModel()
-        if selection_model is None:
-            return []
-        selected_rows = sorted({index.row() for index in selection_model.selectedRows()})
-        return [
-            self._pending_solicitudes[row]
-            for row in selected_rows
-            if 0 <= row < len(self._pending_solicitudes)
-        ]
+        selected_rows = self._selected_pending_row_indexes()
+        return [self._pending_solicitudes[row] for row in selected_rows if 0 <= row < len(self._pending_solicitudes)]
 
     def _on_primary_cta_clicked(self) -> None:
         if self.primary_cta_button.text() == "Confirmar seleccionadas":
@@ -1797,32 +1800,38 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             return
         self._solicitudes_controller.on_add_pendiente()
 
-    def _find_pending_duplicate_row(self, solicitud: SolicitudDTO) -> int | None:
-        try:
-            nuevo_inicio, nuevo_fin = normalize_range(
-                completo=solicitud.completo,
-                desde=solicitud.desde,
-                hasta=solicitud.hasta,
-            )
-        except TimeRangeValidationError:
-            return None
+    def _selected_pending_row_indexes(self) -> list[int]:
+        selection_model = self.pendientes_table.selectionModel()
+        if selection_model is None:
+            return []
+        return sorted({index.row() for index in selection_model.selectedRows()})
 
+    def _selected_pending_for_editing(self) -> SolicitudDTO | None:
+        rows = self._selected_pending_row_indexes()
+        if len(rows) != 1:
+            return None
+        row = rows[0]
+        if row < 0 or row >= len(self._pending_solicitudes):
+            return None
+        return self._pending_solicitudes[row]
+
+    def _find_pending_duplicate_row(self, solicitud: SolicitudDTO) -> int | None:
+        editing = self._selected_pending_for_editing()
+        editing_row = self._selected_pending_row_indexes()[0] if editing is not None else None
+        hay_duplicado = hay_duplicado_distinto(
+            solicitud,
+            self._pending_solicitudes,
+            excluir_id=editing.id if editing is not None else None,
+            excluir_index=editing_row,
+        )
+        if not hay_duplicado:
+            return None
         for row, pending in enumerate(self._pending_solicitudes):
-            if pending.persona_id != solicitud.persona_id:
+            if editing_row is not None and row == editing_row:
                 continue
-            if pending.fecha_pedida != solicitud.fecha_pedida:
-                continue
-            try:
-                pendiente_inicio, pendiente_fin = normalize_range(
-                    completo=pending.completo,
-                    desde=pending.desde,
-                    hasta=pending.hasta,
-                )
-            except TimeRangeValidationError:
-                continue
-            if overlaps(nuevo_inicio, nuevo_fin, pendiente_inicio, pendiente_fin):
+            if pending.persona_id == solicitud.persona_id and pending.fecha_pedida == solicitud.fecha_pedida:
                 return row
-        return None
+        return 0 if self._pending_solicitudes else None
 
     def _find_pending_row_by_id(self, solicitud_id: int | None) -> int | None:
         if solicitud_id is None:
@@ -1986,7 +1995,12 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             return
         persona = self._current_persona()
         selected = self._selected_pending_solicitudes()
-        if persona is None or not selected:
+        if persona is None:
+            return
+        warning_message = validar_seleccion_confirmacion(len(selected))
+        if warning_message:
+            self.toast.warning(warning_message, title="Selección requerida")
+            logger.info("Confirmar+PDF cancelado: sin selección")
             return
         if self._pending_conflict_rows:
             self.toast.warning(
@@ -2029,7 +2043,12 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             return
         persona = self._current_persona()
         selected = self._selected_pending_solicitudes()
-        if persona is None or not selected:
+        if persona is None:
+            return
+        warning_message = validar_seleccion_confirmacion(len(selected))
+        if warning_message:
+            self.toast.warning(warning_message, title="Selección requerida")
+            logger.info("Confirmar+PDF cancelado: sin selección")
             return
         if self._pending_conflict_rows:
             self.toast.warning(

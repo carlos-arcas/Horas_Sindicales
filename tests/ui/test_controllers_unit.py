@@ -34,6 +34,7 @@ def _build_window_for_solicitudes(solicitud: SolicitudDTO | None) -> SimpleNames
         _refresh_saldos=Mock(),
         _update_action_state=Mock(),
         _handle_duplicate_detected=Mock(return_value=False),
+        _selected_pending_for_editing=Mock(return_value=None),
         _undo_last_added_pending=Mock(),
         notas_input=SimpleNamespace(toPlainText=Mock(return_value=""), setPlainText=Mock()),
         notifications=Mock(),
@@ -231,3 +232,30 @@ def test_solicitudes_controller_logs_correlation_id(caplog) -> None:
     mensajes = [record.getMessage() for record in caplog.records]
     assert any("agregar_pendiente_started" in mensaje for mensaje in mensajes)
     assert any("agregar_pendiente_succeeded" in mensaje for mensaje in mensajes)
+
+
+def test_solicitudes_controller_actualiza_pendiente_en_edicion() -> None:
+    solicitud = SolicitudDTO(
+        id=None,
+        persona_id=1,
+        fecha_solicitud="2024-01-01",
+        fecha_pedida="2024-01-01",
+        desde="10:00",
+        hasta="11:00",
+        completo=False,
+        horas=0,
+        observaciones=None,
+        pdf_path=None,
+        pdf_hash=None,
+        notas=None,
+    )
+    window = _build_window_for_solicitudes(solicitud)
+    pendiente = replace(solicitud, id=9)
+    window._selected_pending_for_editing.return_value = pendiente
+
+    controller = SolicitudesController(window)
+    controller.on_add_pendiente()
+
+    window._solicitud_use_cases.eliminar_solicitud.assert_called_once()
+    assert window._solicitud_use_cases.eliminar_solicitud.call_args.args[0] == 9
+    window.toast.success.assert_called_once()

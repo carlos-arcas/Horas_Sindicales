@@ -5,6 +5,8 @@ from datetime import datetime
 
 from app.application.dto import SolicitudDTO
 from app.domain.services import ValidacionError
+from app.domain.time_range import normalize_range, overlaps, TimeRangeValidationError
+from app.application.use_cases.solicitudes.validacion_service import normalize_date
 from app.domain.time_utils import parse_hhmm
 
 
@@ -59,3 +61,61 @@ def validar_solicitud_dto_declarativo(dto: SolicitudDTO) -> None:
 
     if errores:
         raise ValidacionError("; ".join(errores))
+
+
+def clave_duplicado_solicitud(dto: SolicitudDTO) -> tuple[int, str, str, str]:
+    """Devuelve una clave estable para comparar duplicados en UI y aplicación."""
+    if dto.completo:
+        return dto.persona_id, normalize_date(dto.fecha_pedida), "COMPLETO", "COMPLETO"
+    return (
+        dto.persona_id,
+        normalize_date(dto.fecha_pedida),
+        str(dto.desde or ""),
+        str(dto.hasta or ""),
+    )
+
+
+def hay_duplicado_distinto(
+    solicitud: SolicitudDTO,
+    existentes: list[SolicitudDTO],
+    *,
+    excluir_id: int | None = None,
+    excluir_index: int | None = None,
+) -> bool:
+    """Comprueba choque de duplicado evitando contar la propia fila en edición."""
+    try:
+        inicio, fin = normalize_range(
+            completo=solicitud.completo,
+            desde=solicitud.desde,
+            hasta=solicitud.hasta,
+        )
+    except TimeRangeValidationError:
+        return False
+
+    for idx, existente in enumerate(existentes):
+        if excluir_id is not None and existente.id == excluir_id:
+            continue
+        if excluir_index is not None and idx == excluir_index:
+            continue
+        if existente.persona_id != solicitud.persona_id:
+            continue
+        if normalize_date(existente.fecha_pedida) != normalize_date(solicitud.fecha_pedida):
+            continue
+        try:
+            ex_inicio, ex_fin = normalize_range(
+                completo=existente.completo,
+                desde=existente.desde,
+                hasta=existente.hasta,
+            )
+        except TimeRangeValidationError:
+            continue
+        if overlaps(inicio, fin, ex_inicio, ex_fin):
+            return True
+    return False
+
+
+def validar_seleccion_confirmacion(cantidad_seleccionadas: int) -> str | None:
+    """Devuelve mensaje de aviso cuando se intenta confirmar sin filas seleccionadas."""
+    if cantidad_seleccionadas > 0:
+        return None
+    return "Selecciona al menos una solicitud pendiente para confirmar y generar el PDF."

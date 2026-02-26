@@ -26,9 +26,12 @@ class SolicitudesController:
             )
             return
 
+        pendiente_en_edicion = w._selected_pending_for_editing()
+
         duplicate = w._solicitud_use_cases.buscar_duplicado(solicitud)
-        if duplicate is not None and not w._handle_duplicate_detected(duplicate):
-            return
+        if duplicate is not None and (pendiente_en_edicion is None or duplicate.id != pendiente_en_edicion.id):
+            if not w._handle_duplicate_detected(duplicate):
+                return
 
         try:
             minutos = w._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
@@ -73,6 +76,11 @@ class SolicitudesController:
                     {"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
                     operation.correlation_id,
                 )
+                if pendiente_en_edicion is not None and pendiente_en_edicion.id is not None:
+                    w._solicitud_use_cases.eliminar_solicitud(
+                        pendiente_en_edicion.id,
+                        correlation_id=operation.correlation_id,
+                    )
                 resultado = w._solicitud_use_cases.crear_resultado(
                     solicitud,
                     correlation_id=operation.correlation_id,
@@ -107,3 +115,5 @@ class SolicitudesController:
         w._refresh_saldos()
         w._update_action_state()
         w.notifications.notify_added_pending(creada, on_undo=lambda: w._undo_last_added_pending(creada.id))
+        if pendiente_en_edicion is not None:
+            w.toast.success("Pendiente actualizada", title="Operación completada")
