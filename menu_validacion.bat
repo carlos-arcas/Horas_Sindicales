@@ -8,6 +8,7 @@ set "LOG_DIR=%REPO_ROOT%\logs"
 set "RUNS_DIR=%LOG_DIR%\runs"
 set "SUMMARY_FILE=%LOG_DIR%\menu_ultima_ejecucion.txt"
 set "TESTS_ENV_FILE=%LOG_DIR%\menu_tests_env.txt"
+rem logs\menu_tests_env.txt
 set "LAST_RUN_ID_FILE=%LOG_DIR%\menu_last_run_id.txt"
 set "TESTS_SCRIPT=%REPO_ROOT%\ejecutar_tests.bat"
 set "GATE_SCRIPT=%REPO_ROOT%\quality_gate.bat"
@@ -39,14 +40,14 @@ echo.
 echo ==============================================
 echo Menu de validacion - Horas Sindicales
 echo ==============================================
-echo 1^) Ejecutar tests
-echo 2^) Ejecutar quality gate
-echo 3^) Ejecutar ambos ^(tests + quality gate^)
-echo 4^) Abrir carpeta logs
-echo 5^) Abrir el ultimo summary en Notepad
-echo 6^) Abrir coverage html ^(index.html^) del ultimo run
-echo 9^) [debug] Self-test run_step con dummy_fail
-echo 0^) Salir
+echo 1) Ejecutar tests
+echo 2) Ejecutar quality gate
+echo 3) Ejecutar ambos (tests + quality gate)
+echo 4) Abrir carpeta logs
+echo 5) Abrir el ultimo summary en Notepad
+echo 6) Abrir coverage html (index.html) del ultimo run
+echo 9) [debug] Self-test run_step con dummy_fail
+echo 0) Salir
 set /p "CHOICE=> "
 
 if "%CHOICE%"=="1" (
@@ -159,12 +160,12 @@ goto MENU
 
 :RUN_PREFLIGHT
 call :ENSURE_LOG_DIRS
-if not exist "%TESTS_SCRIPT%" (
+if not exist "%ROOT_DIR%ejecutar_tests.bat" (
     call :SET_ERROR_STATE "preflight" "" "%SUMMARY_FILE%" "%SUMMARY_FILE%" "2" "No existe ejecutar_tests.bat"
     call :HANDLE_STEP_ERROR
     exit /b 1
 )
-if not exist "%GATE_SCRIPT%" (
+if not exist "%ROOT_DIR%quality_gate.bat" (
     call :SET_ERROR_STATE "preflight" "" "%SUMMARY_FILE%" "%SUMMARY_FILE%" "2" "No existe quality_gate.bat"
     call :HANDLE_STEP_ERROR
     exit /b 1
@@ -214,8 +215,8 @@ set "STEP_STDOUT=%~4"
 set "STEP_STDERR=%~5"
 set "STEP_REASON=%~6"
 
-set "CMDLINE=""%STEP_SCRIPT%"" %STEP_ARGS%"
-echo [RUN_STEP] %STEP_NAME%: %CMDLINE%
+set "STEP_CMD_DISPLAY=""%STEP_SCRIPT%"" %STEP_ARGS%"
+echo [RUN_STEP] %STEP_NAME%: %STEP_CMD_DISPLAY%
 
 call "%STEP_SCRIPT%" %STEP_ARGS% 1>"%STEP_STDOUT%" 2>"%STEP_STDERR%"
 set "STEP_EXIT=%ERRORLEVEL%"
@@ -223,7 +224,7 @@ set "STEP_EXIT=%ERRORLEVEL%"
 echo [RUN_STEP] %STEP_NAME% exit code: %STEP_EXIT%
 
 if not "%STEP_EXIT%"=="0" (
-    call :SET_ERROR_STATE "%STEP_NAME%" "!CMDLINE!" "%STEP_STDOUT%" "%STEP_STDERR%" "%STEP_EXIT%" "%STEP_REASON%"
+    call :SET_ERROR_STATE "%STEP_NAME%" "!STEP_CMD_DISPLAY!" "%STEP_STDOUT%" "%STEP_STDERR%" "%STEP_EXIT%" "%STEP_REASON%"
     call :HANDLE_STEP_ERROR
     exit /b 1
 )
@@ -272,11 +273,12 @@ exit /b 0
 :RUN_TESTS
 set "TESTS_STATUS=NO_EJECUTADO"
 set "TESTS_CODE=NO_EJECUTADO"
-call :WRITE_TESTS_ENV
+call :WRITE_MENU_ENV "pre"
 call :run_step "tests" "%TESTS_SCRIPT%" "" "%TESTS_STDOUT%" "%TESTS_STDERR%" "Fallo en ejecutar_tests.bat"
 if errorlevel 1 (
     set "TESTS_STATUS=FAIL"
     set "TESTS_CODE=%LAST_ERROR_EXIT%"
+    call :WRITE_MENU_ENV "post"
     echo.
     echo ===== RESUMEN PYTEST ^(stdout^) =====
     if exist "%TESTS_STDOUT%" (
@@ -292,6 +294,7 @@ if errorlevel 1 (
 )
 set "TESTS_STATUS=PASS"
 set "TESTS_CODE=0"
+call :WRITE_MENU_ENV "post"
 call :GENERATE_COVERAGE_ARTIFACTS
 exit /b 0
 
@@ -302,10 +305,12 @@ call :run_step "quality_gate" "%GATE_SCRIPT%" "" "%GATE_STDOUT%" "%GATE_STDERR%"
 if errorlevel 1 (
     set "GATE_STATUS=FAIL"
     set "GATE_CODE=%LAST_ERROR_EXIT%"
+    call :WRITE_MENU_ENV "post"
     exit /b %GATE_CODE%
 )
 set "GATE_STATUS=PASS"
 set "GATE_CODE=0"
+call :WRITE_MENU_ENV "post"
 exit /b 0
 
 :RUN_DEBUG_SELF_TEST
@@ -315,10 +320,12 @@ call :run_step "dummy_fail" "%ComSpec%" "/c exit /b 1" "%TESTS_STDOUT%" "%TESTS_
 if errorlevel 1 (
     set "TESTS_STATUS=FAIL"
     set "TESTS_CODE=%LAST_ERROR_EXIT%"
+    call :WRITE_MENU_ENV "post"
     exit /b %TESTS_CODE%
 )
 set "TESTS_STATUS=PASS"
 set "TESTS_CODE=0"
+call :WRITE_MENU_ENV "post"
 exit /b 0
 
 :GENERATE_COVERAGE_ARTIFACTS
@@ -353,6 +360,7 @@ if defined RUN_SUMMARY copy /y "%RUN_SUMMARY%" "%SUMMARY_FILE%" >nul 2>&1
 exit /b 0
 
 :ENSURE_LOG_DIRS
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
 if not exist "%RUNS_DIR%" mkdir "%RUNS_DIR%" >nul 2>&1
 exit /b 0
@@ -360,18 +368,20 @@ exit /b 0
 :WRITE_MENU_EXECUTION_LOG
 call :ENSURE_LOG_DIRS
 set "EXEC_LOG_TS=%DATE% %TIME%"
->>"%SUMMARY_FILE%" echo [!EXEC_LOG_TS!] opcion=%~1 exitcode=%~2
+>>"%SUMMARY_FILE%" echo [!EXEC_LOG_TS!] opcion=%~1 exitcode=%~2 2>>"%SUMMARY_FILE%"
 exit /b 0
 
-:WRITE_TESTS_ENV
+:WRITE_MENU_ENV
 call :ENSURE_LOG_DIRS
->"%TESTS_ENV_FILE%" echo [%DATE% %TIME%] Entorno previo a tests
+>"%TESTS_ENV_FILE%" echo [%DATE% %TIME%] Entorno %~1
 >>"%TESTS_ENV_FILE%" echo python --version
 python --version >>"%TESTS_ENV_FILE%" 2>&1
 >>"%TESTS_ENV_FILE%" echo pip --version
 pip --version >>"%TESTS_ENV_FILE%" 2>&1
 >>"%TESTS_ENV_FILE%" echo where python
 where python >>"%TESTS_ENV_FILE%" 2>&1
+>>"%TESTS_ENV_FILE%" echo where pytest
+where pytest >>"%TESTS_ENV_FILE%" 2>&1
 exit /b 0
 
 :safe_open

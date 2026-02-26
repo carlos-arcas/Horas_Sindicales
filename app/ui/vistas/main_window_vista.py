@@ -321,6 +321,42 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._sidebar_routes: list[dict[str, int | None]] = []
         self._active_sidebar_index = 0
         self.nueva_solicitud_button: QPushButton | None = None
+        # Placeholders explícitos para contratos de inicialización self.* en tests estáticos.
+        self.main_tabs = None
+        self.persona_combo = self.fecha_input = self.desde_input = self.hasta_input = None
+        self.desde_container = self.hasta_container = None
+        self.desde_placeholder = self.hasta_placeholder = None
+        self.completo_check = self.notas_input = None
+        self.pending_errors_frame = self.pending_errors_summary = None
+        self.solicitud_inline_error = self.delegada_field_error = self.fecha_field_error = self.tramo_field_error = None
+        self.primary_cta_button = self.primary_cta_hint = self.insertar_sin_pdf_button = self.confirmar_button = None
+        self.agregar_button = self.eliminar_pendiente_button = self.eliminar_huerfana_button = None
+        self.revisar_ocultas_button = self.ver_todas_pendientes_button = None
+        self.total_pendientes_label = self.pending_filter_warning = None
+        self.pendientes_table = self.huerfanas_table = None
+        self.pendientes_model = self.huerfanas_model = None
+        self.huerfanas_label = None
+        self.confirmation_summary_label = self.stepper_context_label = None
+        self.stepper_labels = None
+        self.sync_button = self.confirm_sync_button = None
+        self.retry_failed_button = self.simulate_sync_button = self.review_conflicts_button = None
+        self.go_to_sync_config_button = self.copy_sync_report_button = None
+        self.sync_progress = self.sync_panel_status = None
+        self.sync_status_label = self.sync_status_badge = None
+        self.sync_counts_label = self.sync_details_button = None
+        self.sync_source_label = self.sync_scope_label = self.sync_idempotency_label = None
+        self.last_sync_metrics_label = self.conflicts_reminder_label = self.consequence_microcopy_label = None
+        self.historico_search_input = self.historico_estado_combo = self.historico_delegada_combo = None
+        self.historico_desde_date = self.historico_hasta_date = None
+        self.historico_last_30_button = self.historico_clear_filters_button = None
+        self.historico_table = self.historico_model = self.historico_proxy_model = None
+        self.historico_empty_state = self.historico_details_button = self.historico_details_content = None
+        self.resync_historico_button = self.generar_pdf_button = self.ver_detalle_button = self.eliminar_button = None
+        self.editar_pdf_button = self.abrir_pdf_check = self.goto_existing_button = None
+        self.total_preview_input = None
+        self.add_persona_button = self.edit_persona_button = self.delete_persona_button = None
+        self.edit_grupo_button = self.opciones_button = self.config_delegada_combo = None
+        self.cuadrante_warning_label = None
         self._last_persona_id: int | None = None
         self._draft_solicitud_por_persona: dict[int, dict[str, object]] = {}
         self.toast = ToastManager()
