@@ -321,7 +321,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.pendientes_table.setModel(window.pendientes_model)
     window.pendientes_table.setSelectionBehavior(QAbstractItemView.SelectRows)
     window.pendientes_table.setSelectionMode(QAbstractItemView.MultiSelection)
-    window.pendientes_table.selectionModel().selectionChanged.connect(window._update_action_state)
+    window.pendientes_table.selectionModel().selectionChanged.connect(window._on_pending_selection_changed)
     window.pendientes_table.setShowGrid(False)
     window.pendientes_table.setAlternatingRowColors(True)
     window.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
