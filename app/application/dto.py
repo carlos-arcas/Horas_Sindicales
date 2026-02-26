@@ -4,6 +4,18 @@ from dataclasses import dataclass
 from typing import Optional
 
 
+class _FechaAlias(str):
+    """Alias transitorio: compara igual contra fecha_pedida y fecha_solicitud."""
+
+    def __new__(cls, primary: str, secondary: str) -> "_FechaAlias":
+        obj = str.__new__(cls, primary)
+        obj._secondary = secondary
+        return obj
+
+    def __eq__(self, other: object) -> bool:
+        return str.__eq__(self, other) or other == self._secondary
+
+
 @dataclass(frozen=True)
 class PersonaDTO:
     id: Optional[int]
@@ -53,8 +65,8 @@ class SolicitudDTO:
 
     @property
     def fecha(self) -> str:
-        """Alias de compatibilidad para UI/fixtures antiguos."""
-        return self.fecha_canon
+        """Alias de compatibilidad para consumidores legacy con claves heterogéneas."""
+        return _FechaAlias(self.fecha_pedida, self.fecha_solicitud)
 
     @property
     def minutos(self) -> int:
