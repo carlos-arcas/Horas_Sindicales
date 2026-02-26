@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Established SemVer and release documentation workflow for future versions.
 
 ### Fixed
-- N/A.
+- Ajustada la validación preventiva de duplicados para ignorar la propia pendiente en edición y evitar falsos positivos por eco del formulario.
+- Corregido el flujo de "Confirmar y generar PDF" para avisar claramente cuando no hay selección y registrar el intento.
+- Botonería de pendientes actualizada: "Eliminar selección" pasa a estilo destructivo y el CTA cambia a "Actualizar pendiente" en modo edición.
 
 ## [0.1.0] - 2026-02-19
 

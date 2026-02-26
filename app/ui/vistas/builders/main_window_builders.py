@@ -358,7 +358,8 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     left_actions = QHBoxLayout()
     left_actions.setSpacing(8)
     window.eliminar_pendiente_button = QPushButton("Eliminar selección")
-    window.eliminar_pendiente_button.setProperty("variant", "ghost")
+    window.eliminar_pendiente_button.setProperty("variant", "primary")
+    window.eliminar_pendiente_button.setProperty("intent", "destructive")
     window.eliminar_pendiente_button.clicked.connect(window._on_remove_pendiente)
     left_actions.addWidget(window.eliminar_pendiente_button)
 
