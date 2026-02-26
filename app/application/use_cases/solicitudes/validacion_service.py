@@ -7,6 +7,7 @@ from app.application.dto import PeriodoFiltro, SaldosDTO, SolicitudDTO
 from app.domain.models import Persona, Solicitud
 from app.domain.request_time import compute_request_minutes
 from app.domain.services import BusinessRuleError
+from app.domain.time_range import overlaps
 from app.domain.time_utils import minutes_to_hhmm, parse_hhmm
 
 
@@ -117,4 +118,4 @@ def calcular_saldos(
 
 
 def solapa_rango(inicio_a: int, fin_a: int, inicio_b: int, fin_b: int) -> bool:
-    return inicio_a < fin_b and inicio_b < fin_a
+    return overlaps(inicio_a, fin_a, inicio_b, fin_b)

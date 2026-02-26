@@ -6,6 +6,7 @@ import logging
 from app.core.errors import BusinessError, ValidationError
 
 from app.domain.models import Persona, SheetsConfig, Solicitud
+from app.domain.time_range import normalize_range, overlaps
 
 
 class ValidacionError(ValidationError):
@@ -110,13 +111,17 @@ def _to_day(value: str) -> date:
 
 
 def _solapa_tramo(solicitud_a: Solicitud, solicitud_b: Solicitud) -> bool:
-    if solicitud_a.completo or solicitud_b.completo:
-        return True
-    if (
-        solicitud_a.desde_min is None
-        or solicitud_a.hasta_min is None
-        or solicitud_b.desde_min is None
-        or solicitud_b.hasta_min is None
-    ):
+    try:
+        inicio_a, fin_a = normalize_range(
+            completo=solicitud_a.completo,
+            desde_min=solicitud_a.desde_min,
+            hasta_min=solicitud_a.hasta_min,
+        )
+        inicio_b, fin_b = normalize_range(
+            completo=solicitud_b.completo,
+            desde_min=solicitud_b.desde_min,
+            hasta_min=solicitud_b.hasta_min,
+        )
+    except ValidationError:
         return False
-    return solicitud_a.desde_min < solicitud_b.hasta_min and solicitud_b.desde_min < solicitud_a.hasta_min
+    return overlaps(inicio_a, fin_a, inicio_b, fin_b)

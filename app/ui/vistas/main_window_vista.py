@@ -50,6 +50,7 @@ from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.domain.services import BusinessRuleError, ValidacionError
+from app.domain.time_range import TimeRangeValidationError, normalize_range, overlaps
 from app.domain.request_time import validate_request_inputs
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
 from app.domain.sheets_errors import (
@@ -1757,14 +1758,29 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._solicitudes_controller.on_add_pendiente()
 
     def _find_pending_duplicate_row(self, solicitud: SolicitudDTO) -> int | None:
+        try:
+            nuevo_inicio, nuevo_fin = normalize_range(
+                completo=solicitud.completo,
+                desde=solicitud.desde,
+                hasta=solicitud.hasta,
+            )
+        except TimeRangeValidationError:
+            return None
+
         for row, pending in enumerate(self._pending_solicitudes):
             if pending.persona_id != solicitud.persona_id:
                 continue
             if pending.fecha_pedida != solicitud.fecha_pedida:
                 continue
-            if pending.completo != solicitud.completo:
+            try:
+                pendiente_inicio, pendiente_fin = normalize_range(
+                    completo=pending.completo,
+                    desde=pending.desde,
+                    hasta=pending.hasta,
+                )
+            except TimeRangeValidationError:
                 continue
-            if pending.desde == solicitud.desde and pending.hasta == solicitud.hasta:
+            if overlaps(nuevo_inicio, nuevo_fin, pendiente_inicio, pendiente_fin):
                 return row
         return None
 
