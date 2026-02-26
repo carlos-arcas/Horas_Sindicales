@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+
+pytest.importorskip("PySide6.QtGui", exc_type=ImportError)
 from PySide6.QtCore import Qt
 
 from app.application.dto import SolicitudDTO
