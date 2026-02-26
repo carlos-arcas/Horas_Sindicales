@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -76,6 +77,7 @@ from app.ui.controllers.solicitudes_controller import SolicitudesController
 from app.ui.controllers.sync_controller import SyncController
 from app.ui.controllers.pdf_controller import PdfController
 from app.ui.notification_service import ConfirmationSummaryPayload, NotificationService, OperationFeedback
+from app.ui.toast_compat import ui_toast_error, ui_toast_success
 from app.ui.components.saldos_card import SaldosCard
 from app.ui.sync_reporting import (
     build_config_incomplete_report,
@@ -130,6 +132,9 @@ def _abrir_archivo_local(path: Path) -> None:
 
     QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
+
+def _abrir_carpeta_contenedora(path: Path) -> None:
+    _abrir_archivo_local(path.parent)
 
 
 class OptionalConfirmDialog(QDialog):
@@ -1791,13 +1796,16 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         errores: list[str],
         pendientes_restantes: list[SolicitudDTO] | None = None,
     ) -> None:
-        self._post_confirm_success(confirmadas_ids, pendientes_restantes)
-        self._refresh_saldos()
-        self.toast.success(f"{len(confirmadas_ids)} solicitudes confirmadas", title="Confirmación")
-        if errores:
-            self.toast.warning(f"{len(errores)} errores", title="Confirmación")
+        if confirmadas_ids:
+            self._post_confirm_success(confirmadas_ids, pendientes_restantes)
+            self._refresh_saldos()
+            self.toast.success(f"{len(confirmadas_ids)} solicitudes confirmadas", title="Confirmación")
+            if errores:
+                self.toast.warning(f"{len(errores)} errores", title="Confirmación")
+        elif errores:
+            self.toast.warning("No se pudo confirmar ninguna solicitud", title="Confirmación")
         logger.info(
-            "UI_CONFIRMAR_RESULT",
+            "UI_POST_CONFIRM_REFRESH",
             extra={
                 "confirmadas": len(confirmadas_ids),
                 "errores": len(errores),
@@ -2373,13 +2381,14 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                     correlation_id,
                 )
             self._ask_push_after_pdf()
-            self._toast_success(
+            action_rendered = self._toast_success(
                 "PDF generado correctamente",
                 title="Confirmación",
                 action_text="Abrir PDF",
                 action_callback=lambda: _abrir_archivo_local(generado),
             )
-            _abrir_archivo_local(generado)
+            if not action_rendered and generado.exists():
+                self._show_pdf_actions_dialog(generado)
         self._procesar_resultado_confirmacion(confirmadas_ids, errores, pendientes_restantes)
         self._show_confirmation_closure(
             creadas,
@@ -2396,23 +2405,14 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         *,
         action_text: str | None = None,
         action_callback: Callable[[], None] | None = None,
-    ) -> None:
-        self.toast.success(message, title=title)
-        if action_text and action_callback:
-            logger.info(
-                "UI_TOAST_ACTION_FALLBACK_USED action_text=%s has_callback=%s",
-                action_text,
-                True,
-            )
-            dialog = QMessageBox(self)
-            dialog.setIcon(QMessageBox.Icon.Information)
-            dialog.setWindowTitle(title or "Información")
-            dialog.setText(message)
-            action_button = dialog.addButton(action_text, QMessageBox.ButtonRole.AcceptRole)
-            dialog.addButton(QMessageBox.StandardButton.Close)
-            dialog.exec()
-            if dialog.clickedButton() is action_button:
-                action_callback()
+    ) -> bool:
+        return ui_toast_success(
+            self.toast,
+            message,
+            title=title,
+            action_text=action_text,
+            action=action_callback,
+        )
 
     def _toast_error(
         self,
@@ -2421,23 +2421,58 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         *,
         action_text: str | None = None,
         action_callback: Callable[[], None] | None = None,
-    ) -> None:
-        self.toast.error(message, title=title)
-        if action_text and action_callback:
-            logger.info(
-                "UI_TOAST_ACTION_FALLBACK_USED action_text=%s has_callback=%s",
-                action_text,
-                True,
-            )
+    ) -> bool:
+        action_rendered = ui_toast_error(
+            self.toast,
+            message,
+            title=title,
+            action_text=action_text,
+            action=action_callback,
+        )
+        if action_text and action_callback and not action_rendered:
             dialog = QMessageBox(self)
             dialog.setIcon(QMessageBox.Icon.Critical)
             dialog.setWindowTitle(title or "Error")
             dialog.setText(message)
             action_button = dialog.addButton(action_text, QMessageBox.ButtonRole.AcceptRole)
             dialog.addButton(QMessageBox.StandardButton.Close)
-            dialog.exec()
-            if dialog.clickedButton() is action_button:
-                action_callback()
+            dialog.open()
+
+            def _handle_click(clicked: object) -> None:
+                if clicked is action_button:
+                    action_callback()
+
+            dialog.buttonClicked.connect(_handle_click)
+        return action_rendered
+
+    def _show_pdf_actions_dialog(self, generated_path: Path) -> None:
+        logger.info("UI_TOAST_ACTION_FALLBACK_USED method=pdf_success_dialog path=%s", generated_path)
+        dialog = QDialog(self)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        dialog.setWindowTitle("PDF generado")
+        dialog.setModal(False)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel("PDF generado correctamente"))
+        route_input = QLineEdit(str(generated_path))
+        route_input.setReadOnly(True)
+        layout.addWidget(route_input)
+
+        actions = QHBoxLayout()
+        copy_button = QPushButton("Copiar")
+        open_pdf_button = QPushButton("Abrir PDF")
+        open_folder_button = QPushButton("Abrir carpeta")
+        close_button = QPushButton("Cerrar")
+
+        copy_button.clicked.connect(lambda: QApplication.clipboard().setText(route_input.text()))
+        open_pdf_button.clicked.connect(lambda: _abrir_archivo_local(generated_path))
+        open_folder_button.clicked.connect(lambda: _abrir_carpeta_contenedora(generated_path))
+        close_button.clicked.connect(dialog.close)
+
+        for button in (copy_button, open_pdf_button, open_folder_button, close_button):
+            actions.addWidget(button)
+        layout.addLayout(actions)
+
+        dialog.show()
 
     def _sum_solicitudes_minutes(self, solicitudes: list[SolicitudDTO]) -> int:
         return sum(int(round(solicitud.horas * 60)) for solicitud in solicitudes)
@@ -2934,13 +2969,17 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _show_critical_error(self, error: Exception | str) -> None:
         if isinstance(error, str):
             mapped = UiErrorMessage(
-                title=error,
-                probable_cause="Se produjo un problema no esperado durante la operación.",
+                title="Error",
+                probable_cause=error,
                 recommended_action="Reintentar. Si persiste, contactar con soporte.",
                 severity="blocking",
             )
         else:
             mapped = map_error_to_ui_message(error)
+            if isinstance(error, BusinessRuleError):
+                mapped.title = "Validación"
+                mapped.probable_cause = str(error)
+                mapped.recommended_action = "Corrige el dato indicado y vuelve a intentarlo."
             logger.exception(
                 "Error técnico capturado en UI",
                 exc_info=error,
