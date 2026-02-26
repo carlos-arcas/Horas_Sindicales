@@ -40,12 +40,11 @@
 ## 5) Cómo se detectan duplicados
 
 ### 5.1 Duplicados en operación local de peticiones
-- Una petición se considera duplicada si ya existe otra activa con la misma combinación de:
-  - persona,
-  - fecha pedida,
-  - tipo (completa/parcial),
-  - hora desde (o ausencia de ella),
-  - hora hasta (o ausencia de ella).
+- La deduplicación local se evalúa por **persona_id + fecha pedida** y solape horario.
+- Regla de solapamiento: se usan intervalos **semiabiertos** `[inicio, fin)`.
+  - Ejemplo: `17:00-18:00` y `18:00-19:00` **no** solapan.
+- Una solicitud con `completo = true` siempre se normaliza como `[00:00, 24:00)` y, por tanto, colisiona con cualquier tramo parcial del mismo día.
+- `00:00-00:00` no se interpreta como completo si `completo = false`; se considera rango inválido (duración 0).
 - La comprobación ignora registros eliminados.
 
 ### 5.2 Duplicados en sincronización con Google Sheets

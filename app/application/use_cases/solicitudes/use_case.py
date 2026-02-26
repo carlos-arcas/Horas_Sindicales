@@ -36,6 +36,7 @@ from app.domain.models import Persona, Solicitud
 from app.domain.ports import GrupoConfigRepository, PersonaRepository, SolicitudRepository
 from app.domain.request_time import compute_request_minutes, minutes_to_hours_float
 from app.domain.services import BusinessRuleError, ValidacionError, validar_solicitud
+from app.domain.time_range import normalize_range, overlaps
 from app.domain.time_utils import parse_hhmm
 from app.application.use_cases.solicitudes.validaciones import validar_solicitud_dto_declarativo
 from app.application.use_cases.solicitudes.mapping_service import (
@@ -55,7 +56,6 @@ from app.application.use_cases.solicitudes.validacion_service import (
     normalize_date,
     normalize_time,
     parse_year_month as _parse_year_month,
-    solapa_rango as _solapa_rango,
     solicitud_key,
     total_cuadrante_por_fecha as _total_cuadrante_por_fecha,
 )
@@ -354,19 +354,22 @@ class SolicitudUseCases:
         if not existentes:
             return []
 
-        if dto.completo:
-            return [_solicitud_to_dto(item) for item in existentes]
-
-        nuevo_desde = parse_hhmm(dto.desde or "00:00")
-        nuevo_hasta = parse_hhmm(dto.hasta or "00:00")
+        nuevo_inicio, nuevo_fin = normalize_range(
+            completo=dto.completo,
+            desde=dto.desde,
+            hasta=dto.hasta,
+        )
         similares: list[SolicitudDTO] = []
         for existente in existentes:
-            if existente.completo:
-                similares.append(_solicitud_to_dto(existente))
+            try:
+                existente_inicio, existente_fin = normalize_range(
+                    completo=existente.completo,
+                    desde_min=existente.desde_min,
+                    hasta_min=existente.hasta_min,
+                )
+            except ValidationError:
                 continue
-            if existente.desde_min is None or existente.hasta_min is None:
-                continue
-            if _solapa_rango(nuevo_desde, nuevo_hasta, existente.desde_min, existente.hasta_min):
+            if overlaps(nuevo_inicio, nuevo_fin, existente_inicio, existente_fin):
                 similares.append(_solicitud_to_dto(existente))
         return similares
 
@@ -522,11 +525,11 @@ class SolicitudUseCases:
                     dto.completo,
                     cuadrante_base=total_dia,
                 )
-                return 0, 24 * 60
-
-            if not dto.desde or not dto.hasta:
-                raise BusinessRuleError("Desde y hasta son obligatorios para solicitudes parciales.")
-            return parse_hhmm(dto.desde), parse_hhmm(dto.hasta)
+            return normalize_range(
+                completo=dto.completo,
+                desde=dto.desde,
+                hasta=dto.hasta,
+            )
 
         return detect_pending_time_conflicts(solicitudes_list, _resolve_interval)
 

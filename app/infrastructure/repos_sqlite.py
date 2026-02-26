@@ -699,9 +699,6 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             "(s.deleted = 0 OR s.deleted IS NULL)",
         ]
         params: list[object] = [persona_id, fecha_pedida]
-        if not completo:
-            clauses.append("(s.completo = 1 OR (s.desde_min IS NOT NULL AND s.hasta_min IS NOT NULL AND s.desde_min < ? AND ? < s.hasta_min))")
-            params.extend([hasta_min, desde_min])
         cursor.execute(
             f"""
             SELECT s.id, s.uuid, p.uuid AS delegada_uuid,

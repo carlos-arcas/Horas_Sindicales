@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from app.application.dto import SolicitudDTO
+from app.domain.time_range import overlaps
 
 
 @dataclass(frozen=True)
@@ -39,7 +40,7 @@ def detect_pending_time_conflicts(
         for pos in range(1, len(ordered)):
             prev = ordered[pos - 1]
             current = ordered[pos]
-            if current.start_min < prev.end_min:
+            if overlaps(current.start_min, current.end_min, prev.start_min, prev.end_min):
                 conflicts.add(prev.index)
                 conflicts.add(current.index)
     return conflicts
