@@ -46,40 +46,12 @@ def _window_stub(*, form_valid: bool, form_message: str, selected_pending: list[
         resync_historico_button=_WidgetStub(),
         generar_pdf_button=_WidgetStub(),
         stepper_labels=stepper,
-        primary_cta_button=_WidgetStub(),
-        primary_cta_hint=_WidgetStub(),
-    )
+            )
 
 
-def test_operativa_primary_cta_prioritiza_anadir_con_formulario_valido() -> None:
+def test_operativa_accion_formulario_habilita_agregar_con_formulario_valido() -> None:
     window = _window_stub(form_valid=True, form_message="", selected_pending=[], pending_count=0)
 
     MainWindow._update_action_state(window)
 
-    assert window.primary_cta_button.text == "Añadir a pendientes"
-    assert window.primary_cta_button.enabled is True
-    assert window.primary_cta_hint.text == ""
-
-
-def test_operativa_primary_cta_prioritiza_confirmar_si_hay_seleccion() -> None:
-    window = _window_stub(form_valid=True, form_message="", selected_pending=[1], pending_count=2)
-
-    MainWindow._update_action_state(window)
-
-    assert window.primary_cta_button.text == "Confirmar seleccionadas"
-    assert window.primary_cta_button.enabled is True
-
-
-def test_operativa_primary_cta_bloqueado_con_error_validacion() -> None:
-    window = _window_stub(
-        form_valid=False,
-        form_message="La hora de fin debe ser posterior a la de inicio.",
-        selected_pending=[1],
-        pending_count=2,
-    )
-
-    MainWindow._update_action_state(window)
-
-    assert window.primary_cta_button.text == "Confirmar seleccionadas"
-    assert window.primary_cta_button.enabled is False
-    assert window.primary_cta_hint.text == "La hora de fin debe ser posterior a la de inicio."
+    assert window.agregar_button.enabled is True

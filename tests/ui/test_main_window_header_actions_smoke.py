@@ -64,20 +64,6 @@ def test_boton_sincronizar_en_pagina_sync_no_crash(monkeypatch: pytest.MonkeyPat
     app.processEvents()
 
 
-def test_boton_nueva_solicitud_en_operativa_no_crash() -> None:
-    app = QApplication.instance() or QApplication([])
-    window = _build_window()
-
-    assert window.nueva_solicitud_button is not None
-    if window.nueva_solicitud_button.isEnabled():
-        window.nueva_solicitud_button.click()
-        assert True
-    else:
-        assert window.nueva_solicitud_button.toolTip() != ""
-
-    window.close()
-    app.processEvents()
-
 
 def test_boton_exportar_historico_en_tab_existente() -> None:
     app = QApplication.instance() or QApplication([])

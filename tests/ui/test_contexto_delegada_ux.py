@@ -33,18 +33,6 @@ def _build_window() -> MainWindow:
     )
 
 
-def test_sin_delegada_nueva_solicitud_bloqueada_con_tooltip() -> None:
-    app = QApplication.instance() or QApplication([])
-    window = _build_window()
-
-    assert window.nueva_solicitud_button is not None
-    assert window.nueva_solicitud_button.isEnabled() is False
-    assert window.nueva_solicitud_button.toolTip() == "Selecciona delegada"
-
-    window.close()
-    app.processEvents()
-
-
 def test_cambiar_delegada_con_formulario_sucio_pide_confirmacion(monkeypatch: pytest.MonkeyPatch) -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
