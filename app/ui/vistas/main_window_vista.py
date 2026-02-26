@@ -49,7 +49,11 @@ from app.application.use_cases.retry_sync_use_case import RetrySyncUseCase
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
-from app.application.use_cases.solicitudes.validaciones import hay_duplicado_distinto, validar_seleccion_confirmacion
+from app.application.use_cases.solicitudes.validaciones import (
+    clave_duplicado_solicitud,
+    hay_duplicado_distinto,
+    validar_seleccion_confirmacion,
+)
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.request_time import validate_request_inputs
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
@@ -525,8 +529,12 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 key = key_getter()
                 modifiers = modifiers_getter() if callable(modifiers_getter) else Qt.NoModifier
                 if key in (Qt.Key_Return, Qt.Key_Enter) and modifiers == Qt.NoModifier:
+                    logger.info("ENTER form detected via eventFilter")
+                    self._dump_estado_pendientes("enter_form")
                     if self.primary_cta_button.isEnabled():
                         self.primary_cta_button.click()
+                    else:
+                        logger.info("eventFilter early_return motivo=primary_cta_disabled")
                     return True
             return super().eventFilter(watched, event)
         except Exception:
@@ -988,6 +996,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self._blocking_errors = blocking
             self._warnings = warnings
             self._render_preventive_validation()
+            self._dump_estado_pendientes("after_run_preventive_validation")
         finally:
             self._preventive_validation_in_progress = False
 
@@ -1090,6 +1099,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         except (ValidacionError, BusinessRuleError) as exc:
             blocking.setdefault("tramo", f"⚠ {str(exc)}")
 
+        self._dump_estado_pendientes("after_collect_preventive_validation")
         return blocking, warnings
 
     def _render_preventive_validation(self) -> None:
@@ -1116,6 +1126,12 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.pending_errors_summary.setText("\n".join(f"• {message}" for message in summary_items))
         show_duplicate_cta = "duplicado" in self._blocking_errors and self._duplicate_target is not None
         self.goto_existing_button.setVisible(show_duplicate_cta)
+        logger.debug(
+            "duplicate_banner_updated visible=%s has_duplicate_error=%s duplicate_target_id=%s",
+            show_duplicate_cta,
+            "duplicado" in self._blocking_errors,
+            self._duplicate_target.id if self._duplicate_target is not None else None,
+        )
 
     def _on_go_to_existing_duplicate(self) -> None:
         duplicate = self._duplicate_target
@@ -1539,6 +1555,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             can_confirm=can_confirm,
             has_pending=has_pending,
         )
+        self._dump_estado_pendientes("after_update_action_state")
 
     def _update_stepper_state(
         self,
@@ -1664,10 +1681,96 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return [self._pending_solicitudes[row] for row in selected_rows if 0 <= row < len(self._pending_solicitudes)]
 
     def _on_primary_cta_clicked(self) -> None:
+        self._dump_estado_pendientes("click_primary_cta")
         if self.primary_cta_button.text() == "Confirmar seleccionadas":
             self._on_confirmar()
             return
         self._on_add_pendiente()
+
+    def _build_debug_estado_pendientes(self) -> dict[str, object]:
+        editing_pending = self._selected_pending_for_editing()
+        selected_rows = self._selected_pending_row_indexes()
+        solicitud = self._build_preview_solicitud()
+        dto_form_actual = None
+        clave_form_normalizada = None
+        duplicate_eval: dict[str, object] = {
+            "function": "hay_duplicado_distinto",
+            "params": {
+                "solicitud": None,
+                "existentes_count": len(self._pending_solicitudes),
+                "excluir_id": editing_pending.id if editing_pending is not None else None,
+                "excluir_index": selected_rows[0] if editing_pending is not None and selected_rows else None,
+            },
+            "resultado": None,
+        }
+        if solicitud is not None:
+            dto_form_actual = {
+                "persona_id": solicitud.persona_id,
+                "fecha": solicitud.fecha_pedida,
+                "desde": solicitud.desde,
+                "hasta": solicitud.hasta,
+                "completo": solicitud.completo,
+            }
+            clave_form_normalizada = list(clave_duplicado_solicitud(solicitud))
+            duplicate_eval["params"]["solicitud"] = dto_form_actual
+            duplicate_eval["resultado"] = hay_duplicado_distinto(
+                solicitud,
+                self._pending_solicitudes,
+                excluir_id=duplicate_eval["params"]["excluir_id"],
+                excluir_index=duplicate_eval["params"]["excluir_index"],
+            )
+
+        lista_pendientes = []
+        for index, pendiente in enumerate(self._pending_solicitudes):
+            lista_pendientes.append(
+                {
+                    "id": pendiente.id,
+                    "index": index,
+                    "clave_normalizada": list(clave_duplicado_solicitud(pendiente)),
+                }
+            )
+
+        cta_text = self.primary_cta_button.text() if self.primary_cta_button is not None else ""
+        if cta_text == "Actualizar pendiente":
+            cta_reason = "editing_pending_selected"
+        elif cta_text == "Añadir a pendientes":
+            cta_reason = "default_add_mode"
+        elif cta_text == "Confirmar seleccionadas":
+            cta_reason = "selected_pending_can_confirm"
+        else:
+            cta_reason = "cta_hidden_or_unknown"
+
+        return {
+            "editing_pending_id": editing_pending.id if editing_pending is not None else None,
+            "editing_pending_index": selected_rows[0] if editing_pending is not None and selected_rows else None,
+            "selected_pending_rows": selected_rows,
+            "selected_pending_count": len(selected_rows),
+            "dto_form_actual": dto_form_actual,
+            "clave_form_normalizada": clave_form_normalizada,
+            "lista_pendientes": lista_pendientes,
+            "hay_duplicado_distinto": duplicate_eval,
+            "cta_decision": {
+                "text": cta_text,
+                "enabled": bool(self.primary_cta_button.isEnabled()) if self.primary_cta_button is not None else False,
+                "reason": cta_reason,
+                "hint": self.primary_cta_hint.text() if self.primary_cta_hint is not None else "",
+            },
+        }
+
+    def _dump_estado_pendientes(self, motivo: str) -> dict:
+        try:
+            estado = self._build_debug_estado_pendientes()
+        except Exception as exc:  # pragma: no cover - diagnóstico defensivo
+            estado = {"motivo": motivo, "error": str(exc)}
+            logger.exception("estado_pendientes_failed motivo=%s", motivo)
+            return estado
+        logger.debug("estado_pendientes[%s]=%s", motivo, json.dumps(estado, ensure_ascii=False, default=str, indent=2))
+        return estado
+
+    def _on_pending_selection_changed(self) -> None:
+        # Para juniors: mantener este hook separado facilita leer por qué cambia el CTA.
+        self._dump_estado_pendientes("selection_changed_pending")
+        self._update_action_state()
 
     def _undo_last_added_pending(self, solicitud_id: int | None) -> None:
         if solicitud_id is None:
@@ -1772,6 +1875,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         if persona is None:
             self.toast.warning("Selecciona una delegada válida para eliminar.", title="Delegada requerida")
             return
+        logger.info("Se pide confirmación de borrado motivo=policy=always_confirm selection_count=1")
         respuesta = QMessageBox.question(
             self,
             "Eliminar delegado",
@@ -1791,11 +1895,15 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._load_personas()
 
     def _on_add_pendiente(self) -> None:
+        logger.info("CLICK add_or_update_pendiente handler=_on_add_pendiente")
+        self._dump_estado_pendientes("click_add_or_update_pending")
         if not self._ui_ready:
+            logger.info("_on_add_pendiente early_return motivo=ui_not_ready")
             return
         self._field_touched.update({"delegada", "fecha", "tramo"})
         self._run_preventive_validation()
         if self._blocking_errors:
+            logger.info("_on_add_pendiente early_return motivo=blocking_errors")
             self.toast.warning("Corrige los errores pendientes antes de añadir.", title="Validación preventiva")
             return
         self._solicitudes_controller.on_add_pendiente()
@@ -1991,18 +2099,23 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return True
 
     def _on_insertar_sin_pdf(self) -> None:
+        logger.info("CLICK confirmar_sin_pdf handler=_on_insertar_sin_pdf")
+        self._dump_estado_pendientes("click_confirmar_sin_pdf")
         if not self._run_preconfirm_checks():
+            logger.info("_on_insertar_sin_pdf early_return motivo=preconfirm_checks")
             return
         persona = self._current_persona()
         selected = self._selected_pending_solicitudes()
         if persona is None:
+            logger.info("_on_insertar_sin_pdf early_return motivo=no_persona")
             return
         warning_message = validar_seleccion_confirmacion(len(selected))
         if warning_message:
             self.toast.warning(warning_message, title="Selección requerida")
-            logger.info("Confirmar+PDF cancelado: sin selección")
+            logger.info("_on_insertar_sin_pdf early_return motivo=sin_seleccion")
             return
         if self._pending_conflict_rows:
+            logger.info("_on_insertar_sin_pdf early_return motivo=conflictos_pendientes")
             self.toast.warning(
                 "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
                 title="Conflictos detectados",
@@ -2037,20 +2150,28 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._notify_historico_filter_if_hidden(creadas)
 
     def _on_confirmar(self) -> None:
+        logger.info("CLICK confirmar_pdf handler=_on_confirmar")
+        self._dump_estado_pendientes("click_confirmar_pdf")
         if not self._ui_ready:
+            logger.info("_on_confirmar early_return motivo=ui_not_ready")
             return
+        logger.debug("_on_confirmar paso=validar_preconfirm_checks")
         if not self._run_preconfirm_checks():
+            logger.info("_on_confirmar early_return motivo=preconfirm_checks")
             return
         persona = self._current_persona()
         selected = self._selected_pending_solicitudes()
+        logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", self._selected_pending_row_indexes(), [sol.id for sol in selected])
         if persona is None:
+            logger.info("_on_confirmar early_return motivo=no_persona")
             return
         warning_message = validar_seleccion_confirmacion(len(selected))
         if warning_message:
             self.toast.warning(warning_message, title="Selección requerida")
-            logger.info("Confirmar+PDF cancelado: sin selección")
+            logger.info("_on_confirmar early_return motivo=sin_seleccion")
             return
         if self._pending_conflict_rows:
+            logger.info("_on_confirmar early_return motivo=conflictos_pendientes")
             self.toast.warning(
                 "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
                 title="Conflictos detectados",
@@ -2059,12 +2180,17 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
         pdf_path = self._prompt_confirm_pdf_path(selected)
         if pdf_path is None:
+            logger.info("_on_confirmar early_return motivo=pdf_path_cancelado")
             return
+        logger.debug("_on_confirmar paso=pdf_path_seleccionado path=%s", pdf_path)
 
+        logger.debug("_on_confirmar paso=llamar_execute_confirmar_with_pdf")
         outcome = self._execute_confirmar_with_pdf(persona, selected, pdf_path)
         if outcome is None:
+            logger.info("_on_confirmar early_return motivo=execute_confirmar_none")
             return
         correlation_id, generado, creadas, pendientes_restantes, errores = outcome
+        logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(generado) if generado else None)
 
         self._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, pendientes_restantes, errores)
 
@@ -2094,6 +2220,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self._set_processing_state(True)
             with OperationContext("confirmar_y_generar_pdf") as operation:
                 correlation_id = operation.correlation_id
+                logger.debug("_execute_confirmar_with_pdf paso=validar_seleccion count=%s", len(selected))
+                logger.debug("_execute_confirmar_with_pdf paso=ids_seleccionadas ids=%s", [sol.id for sol in selected])
                 log_event(
                     logger,
                     "confirmar_y_generar_pdf_started",
@@ -2106,6 +2234,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                     destino=Path(pdf_path),
                     correlation_id=operation.correlation_id,
                 )
+                logger.debug("_execute_confirmar_with_pdf paso=llamada_servicio_confirmar ok=True")
+                logger.debug("_execute_confirmar_with_pdf paso=llamada_generador_pdf ruta=%s", str(generado) if generado else "")
                 ids_set = set(ids_confirmadas)
                 creadas = [sol for sol in selected if sol.id in ids_set]
                 pendientes_restantes = [sol for sol in selected if sol.id not in ids_set]
@@ -2145,7 +2275,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         pendientes_restantes: list[SolicitudDTO],
         errores: list[str],
     ) -> None:
+        logger.debug("_finalize_confirmar_with_pdf paso=ruta_pdf_final ruta=%s", str(generado) if generado else None)
         if generado and self.abrir_pdf_check.isChecked():
+            logger.debug("_finalize_confirmar_with_pdf paso=intento_abrir_pdf enabled=True")
             _abrir_archivo_local(generado)
         if generado and creadas:
             pdf_hash = creadas[0].pdf_hash
@@ -2827,8 +2959,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             )
 
     def _on_eliminar(self) -> None:
+        logger.info("CLICK eliminar_historico handler=_on_eliminar selected=%s", len(self._selected_historico_solicitudes()))
         seleccionadas = [sol for sol in self._selected_historico_solicitudes() if sol.id is not None]
         if not seleccionadas:
+            logger.info("_on_eliminar early_return motivo=sin_seleccion")
             return
         try:
             self._set_processing_state(True)
@@ -2860,9 +2994,15 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         )
 
     def _on_remove_pendiente(self) -> None:
+        logger.info("CLICK eliminar_pendiente handler=_on_remove_pendiente")
+        self._dump_estado_pendientes("click_eliminar_pendiente")
         selection = self.pendientes_table.selectionModel().selectedRows()
         if not selection:
+            logger.info("_on_remove_pendiente early_return motivo=sin_seleccion")
             return
+        logger.info(
+            "Se pide confirmación de borrado motivo=policy=always_confirm selection_count>0 (instrumentación)",
+        )
         rows = sorted((index.row() for index in selection), reverse=True)
         ids_to_delete: list[int] = []
         for row in rows:
