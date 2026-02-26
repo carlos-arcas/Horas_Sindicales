@@ -43,36 +43,73 @@ class MainWindow:
         self.resync_historico_button.setText(f"Re-sincronizar ({selected_count})")
         self.generar_pdf_button.setText(f"Generar PDF ({selected_count})")
 
+        self._update_stepper_state(form_valid, has_blocking_errors, first_blocking_error, form_message)
+
+        active_step = self._resolve_operativa_step(form_valid and not has_blocking_errors, has_pending, selected_pending, can_confirm)
+        self._set_operativa_step(active_step)
+        self._update_step_context(active_step)
+        self._update_confirmation_summary(selected_pending)
+
+        self._update_primary_cta(
+            persona_selected=persona_selected,
+            form_valid=form_valid,
+            has_blocking_errors=has_blocking_errors,
+            first_blocking_error=first_blocking_error,
+            form_message=form_message,
+            selected_pending=selected_pending,
+            can_confirm=can_confirm,
+            has_pending=has_pending,
+        )
+
+    def _update_stepper_state(
+        self,
+        form_valid: bool,
+        has_blocking_errors: bool,
+        first_blocking_error: str,
+        form_message: str,
+    ) -> None:
         form_step_valid = form_valid and not has_blocking_errors
         self.stepper_labels[1].setEnabled(form_step_valid)
         stepper_message = first_blocking_error or form_message or "Completa la solicitud para poder añadirla"
         self.stepper_labels[1].setToolTip("" if form_step_valid else stepper_message)
 
-        active_step = self._resolve_operativa_step(form_step_valid, has_pending, selected_pending, can_confirm)
-        self._set_operativa_step(active_step)
-        self._update_step_context(active_step)
-        self._update_confirmation_summary(selected_pending)
+    def _update_primary_cta(
+        self,
+        *,
+        persona_selected: bool,
+        form_valid: bool,
+        has_blocking_errors: bool,
+        first_blocking_error: str,
+        form_message: str,
+        selected_pending: list,
+        can_confirm: bool,
+        has_pending: bool,
+    ) -> None:
+        can_confirm_selection = bool(selected_pending) and can_confirm
+        self.primary_cta_button.setText("Confirmar seleccionadas" if can_confirm_selection else "Añadir a pendientes")
 
-        cta_text = "Confirmar seleccionadas" if selected_pending and can_confirm else "Añadir a pendientes"
-        self.primary_cta_button.setText(cta_text)
         if has_blocking_errors:
             self.primary_cta_button.setEnabled(False)
             self.primary_cta_hint.setText(first_blocking_error)
-        elif not form_valid:
+            return
+
+        if not form_valid:
             self.primary_cta_button.setEnabled(False)
             self.primary_cta_hint.setText(form_message)
-        elif selected_pending and can_confirm:
+            return
+
+        if can_confirm_selection or persona_selected:
             self.primary_cta_button.setEnabled(True)
             self.primary_cta_hint.setText("")
-        elif persona_selected:
-            self.primary_cta_button.setEnabled(True)
-            self.primary_cta_hint.setText("")
-        elif has_pending:
+            return
+
+        if has_pending:
             self.primary_cta_button.setEnabled(False)
             self.primary_cta_hint.setText("Selecciona al menos una pendiente")
-        else:
-            self.primary_cta_button.setEnabled(False)
-            self.primary_cta_hint.setText("Completa el formulario para continuar")
+            return
+
+        self.primary_cta_button.setEnabled(False)
+        self.primary_cta_hint.setText("Completa el formulario para continuar")
 
 
 __all__ = ["MainWindow"]

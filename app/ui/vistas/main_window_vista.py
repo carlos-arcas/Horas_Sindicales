@@ -907,13 +907,9 @@ class MainWindow(QMainWindow):
         self._warnings = warnings
         self._render_preventive_validation()
 
-    def _collect_preventive_validation(self) -> tuple[dict[str, str], dict[str, str]]:
+    def _collect_base_preventive_errors(self) -> dict[str, str]:
         blocking: dict[str, str] = {}
-        warnings: dict[str, str] = {}
-        self._duplicate_target = None
-
-        persona = self._current_persona()
-        if persona is None:
+        if self._current_persona() is None:
             blocking["delegada"] = "⚠ Selecciona una delegada."
 
         fecha_pedida = self.fecha_input.date().toString("yyyy-MM-dd")
@@ -930,41 +926,68 @@ class MainWindow(QMainWindow):
         )
         if tramo_errors:
             blocking["tramo"] = f"⚠ {next(iter(tramo_errors.values()))}"
+        return blocking
+
+    def _collect_preventive_business_rules(
+        self,
+        solicitud: SolicitudDTO,
+        warnings: dict[str, str],
+        blocking: dict[str, str],
+    ) -> None:
+        minutos = self._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
+        year, month, _ = (int(part) for part in solicitud.fecha_pedida.split("-"))
+        saldos = self._solicitud_use_cases.calcular_saldos(solicitud.persona_id, year, month)
+        if saldos.restantes_mes < minutos or saldos.restantes_ano < minutos:
+            warnings["saldo"] = "Saldo insuficiente. La petición se ha registrado igualmente."
+
+        duplicate = self._solicitud_use_cases.buscar_duplicado(solicitud)
+        self._apply_duplicate_preventive_validation(solicitud, duplicate, blocking)
+
+        similares = [
+            item
+            for item in self._solicitud_use_cases.buscar_similares(solicitud)
+            if item.id != (duplicate.id if duplicate else None)
+        ]
+        if similares:
+            ids_similares = [str(item.id) for item in similares if item.id is not None]
+            warnings["similares"] = "Posibles similares: " + ", ".join(ids_similares)
+
+        conflicto = self._solicitud_use_cases.validar_conflicto_dia(
+            solicitud.persona_id, solicitud.fecha_pedida, solicitud.completo
+        )
+        if not conflicto.ok:
+            blocking["conflicto"] = "⚠ Hay un conflicto activo pendiente en esa fecha."
+
+        if solicitud.completo and self.cuadrante_warning_label.isVisible():
+            warnings["cuadrante"] = "⚠ El cuadrante no está configurado y puede alterar el cálculo final."
+
+    def _apply_duplicate_preventive_validation(
+        self,
+        solicitud: SolicitudDTO,
+        duplicate: SolicitudDTO | None,
+        blocking: dict[str, str],
+    ) -> None:
+        duplicate_message = "⚠ Ya existe una solicitud duplicada para la misma delegada, fecha y tramo."
+        if duplicate is not None:
+            blocking["duplicado"] = duplicate_message
+            self._duplicate_target = duplicate
+
+        pending_duplicate_row = self._find_pending_duplicate_row(solicitud)
+        if pending_duplicate_row is not None:
+            blocking["duplicado"] = duplicate_message
+            self._duplicate_target = self._pending_solicitudes[pending_duplicate_row]
+
+    def _collect_preventive_validation(self) -> tuple[dict[str, str], dict[str, str]]:
+        blocking = self._collect_base_preventive_errors()
+        warnings: dict[str, str] = {}
+        self._duplicate_target = None
 
         solicitud = self._build_preview_solicitud()
         if solicitud is None or blocking:
             return blocking, warnings
 
         try:
-            minutos = self._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
-            year, month, _ = (int(part) for part in solicitud.fecha_pedida.split("-"))
-            saldos = self._solicitud_use_cases.calcular_saldos(solicitud.persona_id, year, month)
-            if saldos.restantes_mes < minutos or saldos.restantes_ano < minutos:
-                warnings["saldo"] = "Saldo insuficiente. La petición se ha registrado igualmente."
-
-            duplicate = self._solicitud_use_cases.buscar_duplicado(solicitud)
-            if duplicate is not None:
-                blocking["duplicado"] = "⚠ Ya existe una solicitud duplicada para la misma delegada, fecha y tramo."
-                self._duplicate_target = duplicate
-
-            pending_duplicate_row = self._find_pending_duplicate_row(solicitud)
-            if pending_duplicate_row is not None:
-                blocking["duplicado"] = "⚠ Ya existe una solicitud duplicada para la misma delegada, fecha y tramo."
-                self._duplicate_target = self._pending_solicitudes[pending_duplicate_row]
-
-            similares = [item for item in self._solicitud_use_cases.buscar_similares(solicitud) if item.id != (duplicate.id if duplicate else None)]
-            if similares:
-                ids_similares = [str(item.id) for item in similares if item.id is not None]
-                warnings["similares"] = "Posibles similares: " + ", ".join(ids_similares)
-
-            conflicto = self._solicitud_use_cases.validar_conflicto_dia(
-                solicitud.persona_id, solicitud.fecha_pedida, solicitud.completo
-            )
-            if not conflicto.ok:
-                blocking["conflicto"] = "⚠ Hay un conflicto activo pendiente en esa fecha."
-
-            if solicitud.completo and self.cuadrante_warning_label.isVisible():
-                warnings["cuadrante"] = "⚠ El cuadrante no está configurado y puede alterar el cálculo final."
+            self._collect_preventive_business_rules(solicitud, warnings, blocking)
         except sqlite3.OperationalError as exc:
             if "locked" in str(exc).lower():
                 log_operational_error(
@@ -1411,36 +1434,74 @@ class MainWindow(QMainWindow):
         self.resync_historico_button.setText(f"Re-sincronizar ({selected_count})")
         self.generar_pdf_button.setText(f"Generar PDF ({selected_count})")
 
+        self._update_stepper_state(form_valid, has_blocking_errors, first_blocking_error, form_message)
+
+        active_step = self._resolve_operativa_step(form_valid and not has_blocking_errors, has_pending, selected_pending, can_confirm)
+        self._set_operativa_step(active_step)
+        self._update_step_context(active_step)
+        self._update_confirmation_summary(selected_pending)
+
+        self._update_primary_cta(
+            persona_selected=persona_selected,
+            form_valid=form_valid,
+            has_blocking_errors=has_blocking_errors,
+            first_blocking_error=first_blocking_error,
+            form_message=form_message,
+            selected_pending=selected_pending,
+            can_confirm=can_confirm,
+            has_pending=has_pending,
+        )
+
+    def _update_stepper_state(
+        self,
+        form_valid: bool,
+        has_blocking_errors: bool,
+        first_blocking_error: str,
+        form_message: str,
+    ) -> None:
         form_step_valid = form_valid and not has_blocking_errors
         self.stepper_labels[1].setEnabled(form_step_valid)
         stepper_message = first_blocking_error or form_message or "Completa la solicitud para poder añadirla"
         self.stepper_labels[1].setToolTip("" if form_step_valid else stepper_message)
 
-        active_step = self._resolve_operativa_step(form_step_valid, has_pending, selected_pending, can_confirm)
-        self._set_operativa_step(active_step)
-        self._update_step_context(active_step)
-        self._update_confirmation_summary(selected_pending)
-
-        cta_text = "Confirmar seleccionadas" if selected_pending and can_confirm else "Añadir a pendientes"
+    def _update_primary_cta(
+        self,
+        *,
+        persona_selected: bool,
+        form_valid: bool,
+        has_blocking_errors: bool,
+        first_blocking_error: str,
+        form_message: str,
+        selected_pending: list[SolicitudDTO],
+        can_confirm: bool,
+        has_pending: bool,
+    ) -> None:
+        can_confirm_selection = bool(selected_pending) and can_confirm
+        cta_text = "Confirmar seleccionadas" if can_confirm_selection else "Añadir a pendientes"
         self.primary_cta_button.setText(cta_text)
+
         if has_blocking_errors:
             self.primary_cta_button.setEnabled(False)
             self.primary_cta_hint.setText(first_blocking_error)
-        elif not form_valid:
+            return
+
+        if not form_valid:
             self.primary_cta_button.setEnabled(False)
             self.primary_cta_hint.setText(form_message)
-        elif selected_pending and can_confirm:
+            return
+
+        if can_confirm_selection or persona_selected:
             self.primary_cta_button.setEnabled(True)
             self.primary_cta_hint.setText("")
-        elif persona_selected:
-            self.primary_cta_button.setEnabled(True)
-            self.primary_cta_hint.setText("")
-        elif has_pending:
+            return
+
+        if has_pending:
             self.primary_cta_button.setEnabled(False)
             self.primary_cta_hint.setText("Selecciona al menos una pendiente")
-        else:
-            self.primary_cta_button.setEnabled(False)
-            self.primary_cta_hint.setText("Completa el formulario para continuar")
+            return
+
+        self.primary_cta_button.setEnabled(False)
+        self.primary_cta_hint.setText("Completa el formulario para continuar")
 
     def _resolve_operativa_step(
         self,
@@ -1875,24 +1936,39 @@ class MainWindow(QMainWindow):
                 title="Conflictos detectados",
             )
             return
+
+        pdf_path = self._prompt_confirm_pdf_path(selected)
+        if pdf_path is None:
+            return
+
+        outcome = self._execute_confirmar_with_pdf(persona, selected, pdf_path)
+        if outcome is None:
+            return
+        correlation_id, generado, creadas, pendientes_restantes, errores = outcome
+
+        self._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, pendientes_restantes, errores)
+
+    def _prompt_confirm_pdf_path(self, selected: list[SolicitudDTO]) -> str | None:
         try:
             default_name = self._solicitud_use_cases.sugerir_nombre_pdf(selected)
         except (ValidacionError, BusinessRuleError) as exc:
             self.toast.warning(str(exc), title="Validación")
-            return
+            return None
         except Exception as exc:  # pragma: no cover - fallback
             logger.exception("Error preparando PDF")
             self._show_critical_error(exc)
-            return
+            return None
+
         default_path = str(Path.home() / default_name)
-        pdf_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Guardar PDF",
-            default_path,
-            "PDF (*.pdf)",
-        )
-        if not pdf_path:
-            return
+        pdf_path, _ = QFileDialog.getSaveFileName(self, "Guardar PDF", default_path, "PDF (*.pdf)")
+        return pdf_path or None
+
+    def _execute_confirmar_with_pdf(
+        self,
+        persona: PersonaDTO,
+        selected: list[SolicitudDTO],
+        pdf_path: str,
+    ) -> tuple[str | None, Path | None, list[SolicitudDTO], list[SolicitudDTO], list[str]] | None:
         correlation_id: str | None = None
         try:
             self._set_processing_state(True)
@@ -1920,6 +1996,7 @@ class MainWindow(QMainWindow):
                     {"creadas": len(creadas), "errores": len(errores), "pdf_generado": bool(generado)},
                     operation.correlation_id,
                 )
+                return correlation_id, generado, creadas, pendientes_restantes, errores
         except Exception as exc:  # pragma: no cover - fallback
             if isinstance(exc, OSError):
                 log_operational_error(
@@ -1935,9 +2012,19 @@ class MainWindow(QMainWindow):
             else:
                 logger.exception("Error confirmando solicitudes")
             self._show_critical_error(exc)
-            return
+            return None
         finally:
             self._set_processing_state(False)
+
+    def _finalize_confirmar_with_pdf(
+        self,
+        persona: PersonaDTO,
+        correlation_id: str | None,
+        generado: Path | None,
+        creadas: list[SolicitudDTO],
+        pendientes_restantes: list[SolicitudDTO],
+        errores: list[str],
+    ) -> None:
         if generado and self.abrir_pdf_check.isChecked():
             _abrir_archivo_local(generado)
         if generado and creadas:
