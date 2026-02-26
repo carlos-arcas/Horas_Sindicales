@@ -568,18 +568,32 @@ class SolicitudUseCases:
         if preflight.conflictos.no_ejecutable:
             raise BusinessRuleError("; ".join(preflight.conflictos.conflictos))
 
+        creadas, pendientes, errores = self._confirmar_solicitudes_lote(
+            solicitudes_list,
+            correlation_id=correlation_id,
+        )
+        pdf_path, creadas = self._generar_pdf_confirmadas(
+            creadas,
+            destino,
+            correlation_id=correlation_id,
+        )
+
+        if correlation_id:
+            log_event(
+                logger,
+                "confirmar_lote_pdf_succeeded",
+                {"creadas": len(creadas), "pendientes": len(pendientes), "errores": len(errores)},
+                correlation_id,
+            )
+        return creadas, pendientes, errores, pdf_path
+
+    def _confirmar_solicitudes_lote(self, solicitudes: list[SolicitudDTO], *, correlation_id: str | None) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]:
         creadas: list[SolicitudDTO] = []
         pendientes: list[SolicitudDTO] = []
         errores: list[str] = []
-        for solicitud in solicitudes_list:
+        for solicitud in solicitudes:
             try:
-                if solicitud.id is not None:
-                    existente = self._repo.get_by_id(solicitud.id)
-                    if existente is None:
-                        raise BusinessRuleError("La solicitud pendiente ya no existe.")
-                    creada = _solicitud_to_dto(existente)
-                else:
-                    creada, _ = self.agregar_solicitud(solicitud, correlation_id=correlation_id)
+                creada = self._resolver_o_crear_solicitud(solicitud, correlation_id=correlation_id)
                 creadas.append(creada)
             except (ValidacionError, BusinessRuleError) as exc:
                 errores.append(str(exc))
@@ -590,64 +604,54 @@ class SolicitudUseCases:
                 incident_id = _generar_incident_id()
                 logger.exception("Error técnico creando solicitud")
                 if correlation_id:
-                    log_event(
-                        logger,
-                        "confirmar_lote_pdf_failed",
-                        {"error": "crear_solicitud", "incident_id": incident_id},
-                        correlation_id,
-                    )
+                    log_event(logger, "confirmar_lote_pdf_failed", {"error": "crear_solicitud", "incident_id": incident_id}, correlation_id)
                 errores.append(f"Se produjo un error técnico al guardar la solicitud. ID de incidente: {incident_id}")
                 pendientes.append(solicitud)
+        return creadas, pendientes, errores
 
-        pdf_path: Path | None = None
-        if creadas:
-            try:
-                persona = self._persona_repo.get_by_id(creadas[0].persona_id)
-                if persona is None:
-                    raise BusinessRuleError("Persona no encontrada.")
-                pdf_options = self._config_repo.get() if self._config_repo else None
-                if self._generador_pdf is None:
-                    raise BusinessRuleError("No hay generador PDF configurado.")
-                pdf_path = self._generador_pdf.generar_pdf_solicitudes(
-                    creadas,
-                    persona,
-                    destino,
-                    intro_text=_pdf_intro_text(pdf_options),
-                    logo_path=pdf_options.pdf_logo_path if pdf_options else None,
-                    include_hours_in_horario=(
-                        pdf_options.pdf_include_hours_in_horario if pdf_options else None
-                    ),
-                )
-                pdf_hash = _hash_file(pdf_path)
-                creadas = [
-                    _actualizar_pdf_en_repo(self._repo, solicitud, pdf_path, pdf_hash)
-                    for solicitud in creadas
-                ]
-            except PersistenceError:
-                raise
-            except InfraError:  # pragma: no cover - fallback
-                incident_id = _generar_incident_id()
-                logger.exception("Error técnico generando PDF")
-                if correlation_id:
-                    log_event(
-                        logger,
-                        "confirmar_lote_pdf_failed",
-                        {"error": "generar_pdf", "incident_id": incident_id},
-                        correlation_id,
-                    )
-                raise ErrorAplicacionSolicitud(
-                    "No se pudo generar el PDF por un error técnico",
-                    incident_id=incident_id,
-                )
+    def _resolver_o_crear_solicitud(self, solicitud: SolicitudDTO, *, correlation_id: str | None) -> SolicitudDTO:
+        if solicitud.id is not None:
+            existente = self._repo.get_by_id(solicitud.id)
+            if existente is None:
+                raise BusinessRuleError("La solicitud pendiente ya no existe.")
+            return _solicitud_to_dto(existente)
+        creada, _ = self.agregar_solicitud(solicitud, correlation_id=correlation_id)
+        return creada
 
-        if correlation_id:
-            log_event(
-                logger,
-                "confirmar_lote_pdf_succeeded",
-                {"creadas": len(creadas), "pendientes": len(pendientes), "errores": len(errores)},
-                correlation_id,
+    def _generar_pdf_confirmadas(self, creadas: list[SolicitudDTO], destino: Path, *, correlation_id: str | None) -> tuple[Path | None, list[SolicitudDTO]]:
+        if not creadas:
+            return None, creadas
+        try:
+            persona = self._persona_repo.get_by_id(creadas[0].persona_id)
+            if persona is None:
+                raise BusinessRuleError("Persona no encontrada.")
+            pdf_options = self._config_repo.get() if self._config_repo else None
+            if self._generador_pdf is None:
+                raise BusinessRuleError("No hay generador PDF configurado.")
+            pdf_path = self._generador_pdf.generar_pdf_solicitudes(
+                creadas,
+                persona,
+                destino,
+                intro_text=_pdf_intro_text(pdf_options),
+                logo_path=pdf_options.pdf_logo_path if pdf_options else None,
+                include_hours_in_horario=(
+                    pdf_options.pdf_include_hours_in_horario if pdf_options else None
+                ),
             )
-        return creadas, pendientes, errores, pdf_path
+            pdf_hash = _hash_file(pdf_path)
+            actualizadas = [_actualizar_pdf_en_repo(self._repo, solicitud, pdf_path, pdf_hash) for solicitud in creadas]
+            return pdf_path, actualizadas
+        except PersistenceError:
+            raise
+        except InfraError:  # pragma: no cover - fallback
+            incident_id = _generar_incident_id()
+            logger.exception("Error técnico generando PDF")
+            if correlation_id:
+                log_event(logger, "confirmar_lote_pdf_failed", {"error": "generar_pdf", "incident_id": incident_id}, correlation_id)
+            raise ErrorAplicacionSolicitud(
+                "No se pudo generar el PDF por un error técnico",
+                incident_id=incident_id,
+            )
 
     def confirmar_sin_pdf(
         self,
