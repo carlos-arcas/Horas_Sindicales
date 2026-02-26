@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 from typing import cast
 
 from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, QThread
+# `QKeyEvent` vive en QtGui en PySide6 (no en QtCore); importarlo aquí evita NameError en eventFilter.
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -461,6 +462,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         # Para juniors: `eventFilter` intercepta eventos antes que el widget objetivo.
         # Si este método lanza una excepción, puede romper incluso el manejador global
         # que muestra QMessageBox de error. Por eso se protege con try/except defensivo.
+        # Nota: los eventos de teclado en PySide6 son `QKeyEvent` de `QtGui`.
         try:
             if watched is None or event is None:
                 return False
@@ -2964,4 +2966,3 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             QMessageBox.question(self, "Conflicto", mensaje, QMessageBox.Yes | QMessageBox.No)
             == QMessageBox.Yes
         )
-
