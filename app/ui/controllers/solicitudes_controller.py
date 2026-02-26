@@ -121,6 +121,9 @@ class SolicitudesController:
         if pendiente_en_edicion is not None:
             w.toast.success("Pendiente actualizada", title="Operación completada")
 
+    def refresh_historico(self) -> list[SolicitudDTO]:
+        return list(self.window._solicitud_use_cases.listar_historico())
+
     def confirmar_lote(
         self,
         pendientes_actuales: list[SolicitudDTO],

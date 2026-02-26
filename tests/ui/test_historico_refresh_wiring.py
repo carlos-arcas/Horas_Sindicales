@@ -68,6 +68,13 @@ def _class_and_methods() -> tuple[ast.ClassDef, dict[str, ast.FunctionDef]]:
     return main_window, methods
 
 
+def _contains_call(method: ast.FunctionDef, attr_name: str) -> bool:
+    for node in ast.walk(method):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == attr_name:
+            return True
+    return False
+
+
 def _contains_refresh_call(method: ast.FunctionDef, force_value: bool) -> bool:
     for node in ast.walk(method):
         if not isinstance(node, ast.Call):
@@ -92,6 +99,12 @@ def test_tab_changed_wires_historico_refresh() -> None:
     _, methods = _class_and_methods()
     assert "_on_main_tab_changed" in methods
     assert _contains_refresh_call(methods["_on_main_tab_changed"], force_value=False)
+
+
+def test_refresh_historico_uses_controller_source_of_truth() -> None:
+    _, methods = _class_and_methods()
+    assert "_refresh_historico" in methods
+    assert _contains_call(methods["_refresh_historico"], "refresh_historico")
 
 
 def test_build_historico_rows_collects_all_persona_rows() -> None:

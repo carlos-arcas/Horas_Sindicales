@@ -435,16 +435,15 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.historico_desde_date = QDateEdit()
     window.historico_desde_date.setCalendarPopup(True)
     window.historico_desde_date.setDisplayFormat("yyyy-MM-dd")
-    window.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
     filtros_row_2.addWidget(QLabel("Desde"))
     filtros_row_2.addWidget(window.historico_desde_date)
 
     window.historico_hasta_date = QDateEdit()
     window.historico_hasta_date.setCalendarPopup(True)
     window.historico_hasta_date.setDisplayFormat("yyyy-MM-dd")
-    window.historico_hasta_date.setDate(QDate.currentDate())
     filtros_row_2.addWidget(QLabel("Hasta"))
     filtros_row_2.addWidget(window.historico_hasta_date)
+    window._apply_historico_default_range()
 
     window.historico_last_30_button = QPushButton("Últimos 30 días")
     window.historico_last_30_button.setProperty("variant", "secondary")

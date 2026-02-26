@@ -261,6 +261,35 @@ def test_solicitudes_controller_actualiza_pendiente_en_edicion() -> None:
     window.toast.success.assert_called_once()
 
 
+
+
+def test_solicitudes_controller_refresh_historico_devuelve_resultado_use_case() -> None:
+    historico = [
+        SolicitudDTO(
+            id=1,
+            persona_id=7,
+            fecha_solicitud="2025-01-01",
+            fecha_pedida="2025-01-01",
+            desde="09:00",
+            hasta="10:00",
+            completo=False,
+            horas=1.0,
+            observaciones=None,
+            pdf_path=None,
+            pdf_hash=None,
+            notas=None,
+        )
+    ]
+    use_cases = Mock()
+    use_cases.listar_historico.return_value = historico
+    window = SimpleNamespace(_solicitud_use_cases=use_cases)
+
+    controller = SolicitudesController(window)
+
+    result = controller.refresh_historico()
+
+    assert result == historico
+    use_cases.listar_historico.assert_called_once_with()
 def test_aplicar_confirmacion_deja_solo_no_confirmadas() -> None:
     pendientes = [
         SolicitudDTO(id=1, persona_id=1, fecha_solicitud="2024-01-01", fecha_pedida="2024-01-01", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
