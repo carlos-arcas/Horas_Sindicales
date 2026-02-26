@@ -126,11 +126,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     persona_row.addWidget(persona_label)
     window.persona_combo.currentIndexChanged.connect(window._on_persona_changed)
     persona_row.addWidget(window.persona_combo, 1)
-    persona_row.addStretch(1)
-    window.nueva_solicitud_button = QPushButton("Nueva solicitud")
-    window.nueva_solicitud_button.setProperty("variant", "primary")
-    window.nueva_solicitud_button.clicked.connect(window._clear_form)
-    persona_row.addWidget(window.nueva_solicitud_button)
     solicitud_layout.addLayout(persona_row)
 
     solicitud_row = QHBoxLayout()
@@ -194,7 +189,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.cuadrante_warning_label.setVisible(False)
     solicitud_row.addWidget(window.cuadrante_warning_label)
 
-    window.agregar_button = QPushButton("Añadir a pendientes")
+    window.agregar_button = QPushButton("Añadir pendiente")
     window.agregar_button.setProperty("variant", "secondary")
     window.agregar_button.clicked.connect(
         window._on_add_pendiente,
@@ -359,16 +354,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     else:
         logger.warning("UI_CONFIRMAR_PDF_BUTTON_NOT_WIRED")
     right_actions.addWidget(window.confirmar_button)
-
-    window.primary_cta_button = QPushButton("Añadir a pendientes")
-    window.primary_cta_button.setProperty("variant", "primary")
-    window.primary_cta_button.setProperty("role", "dominantCta")
-    window.primary_cta_button.clicked.connect(window._on_primary_cta_clicked)
-    right_actions.addWidget(window.primary_cta_button)
-
-    window.primary_cta_hint = QLabel("")
-    window.primary_cta_hint.setProperty("role", "secondary")
-    right_actions.addWidget(window.primary_cta_hint)
 
     pendientes_footer.addLayout(right_actions)
     pending_details_layout.addLayout(pendientes_footer)

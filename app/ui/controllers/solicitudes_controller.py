@@ -102,7 +102,7 @@ class SolicitudesController:
             w.notifications.notify_validation_error(
                 what="No se guardó la solicitud.",
                 why=f"{str(exc)}.",
-                how="Corrige el formulario y vuelve a pulsar 'Añadir a pendientes'.",
+                how="Corrige el formulario y vuelve a pulsar 'Añadir pendiente'.",
             )
             return
         except Exception as exc:  # pragma: no cover - fallback

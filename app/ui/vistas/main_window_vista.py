@@ -326,7 +326,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.sidebar_buttons: list[QPushButton] = []
         self._sidebar_routes: list[dict[str, int | None]] = []
         self._active_sidebar_index = 0
-        self.nueva_solicitud_button: QPushButton | None = None
         # Placeholders explícitos para contratos de inicialización self.* en tests estáticos.
         self.main_tabs = None
         self.persona_combo = self.fecha_input = self.desde_input = self.hasta_input = None
@@ -335,7 +334,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.completo_check = self.notas_input = None
         self.pending_errors_frame = self.pending_errors_summary = None
         self.solicitud_inline_error = self.delegada_field_error = self.fecha_field_error = self.tramo_field_error = None
-        self.primary_cta_button = self.primary_cta_hint = self.insertar_sin_pdf_button = self.confirmar_button = None
+        self.insertar_sin_pdf_button = self.confirmar_button = None
         self.agregar_button = self.eliminar_pendiente_button = self.eliminar_huerfana_button = None
         self.revisar_ocultas_button = self.ver_todas_pendientes_button = None
         self.total_pendientes_label = self.pending_filter_warning = None
@@ -549,10 +548,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 if key in (Qt.Key_Return, Qt.Key_Enter) and modifiers == Qt.NoModifier:
                     logger.info("ENTER form detected via eventFilter")
                     self._dump_estado_pendientes("enter_form")
-                    if self.primary_cta_button.isEnabled():
-                        self.primary_cta_button.click()
+                    if self.agregar_button.isEnabled():
+                        self.agregar_button.click()
                     else:
-                        logger.info("eventFilter early_return motivo=primary_cta_disabled")
+                        logger.info("eventFilter early_return motivo=agregar_button_disabled")
                     return True
             return super().eventFilter(watched, event)
         except Exception:
@@ -620,10 +619,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.notas_input.setPlainText(str(draft["notas"]))
 
     def _update_global_context(self) -> None:
-        persona = self._current_persona()
-        if self.nueva_solicitud_button is not None:
-            self.nueva_solicitud_button.setEnabled(persona is not None)
-            self.nueva_solicitud_button.setToolTip("" if persona is not None else "Selecciona delegada")
+        return
 
     def _clear_form(self) -> None:
         """Alias legado: mantener compatibilidad con conexiones antiguas.
@@ -780,7 +776,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.editar_pdf_button,
             self.insertar_sin_pdf_button,
             self.confirmar_button,
-            self.primary_cta_button,
             self.eliminar_button,
             self.ver_detalle_button,
             self.resync_historico_button,
@@ -795,8 +790,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.setTabOrder(self.desde_input, self.hasta_input)
         self.setTabOrder(self.hasta_input, self.completo_check)
         self.setTabOrder(self.completo_check, self.notas_input)
-        self.setTabOrder(self.notas_input, self.primary_cta_button)
-        self.setTabOrder(self.primary_cta_button, self.insertar_sin_pdf_button)
+        self.setTabOrder(self.notas_input, self.agregar_button)
+        self.setTabOrder(self.agregar_button, self.insertar_sin_pdf_button)
         self.setTabOrder(self.insertar_sin_pdf_button, self.confirmar_button)
 
     def _configure_historico_focus_order(self) -> None:
@@ -1515,10 +1510,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         form_valid, form_message = self._validate_solicitud_form()
         blocking_errors = getattr(self, "_blocking_errors", {})
         has_blocking_errors = bool(blocking_errors)
-        first_blocking_error = next(iter(blocking_errors.values()), "")
         editing_pending = self._selected_pending_for_editing()
         self.agregar_button.setEnabled(persona_selected and form_valid and not has_blocking_errors)
-        self.agregar_button.setText("Actualizar pendiente" if editing_pending is not None else "Añadir a pendientes")
+        self.agregar_button.setText("Actualizar pendiente" if editing_pending is not None else "Añadir pendiente")
         has_pending = bool(self._pending_solicitudes)
         can_confirm = has_pending and not self._pending_conflict_rows and not has_blocking_errors
         self.insertar_sin_pdf_button.setEnabled(persona_selected and can_confirm)
@@ -1542,63 +1536,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.generar_pdf_button.setText(f"Generar PDF ({selected_count})")
 
         self._update_confirmation_summary(selected_pending)
-
-        self._update_primary_cta(
-            persona_selected=persona_selected,
-            form_valid=form_valid,
-            has_blocking_errors=has_blocking_errors,
-            first_blocking_error=first_blocking_error,
-            form_message=form_message,
-            selected_pending=selected_pending,
-            can_confirm=can_confirm,
-            has_pending=has_pending,
-        )
         self._dump_estado_pendientes("after_update_action_state")
-
-    def _update_primary_cta(
-        self,
-        *,
-        persona_selected: bool,
-        form_valid: bool,
-        has_blocking_errors: bool,
-        first_blocking_error: str,
-        form_message: str,
-        selected_pending: list[SolicitudDTO],
-        can_confirm: bool,
-        has_pending: bool,
-    ) -> None:
-        can_confirm_selection = bool(selected_pending) and can_confirm
-        editing_pending = self._selected_pending_for_editing()
-        if can_confirm_selection:
-            cta_text = "Confirmar seleccionadas"
-        elif editing_pending is not None:
-            cta_text = "Actualizar pendiente"
-        else:
-            cta_text = "Añadir a pendientes"
-        self.primary_cta_button.setText(cta_text)
-
-        if has_blocking_errors:
-            self.primary_cta_button.setEnabled(False)
-            self.primary_cta_hint.setText(first_blocking_error)
-            return
-
-        if not form_valid:
-            self.primary_cta_button.setEnabled(False)
-            self.primary_cta_hint.setText(form_message)
-            return
-
-        if can_confirm_selection or persona_selected:
-            self.primary_cta_button.setEnabled(True)
-            self.primary_cta_hint.setText("")
-            return
-
-        if has_pending:
-            self.primary_cta_button.setEnabled(False)
-            self.primary_cta_hint.setText("Selecciona al menos una pendiente")
-            return
-
-        self.primary_cta_button.setEnabled(False)
-        self.primary_cta_hint.setText("Completa el formulario para continuar")
 
     def _update_confirmation_summary(self, selected_pending: list[SolicitudDTO]) -> None:
         if not selected_pending:
@@ -1618,13 +1556,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _selected_pending_solicitudes(self) -> list[SolicitudDTO]:
         selected_rows = self._selected_pending_row_indexes()
         return [self._pending_solicitudes[row] for row in selected_rows if 0 <= row < len(self._pending_solicitudes)]
-
-    def _on_primary_cta_clicked(self) -> None:
-        self._dump_estado_pendientes("click_primary_cta")
-        if self.primary_cta_button.text() == "Confirmar seleccionadas":
-            self._on_confirmar()
-            return
-        self._on_add_pendiente()
 
     def _build_debug_estado_pendientes(self) -> dict[str, object]:
         editing_pending = self._selected_pending_for_editing()
@@ -1663,16 +1594,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 }
             )
 
-        cta_text = self.primary_cta_button.text() if self.primary_cta_button is not None else ""
-        if cta_text == "Actualizar pendiente":
-            cta_reason = "editing_pending_selected"
-        elif cta_text == "Añadir a pendientes":
-            cta_reason = "default_add_mode"
-        elif cta_text == "Confirmar seleccionadas":
-            cta_reason = "selected_pending_can_confirm"
-        else:
-            cta_reason = "cta_hidden_or_unknown"
-
         return {
             "editing_pending_id": editing_pending.id if editing_pending is not None else None,
             "editing_pending_index": selected_rows[0] if editing_pending is not None and selected_rows else None,
@@ -1683,10 +1604,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             "lista_pendientes": lista_pendientes,
             "duplicados_en_pendientes": duplicate_eval,
             "cta_decision": {
-                "text": cta_text,
-                "enabled": bool(self.primary_cta_button.isEnabled()) if self.primary_cta_button is not None else False,
-                "reason": cta_reason,
-                "hint": self.primary_cta_hint.text() if self.primary_cta_hint is not None else "",
+                "text": self.agregar_button.text(),
+                "enabled": bool(self.agregar_button.isEnabled()),
+                "reason": "form_add_or_update",
+                "hint": "",
             },
         }
 
@@ -2899,7 +2820,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.statusBar().clearMessage()
 
     def _set_processing_state(self, in_progress: bool) -> None:
-        self.primary_cta_button.setEnabled(not in_progress)
+        self.agregar_button.setEnabled(not in_progress)
         self.confirmar_button.setEnabled(not in_progress)
         self.eliminar_button.setEnabled(not in_progress)
         self.eliminar_pendiente_button.setEnabled(not in_progress)

@@ -40,7 +40,7 @@ def test_notas_input_usa_altura_compacta_sin_romper_layout() -> None:
     assert notas_input.maximumHeight() <= 120
     assert notas_input.sizePolicy().verticalPolicy() != QSizePolicy.Expanding
 
-    assert getattr(window, "primary_cta_button", None) is not None
+    assert getattr(window, "agregar_button", None) is not None
     assert getattr(window, "pendientes_table", None) is not None
 
     window.close()

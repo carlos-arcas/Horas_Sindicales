@@ -51,7 +51,6 @@ def test_acciones_reubicadas_siguen_disponibles() -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
-    assert window.nueva_solicitud_button is not None
     assert window.sync_button is not None
     assert window.generar_pdf_button is not None
     assert window.generar_pdf_button.text().startswith("Exportar histórico PDF")

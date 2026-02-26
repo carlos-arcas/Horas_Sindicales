@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - UI: navegación lateral sustituida por pestañas para ahorrar ancho.
+- UI: eliminados botones redundantes Nueva solicitud / Añadir a pendientes en Solicitudes.
 - Established SemVer and release documentation workflow for future versions.
 - UI: eliminada cabecera tipo wizard en Solicitudes para ganar altura útil.
 
