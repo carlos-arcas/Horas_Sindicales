@@ -92,6 +92,7 @@ from app.ui.workers.sincronizacion_workers import PushWorker
 from app.bootstrap.logging import log_operational_error
 from app.ui.vistas.main_window_health_mixin import MainWindowHealthMixin
 from app.ui.vistas.init_refresh import run_init_refresh
+from app.ui.vistas.historico_refresh_logic import build_historico_rows
 from app.ui.vistas.builders.main_window_builders import (
     build_main_window_widgets,
     build_shell_layout,
@@ -114,6 +115,7 @@ except ImportError:  # pragma: no cover - depende de instalación local
     PDF_PREVIEW_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+TAB_HISTORICO = 1
 
 
 def resolve_active_delegada_id(delegada_ids: list[int], preferred_id: object) -> int | None:
@@ -388,15 +390,30 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._update_sync_button_state()
         self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
-        QTimer.singleShot(0, self._init_refresh)
+        self._post_init_load()
+
+    def _post_init_load(self) -> None:
+        run_init_refresh(
+            refresh_resumen=self._refresh_saldos,
+            refresh_pendientes=self._reload_pending_views,
+            refresh_historico=lambda: self._refresh_historico(force=True),
+            emit_log=logger.info,
+        )
 
     def _init_refresh(self) -> None:
         run_init_refresh(
             refresh_resumen=self._refresh_saldos,
             refresh_pendientes=self._reload_pending_views,
-            refresh_historico=self._refresh_historico,
+            refresh_historico=lambda: self._refresh_historico(force=True),
             emit_log=logger.info,
         )
+
+    def _on_main_tab_changed(self, index: int) -> None:
+        if index != TAB_HISTORICO:
+            return
+        if not self.historico_desde_date.date().isValid() or not self.historico_hasta_date.date().isValid():
+            self._apply_historico_last_30_days()
+        self._refresh_historico(force=False)
 
     def _validate_required_widgets(self) -> None:
         required_widgets = (
@@ -3099,7 +3116,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             )
         )
 
-    def _refresh_historico(self) -> None:
+    def _refresh_historico(self, *, force: bool = False) -> None:
+        if self.historico_table is None or self.historico_model is None:
+            logger.info("UI_HISTORICO_REFRESH_SKIPPED_NO_WIDGETS")
+            return
         persona = self._current_persona()
         historico_filters = {
             "delegada_id": self.historico_delegada_combo.currentData(),
@@ -3107,22 +3127,25 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             "desde": self.historico_desde_date.date().toString("yyyy-MM-dd"),
             "hasta": self.historico_hasta_date.date().toString("yyyy-MM-dd"),
             "search": self.historico_search_input.text().strip(),
+            "force": force,
+            "tab_index": self.main_tabs.currentIndex() if self.main_tabs is not None else None,
         }
         logger.info(
-            "UI_HISTORICO_FETCH_START persona_id=%s filtros=%s",
+            "UI_HISTORICO_REFRESH_START persona_id=%s filtros=%s",
             persona.id if persona is not None else None,
             historico_filters,
         )
-        solicitudes: list[SolicitudDTO] = []
-        for persona in self._personas:
-            if persona.id is None:
-                continue
-            solicitudes.extend(self._solicitud_use_cases.listar_solicitudes_por_persona(persona.id))
-        logger.info("UI_HISTORICO_FETCH_OK count=%s", len(solicitudes))
+        solicitudes = build_historico_rows(
+            self._personas,
+            self._solicitud_use_cases.listar_solicitudes_por_persona,
+        )
         self.historico_model.set_solicitudes(solicitudes)
         self.historico_table.sortByColumn(0, Qt.DescendingOrder)
         self._apply_historico_filters()
         self._update_action_state()
+        logger.info("UI_HISTORICO_REFRESH_RESULT num_rows=%s", self.historico_proxy_model.rowCount())
+        if self.historico_proxy_model.rowCount() == 0:
+            logger.info("UI_HISTORICO_REFRESH_EMPTY")
 
     def _refresh_saldos(self) -> None:
         filtro = self._current_saldo_filtro()
