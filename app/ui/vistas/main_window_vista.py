@@ -2365,7 +2365,13 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                     correlation_id,
                 )
             self._ask_push_after_pdf()
-            self.toast.success("PDF generado correctamente", title="Confirmación", action_label="Abrir PDF", action_callback=lambda: _abrir_archivo_local(generado) if generado else None)
+            self._toast_success(
+                "PDF generado correctamente",
+                title="Confirmación",
+                action_label="Abrir PDF",
+                action_callback=lambda: _abrir_archivo_local(generado),
+            )
+            _abrir_archivo_local(generado)
         _ = pendientes_restantes
         self._reload_pending_views()
         self._refresh_historico()
@@ -2377,6 +2383,13 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             correlation_id=correlation_id,
         )
         self._notify_historico_filter_if_hidden(creadas)
+
+    def _toast_success(self, msg: str, title: str, **kwargs: object) -> None:
+        try:
+            self.toast.success(msg, title=title, **kwargs)
+        except TypeError:
+            logger.warning("UI_TOAST_DEGRADED: success toast fallback without kwargs", extra={"kwargs": list(kwargs.keys())})
+            self.toast.success(msg, title=title)
 
     def _sum_solicitudes_minutes(self, solicitudes: list[SolicitudDTO]) -> int:
         return sum(int(round(solicitud.horas * 60)) for solicitud in solicitudes)
