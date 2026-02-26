@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import QDate, QTimer, QTime, Qt
@@ -37,6 +38,9 @@ from app.ui.vistas.paginas.pagina_solicitudes import PaginaSolicitudes
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow
+
+
+logger = logging.getLogger(__name__)
 
 def build_main_window_widgets(window: "MainWindow") -> None:
     window.persona_combo = QComboBox()
@@ -389,7 +393,11 @@ def build_main_window_widgets(window: "MainWindow") -> None:
 
     window.confirmar_button = QPushButton("Confirmar y generar PDF")
     window.confirmar_button.setProperty("variant", "secondary")
-    window.confirmar_button.clicked.connect(window._on_confirmar)
+    confirmar_handler = getattr(window, "_on_confirmar", None)
+    if callable(confirmar_handler):
+        window.confirmar_button.clicked.connect(confirmar_handler)
+    else:
+        logger.warning("UI_CONFIRMAR_PDF_BUTTON_NOT_WIRED")
     right_actions.addWidget(window.confirmar_button)
 
     window.primary_cta_button = QPushButton("Añadir a pendientes")
