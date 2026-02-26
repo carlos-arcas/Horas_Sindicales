@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from numbers import Real
+import math
 import re
 
 
@@ -35,13 +36,13 @@ def parse_hhmm(valor: str) -> int:
     return hm_to_minutes(horas, minutos)
 
 
-def _normalize_minutes_input(minutos: int | float | str) -> int:
+def _normalize_minutes_input(minutos: int | float | str | None) -> int:
     """Acepta minutos en int/float y redondea al minuto más cercano.
 
     Política: se aplica ``int(round(minutos))`` para floats.
     """
     if minutos is None:
-        raise ValueError("'minutos' no puede ser None.")
+        return 0
     if isinstance(minutos, str):
         valor = minutos.strip()
         if not re.fullmatch(r"[-+]?\d+(?:\.\d+)?", valor):
@@ -49,13 +50,16 @@ def _normalize_minutes_input(minutos: int | float | str) -> int:
         minutos = float(valor)
     if isinstance(minutos, bool) or not isinstance(minutos, Real):
         raise ValueError("'minutos' debe ser un número válido (int, float o string numérica).")
-    if minutos < 0:
+    minutos_float = float(minutos)
+    if math.isnan(minutos_float):
+        return 0
+    if minutos_float < 0:
         raise ValueError("Los minutos deben ser no negativos.")
 
-    return int(round(float(minutos)))
+    return int(round(minutos_float))
 
 
-def minutes_to_hhmm(minutos: int | float | str) -> str:
+def minutes_to_hhmm(minutos: int | float | str | None) -> str:
     minutos_normalizados = _normalize_minutes_input(minutos)
     horas, mins = minutes_to_hm(minutos_normalizados)
     return f"{horas:02d}:{mins:02d}"

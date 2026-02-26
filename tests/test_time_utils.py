@@ -27,7 +27,7 @@ def test_minutes_to_hhmm_cases(minutos: int | float | str, esperado: str) -> Non
     assert minutes_to_hhmm(minutos) == esperado
 
 
-@pytest.mark.parametrize("valor", [None, "abc"])
+@pytest.mark.parametrize("valor", ["abc"])
 def test_minutes_to_hhmm_rechaza_tipos_invalidos(valor: object) -> None:
     with pytest.raises(ValueError, match="minutos"):
         minutes_to_hhmm(valor)  # type: ignore[arg-type]
@@ -58,3 +58,11 @@ def test_parse_hhmm_ok() -> None:
 def test_parse_hhmm_invalid(valor: str) -> None:
     with pytest.raises(ValueError):
         parse_hhmm(valor)
+
+
+def test_minutes_to_hhmm_none_returns_zero_time() -> None:
+    assert minutes_to_hhmm(None) == "00:00"
+
+
+def test_minutes_to_hhmm_nan_returns_zero_time() -> None:
+    assert minutes_to_hhmm(float("nan")) == "00:00"
