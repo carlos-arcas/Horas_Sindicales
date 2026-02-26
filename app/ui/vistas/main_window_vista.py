@@ -110,6 +110,17 @@ except ImportError:  # pragma: no cover - depende de instalación local
 logger = logging.getLogger(__name__)
 
 
+def resolve_active_delegada_id(delegada_ids: list[int], preferred_id: object) -> int | None:
+    """Devuelve la delegada activa válida a partir del id preferido y la lista cargada."""
+    if not delegada_ids:
+        return None
+    preferred_as_text = str(preferred_id)
+    for delegada_id in delegada_ids:
+        if str(delegada_id) == preferred_as_text:
+            return delegada_id
+    return delegada_ids[0]
+
+
 def _abrir_archivo_local(path: Path) -> None:
     from PySide6.QtCore import QUrl
     from PySide6.QtGui import QDesktopServices
@@ -810,10 +821,21 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.historico_delegada_combo.blockSignals(False)
         self.config_delegada_combo.blockSignals(True)
         self.config_delegada_combo.clear()
-        self.config_delegada_combo.addItem("Todas", None)
-        for persona_id, nombre in sorted(persona_nombres.items(), key=lambda item: item[1].lower()):
+        sorted_personas = sorted(persona_nombres.items(), key=lambda item: item[1].lower())
+        for persona_id, nombre in sorted_personas:
+            # Nunca usar el texto visible para identificar registros: puede repetirse.
+            # Usamos siempre persona_id (delegada_id real) en userData.
             self.config_delegada_combo.addItem(nombre, persona_id)
+        delegada_ids = [persona_id for persona_id, _nombre in sorted_personas]
+        preferred_id = select_id if select_id is not None else self._settings.value("contexto/delegada_seleccionada_id", None)
+        active_id = resolve_active_delegada_id(delegada_ids, preferred_id)
+        if active_id is not None:
+            for index in range(self.config_delegada_combo.count()):
+                if self.config_delegada_combo.itemData(index) == active_id:
+                    self.config_delegada_combo.setCurrentIndex(index)
+                    break
         self.config_delegada_combo.blockSignals(False)
+        self._sync_config_persona_actions()
         self._on_persona_changed()
 
     def _current_persona(self) -> PersonaDTO | None:
@@ -852,7 +874,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _on_config_delegada_changed(self, *_args) -> None:
         persona_id = self.config_delegada_combo.currentData()
+        self._sync_config_persona_actions()
         self._settings.setValue("contexto/delegada_activa", persona_id)
+        self._settings.setValue("contexto/delegada_seleccionada_id", persona_id)
         if persona_id is None:
             return
         for index in range(self.persona_combo.count()):
@@ -861,13 +885,27 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 break
 
     def _restaurar_contexto_guardado(self) -> None:
-        delegada_id = self._settings.value("contexto/delegada_activa", None)
+        delegada_id = self._settings.value("contexto/delegada_seleccionada_id", None)
         historico_id = self._settings.value("historico/delegada", None)
         for combo, value in ((self.config_delegada_combo, delegada_id), (self.historico_delegada_combo, historico_id)):
             for index in range(combo.count()):
                 if str(combo.itemData(index)) == str(value):
                     combo.setCurrentIndex(index)
                     break
+
+    def _selected_config_persona(self) -> PersonaDTO | None:
+        persona_id = self.config_delegada_combo.currentData()
+        if persona_id is None:
+            return None
+        for persona in self._personas:
+            if persona.id == persona_id:
+                return persona
+        return None
+
+    def _sync_config_persona_actions(self) -> None:
+        has_selected_persona = self.config_delegada_combo.currentData() is not None
+        self.edit_persona_button.setEnabled(has_selected_persona)
+        self.delete_persona_button.setEnabled(has_selected_persona)
 
     def _apply_historico_text_filter(self) -> None:
         self.historico_proxy_model.set_search_text(self.historico_search_input.text())
@@ -1699,8 +1737,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._personas_controller.on_add_persona(persona_dto)
 
     def _on_edit_persona(self) -> None:
-        persona = self._current_persona()
+        persona = self._selected_config_persona()
         if persona is None:
+            self.toast.warning("Selecciona una delegada válida para editar.", title="Delegada requerida")
             return
         dialog = PersonaDialog(self, persona)
         persona_dto = dialog.get_persona()
@@ -1726,8 +1765,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._load_personas(select_id=actualizada.id)
 
     def _on_delete_persona(self) -> None:
-        persona = self._current_persona()
+        persona = self._selected_config_persona()
         if persona is None:
+            self.toast.warning("Selecciona una delegada válida para eliminar.", title="Delegada requerida")
             return
         respuesta = QMessageBox.question(
             self,
