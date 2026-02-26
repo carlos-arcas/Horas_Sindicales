@@ -70,3 +70,27 @@ def test_duplicado_pendiente_ofrece_ir_a_existente(solicitud_use_cases, solicitu
     assert duplicate is not None
     assert duplicate.id == creada.id
     assert duplicate.generated is False
+
+
+def test_permite_misma_fecha_y_tramo_para_persona_distinta(solicitud_use_cases, persona_repo, solicitud_dto) -> None:
+    solicitud_use_cases.agregar_solicitud(solicitud_dto)
+    persona_dos_id = _crear_segunda_persona(persona_repo)
+    segunda = replace(solicitud_dto, persona_id=persona_dos_id)
+    creada, _ = solicitud_use_cases.agregar_solicitud(segunda)
+    assert creada.persona_id == persona_dos_id
+
+
+def test_limite_fin_igual_inicio_no_solapa_en_similares(solicitud_use_cases, solicitud_dto) -> None:
+    base = replace(solicitud_dto, desde="09:00", hasta="10:00")
+    solicitud_use_cases.agregar_solicitud(base)
+    borde = replace(solicitud_dto, desde="10:00", hasta="11:00")
+    similares = solicitud_use_cases.buscar_similares(borde)
+    assert similares == []
+
+
+def test_buscar_similares_devuelve_ids(solicitud_use_cases, solicitud_dto) -> None:
+    creada, _ = solicitud_use_cases.agregar_solicitud(solicitud_dto)
+    solicitud_use_cases.confirmar_sin_pdf([creada])
+    similares = solicitud_use_cases.buscar_similares(solicitud_dto)
+    ids = [item.id for item in similares]
+    assert creada.id in ids
