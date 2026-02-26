@@ -1,398 +1,407 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-set "ROOT_DIR=%~dp0"
-if "%ROOT_DIR:~-1%"=="\" set "ROOT_DIR=%ROOT_DIR:~0,-1%"
-set "REPO_ROOT=%ROOT_DIR%"
-set "LOG_DIR=%REPO_ROOT%\logs"
-set "RUNS_DIR=%LOG_DIR%\runs"
-set "SUMMARY_FILE=%LOG_DIR%\menu_ultima_ejecucion.txt"
-set "LAST_RUN_ID_FILE=%LOG_DIR%\menu_last_run_id.txt"
-set "TESTS_SCRIPT=%REPO_ROOT%\ejecutar_tests.bat"
-set "GATE_SCRIPT=%REPO_ROOT%\quality_gate.bat"
+set "root_dir=%~dp0"
+if "%root_dir:~-1%"=="\" set "root_dir=%root_dir:~0,-1%"
+set "repo_root=%root_dir%"
+set "log_dir=%repo_root%\logs"
+set "runs_dir=%log_dir%\runs"
+set "summary_file=%log_dir%\menu_ultima_ejecucion.txt"
+set "menu_env_file=%log_dir%\menu_tests_env.txt"
+rem logs\menu_tests_env.txt
+set "last_run_id_file=%log_dir%\menu_last_run_id.txt"
+set "tests_script=%repo_root%\ejecutar_tests.bat"
+set "gate_script=%repo_root%\quality_gate.bat"
 
-set "SCRIPT_EXIT_CODE=0"
-set "CHOICE="
-set "LAST_ACTION=Sin ejecutar"
-set "TESTS_STATUS=NO_EJECUTADO"
-set "TESTS_CODE=NO_EJECUTADO"
-set "GATE_STATUS=NO_EJECUTADO"
-set "GATE_CODE=NO_EJECUTADO"
-set "RUN_DIR="
-set "RUN_ID="
-set "RUN_STEP_FAILED=0"
-set "LAST_ERROR_STEP="
-set "LAST_ERROR_REASON="
-set "LAST_ERROR_STDOUT="
-set "LAST_ERROR_STDERR="
-set "LAST_ERROR_CMD="
-set "LAST_ERROR_EXIT="
-set "PAUSE_ALREADY_DONE=0"
-set "DEBUG_SANITY=0"
+set "script_exit_code=0"
+set "choice="
+set "last_action=Sin ejecutar"
+set "tests_status=NO_EJECUTADO"
+set "tests_code=NO_EJECUTADO"
+set "gate_status=NO_EJECUTADO"
+set "gate_code=NO_EJECUTADO"
+set "run_dir="
+set "run_id="
+set "run_step_failed=0"
+set "last_error_step="
+set "last_error_reason="
+set "last_error_stdout="
+set "last_error_stderr="
+set "last_error_cmd="
+set "last_error_exit="
+set "pause_already_done=0"
+set "debug_sanity=0"
 
-if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
-if not exist "%RUNS_DIR%" mkdir "%RUNS_DIR%" >nul 2>&1
-cd /d "%REPO_ROOT%"
+if not exist "%log_dir%" mkdir "%log_dir%" >nul 2>&1
+if not exist "%runs_dir%" mkdir "%runs_dir%" >nul 2>&1
+cd /d "%repo_root%"
 
-:MENU
+:menu
 echo.
 echo ==============================================
 echo Menu de validacion - Horas Sindicales
 echo ==============================================
-echo 1^) Ejecutar tests
-echo 2^) Ejecutar quality gate
-echo 3^) Ejecutar ambos ^(tests + quality gate^)
-echo 4^) Abrir carpeta logs
-echo 5^) Abrir el ultimo summary en Notepad
-echo 6^) Abrir coverage html ^(index.html^) del ultimo run
-echo 9^) [debug] Self-test run_step con dummy_fail
-echo 0^) Salir
-set /p "CHOICE=> "
+echo 1) Ejecutar tests
+echo 2) Ejecutar quality gate
+echo 3) Ejecutar ambos (tests + quality gate)
+echo 4) Abrir carpeta logs
+echo 5) Abrir el ultimo summary en Notepad
+echo 6) Abrir coverage html (index.html) del ultimo run
+echo 9) [debug] Self-test run_step con dummy_fail
+echo 0) Salir
+set /p "choice=> "
 
-if "%CHOICE%"=="1" (
-    set "LAST_ACTION=Ejecutar tests"
-    set "PAUSE_ALREADY_DONE=0"
-    call :RUN_PREFLIGHT || (
-        call :FINALIZE_ACTION
-        goto MENU
+if "%choice%"=="1" (
+    set "last_action=Ejecutar tests"
+    set "pause_already_done=0"
+    call :run_preflight || (
+        call :finalize_action
+        goto menu
     )
-    call :RUN_TESTS
-    call :WRITE_SUMMARY
-    call :PUBLISH_LAST_SUMMARY
-    set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
-    call :FINALIZE_ACTION
-    goto MENU
+    call :run_tests
+    call :write_summary
+    call :publish_last_summary
+    set "script_exit_code=!tests_code!"
+    call :finalize_action
+    goto menu
 )
-if "%CHOICE%"=="2" (
-    set "LAST_ACTION=Ejecutar quality gate"
-    set "PAUSE_ALREADY_DONE=0"
-    call :RUN_PREFLIGHT || (
-        call :FINALIZE_ACTION
-        goto MENU
+if "%choice%"=="2" (
+    set "last_action=Ejecutar quality gate"
+    set "pause_already_done=0"
+    call :run_preflight || (
+        call :finalize_action
+        goto menu
     )
-    call :RUN_GATE
-    echo QUALITY GATE: !GATE_STATUS! exit code !GATE_CODE!
-    call :WRITE_SUMMARY
-    call :PUBLISH_LAST_SUMMARY
-    set "SCRIPT_EXIT_CODE=!GATE_CODE!"
-    call :FINALIZE_ACTION
-    goto MENU
+    call :run_gate
+    echo QUALITY GATE: !gate_status! exit code !gate_code!
+    call :write_summary
+    call :publish_last_summary
+    set "script_exit_code=!gate_code!"
+    call :finalize_action
+    goto menu
 )
-if "%CHOICE%"=="3" (
-    set "LAST_ACTION=Ejecutar ambos"
-    set "PAUSE_ALREADY_DONE=0"
-    call :RUN_PREFLIGHT || (
-        call :FINALIZE_ACTION
-        goto MENU
+if "%choice%"=="3" (
+    set "last_action=Ejecutar ambos"
+    set "pause_already_done=0"
+    call :run_preflight || (
+        call :finalize_action
+        goto menu
     )
-    call :RUN_TESTS
-    if not "!TESTS_CODE!"=="0" (
-        set "GATE_STATUS=NO_EJECUTADO"
-        set "GATE_CODE=NO_EJECUTADO"
-        call :WRITE_SUMMARY
-        call :PUBLISH_LAST_SUMMARY
-        set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
-        call :FINALIZE_ACTION
-        goto MENU
+    call :run_tests
+    if not "!tests_code!"=="0" (
+        set "gate_status=NO_EJECUTADO"
+        set "gate_code=NO_EJECUTADO"
+        call :write_summary
+        call :publish_last_summary
+        set "script_exit_code=!tests_code!"
+        call :finalize_action
+        goto menu
     )
-    call :RUN_GATE
-    call :WRITE_SUMMARY
-    call :PUBLISH_LAST_SUMMARY
-    set "SCRIPT_EXIT_CODE=!GATE_CODE!"
-    call :FINALIZE_ACTION
-    goto MENU
+    call :run_gate
+    call :write_summary
+    call :publish_last_summary
+    set "script_exit_code=!gate_code!"
+    call :finalize_action
+    goto menu
 )
-if "%CHOICE%"=="4" (
-    set "PAUSE_ALREADY_DONE=0"
-    if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
-    start "" "%LOG_DIR%"
-    call :FINALIZE_ACTION
-    goto MENU
+if "%choice%"=="4" (
+    set "pause_already_done=0"
+    if not exist "%log_dir%" mkdir "%log_dir%" >nul 2>&1
+    call :safe_open "%log_dir%"
+    call :finalize_action
+    goto menu
 )
-if "%CHOICE%"=="5" (
-    set "PAUSE_ALREADY_DONE=0"
-    if exist "%SUMMARY_FILE%" (
-        start "" notepad "%SUMMARY_FILE%"
+if "%choice%"=="5" (
+    set "pause_already_done=0"
+    if exist "%summary_file%" (
+        start "" notepad "%summary_file%"
     ) else (
-        echo No existe aun "%SUMMARY_FILE%".
+        echo No existe aun "%summary_file%".
     )
-    call :FINALIZE_ACTION
-    goto MENU
+    call :finalize_action
+    goto menu
 )
-if "%CHOICE%"=="6" (
-    set "PAUSE_ALREADY_DONE=0"
+if "%choice%"=="6" (
+    set "pause_already_done=0"
     call :OPEN_LAST_COVERAGE_HTML
-    call :FINALIZE_ACTION
-    goto MENU
+    call :finalize_action
+    goto menu
 )
-if "%CHOICE%"=="9" (
-    set "LAST_ACTION=Debug self-test run_step"
-    set "PAUSE_ALREADY_DONE=0"
-    set "DEBUG_SANITY=1"
-    call :RUN_PREFLIGHT || (
-        set "DEBUG_SANITY=0"
-        call :FINALIZE_ACTION
-        goto MENU
+if "%choice%"=="9" (
+    set "last_action=Debug self-test run_step"
+    set "pause_already_done=0"
+    set "debug_sanity=1"
+    call :run_preflight || (
+        set "debug_sanity=0"
+        call :finalize_action
+        goto menu
     )
-    call :RUN_DEBUG_SELF_TEST
-    set "DEBUG_SANITY=0"
-    call :WRITE_SUMMARY
-    call :PUBLISH_LAST_SUMMARY
-    set "SCRIPT_EXIT_CODE=!TESTS_CODE!"
-    call :FINALIZE_ACTION
-    goto MENU
+    call :run_debug_self_test
+    set "debug_sanity=0"
+    call :write_summary
+    call :publish_last_summary
+    set "script_exit_code=!tests_code!"
+    call :finalize_action
+    goto menu
 )
-if "%CHOICE%"=="0" goto END
+if "%choice%"=="0" goto end
 
 echo Opcion invalida. Intenta de nuevo.
-call :FINALIZE_ACTION
-goto MENU
+call :finalize_action
+goto menu
 
-:RUN_PREFLIGHT
-if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
-if not exist "%RUNS_DIR%" mkdir "%RUNS_DIR%" >nul 2>&1
-if not exist "%TESTS_SCRIPT%" (
-    call :SET_ERROR_STATE "preflight" "" "%SUMMARY_FILE%" "%SUMMARY_FILE%" "2" "No existe ejecutar_tests.bat"
-    call :HANDLE_STEP_ERROR
+:run_preflight
+if not exist "%log_dir%" mkdir "%log_dir%" >nul 2>&1
+if not exist "%runs_dir%" mkdir "%runs_dir%" >nul 2>&1
+if not exist "%root_dir%ejecutar_tests.bat" (
+    call :set_error_state "preflight" "" "%summary_file%" "%summary_file%" "2" "No existe ejecutar_tests.bat"
+    call :handle_step_error
     exit /b 1
 )
-if not exist "%GATE_SCRIPT%" (
-    call :SET_ERROR_STATE "preflight" "" "%SUMMARY_FILE%" "%SUMMARY_FILE%" "2" "No existe quality_gate.bat"
-    call :HANDLE_STEP_ERROR
+if not exist "%root_dir%quality_gate.bat" (
+    call :set_error_state "preflight" "" "%summary_file%" "%summary_file%" "2" "No existe quality_gate.bat"
+    call :handle_step_error
     exit /b 1
 )
-call :CREATE_RUN_DIR || exit /b 1
-set "TESTS_STATUS=NO_EJECUTADO"
-set "TESTS_CODE=NO_EJECUTADO"
-set "GATE_STATUS=NO_EJECUTADO"
-set "GATE_CODE=NO_EJECUTADO"
-set "RUN_STEP_FAILED=0"
-set "LAST_ERROR_STEP="
-set "LAST_ERROR_REASON="
-set "LAST_ERROR_STDOUT="
-set "LAST_ERROR_STDERR="
-set "LAST_ERROR_CMD="
-set "LAST_ERROR_EXIT="
+call :create_run_dir || exit /b 1
+call :write_menu_env "pre"
+set "tests_status=NO_EJECUTADO"
+set "tests_code=NO_EJECUTADO"
+set "gate_status=NO_EJECUTADO"
+set "gate_code=NO_EJECUTADO"
+set "run_step_failed=0"
+set "last_error_step="
+set "last_error_reason="
+set "last_error_stdout="
+set "last_error_stderr="
+set "last_error_cmd="
+set "last_error_exit="
 exit /b 0
 
-:CREATE_RUN_DIR
-set "RUN_ID=%DATE%_%TIME%"
-set "RUN_ID=%RUN_ID:/=%"
-set "RUN_ID=%RUN_ID::=%"
-set "RUN_ID=%RUN_ID:.=%"
-set "RUN_ID=%RUN_ID:,=%"
-set "RUN_ID=%RUN_ID: =0%"
-set "RUN_DIR=%RUNS_DIR%\%RUN_ID%"
-mkdir "%RUN_DIR%" >nul 2>&1 || (
-    echo ERROR: No se pudo crear "%RUN_DIR%".
+:create_run_dir
+set "run_id=%DATE%_%TIME%"
+set "run_id=%run_id:/=%"
+set "run_id=%run_id::=%"
+set "run_id=%run_id:.=%"
+set "run_id=%run_id:,=%"
+set "run_id=%run_id: =0%"
+set "run_dir=%runs_dir%\%run_id%"
+mkdir "%run_dir%" >nul 2>&1 || (
+    echo ERROR: No se pudo crear "%run_dir%".
     exit /b 1
 )
-set "RUN_SUMMARY=%RUN_DIR%\summary.txt"
-set "TESTS_STDOUT=%RUN_DIR%\tests_stdout.txt"
-set "TESTS_STDERR=%RUN_DIR%\tests_stderr.txt"
-set "GATE_STDOUT=%RUN_DIR%\gate_stdout.txt"
-set "GATE_STDERR=%RUN_DIR%\gate_stderr.txt"
-set "COVERAGE_HTML_DIR=%RUN_DIR%\coverage_html"
-set "COVERAGE_TXT=%RUN_DIR%\coverage_report.txt"
->"%LAST_RUN_ID_FILE%" echo %RUN_ID%
+set "run_summary=%run_dir%\summary.txt"
+set "tests_stdout=%run_dir%\tests_stdout.txt"
+set "tests_stderr=%run_dir%\tests_stderr.txt"
+set "gate_stdout=%run_dir%\gate_stdout.txt"
+set "gate_stderr=%run_dir%\gate_stderr.txt"
+set "coverage_dir=%run_dir%\coverage_html"
+set "coverage_index=%coverage_dir%\index.html"
+>"%last_run_id_file%" echo %run_id%
+exit /b 0
+
+:write_menu_env
+set "env_mode=%~1"
+>>"%menu_env_file%" echo ===============================
+>>"%menu_env_file%" echo mode=%env_mode% date=%date% time=%time%
+>>"%menu_env_file%" echo root=%root_dir%
+>>"%menu_env_file%" echo repo=%repo_root%
+>>"%menu_env_file%" echo logs=%log_dir%
+>>"%menu_env_file%" echo run_id=%run_id%
+>>"%menu_env_file%" echo action=%last_action%
+>>"%menu_env_file%" echo -- where python --
+where python >>"%menu_env_file%" 2>>"%summary_file%"
+>>"%menu_env_file%" echo -- where pytest --
+where pytest >>"%menu_env_file%" 2>>"%summary_file%"
+>>"%menu_env_file%" echo -- python --version --
+python --version >>"%menu_env_file%" 2>>"%summary_file%"
 exit /b 0
 
 :run_step
-set "STEP_NAME=%~1"
-set "STEP_SCRIPT=%~2"
-set "STEP_ARGS=%~3"
-if defined STEP_ARGS if "%STEP_ARGS:~0,1%"=="\"" if "%STEP_ARGS:~-1%"=="\"" set "STEP_ARGS=%STEP_ARGS:~1,-1%"
-set "STEP_STDOUT=%~4"
-set "STEP_STDERR=%~5"
-set "STEP_REASON=%~6"
+set "step_name=%~1"
+set "step_script=%~2"
+set "step_args=%~3"
+if defined step_args if "%step_args:~0,1%"=="\"" if "%step_args:~-1%"=="\"" set "step_args=%step_args:~1,-1%"
+set "step_stdout=%~4"
+set "step_stderr=%~5"
+set "step_reason=%~6"
+set "step_cmd_display=\"%step_script%\" %step_args%"
 
-set "CMDLINE=""%STEP_SCRIPT%"" %STEP_ARGS%"
-echo [RUN_STEP] %STEP_NAME%: %CMDLINE%
+echo [run_step] %step_name%: %step_cmd_display%
 
-call "%STEP_SCRIPT%" %STEP_ARGS% 1>"%STEP_STDOUT%" 2>"%STEP_STDERR%"
-set "STEP_EXIT=%ERRORLEVEL%"
+call "%step_script%" %step_args% 1>"%step_stdout%" 2>"%step_stderr%"
+set "step_exit=%ERRORLEVEL%"
 
-echo [RUN_STEP] %STEP_NAME% exit code: %STEP_EXIT%
+echo [run_step] %step_name% exit code: %step_exit%
 
-if not "%STEP_EXIT%"=="0" (
-    call :SET_ERROR_STATE "%STEP_NAME%" "!CMDLINE!" "%STEP_STDOUT%" "%STEP_STDERR%" "%STEP_EXIT%" "%STEP_REASON%"
-    call :HANDLE_STEP_ERROR
+if not "%step_exit%"=="0" (
+    call :set_error_state "%step_name%" "%step_cmd_display%" "%step_stdout%" "%step_stderr%" "%step_exit%" "%step_reason%"
+    call :handle_step_error
     exit /b 1
 )
 exit /b 0
 
-:SET_ERROR_STATE
-set "LAST_ERROR_STEP=%~1"
-set "LAST_ERROR_CMD=%~2"
-set "LAST_ERROR_STDOUT=%~3"
-set "LAST_ERROR_STDERR=%~4"
-set "LAST_ERROR_EXIT=%~5"
-set "LAST_ERROR_REASON=%~6"
-set "RUN_STEP_FAILED=1"
+:set_error_state
+set "last_error_step=%~1"
+set "last_error_cmd=%~2"
+set "last_error_stdout=%~3"
+set "last_error_stderr=%~4"
+set "last_error_exit=%~5"
+set "last_error_reason=%~6"
+set "run_step_failed=1"
 exit /b 0
 
-:HANDLE_STEP_ERROR
-echo [ERROR] Paso fallido: %LAST_ERROR_STEP%
-echo [ERROR] Comando ejecutado: %LAST_ERROR_CMD%
-echo [ERROR] Exit code: %LAST_ERROR_EXIT%
-if defined LAST_ERROR_REASON echo [ERROR] Motivo: %LAST_ERROR_REASON%
-echo [ERROR] Log stdout: %LAST_ERROR_STDOUT%
-echo [ERROR] Log stderr: %LAST_ERROR_STDERR%
-if exist "%LAST_ERROR_STDERR%" (
+:handle_step_error
+echo [ERROR] Paso fallido: %last_error_step%
+echo [ERROR] Comando ejecutado: %last_error_cmd%
+echo [ERROR] Exit code: %last_error_exit%
+if defined last_error_reason echo [ERROR] Motivo: %last_error_reason%
+echo [ERROR] Log stdout: %last_error_stdout%
+echo [ERROR] Log stderr: %last_error_stderr%
+if exist "%last_error_stderr%" (
     echo [ERROR] Primeras 60 lineas de stderr:
-    set /a ERR_LINE_COUNT=0
-    for /f "usebackq delims=" %%L in (`more +0 "%LAST_ERROR_STDERR%"`) do (
-        if !ERR_LINE_COUNT! LSS 60 (
+    set /a err_line_count=0
+    for /f "usebackq delims=" %%L in (`more +0 "%last_error_stderr%"`) do (
+        if !err_line_count! LSS 60 (
             echo %%L
-            set /a ERR_LINE_COUNT+=1
+            set /a err_line_count+=1
         )
     )
 )
-if "%DEBUG_SANITY%"=="1" (
+if "%debug_sanity%"=="1" (
     echo [DEBUG] Sanity error state:
-    echo [DEBUG] LAST_ERROR_STEP=%LAST_ERROR_STEP%
-    echo [DEBUG] LAST_ERROR_CMD=%LAST_ERROR_CMD%
-    echo [DEBUG] LAST_ERROR_EXIT=%LAST_ERROR_EXIT%
-    echo [DEBUG] LAST_ERROR_STDOUT=%LAST_ERROR_STDOUT%
-    echo [DEBUG] LAST_ERROR_STDERR=%LAST_ERROR_STDERR%
-    echo [DEBUG] LAST_ERROR_REASON=%LAST_ERROR_REASON%
+    echo [DEBUG] last_error_step=%last_error_step%
+    echo [DEBUG] last_error_cmd=%last_error_cmd%
+    echo [DEBUG] last_error_exit=%last_error_exit%
+    echo [DEBUG] last_error_stdout=%last_error_stdout%
+    echo [DEBUG] last_error_stderr=%last_error_stderr%
+    echo [DEBUG] last_error_reason=%last_error_reason%
 )
-set "PAUSE_ALREADY_DONE=1"
+set "pause_already_done=1"
 pause
 exit /b 0
 
-:RUN_TESTS
-set "TESTS_STATUS=NO_EJECUTADO"
-set "TESTS_CODE=NO_EJECUTADO"
-call :run_step "tests" "%TESTS_SCRIPT%" "" "%TESTS_STDOUT%" "%TESTS_STDERR%" "Fallo en ejecutar_tests.bat"
+:run_tests
+set "tests_status=NO_EJECUTADO"
+set "tests_code=NO_EJECUTADO"
+call :run_step "tests" "%tests_script%" "" "%tests_stdout%" "%tests_stderr%" "Fallo en ejecutar_tests.bat"
 if errorlevel 1 (
-    set "TESTS_STATUS=FAIL"
-    set "TESTS_CODE=%LAST_ERROR_EXIT%"
+    set "tests_status=FAIL"
+    set "tests_code=%last_error_exit%"
     echo.
-    echo ===== RESUMEN PYTEST ^(stdout^) =====
-    if exist "%TESTS_STDOUT%" (
-      findstr /i /c:"FAILED" /c:"ERROR" "%TESTS_STDOUT%"
-      findstr /i /r "^[0-9][0-9]* failed" "%TESTS_STDOUT%"
-      findstr /i /r "^[0-9][0-9]* passed" "%TESTS_STDOUT%"
+    echo ===== RESUMEN PYTEST (stdout) =====
+    if exist "%tests_stdout%" (
+      findstr /i /c:"FAILED" /c:"ERROR" "%tests_stdout%"
+      findstr /i /r "^[0-9][0-9]* failed" "%tests_stdout%"
+      findstr /i /r "^[0-9][0-9]* passed" "%tests_stdout%"
     ) else (
-      echo No existe %TESTS_STDOUT%
+      echo No existe %tests_stdout%
     )
     echo ==================================
     echo.
-    exit /b %TESTS_CODE%
+    call :write_menu_env "post"
+    exit /b %tests_code%
 )
-set "TESTS_STATUS=PASS"
-set "TESTS_CODE=0"
-call :GENERATE_COVERAGE_ARTIFACTS
+set "tests_status=PASS"
+set "tests_code=0"
+call :write_menu_env "post"
 exit /b 0
 
-:RUN_GATE
-set "GATE_STATUS=NO_EJECUTADO"
-set "GATE_CODE=NO_EJECUTADO"
-call :run_step "quality_gate" "%GATE_SCRIPT%" "" "%GATE_STDOUT%" "%GATE_STDERR%" "Fallo en quality_gate.bat"
+:run_gate
+set "gate_status=NO_EJECUTADO"
+set "gate_code=NO_EJECUTADO"
+call :run_step "quality_gate" "%gate_script%" "" "%gate_stdout%" "%gate_stderr%" "Fallo en quality_gate.bat"
 if errorlevel 1 (
-    set "GATE_STATUS=FAIL"
-    set "GATE_CODE=%LAST_ERROR_EXIT%"
-    exit /b %GATE_CODE%
+    set "gate_status=FAIL"
+    set "gate_code=%last_error_exit%"
+    exit /b %gate_code%
 )
-set "GATE_STATUS=PASS"
-set "GATE_CODE=0"
+set "gate_status=PASS"
+set "gate_code=0"
 exit /b 0
 
-:RUN_DEBUG_SELF_TEST
-set "TESTS_STATUS=NO_EJECUTADO"
-set "TESTS_CODE=NO_EJECUTADO"
-call :run_step "dummy_fail" "%ComSpec%" "/c exit /b 1" "%TESTS_STDOUT%" "%TESTS_STDERR%" "Self-test dummy fail"
+:run_debug_self_test
+set "tests_status=NO_EJECUTADO"
+set "tests_code=NO_EJECUTADO"
+call :run_step "dummy_fail" "%ComSpec%" "/c exit /b 1" "%tests_stdout%" "%tests_stderr%" "Self-test dummy fail"
 if errorlevel 1 (
-    set "TESTS_STATUS=FAIL"
-    set "TESTS_CODE=%LAST_ERROR_EXIT%"
-    exit /b %TESTS_CODE%
+    set "tests_status=FAIL"
+    set "tests_code=%last_error_exit%"
+    exit /b %tests_code%
 )
-set "TESTS_STATUS=PASS"
-set "TESTS_CODE=0"
+set "tests_status=PASS"
+set "tests_code=0"
 exit /b 0
 
-:GENERATE_COVERAGE_ARTIFACTS
-if not exist "%REPO_ROOT%\.coverage" exit /b 0
-python -m coverage report -m >"%COVERAGE_TXT%" 2>&1
-if not exist "%COVERAGE_HTML_DIR%" mkdir "%COVERAGE_HTML_DIR%" >nul 2>&1
-python -m coverage html -d "%COVERAGE_HTML_DIR%" >>"%COVERAGE_TXT%" 2>&1
-exit /b 0
-
-:WRITE_SUMMARY
->"%RUN_SUMMARY%" echo MENU VALIDACION - EJECUCION %RUN_ID%
->>"%RUN_SUMMARY%" echo Fecha: %DATE% %TIME%
->>"%RUN_SUMMARY%" echo Carpeta raiz: %REPO_ROOT%
->>"%RUN_SUMMARY%" echo Opcion: %LAST_ACTION%
->>"%RUN_SUMMARY%" echo Comando tests: "%TESTS_SCRIPT%"
->>"%RUN_SUMMARY%" echo Resultado tests: %TESTS_STATUS% ^(exit %TESTS_CODE%^)
->>"%RUN_SUMMARY%" echo Resultado quality: %GATE_STATUS% ^(exit %GATE_CODE%^)
->>"%RUN_SUMMARY%" echo tests_stdout: %TESTS_STDOUT%
->>"%RUN_SUMMARY%" echo tests_stderr: %TESTS_STDERR%
->>"%RUN_SUMMARY%" echo gate_stdout: %GATE_STDOUT%
->>"%RUN_SUMMARY%" echo gate_stderr: %GATE_STDERR%
-if exist "%COVERAGE_HTML_DIR%\index.html" >>"%RUN_SUMMARY%" echo coverage_html: %COVERAGE_HTML_DIR%\index.html
-if defined LAST_ERROR_STEP (
-    >>"%RUN_SUMMARY%" echo ERROR_STEP=%LAST_ERROR_STEP%
-    >>"%RUN_SUMMARY%" echo ERROR_EXIT=%LAST_ERROR_EXIT%
-    >>"%RUN_SUMMARY%" echo ERROR_REASON=%LAST_ERROR_REASON%
+:write_summary
+>"%run_summary%" echo MENU VALIDACION - EJECUCION %run_id%
+>>"%run_summary%" echo Fecha: %DATE% %TIME%
+>>"%run_summary%" echo Carpeta raiz: %repo_root%
+>>"%run_summary%" echo Opcion: %last_action%
+>>"%run_summary%" echo Comando tests: "%tests_script%"
+>>"%run_summary%" echo Resultado tests: %tests_status% (exit %tests_code%)
+>>"%run_summary%" echo Resultado quality: %gate_status% (exit %gate_code%)
+>>"%run_summary%" echo tests_stdout: %tests_stdout%
+>>"%run_summary%" echo tests_stderr: %tests_stderr%
+>>"%run_summary%" echo gate_stdout: %gate_stdout%
+>>"%run_summary%" echo gate_stderr: %gate_stderr%
+if exist "%coverage_index%" >>"%run_summary%" echo coverage_index: %coverage_index%
+if defined last_error_step (
+    >>"%run_summary%" echo ERROR_STEP=%last_error_step%
+    >>"%run_summary%" echo ERROR_EXIT=%last_error_exit%
+    >>"%run_summary%" echo ERROR_REASON=%last_error_reason%
 )
 exit /b 0
 
-:PUBLISH_LAST_SUMMARY
-if defined RUN_SUMMARY copy /y "%RUN_SUMMARY%" "%SUMMARY_FILE%" >nul 2>&1
+:publish_last_summary
+if defined run_summary copy /y "%run_summary%" "%summary_file%" >nul 2>&1
 exit /b 0
 
 :OPEN_LAST_COVERAGE_HTML
-set "LAST_RUN_ID="
-for /f "delims=" %%D in ('dir /b /ad /o-n "%RUNS_DIR%" 2^>nul') do if not defined LAST_RUN_ID set "LAST_RUN_ID=%%D"
-if not defined LAST_RUN_ID (
-    echo No hay ejecuciones en "%RUNS_DIR%".
-    set "PAUSE_ALREADY_DONE=1"
+set "last_run_id="
+for /f "delims=" %%D in ('dir /b /ad /o-n "%runs_dir%" 2^>nul') do if not defined last_run_id set "last_run_id=%%D"
+if not defined last_run_id (
+    echo No hay ejecuciones en "%runs_dir%".
+    set "pause_already_done=1"
     pause
     exit /b 1
 )
-set "LAST_COV_DIR=%RUNS_DIR%\%LAST_RUN_ID%\coverage_html"
-set "LAST_COV_INDEX=%LAST_COV_DIR%\index.html"
-if not exist "%LAST_COV_INDEX%" (
-    echo [ERROR] No existe coverage index.html.
-    echo [ERROR] Ruta buscada: "%LAST_COV_INDEX%"
-    echo [ERROR] Carpeta run detectada: "%RUNS_DIR%\%LAST_RUN_ID%"
-    if exist "%LAST_COV_DIR%" (
-        dir /b "%LAST_COV_DIR%" >nul 2>&1
-        if errorlevel 1 (
-            echo [ERROR] coverage_html existe pero esta vacia.
-        ) else (
-            echo [INFO] coverage_html existe pero no contiene index.html.
-        )
-    ) else (
-        echo [ERROR] coverage_html no existe.
-    )
-    set "PAUSE_ALREADY_DONE=1"
+set "last_cov_dir=%runs_dir%\%last_run_id%\coverage_html"
+set "last_cov_index=%last_cov_dir%\index.html"
+if not exist "%last_cov_index%" (
+    echo [ERROR] No existe index.html del ultimo run.
+    echo [ERROR] Ruta buscada: "%last_cov_index%"
+    set "pause_already_done=1"
     pause
     exit /b 1
 )
-start "" "%LAST_COV_INDEX%"
+call :safe_open "%last_cov_index%"
 exit /b 0
 
-:PRINT_RESULTS
+:safe_open
+set "open_target=%~1"
+if not exist "%open_target%" exit /b 1
+start "" "%open_target%"
+exit /b 0
+
+:print_results
 echo.
-if defined RUN_ID (
-    echo Resumen ultimo run: logs\runs\%RUN_ID%
+if defined run_id (
+    echo Resumen ultimo run: logs\runs\%run_id%
 ) else (
     echo Resumen ultimo run: [sin run activo]
 )
-echo TESTS: %TESTS_STATUS% ^(exit %TESTS_CODE%^)
-echo QUALITY GATE: %GATE_STATUS% ^(exit %GATE_CODE%^)
+echo TESTS: %tests_status% (exit %tests_code%)
+echo QUALITY GATE: %gate_status% (exit %gate_code%)
 echo Resumen: logs\menu_ultima_ejecucion.txt
 exit /b 0
 
-:FINALIZE_ACTION
-call :PRINT_RESULTS
+:finalize_action
+call :print_results
 echo Abre logs con la opcion 4.
-if not "%PAUSE_ALREADY_DONE%"=="1" pause
+if not "%pause_already_done%"=="1" pause
 exit /b 0
 
-:END
+:end
 echo Saliendo del menu de validacion.
-exit /b %SCRIPT_EXIT_CODE%
+exit /b %script_exit_code%
