@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import json
 import sqlite3
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -2352,7 +2353,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self._toast_success(
                 "PDF generado correctamente",
                 title="Confirmación",
-                action_label="Abrir PDF",
+                action_text="Abrir PDF",
                 action_callback=lambda: _abrir_archivo_local(generado),
             )
             _abrir_archivo_local(generado)
@@ -2365,12 +2366,55 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         )
         self._notify_historico_filter_if_hidden(creadas)
 
-    def _toast_success(self, msg: str, title: str, **kwargs: object) -> None:
-        try:
-            self.toast.success(msg, title=title, **kwargs)
-        except TypeError:
-            logger.warning("UI_TOAST_DEGRADED: success toast fallback without kwargs", extra={"kwargs": list(kwargs.keys())})
-            self.toast.success(msg, title=title)
+    def _toast_success(
+        self,
+        message: str,
+        title: str | None = None,
+        *,
+        action_text: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+    ) -> None:
+        self.toast.success(message, title=title)
+        if action_text and action_callback:
+            logger.info(
+                "UI_TOAST_ACTION_FALLBACK_USED action_text=%s has_callback=%s",
+                action_text,
+                True,
+            )
+            dialog = QMessageBox(self)
+            dialog.setIcon(QMessageBox.Icon.Information)
+            dialog.setWindowTitle(title or "Información")
+            dialog.setText(message)
+            action_button = dialog.addButton(action_text, QMessageBox.ButtonRole.AcceptRole)
+            dialog.addButton(QMessageBox.StandardButton.Close)
+            dialog.exec()
+            if dialog.clickedButton() is action_button:
+                action_callback()
+
+    def _toast_error(
+        self,
+        message: str,
+        title: str | None = None,
+        *,
+        action_text: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+    ) -> None:
+        self.toast.error(message, title=title)
+        if action_text and action_callback:
+            logger.info(
+                "UI_TOAST_ACTION_FALLBACK_USED action_text=%s has_callback=%s",
+                action_text,
+                True,
+            )
+            dialog = QMessageBox(self)
+            dialog.setIcon(QMessageBox.Icon.Critical)
+            dialog.setWindowTitle(title or "Error")
+            dialog.setText(message)
+            action_button = dialog.addButton(action_text, QMessageBox.ButtonRole.AcceptRole)
+            dialog.addButton(QMessageBox.StandardButton.Close)
+            dialog.exec()
+            if dialog.clickedButton() is action_button:
+                action_callback()
 
     def _sum_solicitudes_minutes(self, solicitudes: list[SolicitudDTO]) -> int:
         return sum(int(round(solicitud.horas * 60)) for solicitud in solicitudes)
@@ -2880,10 +2924,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 extra={"correlation_id": mapped.incident_id},
             )
         message = mapped.as_text()
-        self.toast.error(
+        self._toast_error(
             message,
             title="Error",
-            action_label="Ver detalle",
+            action_text="Ver detalle",
             action_callback=lambda: self._show_error_detail(
                 titulo=mapped.title,
                 mensaje=message,
