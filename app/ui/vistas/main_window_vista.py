@@ -51,7 +51,7 @@ from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.application.use_cases.solicitudes.validaciones import (
     clave_duplicado_solicitud,
-    hay_duplicado_distinto,
+    detectar_duplicados_en_pendientes,
     validar_seleccion_confirmacion,
 )
 from app.domain.services import BusinessRuleError, ValidacionError
@@ -1034,14 +1034,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         if saldos.restantes_mes < minutos or saldos.restantes_ano < minutos:
             warnings["saldo"] = "Saldo insuficiente. La petición se ha registrado igualmente."
 
-        duplicate = self._solicitud_use_cases.buscar_duplicado(solicitud)
-        self._apply_duplicate_preventive_validation(solicitud, duplicate, blocking)
-
-        similares = [
-            item
-            for item in self._solicitud_use_cases.buscar_similares(solicitud)
-            if item.id != (duplicate.id if duplicate else None)
-        ]
+        similares = list(self._solicitud_use_cases.buscar_similares(solicitud))
         if similares:
             ids_similares = [str(item.id) for item in similares if item.id is not None]
             warnings["similares"] = "Posibles similares: " + ", ".join(ids_similares)
@@ -1055,27 +1048,18 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         if solicitud.completo and self.cuadrante_warning_label.isVisible():
             warnings["cuadrante"] = "⚠ El cuadrante no está configurado y puede alterar el cálculo final."
 
-    def _apply_duplicate_preventive_validation(
-        self,
-        solicitud: SolicitudDTO,
-        duplicate: SolicitudDTO | None,
-        blocking: dict[str, str],
-    ) -> None:
-        duplicate_message = "⚠ Ya existe una solicitud duplicada para la misma delegada, fecha y tramo."
-        editing = self._selected_pending_for_editing()
-        if duplicate is not None and (editing is None or duplicate.id != editing.id):
-            blocking["duplicado"] = duplicate_message
-            self._duplicate_target = duplicate
-
-        pending_duplicate_row = self._find_pending_duplicate_row(solicitud)
-        if pending_duplicate_row is not None:
-            blocking["duplicado"] = duplicate_message
-            self._duplicate_target = self._pending_solicitudes[pending_duplicate_row]
+    def _collect_pending_duplicates_warning(self, warnings: dict[str, str]) -> None:
+        claves_duplicadas = detectar_duplicados_en_pendientes(self._pending_solicitudes)
+        if not claves_duplicadas:
+            return
+        warnings["duplicados_pendientes"] = "Hay duplicados en pendientes."
+        self._duplicate_target = self._pending_solicitudes[0] if self._pending_solicitudes else None
 
     def _collect_preventive_validation(self) -> tuple[dict[str, str], dict[str, str]]:
         blocking = self._collect_base_preventive_errors()
         warnings: dict[str, str] = {}
         self._duplicate_target = None
+        self._collect_pending_duplicates_warning(warnings)
 
         solicitud = self._build_preview_solicitud()
         if solicitud is None or blocking:
@@ -1696,12 +1680,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         dto_form_actual = None
         clave_form_normalizada = None
         duplicate_eval: dict[str, object] = {
-            "function": "hay_duplicado_distinto",
+            "function": "detectar_duplicados_en_pendientes",
             "params": {
-                "solicitud": None,
-                "existentes_count": len(self._pending_solicitudes),
-                "excluir_por_id": editing_pending.id if editing_pending is not None else None,
-                "excluir_por_indice": selected_rows[0] if editing_pending is not None and selected_rows else None,
+                "pendientes_count": len(self._pending_solicitudes),
             },
             "resultado": None,
         }
@@ -1714,13 +1695,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 "completo": solicitud.completo,
             }
             clave_form_normalizada = list(clave_duplicado_solicitud(solicitud))
-            duplicate_eval["params"]["solicitud"] = dto_form_actual
-            duplicate_eval["resultado"] = hay_duplicado_distinto(
-                solicitud,
-                self._pending_solicitudes,
-                excluir_por_id=duplicate_eval["params"]["excluir_por_id"],
-                excluir_por_indice=duplicate_eval["params"]["excluir_por_indice"],
-            )
+            duplicate_eval["resultado"] = [
+                list(clave)
+                for clave in detectar_duplicados_en_pendientes(self._pending_solicitudes)
+            ]
 
         lista_pendientes = []
         for index, pendiente in enumerate(self._pending_solicitudes):
@@ -1750,7 +1728,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             "dto_form_actual": dto_form_actual,
             "clave_form_normalizada": clave_form_normalizada,
             "lista_pendientes": lista_pendientes,
-            "hay_duplicado_distinto": duplicate_eval,
+            "duplicados_en_pendientes": duplicate_eval,
             "cta_decision": {
                 "text": cta_text,
                 "enabled": bool(self.primary_cta_button.isEnabled()) if self.primary_cta_button is not None else False,
@@ -1994,13 +1972,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             coincidencias,
         )
 
-        hay_duplicado = hay_duplicado_distinto(
-            solicitud,
-            self._pending_solicitudes,
-            excluir_por_id=excluir_por_id,
-            excluir_por_indice=excluir_por_indice,
-        )
-        if not hay_duplicado:
+        claves_duplicadas = detectar_duplicados_en_pendientes(self._pending_solicitudes)
+        if not claves_duplicadas:
+            return None
+        if tuple(list(clave_objetivo) + ["COMPLETO" if solicitud.completo else "PARCIAL"]) not in claves_duplicadas:
             return None
         return coincidencias[0] if coincidencias else (0 if self._pending_solicitudes else None)
 
@@ -2216,9 +2191,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             logger.info("CLICK confirmar_pdf handler=_on_confirmar")
             self._dump_estado_pendientes("click_confirmar_pdf")
             pendientes_en_tabla = self._iterar_pendientes_en_tabla()
-            print("DEBUG_PENDIENTES_COUNT", len(pendientes_en_tabla))
+            logger.debug("DEBUG_PENDIENTES_COUNT %s", len(pendientes_en_tabla))
             for pendiente in pendientes_en_tabla:
-                print("DEBUG_PENDIENTE", pendiente)
+                logger.debug("DEBUG_PENDIENTE %s", pendiente)
 
             selected = [
                 self.pendientes_model.solicitud_at(item["row"])

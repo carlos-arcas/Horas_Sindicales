@@ -1,5 +1,5 @@
 from app.application.dto import SolicitudDTO
-from app.application.use_cases.solicitudes.validaciones import hay_duplicado_distinto
+from app.application.use_cases.solicitudes.validaciones import detectar_duplicados_en_pendientes
 
 
 def _solicitud(
@@ -26,46 +26,30 @@ def _solicitud(
     )
 
 
-def test_un_pendiente_form_igual_modo_actualizar_no_es_duplicado() -> None:
-    pendiente = _solicitud(solicitud_id=10)
-
-    assert not hay_duplicado_distinto(
-        pendiente,
-        [pendiente],
-        excluir_por_id=10,
-        excluir_por_indice=0,
-    )
-
-
-def test_un_pendiente_form_igual_modo_anadir_si_es_duplicado() -> None:
+def test_pendientes_unica_igual_al_formulario_no_cuenta_como_duplicado_en_pendientes() -> None:
     pendiente = _solicitud(solicitud_id=10)
     formulario = _solicitud(solicitud_id=None)
 
-    assert hay_duplicado_distinto(formulario, [pendiente])
+    assert formulario == _solicitud(solicitud_id=None)
+    assert detectar_duplicados_en_pendientes([pendiente]) == set()
 
 
-def test_dos_pendientes_iguales_es_duplicado_siempre() -> None:
+def test_pendientes_dos_iguales_si_cuenta_como_duplicado_en_pendientes() -> None:
     pendiente_a = _solicitud(solicitud_id=10)
     pendiente_b = _solicitud(solicitud_id=11)
 
-    assert hay_duplicado_distinto(_solicitud(solicitud_id=None), [pendiente_a, pendiente_b])
+    assert len(detectar_duplicados_en_pendientes([pendiente_a, pendiente_b])) == 1
 
 
-def test_dos_pendientes_distintas_no_es_duplicado() -> None:
+def test_pendientes_diferentes_no_cuenta_como_duplicado_en_pendientes() -> None:
     pendiente_a = _solicitud(solicitud_id=10)
     pendiente_b = _solicitud(solicitud_id=11, desde="13:00", hasta="14:00")
 
-    assert not hay_duplicado_distinto(_solicitud(solicitud_id=None, desde="15:00", hasta="16:00"), [pendiente_a, pendiente_b])
+    assert detectar_duplicados_en_pendientes([pendiente_a, pendiente_b]) == set()
 
 
-def test_edicion_de_a_con_b_igual_si_es_duplicado_por_existir_otra() -> None:
-    pendiente_a = _solicitud(solicitud_id=10)
-    pendiente_b = _solicitud(solicitud_id=11)
-    formulario = _solicitud(solicitud_id=10)
+def test_edicion_no_excluye_duplicados_reales_si_ambas_filas_siguen_en_caja() -> None:
+    pendiente_editing = _solicitud(solicitud_id=10)
+    pendiente_otra = _solicitud(solicitud_id=11)
 
-    assert hay_duplicado_distinto(
-        formulario,
-        [pendiente_a, pendiente_b],
-        excluir_por_id=10,
-        excluir_por_indice=0,
-    )
+    assert len(detectar_duplicados_en_pendientes([pendiente_editing, pendiente_otra])) == 1

@@ -1,5 +1,8 @@
 from app.application.dto import SolicitudDTO
-from app.application.use_cases.solicitudes.validaciones import hay_duplicado_distinto
+from app.application.use_cases.solicitudes.validaciones import (
+    detectar_duplicados_en_pendientes,
+    normalizar_clave_pendiente,
+)
 
 
 def _solicitud(
@@ -26,29 +29,21 @@ def _solicitud(
     )
 
 
-def test_un_solo_pendiente_no_es_duplicado_si_es_el_mismo_en_edicion() -> None:
-    pendiente = _solicitud(solicitud_id=10)
+def test_normalizar_clave_pendiente_homologa_fecha_y_tramo() -> None:
+    dto = _solicitud(solicitud_id=1, fecha="2024-6-1", desde="9:0", hasta="11:0")
 
-    assert not hay_duplicado_distinto(pendiente, [pendiente], excluir_por_id=10, excluir_por_indice=0)
-
-
-def test_dos_pendientes_misma_clave_distinto_id_es_duplicado() -> None:
-    candidato = _solicitud(solicitud_id=None)
-    existente = _solicitud(solicitud_id=11)
-
-    assert hay_duplicado_distinto(candidato, [existente])
+    assert normalizar_clave_pendiente(dto) == (1, "2024-06-01", "09:00", "11:00", "PARCIAL")
 
 
-def test_editar_pendiente_mismo_id_no_dispara_duplicado() -> None:
-    editada = _solicitud(solicitud_id=22)
-    otra = _solicitud(solicitud_id=23, desde="13:00", hasta="14:00")
+def test_detectar_duplicados_en_pendientes_devuelve_clave_duplicada() -> None:
+    pendientes = [_solicitud(solicitud_id=1), _solicitud(solicitud_id=2)]
 
-    assert not hay_duplicado_distinto(editada, [editada, otra], excluir_por_id=22, excluir_por_indice=0)
+    duplicados = detectar_duplicados_en_pendientes(pendientes)
+
+    assert duplicados == {(1, "2024-06-10", "10:00", "12:00", "PARCIAL")}
 
 
-def test_formulario_igual_a_pendiente_solo_duplica_si_intenta_anadir() -> None:
-    existente = _solicitud(solicitud_id=44)
-    formulario = _solicitud(solicitud_id=None)
+def test_detectar_duplicados_en_pendientes_ignora_sin_choque() -> None:
+    pendientes = [_solicitud(solicitud_id=1), _solicitud(solicitud_id=2, desde="13:00", hasta="14:00")]
 
-    assert hay_duplicado_distinto(formulario, [existente])
-    assert not hay_duplicado_distinto(formulario, [existente], excluir_por_id=44, excluir_por_indice=0)
+    assert detectar_duplicados_en_pendientes(pendientes) == set()

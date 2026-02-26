@@ -81,6 +81,36 @@ def clave_duplicado_solicitud(dto: SolicitudDTO) -> tuple[int, str, str, str]:
     return clave_duplicado(dto)
 
 
+def normalizar_clave_pendiente(dto: SolicitudDTO) -> tuple[int, str, str, str, str]:
+    """Normaliza la clave de negocio usada para detectar duplicados en pendientes."""
+
+    persona_id = int(dto.persona_id)
+    fecha = normalize_date(dto.fecha_pedida)
+    tipo = "COMPLETO" if dto.completo else "PARCIAL"
+    if dto.completo:
+        return persona_id, fecha, "COMPLETO", "COMPLETO", tipo
+
+    desde = minutes_to_hhmm(parse_hhmm(str(dto.desde or "")))
+    hasta = minutes_to_hhmm(parse_hhmm(str(dto.hasta or "")))
+    return persona_id, fecha, desde, hasta, tipo
+
+
+def detectar_duplicados_en_pendientes(
+    pendientes: list[SolicitudDTO],
+) -> set[tuple[int, str, str, str, str]]:
+    """Devuelve las claves de negocio repetidas (2+ veces) dentro de pendientes."""
+
+    conteo: dict[tuple[int, str, str, str, str], int] = {}
+    for pendiente in pendientes:
+        try:
+            clave = normalizar_clave_pendiente(pendiente)
+        except (TimeRangeValidationError, ValueError):
+            continue
+        conteo[clave] = conteo.get(clave, 0) + 1
+
+    return {clave for clave, repeticiones in conteo.items() if repeticiones >= 2}
+
+
 def hay_duplicado_distinto(
     solicitud: SolicitudDTO,
     existentes: list[SolicitudDTO],
