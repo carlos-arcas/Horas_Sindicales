@@ -18,5 +18,23 @@ def test_solicitud_dto_expone_alias_fecha_para_compatibilidad_kpi() -> None:
         pdf_hash=None,
     )
 
-    assert dto.fecha == "2026-01-10"
-    assert dto.fecha_canon == "2026-01-10"
+    assert dto.fecha == "2026-01-09"
+    assert dto.fecha_canon == "2026-01-09"
+
+
+def test_solicitud_dto_expone_minutos_normalizados() -> None:
+    dto = SolicitudDTO(
+        id=2,
+        persona_id=55,
+        fecha_solicitud="2026-01-10",
+        fecha_pedida="2026-01-12",
+        desde="10:00",
+        hasta="11:30",
+        completo=False,
+        horas=1.5,
+        observaciones=None,
+        pdf_path=None,
+        pdf_hash=None,
+    )
+
+    assert dto.minutos == 90

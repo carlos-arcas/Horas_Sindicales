@@ -299,6 +299,11 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._blocking_errors: dict[str, str] = {}
         self._warnings: dict[str, str] = {}
         self._duplicate_target: SolicitudDTO | None = None
+        self._preventive_validation_in_progress = False
+        self._preventive_validation_debounce_ms = 300
+        self._preventive_validation_timer = QTimer(self)
+        self._preventive_validation_timer.setSingleShot(True)
+        self._preventive_validation_timer.timeout.connect(self._run_preventive_validation)
         self._ui_ready = False
         self.status_sync_label: QLabel | None = None
         self.status_sync_progress: QProgressBar | None = None
@@ -902,13 +907,24 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _mark_field_touched(self, field: str) -> None:
         self._field_touched.add(field)
-        self._run_preventive_validation()
+        self._schedule_preventive_validation()
+
+    def _schedule_preventive_validation(self) -> None:
+        if self._preventive_validation_in_progress:
+            return
+        self._preventive_validation_timer.start(self._preventive_validation_debounce_ms)
 
     def _run_preventive_validation(self) -> None:
-        blocking, warnings = self._collect_preventive_validation()
-        self._blocking_errors = blocking
-        self._warnings = warnings
-        self._render_preventive_validation()
+        if self._preventive_validation_in_progress:
+            return
+        self._preventive_validation_in_progress = True
+        try:
+            blocking, warnings = self._collect_preventive_validation()
+            self._blocking_errors = blocking
+            self._warnings = warnings
+            self._render_preventive_validation()
+        finally:
+            self._preventive_validation_in_progress = False
 
     def _collect_base_preventive_errors(self) -> dict[str, str]:
         blocking: dict[str, str] = {}

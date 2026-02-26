@@ -48,13 +48,18 @@ class SolicitudDTO:
 
     @property
     def fecha_canon(self) -> str:
-        """Nombre canónico de fecha de alta/captura de la solicitud."""
-        return self.fecha_solicitud
+        """Nombre canónico de fecha de solicitud (fecha pedida)."""
+        return self.fecha_pedida
 
     @property
     def fecha(self) -> str:
         """Alias de compatibilidad para UI/fixtures antiguos."""
         return self.fecha_canon
+
+    @property
+    def minutos(self) -> int:
+        """Duración normalizada a minutos para consumo en UI/reporting."""
+        return int(round(self.horas * 60))
 
 
 @dataclass(frozen=True)
