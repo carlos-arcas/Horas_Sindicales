@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QDate, QTimer, QTime, Qt
 from PySide6.QtWidgets import (
@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QSplitter,
-    QStackedWidget,
     QStatusBar,
     QTabWidget,
     QTableView,
@@ -34,7 +33,6 @@ from PySide6.QtWidgets import (
 from app.ui.historico_view import ESTADOS_HISTORICO, HistoricalViewModel
 from app.ui.models_qt import SolicitudesTableModel
 from app.ui.components.saldos_card import SaldosCard
-from app.ui.vistas.paginas.pagina_solicitudes import PaginaSolicitudes
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow
@@ -52,14 +50,12 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     content = QWidget()
     content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
     layout = QVBoxLayout(content)
-    layout.setContentsMargins(20, 8, 20, 20)
+    layout.setContentsMargins(12, 8, 12, 12)
     layout.setSpacing(16)
 
     window.main_tabs = QTabWidget()
     window.main_tabs.setObjectName("mainTabs")
     window.main_tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    window.main_tabs.tabBar().hide()
-    # Navegación y acciones viven en la propia página, no en una cabecera global.
     layout.addWidget(window.main_tabs, 1)
 
     operativa_tab = QWidget()
@@ -386,7 +382,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.solicitudes_splitter.setStretchFactor(0, 2)
     window.solicitudes_splitter.setStretchFactor(1, 3)
 
-    window.main_tabs.addTab(operativa_tab, "Operativa")
+    window.main_tabs.addTab(operativa_tab, "Solicitudes")
 
     historico_tab = QWidget()
     historico_tab_layout = QVBoxLayout(historico_tab)
@@ -814,7 +810,8 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.sync_diagnostics_button.toggled.connect(window.sync_diagnostics_content.setVisible)
     sync_tab_layout.addWidget(diagnostics_card)
     sync_tab_layout.addStretch(1)
-    window.main_tabs.addTab(sync_tab, "Sincronización")
+    sync_tab_index = window.main_tabs.addTab(sync_tab, "Sincronización")
+    window.main_tabs.setTabVisible(sync_tab_index, False)
 
     window._scroll_area.setWidget(content)
     window._build_shell_layout()
@@ -851,98 +848,24 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window._apply_historico_filters()
     window._update_solicitud_preview()
     window._update_action_state()
+    window.main_tabs.currentChanged.connect(lambda index: on_tab_changed(window, index))
 
 def build_shell_layout(window: "MainWindow") -> None:
-    shell = QWidget()
-    shell_layout = QVBoxLayout(shell)
-    shell_layout.setContentsMargins(0, 0, 0, 0)
-    shell_layout.setSpacing(0)
+    window.setCentralWidget(window._scroll_area)
 
-    body = QWidget()
-    body_layout = QHBoxLayout(body)
-    body_layout.setContentsMargins(16, 12, 16, 16)
-    body_layout.setSpacing(16)
 
-    window.sidebar = window._create_sidebar()
-    body_layout.addWidget(window.sidebar)
 
-    window.stacked_pages = window._create_pages_stack()
-    body_layout.addWidget(window.stacked_pages, 1)
-
-    shell_layout.addWidget(body, 1)
-
-    window._switch_sidebar_page(0)
-    window.setCentralWidget(shell)
-
-def create_sidebar(window: "MainWindow") -> QFrame:
-    sidebar = QFrame()
-    sidebar.setObjectName("sidebar")
-    sidebar.setFixedWidth(220)
-    sidebar.setProperty("card", True)
-    sidebar_layout = QVBoxLayout(sidebar)
-    sidebar_layout.setContentsMargins(10, 12, 10, 12)
-    sidebar_layout.setSpacing(8)
-
-    sidebar_title = QLabel("Navegación")
-    sidebar_title.setProperty("role", "cardTitle")
-    sidebar_layout.addWidget(sidebar_title)
-
-    window.sidebar_buttons = []
-    sidebar_items = (
-        ("Solicitudes", 0, 0),
-        ("Histórico", 0, 1),
-        ("Configuración", 0, 2),
-    )
-    window._sidebar_routes = []
-    for index, (title, stack_index, tab_index) in enumerate(sidebar_items):
-        button = QPushButton(title)
-        button.setCheckable(True)
-        button.setProperty("variant", "ghost")
-        button.setProperty("sidebarItem", True)
-        button.setProperty("active", False)
-        button.clicked.connect(lambda _checked=False, page_index=index: window._switch_sidebar_page(page_index))
-        sidebar_layout.addWidget(button)
-        window.sidebar_buttons.append(button)
-        window._sidebar_routes.append({"stack_index": stack_index, "tab_index": tab_index})
-    sidebar_layout.addStretch(1)
-    return sidebar
-
-def create_pages_stack(window: "MainWindow") -> QStackedWidget:
-    pages = QStackedWidget()
-    pages.setObjectName("stacked_pages")
-
-    window.page_solicitudes = PaginaSolicitudes(content_widget=window._scroll_area)
-
-    pages.addWidget(window.page_solicitudes)
-    return pages
-
-def switch_sidebar_page(window: "MainWindow", index: int) -> None:
-    if window.stacked_pages is None:
-        return
-    if not (0 <= index < len(window._sidebar_routes)):
-        return
-    if window.stacked_pages.currentIndex() == 1 and index != 1:
-        window._save_current_draft(window._current_persona().id if window._current_persona() is not None else None)
-    route = window._sidebar_routes[index]
-    tab_index = cast(int | None, route["tab_index"])
-    stack_index = cast(int, route["stack_index"])
-    if tab_index is not None:
-        window.main_tabs.setCurrentIndex(tab_index)
+def on_tab_changed(window: "MainWindow", index: int) -> None:
+    if index == 0:
         persona = window._current_persona()
         window._restore_draft_for_persona(persona.id if persona is not None else None)
         window.fecha_input.setFocus()
-    if 0 <= stack_index < window.stacked_pages.count():
-        window.stacked_pages.setCurrentIndex(stack_index)
-        window._active_sidebar_index = index
-        window._sync_sidebar_state(index)
-
-def sync_sidebar_state(window: "MainWindow", active_index: int) -> None:
-    for index, button in enumerate(window.sidebar_buttons):
-        is_active = index == active_index
-        button.setChecked(is_active)
-        button.setProperty("active", is_active)
-        button.style().unpolish(button)
-        button.style().polish(button)
+        return
+    if index == 1:
+        window._refresh_historico()
+        return
+    if index == 2:
+        window._refresh_saldos()
 
 def build_status_bar(window: "MainWindow") -> None:
     status = QStatusBar(window)

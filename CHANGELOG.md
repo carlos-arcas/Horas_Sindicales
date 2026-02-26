@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added release governance with a single reproducible `make release-check` command.
 
 ### Changed
+- UI: navegación lateral sustituida por pestañas para ahorrar ancho.
 - Established SemVer and release documentation workflow for future versions.
 - UI: eliminada cabecera tipo wizard en Solicitudes para ganar altura útil.
 
