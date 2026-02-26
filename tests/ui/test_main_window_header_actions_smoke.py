@@ -11,6 +11,7 @@ from app.ui.main_window import MainWindow
 
 QApplication = qtwidgets.QApplication
 QMessageBox = qtwidgets.QMessageBox
+QPushButton = qtwidgets.QPushButton
 
 
 def _in_memory_connection() -> sqlite3.Connection:
@@ -43,7 +44,7 @@ def test_main_window_smoke_instantiation_no_crash() -> None:
     app.processEvents()
 
 
-def test_header_sync_button_click_no_crash(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_boton_sincronizar_en_pagina_sync_no_crash(monkeypatch: pytest.MonkeyPatch) -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
@@ -53,38 +54,38 @@ def test_header_sync_button_click_no_crash(monkeypatch: pytest.MonkeyPatch) -> N
         lambda *args, **kwargs: QMessageBox.StandardButton.No,
     )
 
-    if window.header_sync_button.isEnabled():
-        window.header_sync_button.click()
+    if window.sync_button.isEnabled():
+        window.sync_button.click()
         assert True
     else:
-        assert "" != window.header_sync_button.toolTip()
+        assert window.sync_button.toolTip() != ""
 
     window.close()
     app.processEvents()
 
 
-def test_header_new_button_click_no_crash() -> None:
+def test_boton_nueva_solicitud_en_operativa_no_crash() -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
-    if window.header_new_button.isEnabled():
-        window.header_new_button.click()
+    assert window.nueva_solicitud_button is not None
+    if window.nueva_solicitud_button.isEnabled():
+        window.nueva_solicitud_button.click()
         assert True
     else:
-        assert window.header_new_button.toolTip() != ""
+        assert window.nueva_solicitud_button.toolTip() != ""
 
     window.close()
     app.processEvents()
 
 
-def test_build_shell_layout_no_lanza_attribute_error() -> None:
+def test_boton_exportar_historico_en_tab_existente() -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
-    try:
-        window._build_shell_layout()
-    except AttributeError as exc:  # pragma: no cover - regresión explícita de wiring UI
-        pytest.fail(f"_build_shell_layout lanzó AttributeError: {exc}")
+    botones = window.main_tabs.widget(1).findChildren(QPushButton)
+    textos = {boton.text() for boton in botones}
+    assert any(texto.startswith("Exportar histórico PDF") for texto in textos)
 
     window.close()
     app.processEvents()

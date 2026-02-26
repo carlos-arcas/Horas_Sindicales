@@ -1,46 +1,29 @@
 # Navegación UI (MainWindow)
 
-## Inventario previo (problema detectado)
+## Mapa actual (mínimo)
 
-- **Sidebar** coexistía con navegación interna por tabs, generando duplicación de rutas.
-- **Tabs internas** existentes en `main_window_vista.py`:
-  - Operativa (solicitudes)
-  - Histórico
-  - Configuración
-  - Sincronización
-- **QStackedWidget** shell:
-  - Página Resumen
-  - Página contenedora de tabs (Solicitudes/Histórico/Config/Sync)
-- **Acciones repetidas** (múltiples entradas al mismo flujo):
-  - Sincronizar ahora (menu y sección sync)
-  - Nueva solicitud / limpiar formulario (resumen, header y operativa)
-  - Configuración (sidebar y menú)
+Patrón principal: **Sidebar + páginas internas**.
 
-## Mapa final (mínimo, patrón principal = Sidebar)
+Secciones visibles:
+1. **Solicitudes**
+2. **Histórico**
+3. **Configuración**
 
-Patrón principal elegido: **Sidebar + stacked pages**.
+La pestaña **Sincronización** se mantiene dentro del contenido de Solicitudes (tabs internas ocultas por la navegación lateral).
 
-Páginas visibles de navegación principal:
-1. **Resumen**
-2. **Solicitudes**
-3. **Histórico**
-4. **Configuración**
+## Cabecera global
 
-## Header global
+La cabecera global fue eliminada para reducir ruido visual y evitar acciones duplicadas.
 
-Acciones globales primarias:
-- **Nuevo**
-- **Sync**
-- **Exportar**
-- **Config**
-
-Acciones secundarias:
-- Menú **Más** (`QMenu`) con acciones de soporte (salud del sistema, historial de sincronización, acceso rápido a configuración).
+Acciones reubicadas:
+- **Nueva solicitud**: botón en sección de Solicitudes (junto a la selección de delegada).
+- **Sincronizar ahora**: botones en pestaña Sincronización.
+- **Exportar histórico PDF**: botón en pestaña Histórico.
+- **Config**: acceso por navegación lateral a Configuración.
+- **Más / selector de contexto**: retirados del shell.
 
 ## Notas de implementación
 
-- Se mantuvo `MainWindow` como orquestador.
-- Se extrajeron builders para simplificar estructura:
-  - `_build_shell_layout`
-  - `_create_sidebar`
-  - `_create_pages_stack`
+- `MainWindow` mantiene rol de orquestación UI sin mover lógica de negocio.
+- Se simplificó `_build_shell_layout` eliminando dependencias de header.
+- Se actualizaron tests de contrato UI para verificar que el header no existe y que las acciones siguen disponibles en sus páginas.
