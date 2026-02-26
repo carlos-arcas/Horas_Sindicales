@@ -341,92 +341,147 @@ class SheetsSyncService:
     def _pull_solicitudes(
         self, spreadsheet: Any, last_sync_at: str | None, solicitud_titles: list[str] | None = None
     ) -> tuple[int, int, int, int, int]:
-        downloaded = 0
-        conflicts = 0
-        omitted_duplicates = 0
-        omitted_by_delegada = 0
-        errors = 0
+        stats = {"downloaded": 0, "conflicts": 0, "omitted_duplicates": 0, "omitted_by_delegada": 0, "errors": 0}
         for worksheet_name, worksheet in self._solicitudes_pull_sources(spreadsheet, solicitud_titles):
-            headers, rows = self._rows_with_index(
-                worksheet,
-                worksheet_name,
-                aliases=self._solicitudes_header_aliases(),
-            )
-            inserted_ws = 0
-            updated_ws = 0
-            sample_fecha_before: str | None = None
-            sample_fecha_after: str | None = None
-            logger.info("Pull solicitudes: worksheet=%s filas_leidas=%s", worksheet_name, len(rows))
-            for row_number, raw_row in rows:
-                if sample_fecha_before is None:
-                    sample_fecha_before = str(raw_row.get("fecha") or raw_row.get("fecha_pedida") or "")
-                row = self._normalize_remote_solicitud_row(raw_row, worksheet_name)
-                if sample_fecha_after is None:
-                    sample_fecha_after = str(row.get("fecha") or "")
-                uuid_value = str(row.get("uuid", "")).strip()
-                if not uuid_value:
-                    existing = self._find_solicitud_by_composite_key(row)
-                    if existing is not None:
-                        omitted_duplicates += 1
-                        uuid_value = str(existing["uuid"] or "").strip()
-                    else:
-                        uuid_value = self._generate_uuid()
-                        inserted, omitted_delegada, insert_errors = self._insert_solicitud_from_remote(uuid_value, row)
-                        downloaded += 1 if inserted else 0
-                        inserted_ws += 1 if inserted else 0
-                        omitted_by_delegada += omitted_delegada
-                        errors += insert_errors
-                    if self._enable_backfill:
-                        self._backfill_uuid(worksheet, headers, row_number, "uuid", uuid_value)
-                    continue
-                remote_updated_at = self._parse_iso(row.get("updated_at"))
-                local_row = self._fetch_solicitud(uuid_value)
-                if local_row is None:
-                    duplicate_key = self._solicitud_dedupe_key_from_remote_row(row)
-                    if duplicate_key and self._is_duplicate_local_solicitud(duplicate_key, exclude_uuid=uuid_value):
-                        logger.info(
-                            "Omitiendo solicitud duplicada en pull. clave=%s registro=%s",
-                            duplicate_key,
-                            row,
-                        )
-                        omitted_duplicates += 1
-                        continue
-                    inserted, omitted_delegada, insert_errors = self._insert_solicitud_from_remote(uuid_value, row)
-                    downloaded += 1 if inserted else 0
-                    inserted_ws += 1 if inserted else 0
-                    omitted_by_delegada += omitted_delegada
-                    errors += insert_errors
-                    continue
-                if self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at):
-                    self._store_conflict("solicitudes", uuid_value, dict(local_row), row)
-                    conflicts += 1
-                    continue
-                if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
-                    updated, omitted_delegada, update_errors = self._update_solicitud_from_remote(local_row["id"], row)
-                    downloaded += 1 if updated else 0
-                    updated_ws += 1 if updated else 0
-                    omitted_by_delegada += omitted_delegada
-                    errors += update_errors
+            worksheet_stats = self._pull_solicitudes_worksheet(worksheet_name, worksheet, last_sync_at)
+            for key in stats:
+                stats[key] += worksheet_stats[key]
             logger.info(
                 "Pull solicitudes: worksheet=%s insertadas_local=%s actualizadas_local=%s",
                 worksheet_name,
-                inserted_ws,
-                updated_ws,
+                worksheet_stats["inserted_ws"],
+                worksheet_stats["updated_ws"],
             )
             logger.debug(
                 "Pull solicitudes fechas: worksheet=%s ejemplo_antes='%s' ejemplo_despues='%s'",
                 worksheet_name,
-                sample_fecha_before or "",
-                sample_fecha_after or "",
+                worksheet_stats["sample_fecha_before"] or "",
+                worksheet_stats["sample_fecha_after"] or "",
             )
             self._flush_write_batches(spreadsheet, worksheet)
         logger.info(
             "Pull solicitudes resumen: insertadas_local=%s omitidas_por_delegada=%s errores=%s",
-            downloaded,
-            omitted_by_delegada,
-            errors,
+            stats["downloaded"],
+            stats["omitted_by_delegada"],
+            stats["errors"],
         )
-        return downloaded, conflicts, omitted_duplicates, omitted_by_delegada, errors
+        return (
+            stats["downloaded"],
+            stats["conflicts"],
+            stats["omitted_duplicates"],
+            stats["omitted_by_delegada"],
+            stats["errors"],
+        )
+
+    def _pull_solicitudes_worksheet(
+        self, worksheet_name: str, worksheet: Any, last_sync_at: str | None
+    ) -> dict[str, Any]:
+        headers, rows = self._rows_with_index(
+            worksheet,
+            worksheet_name,
+            aliases=self._solicitudes_header_aliases(),
+        )
+        stats: dict[str, Any] = {
+            "downloaded": 0,
+            "conflicts": 0,
+            "omitted_duplicates": 0,
+            "omitted_by_delegada": 0,
+            "errors": 0,
+            "inserted_ws": 0,
+            "updated_ws": 0,
+            "sample_fecha_before": None,
+            "sample_fecha_after": None,
+        }
+        logger.info("Pull solicitudes: worksheet=%s filas_leidas=%s", worksheet_name, len(rows))
+        for row_number, raw_row in rows:
+            self._set_pull_solicitud_samples(stats, raw_row)
+            row = self._normalize_remote_solicitud_row(raw_row, worksheet_name)
+            if stats["sample_fecha_after"] is None:
+                stats["sample_fecha_after"] = str(row.get("fecha") or "")
+            self._process_pull_solicitud_row(worksheet, headers, row_number, row, last_sync_at, stats)
+        return stats
+
+    @staticmethod
+    def _set_pull_solicitud_samples(stats: dict[str, Any], raw_row: dict[str, Any]) -> None:
+        if stats["sample_fecha_before"] is None:
+            stats["sample_fecha_before"] = str(raw_row.get("fecha") or raw_row.get("fecha_pedida") or "")
+
+    def _process_pull_solicitud_row(
+        self,
+        worksheet: Any,
+        headers: list[str],
+        row_number: int,
+        row: dict[str, Any],
+        last_sync_at: str | None,
+        stats: dict[str, Any],
+    ) -> None:
+        uuid_value = str(row.get("uuid", "")).strip()
+        if not uuid_value:
+            self._handle_pull_solicitud_without_uuid(worksheet, headers, row_number, row, stats)
+            return
+        self._handle_pull_solicitud_with_uuid(uuid_value, row, last_sync_at, stats)
+
+    def _handle_pull_solicitud_without_uuid(
+        self, worksheet: Any, headers: list[str], row_number: int, row: dict[str, Any], stats: dict[str, Any]
+    ) -> None:
+        existing = self._find_solicitud_by_composite_key(row)
+        if existing is not None:
+            stats["omitted_duplicates"] += 1
+            uuid_value = str(existing["uuid"] or "").strip()
+        else:
+            uuid_value = self._generate_uuid()
+            self._accumulate_write_result(
+                stats,
+                self._insert_solicitud_from_remote(uuid_value, row),
+                "inserted_ws",
+            )
+        if self._enable_backfill:
+            self._backfill_uuid(worksheet, headers, row_number, "uuid", uuid_value)
+
+    def _handle_pull_solicitud_with_uuid(
+        self, uuid_value: str, row: dict[str, Any], last_sync_at: str | None, stats: dict[str, Any]
+    ) -> None:
+        remote_updated_at = self._parse_iso(row.get("updated_at"))
+        local_row = self._fetch_solicitud(uuid_value)
+        if local_row is None:
+            if self._skip_pull_duplicate(uuid_value, row, stats):
+                return
+            self._accumulate_write_result(
+                stats,
+                self._insert_solicitud_from_remote(uuid_value, row),
+                "inserted_ws",
+            )
+            return
+        if self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at):
+            self._store_conflict("solicitudes", uuid_value, dict(local_row), row)
+            stats["conflicts"] += 1
+            return
+        if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
+            self._accumulate_write_result(
+                stats,
+                self._update_solicitud_from_remote(local_row["id"], row),
+                "updated_ws",
+            )
+
+    def _skip_pull_duplicate(self, uuid_value: str, row: dict[str, Any], stats: dict[str, Any]) -> bool:
+        duplicate_key = self._solicitud_dedupe_key_from_remote_row(row)
+        if not duplicate_key or not self._is_duplicate_local_solicitud(duplicate_key, exclude_uuid=uuid_value):
+            return False
+        logger.info(
+            "Omitiendo solicitud duplicada en pull. clave=%s registro=%s",
+            duplicate_key,
+            row,
+        )
+        stats["omitted_duplicates"] += 1
+        return True
+
+    @staticmethod
+    def _accumulate_write_result(stats: dict[str, Any], result: tuple[bool, int, int], operation_counter: str) -> None:
+        written, omitted_delegada, operation_errors = result
+        stats["downloaded"] += 1 if written else 0
+        stats[operation_counter] += 1 if written else 0
+        stats["omitted_by_delegada"] += omitted_delegada
+        stats["errors"] += operation_errors
 
     @staticmethod
     def _solicitudes_header_aliases() -> dict[str, list[str]]:
@@ -732,74 +787,19 @@ class SheetsSyncService:
         values: list[list[Any]] = [HEADER_CANONICO_SOLICITUDES]
         local_uuids: set[str] = set()
         for row in cursor.fetchall():
-            if last_sync_at and not self._is_after_last_sync(row["updated_at"], last_sync_at):
-                continue
-            uuid_value = row["uuid"]
-            local_uuids.add(uuid_value)
-            remote_row = remote_index.get(uuid_value)
-            remote_updated_at = self._parse_iso(remote_row.get("updated_at") if remote_row else None)
-            if self._is_conflict(row["updated_at"], remote_updated_at, last_sync_at):
-                self._store_conflict("solicitudes", uuid_value, dict(row), remote_row or {})
-                conflicts += 1
-                continue
-            values.append(
-                [
-                    uuid_value,
-                    row["delegada_uuid"] or "",
-                    row["delegada_nombre"] or "",
-                    self._to_iso_date(row["fecha_pedida"]),
-                    self._hour_component(row["desde_min"]),
-                    self._minute_component(row["desde_min"]),
-                    self._hour_component(row["hasta_min"]),
-                    self._minute_component(row["hasta_min"]),
-                    1 if row["completo"] else 0,
-                    self._int_or_zero(row["horas_solicitadas_min"]),
-                    row["notas"] or "",
-                    "",
-                    self._to_iso_date(row["created_at"]),
-                    self._to_iso_date(row["updated_at"]),
-                    row["source_device"] or self._device_id(),
-                    self._int_or_zero(row["deleted"]),
-                    row["pdf_hash"] or "",
-                ]
+            should_upload, row_conflict = self._push_solicitud_local_row(
+                row,
+                remote_index,
+                last_sync_at,
+                values,
+                local_uuids,
             )
-            uploaded += 1
+            uploaded += 1 if should_upload else 0
+            conflicts += 1 if row_conflict else 0
 
         for _, remote_row in rows:
-            remote_uuid = str(remote_row.get("uuid", "")).strip()
-            if not remote_uuid or remote_uuid in local_uuids:
-                continue
-            desde_hhmm = remote_row.get("desde") or self._remote_hhmm(
-                remote_row.get("desde_h"), remote_row.get("desde_m"), None
-            )
-            hasta_hhmm = remote_row.get("hasta") or self._remote_hhmm(
-                remote_row.get("hasta_h"), remote_row.get("hasta_m"), None
-            )
-            values.append(
-                [
-                    remote_uuid,
-                    remote_row.get("delegada_uuid") or remote_row.get("delegado_uuid") or "",
-                    remote_row.get("delegada_nombre")
-                    or remote_row.get("Delegada")
-                    or remote_row.get("delegado_nombre")
-                    or "",
-                    self._to_iso_date(remote_row.get("fecha") or remote_row.get("fecha_pedida")),
-                    self._hour_component_from_hhmm(desde_hhmm),
-                    self._minute_component_from_hhmm(desde_hhmm),
-                    self._hour_component_from_hhmm(hasta_hhmm),
-                    self._minute_component_from_hhmm(hasta_hhmm),
-                    self._int_or_zero(remote_row.get("completo")),
-                    self._int_or_zero(remote_row.get("horas") or remote_row.get("minutos_total")),
-                    remote_row.get("notas") or "",
-                    remote_row.get("estado") or "",
-                    self._to_iso_date(remote_row.get("created_at") or remote_row.get("fecha")),
-                    self._to_iso_date(remote_row.get("updated_at")),
-                    remote_row.get("source_device") or "",
-                    self._int_or_zero(remote_row.get("deleted")),
-                    remote_row.get("pdf_id") or "",
-                ]
-            )
-            omitted_duplicates += 1
+            if self._append_push_solicitud_remote_only_row(remote_row, local_uuids, values):
+                omitted_duplicates += 1
 
         if headers != HEADER_CANONICO_SOLICITUDES:
             logger.info("Reescribiendo encabezado canónico de 'solicitudes' (sin columnas extras o vacías).")
@@ -808,6 +808,35 @@ class SheetsSyncService:
         worksheet.update("A1", values)
         logger.info("PUSH Sheets: %s filas enviadas", max(len(values) - 1, 0))
         return uploaded, conflicts, omitted_duplicates
+
+    def _push_solicitud_local_row(
+        self,
+        row: Any,
+        remote_index: dict[str, dict[str, Any]],
+        last_sync_at: str | None,
+        values: list[list[Any]],
+        local_uuids: set[str],
+    ) -> tuple[bool, bool]:
+        if last_sync_at and not self._is_after_last_sync(row["updated_at"], last_sync_at):
+            return False, False
+        uuid_value = row["uuid"]
+        local_uuids.add(uuid_value)
+        remote_row = remote_index.get(uuid_value)
+        remote_updated_at = self._parse_iso(remote_row.get("updated_at") if remote_row else None)
+        if self._is_conflict(row["updated_at"], remote_updated_at, last_sync_at):
+            self._store_conflict("solicitudes", uuid_value, dict(row), remote_row or {})
+            return False, True
+        values.append(list(self._local_solicitud_payload(row)))
+        return True, False
+
+    def _append_push_solicitud_remote_only_row(
+        self, remote_row: dict[str, Any], local_uuids: set[str], values: list[list[Any]]
+    ) -> bool:
+        remote_uuid = str(remote_row.get("uuid", "")).strip()
+        if not remote_uuid or remote_uuid in local_uuids:
+            return False
+        values.append(list(self._remote_solicitud_payload(remote_row)))
+        return True
 
     def _build_solicitudes_sync_plan(self, spreadsheet: Any) -> SyncExecutionPlan:
         worksheet = self._get_worksheet(spreadsheet, "solicitudes")
@@ -832,98 +861,32 @@ class SheetsSyncService:
         conflicts: list[SyncPlanItem] = []
         errors: list[str] = []
         values: list[tuple[Any, ...]] = [tuple(HEADER_CANONICO_SOLICITUDES)]
+        seen_uuids: set[str] = set()
 
         for row in cursor.fetchall():
-            if last_sync_at and not self._is_after_last_sync(row["updated_at"], last_sync_at):
-                continue
-            uuid_value = str(row["uuid"] or "").strip()
-            if not uuid_value:
-                errors.append("Solicitud sin UUID: no puede sincronizarse.")
-                continue
-            remote_row = remote_index.get(uuid_value)
-            remote_updated_at = self._parse_iso(remote_row.get("updated_at") if remote_row else None)
-            if self._is_conflict(row["updated_at"], remote_updated_at, last_sync_at):
-                conflicts.append(SyncPlanItem(uuid=uuid_value, action="conflict", reason="Cambios locales y remotos desde última sync."))
-                continue
-            payload = (
-                uuid_value,
-                row["delegada_uuid"] or "",
-                row["delegada_nombre"] or "",
-                self._to_iso_date(row["fecha_pedida"]),
-                self._hour_component(row["desde_min"]),
-                self._minute_component(row["desde_min"]),
-                self._hour_component(row["hasta_min"]),
-                self._minute_component(row["hasta_min"]),
-                1 if row["completo"] else 0,
-                self._int_or_zero(row["horas_solicitadas_min"]),
-                row["notas"] or "",
-                "",
-                self._to_iso_date(row["created_at"]),
-                self._to_iso_date(row["updated_at"]),
-                row["source_device"] or self._device_id(),
-                self._int_or_zero(row["deleted"]),
-                row["pdf_hash"] or "",
+            plan_action = self._build_solicitud_plan_for_local_row(
+                row,
+                remote_index,
+                last_sync_at,
+                values,
+                errors,
             )
-            values.append(payload)
-            if remote_row is None:
-                to_create.append(SyncPlanItem(uuid=uuid_value, action="create", reason="Nuevo registro"))
+            if plan_action is None:
                 continue
-            remote_payload = (
-                remote_row.get("uuid", ""),
-                remote_row.get("delegada_uuid", ""),
-                remote_row.get("delegada_nombre") or remote_row.get("Delegada") or "",
-                self._to_iso_date(remote_row.get("fecha") or remote_row.get("fecha_pedida")),
-                self._hour_component_from_hhmm(remote_row.get("desde") or self._remote_hhmm(remote_row.get("desde_h"), remote_row.get("desde_m"), None)),
-                self._minute_component_from_hhmm(remote_row.get("desde") or self._remote_hhmm(remote_row.get("desde_h"), remote_row.get("desde_m"), None)),
-                self._hour_component_from_hhmm(remote_row.get("hasta") or self._remote_hhmm(remote_row.get("hasta_h"), remote_row.get("hasta_m"), None)),
-                self._minute_component_from_hhmm(remote_row.get("hasta") or self._remote_hhmm(remote_row.get("hasta_h"), remote_row.get("hasta_m"), None)),
-                self._int_or_zero(remote_row.get("completo")),
-                self._int_or_zero(remote_row.get("horas") or remote_row.get("minutos_total")),
-                remote_row.get("notas") or "",
-                remote_row.get("estado") or "",
-                self._to_iso_date(remote_row.get("created_at") or remote_row.get("fecha")),
-                self._to_iso_date(remote_row.get("updated_at")),
-                remote_row.get("source_device") or "",
-                self._int_or_zero(remote_row.get("deleted")),
-                remote_row.get("pdf_id") or "",
-            )
-            diffs = []
-            for idx, field in enumerate(HEADER_CANONICO_SOLICITUDES):
-                current_value = str(remote_payload[idx])
-                new_value = str(payload[idx])
-                if current_value != new_value:
-                    diffs.append(SyncFieldDiff(field=field, current_value=current_value, new_value=new_value))
-            if diffs:
-                to_update.append(SyncPlanItem(uuid=uuid_value, action="update", diffs=tuple(diffs)))
-            else:
-                unchanged.append(SyncPlanItem(uuid=uuid_value, action="unchanged", reason="Sin cambios"))
+            seen_uuids.add(plan_action.uuid)
+            if plan_action.action == "create":
+                to_create.append(plan_action)
+            elif plan_action.action == "update":
+                to_update.append(plan_action)
+            elif plan_action.action == "unchanged":
+                unchanged.append(plan_action)
+            elif plan_action.action == "conflict":
+                conflicts.append(plan_action)
 
         for _, remote_row in rows:
             remote_uuid = str(remote_row.get("uuid", "")).strip()
-            if not remote_uuid:
-                continue
-            if not any(item.uuid == remote_uuid for item in to_create + to_update + unchanged + conflicts):
-                values.append(
-                    (
-                        remote_uuid,
-                        remote_row.get("delegada_uuid") or remote_row.get("delegado_uuid") or "",
-                        remote_row.get("delegada_nombre") or remote_row.get("Delegada") or remote_row.get("delegado_nombre") or "",
-                        self._to_iso_date(remote_row.get("fecha") or remote_row.get("fecha_pedida")),
-                        self._hour_component_from_hhmm(remote_row.get("desde") or self._remote_hhmm(remote_row.get("desde_h"), remote_row.get("desde_m"), None)),
-                        self._minute_component_from_hhmm(remote_row.get("desde") or self._remote_hhmm(remote_row.get("desde_h"), remote_row.get("desde_m"), None)),
-                        self._hour_component_from_hhmm(remote_row.get("hasta") or self._remote_hhmm(remote_row.get("hasta_h"), remote_row.get("hasta_m"), None)),
-                        self._minute_component_from_hhmm(remote_row.get("hasta") or self._remote_hhmm(remote_row.get("hasta_h"), remote_row.get("hasta_m"), None)),
-                        self._int_or_zero(remote_row.get("completo")),
-                        self._int_or_zero(remote_row.get("horas") or remote_row.get("minutos_total")),
-                        remote_row.get("notas") or "",
-                        remote_row.get("estado") or "",
-                        self._to_iso_date(remote_row.get("created_at") or remote_row.get("fecha")),
-                        self._to_iso_date(remote_row.get("updated_at")),
-                        remote_row.get("source_device") or "",
-                        self._int_or_zero(remote_row.get("deleted")),
-                        remote_row.get("pdf_id") or "",
-                    )
-                )
+            if remote_uuid and remote_uuid not in seen_uuids:
+                values.append(self._remote_solicitud_payload(remote_row))
 
         return SyncExecutionPlan(
             generated_at=self._now_iso(),
@@ -934,6 +897,92 @@ class SheetsSyncService:
             conflicts=tuple(conflicts),
             potential_errors=tuple(errors),
             values_matrix=tuple(values),
+        )
+
+    def _build_solicitud_plan_for_local_row(
+        self,
+        row: Any,
+        remote_index: dict[str, dict[str, Any]],
+        last_sync_at: str | None,
+        values: list[tuple[Any, ...]],
+        errors: list[str],
+    ) -> SyncPlanItem | None:
+        if last_sync_at and not self._is_after_last_sync(row["updated_at"], last_sync_at):
+            return None
+        uuid_value = str(row["uuid"] or "").strip()
+        if not uuid_value:
+            errors.append("Solicitud sin UUID: no puede sincronizarse.")
+            return None
+        remote_row = remote_index.get(uuid_value)
+        remote_updated_at = self._parse_iso(remote_row.get("updated_at") if remote_row else None)
+        if self._is_conflict(row["updated_at"], remote_updated_at, last_sync_at):
+            return SyncPlanItem(uuid=uuid_value, action="conflict", reason="Cambios locales y remotos desde última sync.")
+        payload = self._local_solicitud_payload(row)
+        values.append(payload)
+        if remote_row is None:
+            return SyncPlanItem(uuid=uuid_value, action="create", reason="Nuevo registro")
+        diffs = self._build_solicitud_diffs(self._remote_solicitud_payload(remote_row), payload)
+        if diffs:
+            return SyncPlanItem(uuid=uuid_value, action="update", diffs=tuple(diffs))
+        return SyncPlanItem(uuid=uuid_value, action="unchanged", reason="Sin cambios")
+
+    def _build_solicitud_diffs(
+        self, remote_payload: tuple[Any, ...], local_payload: tuple[Any, ...]
+    ) -> list[SyncFieldDiff]:
+        diffs: list[SyncFieldDiff] = []
+        for idx, field in enumerate(HEADER_CANONICO_SOLICITUDES):
+            current_value = str(remote_payload[idx])
+            new_value = str(local_payload[idx])
+            if current_value != new_value:
+                diffs.append(SyncFieldDiff(field=field, current_value=current_value, new_value=new_value))
+        return diffs
+
+    def _local_solicitud_payload(self, row: Any) -> tuple[Any, ...]:
+        return (
+            row["uuid"],
+            row["delegada_uuid"] or "",
+            row["delegada_nombre"] or "",
+            self._to_iso_date(row["fecha_pedida"]),
+            self._hour_component(row["desde_min"]),
+            self._minute_component(row["desde_min"]),
+            self._hour_component(row["hasta_min"]),
+            self._minute_component(row["hasta_min"]),
+            1 if row["completo"] else 0,
+            self._int_or_zero(row["horas_solicitadas_min"]),
+            row["notas"] or "",
+            "",
+            self._to_iso_date(row["created_at"]),
+            self._to_iso_date(row["updated_at"]),
+            row["source_device"] or self._device_id(),
+            self._int_or_zero(row["deleted"]),
+            row["pdf_hash"] or "",
+        )
+
+    def _remote_solicitud_payload(self, remote_row: dict[str, Any]) -> tuple[Any, ...]:
+        desde_hhmm = remote_row.get("desde") or self._remote_hhmm(
+            remote_row.get("desde_h"), remote_row.get("desde_m"), None
+        )
+        hasta_hhmm = remote_row.get("hasta") or self._remote_hhmm(
+            remote_row.get("hasta_h"), remote_row.get("hasta_m"), None
+        )
+        return (
+            remote_row.get("uuid", ""),
+            remote_row.get("delegada_uuid") or remote_row.get("delegado_uuid") or "",
+            remote_row.get("delegada_nombre") or remote_row.get("Delegada") or remote_row.get("delegado_nombre") or "",
+            self._to_iso_date(remote_row.get("fecha") or remote_row.get("fecha_pedida")),
+            self._hour_component_from_hhmm(desde_hhmm),
+            self._minute_component_from_hhmm(desde_hhmm),
+            self._hour_component_from_hhmm(hasta_hhmm),
+            self._minute_component_from_hhmm(hasta_hhmm),
+            self._int_or_zero(remote_row.get("completo")),
+            self._int_or_zero(remote_row.get("horas") or remote_row.get("minutos_total")),
+            remote_row.get("notas") or "",
+            remote_row.get("estado") or "",
+            self._to_iso_date(remote_row.get("created_at") or remote_row.get("fecha")),
+            self._to_iso_date(remote_row.get("updated_at")),
+            remote_row.get("source_device") or "",
+            self._int_or_zero(remote_row.get("deleted")),
+            remote_row.get("pdf_id") or "",
         )
 
     def _push_cuadrantes(

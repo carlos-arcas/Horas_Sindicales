@@ -151,3 +151,20 @@ def test_idempotence_for_merge_core_normalization_and_key_derivation() -> None:
     key_first = sync_sheets_core.solicitud_dedupe_key_from_remote_row(first)
     key_second = sync_sheets_core.solicitud_dedupe_key_from_remote_row(second)
     assert key_first == key_second
+
+
+def test_canonical_remote_solicitud_person_fields_supports_legacy_aliases() -> None:
+    row = {"delegado_uuid": "del-99", "delegado_nombre": "Laura"}
+    delegada_uuid, delegada_nombre = sync_sheets_core.canonical_remote_solicitud_person_fields(row)
+    assert delegada_uuid == "del-99"
+    assert delegada_nombre == "Laura"
+
+
+def test_canonical_remote_solicitud_time_parts_normalizes_hhmm() -> None:
+    row = {"desde": "9:5", "hasta_h": "11", "hasta_m": "30"}
+    assert sync_sheets_core.canonical_remote_solicitud_time_parts(row) == (9, 5, 11, 30)
+
+
+def test_canonical_remote_solicitud_estado_handles_historico_default() -> None:
+    assert sync_sheets_core.canonical_remote_solicitud_estado({"estado": ""}, "Histórico") == "historico"
+    assert sync_sheets_core.canonical_remote_solicitud_estado({"estado": " APROBADA "}, "Histórico") == "aprobada"
