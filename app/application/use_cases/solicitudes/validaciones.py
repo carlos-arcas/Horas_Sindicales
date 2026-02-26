@@ -5,9 +5,9 @@ from datetime import datetime
 
 from app.application.dto import SolicitudDTO
 from app.domain.services import ValidacionError
-from app.domain.time_range import normalize_range, overlaps, TimeRangeValidationError
+from app.domain.time_range import TimeRangeValidationError
 from app.application.use_cases.solicitudes.validacion_service import normalize_date
-from app.domain.time_utils import parse_hhmm
+from app.domain.time_utils import minutes_to_hhmm, parse_hhmm
 
 
 @dataclass(frozen=True)
@@ -63,53 +63,49 @@ def validar_solicitud_dto_declarativo(dto: SolicitudDTO) -> None:
         raise ValidacionError("; ".join(errores))
 
 
-def clave_duplicado_solicitud(dto: SolicitudDTO) -> tuple[int, str, str, str]:
-    """Devuelve una clave estable para comparar duplicados en UI y aplicación."""
+def clave_duplicado(dto: SolicitudDTO) -> tuple[int, str, str, str]:
+    """Devuelve la clave lógica usada para detectar solicitudes duplicadas."""
+
+    fecha = normalize_date(dto.fecha_pedida)
     if dto.completo:
-        return dto.persona_id, normalize_date(dto.fecha_pedida), "COMPLETO", "COMPLETO"
-    return (
-        dto.persona_id,
-        normalize_date(dto.fecha_pedida),
-        str(dto.desde or ""),
-        str(dto.hasta or ""),
-    )
+        return dto.persona_id, fecha, "COMPLETO", "COMPLETO"
+
+    desde = minutes_to_hhmm(parse_hhmm(str(dto.desde or "")))
+    hasta = minutes_to_hhmm(parse_hhmm(str(dto.hasta or "")))
+    return dto.persona_id, fecha, desde, hasta
+
+
+def clave_duplicado_solicitud(dto: SolicitudDTO) -> tuple[int, str, str, str]:
+    """Alias de compatibilidad para consumidores existentes."""
+
+    return clave_duplicado(dto)
 
 
 def hay_duplicado_distinto(
     solicitud: SolicitudDTO,
     existentes: list[SolicitudDTO],
     *,
-    excluir_id: int | None = None,
-    excluir_index: int | None = None,
+    excluir_por_id: str | int | None = None,
+    excluir_por_indice: int | None = None,
 ) -> bool:
     """Comprueba choque de duplicado evitando contar la propia fila en edición."""
+
     try:
-        inicio, fin = normalize_range(
-            completo=solicitud.completo,
-            desde=solicitud.desde,
-            hasta=solicitud.hasta,
-        )
-    except TimeRangeValidationError:
+        clave_objetivo = clave_duplicado(solicitud)
+    except (TimeRangeValidationError, ValueError):
         return False
 
     for idx, existente in enumerate(existentes):
-        if excluir_id is not None and existente.id == excluir_id:
+        if excluir_por_id is not None and existente.id is not None and str(existente.id) == str(excluir_por_id):
             continue
-        if excluir_index is not None and idx == excluir_index:
+        if existente.id is None and excluir_por_indice is not None and idx == excluir_por_indice:
             continue
-        if existente.persona_id != solicitud.persona_id:
-            continue
-        if normalize_date(existente.fecha_pedida) != normalize_date(solicitud.fecha_pedida):
-            continue
+
         try:
-            ex_inicio, ex_fin = normalize_range(
-                completo=existente.completo,
-                desde=existente.desde,
-                hasta=existente.hasta,
-            )
-        except TimeRangeValidationError:
+            clave_existente = clave_duplicado(existente)
+        except (TimeRangeValidationError, ValueError):
             continue
-        if overlaps(inicio, fin, ex_inicio, ex_fin):
+        if clave_existente == clave_objetivo:
             return True
     return False
 

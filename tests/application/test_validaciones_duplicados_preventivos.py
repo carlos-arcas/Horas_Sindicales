@@ -29,7 +29,7 @@ def _solicitud(
 def test_un_solo_pendiente_no_es_duplicado_si_es_el_mismo_en_edicion() -> None:
     pendiente = _solicitud(solicitud_id=10)
 
-    assert not hay_duplicado_distinto(pendiente, [pendiente], excluir_id=10, excluir_index=0)
+    assert not hay_duplicado_distinto(pendiente, [pendiente], excluir_por_id=10, excluir_por_indice=0)
 
 
 def test_dos_pendientes_misma_clave_distinto_id_es_duplicado() -> None:
@@ -43,7 +43,7 @@ def test_editar_pendiente_mismo_id_no_dispara_duplicado() -> None:
     editada = _solicitud(solicitud_id=22)
     otra = _solicitud(solicitud_id=23, desde="13:00", hasta="14:00")
 
-    assert not hay_duplicado_distinto(editada, [editada, otra], excluir_id=22, excluir_index=0)
+    assert not hay_duplicado_distinto(editada, [editada, otra], excluir_por_id=22, excluir_por_indice=0)
 
 
 def test_formulario_igual_a_pendiente_solo_duplica_si_intenta_anadir() -> None:
@@ -51,4 +51,4 @@ def test_formulario_igual_a_pendiente_solo_duplica_si_intenta_anadir() -> None:
     formulario = _solicitud(solicitud_id=None)
 
     assert hay_duplicado_distinto(formulario, [existente])
-    assert not hay_duplicado_distinto(formulario, [existente], excluir_id=44, excluir_index=0)
+    assert not hay_duplicado_distinto(formulario, [existente], excluir_por_id=44, excluir_por_indice=0)
