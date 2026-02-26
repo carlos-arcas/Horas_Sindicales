@@ -23,17 +23,16 @@ from PySide6.QtWidgets import (
     QStatusBar,
     QTabWidget,
     QTableView,
-    QTextEdit,
     QTimeEdit,
     QToolButton,
     QTreeWidget,
     QVBoxLayout,
     QWidget,
-    QDialogButtonBox,
 )
 
 from app.ui.historico_view import ESTADOS_HISTORICO, HistoricalViewModel
 from app.ui.models_qt import SolicitudesTableModel
+from app.ui.components.saldos_card import SaldosCard
 from app.ui.vistas.paginas.pagina_solicitudes import PaginaSolicitudes
 
 if TYPE_CHECKING:

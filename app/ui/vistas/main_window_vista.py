@@ -3,10 +3,9 @@ from __future__ import annotations
 import logging
 import json
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import cast
 
 from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, QThread
 # `QKeyEvent` vive en QtGui en PySide6 (no en QtCore); importarlo aquí evita NameError en eventFilter.
@@ -19,7 +18,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -30,13 +28,9 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QProgressBar,
     QSizePolicy,
-    QScrollArea,
-    QStatusBar,
     QStackedWidget,
     QSplitter,
-    QTabWidget,
     QTableView,
-    QToolButton,
     QTimeEdit,
     QVBoxLayout,
     QWidget,
@@ -56,9 +50,8 @@ from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.domain.services import BusinessRuleError, ValidacionError
-from app.domain.time_utils import minutes_to_hhmm
 from app.domain.request_time import validate_request_inputs
-from app.domain.sync_models import Alert, HealthReport, SyncAttemptReport, SyncExecutionPlan, SyncSummary
+from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
 from app.domain.sheets_errors import (
     SheetsApiDisabledError,
     SheetsConfigError,
@@ -67,8 +60,6 @@ from app.domain.sheets_errors import (
     SheetsPermissionError,
     SheetsRateLimitError,
 )
-from app.ui.models_qt import SolicitudesTableModel
-from app.ui.historico_view import ESTADOS_HISTORICO, HistoricalViewModel
 from app.ui.conflicts_dialog import ConflictsDialog
 from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
 from app.ui.error_mapping import UiErrorMessage, map_error_to_ui_message
@@ -94,7 +85,6 @@ from app.ui.sync_reporting import (
 from app.core.observability import OperationContext, log_event
 from app.ui.workers.sincronizacion_workers import PushWorker
 from app.bootstrap.logging import log_operational_error
-from app.ui.vistas.paginas.pagina_solicitudes import PaginaSolicitudes
 from app.ui.vistas.main_window_health_mixin import MainWindowHealthMixin
 from app.ui.vistas.builders.main_window_builders import (
     build_main_window_widgets,
@@ -705,7 +695,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             QMessageBox.information(
                 self,
                 "Sincronización",
-                "Función pendiente",
+                "Función no disponible",
             )
         except Exception as exc:  # pragma: no cover - fallback defensivo UI
             log_operational_error(
@@ -726,7 +716,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         QMessageBox.information(
             self,
             "Exportación",
-            "Función pendiente",
+            "Función no disponible",
         )
 
     def _normalize_input_heights(self) -> None:

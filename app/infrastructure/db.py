@@ -5,7 +5,7 @@ from pathlib import Path
 
 DB_FILENAME = "horas_sindicales.db"
 DB_RUNTIME_DIR = Path("logs") / "runtime"
-DEFAULT_BUSY_TIMEOUT_MS = 5000
+DEFAULT_BUSY_TIMEOUT_MS = 30000
 
 
 def _default_db_path() -> Path:

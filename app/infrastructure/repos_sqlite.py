@@ -21,7 +21,7 @@ _T = TypeVar("_T")
 def _configure_connection_for_runtime(connection: sqlite3.Connection) -> None:
     """Aplica pragmas defensivos para minimizar conflictos de lock en runtime."""
     try:
-        connection.execute("PRAGMA busy_timeout=5000")
+        connection.execute("PRAGMA busy_timeout=30000")
         connection.execute("PRAGMA synchronous=NORMAL")
         connection.execute("PRAGMA journal_mode=WAL")
     except sqlite3.Error:
