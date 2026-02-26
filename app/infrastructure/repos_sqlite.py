@@ -9,6 +9,7 @@ from typing import Callable, Iterable, TypeVar
 
 from app.domain.models import GrupoConfig, Persona, Solicitud
 from app.domain.ports import CuadranteRepository, GrupoConfigRepository, PersonaRepository, SolicitudRepository
+from app.domain.services import es_duplicada
 
 
 logger = logging.getLogger(__name__)
@@ -676,23 +677,31 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         completo: bool,
     ) -> Solicitud | None:
         cursor = self._connection.cursor()
+        candidate = Solicitud(
+            id=None,
+            persona_id=persona_id,
+            fecha_solicitud=fecha_pedida,
+            fecha_pedida=fecha_pedida,
+            desde_min=desde_min,
+            hasta_min=hasta_min,
+            completo=completo,
+            horas_solicitadas_min=0,
+            observaciones=None,
+            notas=None,
+            pdf_path=None,
+            pdf_hash=None,
+            generated=False,
+        )
+
         clauses = [
             "s.persona_id = ?",
-            "s.fecha_pedida = ?",
-            "s.completo = ?",
+            "date(s.fecha_pedida) = date(?)",
             "(s.deleted = 0 OR s.deleted IS NULL)",
         ]
-        params: list[object] = [persona_id, fecha_pedida, int(completo)]
-        if desde_min is None:
-            clauses.append("s.desde_min IS NULL")
-        else:
-            clauses.append("s.desde_min = ?")
-            params.append(desde_min)
-        if hasta_min is None:
-            clauses.append("s.hasta_min IS NULL")
-        else:
-            clauses.append("s.hasta_min = ?")
-            params.append(hasta_min)
+        params: list[object] = [persona_id, fecha_pedida]
+        if not completo:
+            clauses.append("(s.completo = 1 OR (s.desde_min IS NOT NULL AND s.hasta_min IS NOT NULL AND s.desde_min < ? AND ? < s.hasta_min))")
+            params.extend([hasta_min, desde_min])
         cursor.execute(
             f"""
             SELECT s.id, s.uuid, p.uuid AS delegada_uuid,
@@ -702,24 +711,26 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             FROM solicitudes s
             LEFT JOIN personas p ON p.id = s.persona_id
             WHERE {' AND '.join(clauses)}
-            LIMIT 1
+            ORDER BY s.id DESC
             """,
             params,
         )
-        duplicate = cursor.fetchone()
-        if duplicate is None:
-            return None
-        logger.info(
-            "Duplicado detectado id=%s solicitud_uuid=%s delegada_uuid=%s persona_id=%s fecha=%s completo=%s generated=%s",
-            duplicate["id"],
-            duplicate["uuid"],
-            duplicate["delegada_uuid"],
-            persona_id,
-            fecha_pedida,
-            completo,
-            duplicate["generated"],
-        )
-        return self._row_to_solicitud(duplicate)
+        for duplicate in cursor.fetchall():
+            solicitud = self._row_to_solicitud(duplicate)
+            if not es_duplicada(candidate, solicitud):
+                continue
+            logger.info(
+                "Duplicado detectado id=%s solicitud_uuid=%s delegada_uuid=%s persona_id=%s fecha=%s completo=%s generated=%s",
+                duplicate["id"],
+                duplicate["uuid"],
+                duplicate["delegada_uuid"],
+                persona_id,
+                fecha_pedida,
+                completo,
+                duplicate["generated"],
+            )
+            return solicitud
+        return None
 
     def exists_duplicate(
         self,
