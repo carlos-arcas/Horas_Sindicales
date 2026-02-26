@@ -17,8 +17,10 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QRadioButton,
     QScrollArea,
     QSizePolicy,
+    QSpinBox,
     QSplitter,
     QStatusBar,
     QTabWidget,
@@ -39,6 +41,10 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+def build_saldos_widget(parent: QWidget | None = None) -> SaldosCard:
+    return SaldosCard(parent)
 
 def build_main_window_widgets(window: "MainWindow") -> None:
     window.persona_combo = QComboBox()
@@ -62,10 +68,17 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     operativa_layout = QVBoxLayout(operativa_tab)
     operativa_layout.setContentsMargins(0, 0, 0, 0)
     operativa_layout.setSpacing(12)
+    operativa_header_row = QHBoxLayout()
+    operativa_header_row.setSpacing(10)
     operativa_help = QLabel("Completa la solicitud y confirma solo cuando estés lista.")
     operativa_help.setWordWrap(True)
     operativa_help.setProperty("role", "secondary")
-    operativa_layout.addWidget(operativa_help)
+    operativa_header_row.addWidget(operativa_help, 1)
+    window.open_saldos_modal_button = QPushButton("Saldos")
+    window.open_saldos_modal_button.setProperty("variant", "secondary")
+    window.open_saldos_modal_button.setMaximumWidth(110)
+    operativa_header_row.addWidget(window.open_saldos_modal_button, alignment=Qt.AlignRight)
+    operativa_layout.addLayout(operativa_header_row)
 
     # UX: Operativa concentra solo tareas diarias (alta + pendientes + confirmación)
     # para reducir cambios de contexto y evitar mezclar navegación histórica.
@@ -408,30 +421,58 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     historico_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
     filtros_layout = QVBoxLayout()
-    filtros_layout.setSpacing(8)
+    filtros_layout.setSpacing(10)
 
-    filtros_row_1 = QHBoxLayout()
-    filtros_row_1.setSpacing(8)
     window.historico_search_input = QLineEdit()
-    window.historico_search_input.setPlaceholderText("Buscar en concepto/notas/columnas…")
-    filtros_row_1.addWidget(QLabel("Buscar"))
-    filtros_row_1.addWidget(window.historico_search_input, 1)
+    window.historico_search_input.setPlaceholderText("Buscar")
+    window.historico_search_input.setVisible(False)
 
     window.historico_estado_combo = QComboBox()
     window.historico_estado_combo.addItem("Todos", None)
     for estado in ESTADOS_HISTORICO.values():
         window.historico_estado_combo.addItem(estado.label, estado.code)
-    filtros_row_1.addWidget(QLabel("Estado"))
-    filtros_row_1.addWidget(window.historico_estado_combo)
+    window.historico_estado_combo.setVisible(False)
+
+    filtros_row_1 = QHBoxLayout()
+    filtros_row_1.setSpacing(8)
+    filtros_row_1.addWidget(QLabel("Delegada"))
+
+    window.historico_todas_delegadas_check = QCheckBox("Todas")
+    window.historico_todas_delegadas_check.setChecked(True)
+    filtros_row_1.addWidget(window.historico_todas_delegadas_check)
 
     window.historico_delegada_combo = QComboBox()
     window.historico_delegada_combo.addItem("Todas", None)
-    filtros_row_1.addWidget(QLabel("Delegada"))
     filtros_row_1.addWidget(window.historico_delegada_combo)
+    filtros_row_1.addStretch(1)
     filtros_layout.addLayout(filtros_row_1)
 
     filtros_row_2 = QHBoxLayout()
-    filtros_row_2.setSpacing(8)
+    filtros_row_2.setSpacing(12)
+
+    window.historico_periodo_anual_radio = QRadioButton("Año completo")
+    window.historico_periodo_anual_spin = QSpinBox()
+    window.historico_periodo_anual_spin.setRange(2000, 2100)
+    window.historico_periodo_anual_spin.setValue(QDate.currentDate().year())
+    filtros_row_2.addWidget(window.historico_periodo_anual_radio)
+    filtros_row_2.addWidget(window.historico_periodo_anual_spin)
+
+    window.historico_periodo_mes_radio = QRadioButton("Año/mes")
+    window.historico_periodo_mes_ano_spin = QSpinBox()
+    window.historico_periodo_mes_ano_spin.setRange(2000, 2100)
+    window.historico_periodo_mes_ano_spin.setValue(QDate.currentDate().year())
+    window.historico_periodo_mes_combo = QComboBox()
+    for mes in range(1, 13):
+        window.historico_periodo_mes_combo.addItem(f"{mes:02d}", mes)
+    window.historico_periodo_mes_combo.setCurrentIndex(QDate.currentDate().month() - 1)
+    filtros_row_2.addWidget(window.historico_periodo_mes_radio)
+    filtros_row_2.addWidget(window.historico_periodo_mes_ano_spin)
+    filtros_row_2.addWidget(window.historico_periodo_mes_combo)
+
+    window.historico_periodo_rango_radio = QRadioButton("Rango fechas")
+    window.historico_periodo_rango_radio.setChecked(True)
+    filtros_row_2.addWidget(window.historico_periodo_rango_radio)
+
     window.historico_desde_date = QDateEdit()
     window.historico_desde_date.setCalendarPopup(True)
     window.historico_desde_date.setDisplayFormat("yyyy-MM-dd")
@@ -445,11 +486,11 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     filtros_row_2.addWidget(window.historico_hasta_date)
     window._apply_historico_default_range()
 
-    window.historico_last_30_button = QPushButton("Últimos 30 días")
-    window.historico_last_30_button.setProperty("variant", "secondary")
-    filtros_row_2.addWidget(window.historico_last_30_button)
+    window.historico_apply_filters_button = QPushButton("Aplicar")
+    window.historico_apply_filters_button.setProperty("variant", "secondary")
+    filtros_row_2.addWidget(window.historico_apply_filters_button)
 
-    window.historico_clear_filters_button = QPushButton("Limpiar filtros")
+    window.historico_clear_filters_button = QPushButton("Limpiar")
     window.historico_clear_filters_button.setProperty("variant", "secondary")
     filtros_row_2.addWidget(window.historico_clear_filters_button)
     window.historico_sync_button = QPushButton("Sync")
@@ -518,8 +559,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
         expandido_por_defecto=True,
     )
 
-    window.saldos_card = SaldosCard()
-    historico_tab_layout.addWidget(window.saldos_card)
+    window.saldos_card = build_saldos_widget(window)
     historico_tab_layout.addWidget(historico_card, 1)
 
     window.main_tabs.addTab(historico_tab, "Histórico")
@@ -811,15 +851,18 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window._historico_search_timer.setSingleShot(True)
     window._historico_search_timer.setInterval(250)
     window._historico_search_timer.timeout.connect(window._apply_historico_text_filter)
-    window.historico_search_input.textChanged.connect(lambda _: window._historico_search_timer.start())
-    window.historico_estado_combo.currentIndexChanged.connect(window._apply_historico_filters)
-    window.historico_delegada_combo.currentIndexChanged.connect(window._apply_historico_filters)
-    window.historico_desde_date.dateChanged.connect(window._apply_historico_filters)
-    window.historico_hasta_date.dateChanged.connect(window._apply_historico_filters)
-    window.historico_last_30_button.clicked.connect(window._apply_historico_last_30_days)
+    window.historico_todas_delegadas_check.toggled.connect(window._on_historico_todas_delegadas_toggled)
+    window.historico_periodo_anual_radio.toggled.connect(window._on_historico_periodo_mode_changed)
+    window.historico_periodo_mes_radio.toggled.connect(window._on_historico_periodo_mode_changed)
+    window.historico_periodo_rango_radio.toggled.connect(window._on_historico_periodo_mode_changed)
+    window.historico_apply_filters_button.clicked.connect(window._on_historico_apply_filters)
     window.historico_clear_filters_button.clicked.connect(window._clear_historico_filters)
+    window.open_saldos_modal_button.clicked.connect(window._on_open_saldos_modal)
     window.main_tabs.currentChanged.connect(window._on_main_tab_changed)
     window._restaurar_contexto_guardado()
+    window._on_historico_todas_delegadas_toggled(window.historico_todas_delegadas_check.isChecked())
+    window._on_historico_periodo_mode_changed()
+    logger.info("UI_HISTORICO_FILTERS_BUILT")
 
     from PySide6.QtGui import QKeySequence, QShortcut
 

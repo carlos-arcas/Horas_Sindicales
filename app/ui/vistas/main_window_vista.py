@@ -351,9 +351,13 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.last_sync_metrics_label = self.conflicts_reminder_label = self.consequence_microcopy_label = None
         self.historico_search_input = self.historico_estado_combo = self.historico_delegada_combo = None
         self.historico_desde_date = self.historico_hasta_date = None
-        self.historico_last_30_button = self.historico_clear_filters_button = None
+        self.historico_apply_filters_button = self.historico_clear_filters_button = None
+        self.historico_todas_delegadas_check = None
+        self.historico_periodo_anual_radio = self.historico_periodo_mes_radio = self.historico_periodo_rango_radio = None
+        self.historico_periodo_anual_spin = self.historico_periodo_mes_ano_spin = self.historico_periodo_mes_combo = None
         self.historico_table = self.historico_model = self.historico_proxy_model = None
         self.historico_empty_state = self.historico_details_button = self.historico_details_content = None
+        self.open_saldos_modal_button = None
         self.resync_historico_button = self.generar_pdf_button = self.ver_detalle_button = self.eliminar_button = None
         self.editar_pdf_button = self.abrir_pdf_check = self.goto_existing_button = None
         self.total_preview_input = None
@@ -763,8 +767,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.historico_delegada_combo,
             self.historico_desde_date,
             self.historico_hasta_date,
-            self.historico_last_30_button,
+            self.historico_apply_filters_button,
             self.historico_clear_filters_button,
+            self.open_saldos_modal_button,
             self.add_persona_button,
             self.edit_persona_button,
             self.edit_grupo_button,
@@ -798,8 +803,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.setTabOrder(self.historico_estado_combo, self.historico_delegada_combo)
         self.setTabOrder(self.historico_delegada_combo, self.historico_desde_date)
         self.setTabOrder(self.historico_desde_date, self.historico_hasta_date)
-        self.setTabOrder(self.historico_hasta_date, self.historico_last_30_button)
-        self.setTabOrder(self.historico_last_30_button, self.historico_clear_filters_button)
+        self.setTabOrder(self.historico_hasta_date, self.historico_apply_filters_button)
+        self.setTabOrder(self.historico_apply_filters_button, self.historico_clear_filters_button)
         self.setTabOrder(self.historico_clear_filters_button, self.historico_table)
 
     def _focus_historico_search(self) -> None:
@@ -948,20 +953,94 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.historico_details_content.setVisible(has_rows and self.historico_details_button.isChecked())
 
     def _apply_historico_default_range(self) -> None:
-        self.historico_desde_date.setDate(QDate(2000, 1, 1))
-        self.historico_hasta_date.setDate(QDate.currentDate().addYears(1))
+        self.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
+        self.historico_hasta_date.setDate(QDate.currentDate())
 
     def _apply_historico_last_30_days(self) -> None:
         self.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
         self.historico_hasta_date.setDate(QDate.currentDate())
         self._apply_historico_filters()
 
+    def _on_historico_todas_delegadas_toggled(self, checked: bool) -> None:
+        self.historico_delegada_combo.setEnabled(not checked)
+        if checked:
+            self.historico_delegada_combo.setCurrentIndex(0)
+
+    def _on_historico_periodo_mode_changed(self) -> None:
+        anual_activo = self.historico_periodo_anual_radio.isChecked()
+        mes_activo = self.historico_periodo_mes_radio.isChecked()
+        rango_activo = self.historico_periodo_rango_radio.isChecked()
+
+        self.historico_periodo_anual_spin.setEnabled(anual_activo)
+        self.historico_periodo_mes_ano_spin.setEnabled(mes_activo)
+        self.historico_periodo_mes_combo.setEnabled(mes_activo)
+        self.historico_desde_date.setEnabled(rango_activo)
+        self.historico_hasta_date.setEnabled(rango_activo)
+
+    def _on_historico_apply_filters(self) -> None:
+        if self.historico_periodo_anual_radio.isChecked():
+            modo = "ANUAL"
+        elif self.historico_periodo_mes_radio.isChecked():
+            modo = "ANUAL_MES"
+        else:
+            modo = "RANGO"
+
+        delegada_id = None if self.historico_todas_delegadas_check.isChecked() else self.historico_delegada_combo.currentData()
+        logger.info(
+            "UI_HISTORICO_APPLY_FILTERS todas=%s delegada_id=%s año=%s mes=%s desde=%s hasta=%s modo=%s",
+            self.historico_todas_delegadas_check.isChecked(),
+            delegada_id,
+            self.historico_periodo_mes_ano_spin.value() if modo == "ANUAL_MES" else self.historico_periodo_anual_spin.value(),
+            self.historico_periodo_mes_combo.currentData() if modo == "ANUAL_MES" else None,
+            self.historico_desde_date.date().toString("yyyy-MM-dd"),
+            self.historico_hasta_date.date().toString("yyyy-MM-dd"),
+            modo,
+        )
+        # TODO: invocar refresh real de histórico (p.ej. self._refresh_historico()) cuando se implemente el backend de filtros.
+
     def _clear_historico_filters(self) -> None:
-        self.historico_search_input.clear()
-        self.historico_estado_combo.setCurrentIndex(0)
+        logger.info("UI_HISTORICO_CLEAR_FILTERS")
+        self.historico_todas_delegadas_check.setChecked(True)
         self.historico_delegada_combo.setCurrentIndex(0)
+        self.historico_periodo_rango_radio.setChecked(True)
+        self.historico_periodo_anual_spin.setValue(QDate.currentDate().year())
+        self.historico_periodo_mes_ano_spin.setValue(QDate.currentDate().year())
+        self.historico_periodo_mes_combo.setCurrentIndex(QDate.currentDate().month() - 1)
         self._apply_historico_default_range()
-        self._apply_historico_filters()
+        self._on_historico_periodo_mode_changed()
+
+    def _on_open_saldos_modal(self) -> None:
+        logger.info("UI_SALDOS_MODAL_OPEN")
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Saldos detallados")
+        dialog.resize(800, 500)
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(12, 12, 12, 12)
+
+        saldos_widget = SaldosCard(dialog)
+        saldos_widget.update_periodo_label(self.saldos_card.saldo_periodo_label.text())
+        saldos_widget.saldo_periodo_consumidas.setText(self.saldos_card.saldo_periodo_consumidas.text())
+        saldos_widget.saldo_periodo_restantes.setText(self.saldos_card.saldo_periodo_restantes.text())
+        saldos_widget.saldo_anual_consumidas.setText(self.saldos_card.saldo_anual_consumidas.text())
+        saldos_widget.saldo_anual_restantes.setText(self.saldos_card.saldo_anual_restantes.text())
+        saldos_widget.saldo_grupo_consumidas.setText(self.saldos_card.saldo_grupo_consumidas.text())
+        saldos_widget.saldo_grupo_restantes.setText(self.saldos_card.saldo_grupo_restantes.text())
+        saldos_widget.bolsa_mensual_label.setText(self.saldos_card.bolsa_mensual_label.text())
+        saldos_widget.bolsa_delegada_label.setText(self.saldos_card.bolsa_delegada_label.text())
+        saldos_widget.bolsa_grupo_label.setText(self.saldos_card.bolsa_grupo_label.text())
+        saldos_widget.exceso_badge.setText(self.saldos_card.exceso_badge.text())
+        saldos_widget.exceso_badge.setVisible(self.saldos_card.exceso_badge.isVisible())
+        saldos_widget.saldos_details_button.setChecked(True)
+        layout.addWidget(saldos_widget, 1)
+
+        close_button = QPushButton("Cerrar")
+        close_button.setProperty("variant", "secondary")
+        close_button.clicked.connect(dialog.accept)
+        close_row = QHBoxLayout()
+        close_row.addStretch(1)
+        close_row.addWidget(close_button)
+        layout.addLayout(close_row)
+        dialog.exec()
 
     def _on_historico_escape(self) -> None:
         if self.historico_search_input.hasFocus():
