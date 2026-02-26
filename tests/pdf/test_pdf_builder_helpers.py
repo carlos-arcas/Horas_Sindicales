@@ -63,6 +63,7 @@ def test_minutes_to_hhmm_handles_zero_negative_and_conversion() -> None:
     assert minutes_to_hhmm(0) == "00:00"
     assert minutes_to_hhmm(-10) == "00:00"
     assert minutes_to_hhmm(61) == "01:01"
+    assert minutes_to_hhmm(61.6) == "01:02"
 
 
 def test_minutos_impresos_rounds_and_limits_non_positive() -> None:

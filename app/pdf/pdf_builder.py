@@ -211,10 +211,11 @@ def parse_hhmm_to_minutes(hhmm: str) -> int:
     return int(hours_text) * 60 + int(minutes_text)
 
 
-def minutes_to_hhmm(total_minutes: int) -> str:
-    if total_minutes <= 0:
+def minutes_to_hhmm(total_minutes: int | float) -> str:
+    minutos_normalizados = int(round(total_minutes))
+    if minutos_normalizados <= 0:
         return "00:00"
-    hours, minutes = divmod(total_minutes, 60)
+    hours, minutes = divmod(minutos_normalizados, 60)
     return f"{hours:02d}:{minutes:02d}"
 
 
