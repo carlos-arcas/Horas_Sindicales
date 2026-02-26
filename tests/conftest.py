@@ -40,6 +40,7 @@ def _detect_ui_backend_issue() -> str | None:
 def pytest_configure(config: pytest.Config) -> None:
     global _UI_BACKEND_ERROR
     config.addinivalue_line("markers", "ui: tests de interfaz PySide6")
+    config.addinivalue_line("markers", "headless_safe: test UI que no requiere backend Qt")
     config.addinivalue_line("markers", "metrics: tests de métricas/calidad (radon opcional)")
     _UI_BACKEND_ERROR = _detect_ui_backend_issue()
 
@@ -50,9 +51,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         skip_ui = pytest.mark.skip(reason=_UI_BACKEND_ERROR)
 
     for item in items:
-        if "tests/ui/" in item.nodeid:
+        if "tests/ui/" in item.nodeid and "headless_safe" not in item.keywords:
             item.add_marker(pytest.mark.ui)
-        if skip_ui is not None and "ui" in item.keywords:
+        if skip_ui is not None and item.get_closest_marker("ui") is not None:
             item.add_marker(skip_ui)
 
 

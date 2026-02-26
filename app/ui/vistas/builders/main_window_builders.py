@@ -834,6 +834,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.historico_hasta_date.dateChanged.connect(window._apply_historico_filters)
     window.historico_last_30_button.clicked.connect(window._apply_historico_last_30_days)
     window.historico_clear_filters_button.clicked.connect(window._clear_historico_filters)
+    window.main_tabs.currentChanged.connect(window._on_main_tab_changed)
     window._restaurar_contexto_guardado()
 
     from PySide6.QtGui import QKeySequence, QShortcut
