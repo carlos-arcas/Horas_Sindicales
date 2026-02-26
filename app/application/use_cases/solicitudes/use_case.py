@@ -411,6 +411,35 @@ class SolicitudUseCases:
             return None
         return _solicitud_to_dto(duplicate)
 
+    def buscar_similares(self, dto: SolicitudDTO) -> list[SolicitudDTO]:
+        """Devuelve posibles solicitudes similares de la misma delegada y fecha.
+
+        Similaridad operativa: misma persona y fecha con solape de tramo horario.
+        En solicitudes completas se considera similar cualquier solicitud del mismo día.
+        """
+        if dto.persona_id <= 0:
+            return []
+        fecha = normalize_date(dto.fecha_pedida)
+        existentes = list(self._repo.list_by_persona_and_fecha(dto.persona_id, fecha))
+        if not existentes:
+            return []
+
+        if dto.completo:
+            return [_solicitud_to_dto(item) for item in existentes]
+
+        nuevo_desde = parse_hhmm(dto.desde or "00:00")
+        nuevo_hasta = parse_hhmm(dto.hasta or "00:00")
+        similares: list[SolicitudDTO] = []
+        for existente in existentes:
+            if existente.completo:
+                similares.append(_solicitud_to_dto(existente))
+                continue
+            if existente.desde_min is None or existente.hasta_min is None:
+                continue
+            if _solapa_rango(nuevo_desde, nuevo_hasta, existente.desde_min, existente.hasta_min):
+                similares.append(_solicitud_to_dto(existente))
+        return similares
+
     def listar_solicitudes_por_persona_y_periodo(
         self, persona_id: int, year: int | None, month: int | None
     ) -> Iterable[SolicitudDTO]:
@@ -744,6 +773,35 @@ class SolicitudUseCases:
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:
         return self.confirmar_lote_y_generar_pdf(solicitudes, destino, correlation_id=correlation_id)
 
+    def confirmar_y_generar_pdf_por_filtro(
+        self,
+        *,
+        filtro_delegada: int | None,
+        pendientes: Iterable[SolicitudDTO],
+        destino: Path,
+        correlation_id: str | None = None,
+    ) -> tuple[Path | None, list[int], str]:
+        pendientes_lista = list(pendientes)
+        if filtro_delegada is None:
+            seleccionadas = pendientes_lista
+            modo = "todas"
+        else:
+            seleccionadas = [sol for sol in pendientes_lista if sol.persona_id == filtro_delegada]
+            modo = f"delegada:{filtro_delegada}"
+        if not seleccionadas:
+            return None, [], f"Sin pendientes para confirmar ({modo})."
+
+        creadas, _pendientes, errores, ruta = self.confirmar_lote_y_generar_pdf(
+            seleccionadas,
+            destino,
+            correlation_id=correlation_id,
+        )
+        if ruta is None:
+            return None, [], "No se generó el PDF."
+        ids_confirmadas = [sol.id for sol in creadas if sol.id is not None]
+        resumen = f"Confirmadas: {len(ids_confirmadas)} · Errores: {len(errores)} · Modo: {modo}"
+        return ruta, ids_confirmadas, resumen
+
     def generar_pdf_historico(
         self,
         solicitudes: Iterable[SolicitudDTO],
@@ -1023,3 +1081,8 @@ def _actualizar_pdf_en_repo(
         return solicitud
     repo.update_pdf_info(solicitud.id, str(pdf_path), pdf_hash)
     return replace(solicitud, pdf_path=str(pdf_path), pdf_hash=pdf_hash)
+
+
+def _solapa_rango(inicio_a: int, fin_a: int, inicio_b: int, fin_b: int) -> bool:
+    return inicio_a < fin_b and inicio_b < fin_a
+

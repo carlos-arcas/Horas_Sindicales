@@ -486,7 +486,7 @@ class MainWindow(QMainWindow):
         stepper_layout.addStretch(1)
         solicitud_layout.addLayout(stepper_layout)
 
-        self.stepper_context_label = QLabel("Completa los datos obligatorios")
+        self.stepper_context_label = QLabel("Pendientes: 0 · Seleccionadas: 0 · Modo: Delegada")
         self.stepper_context_label.setProperty("role", "secondary")
         solicitud_layout.addWidget(self.stepper_context_label)
 
@@ -515,7 +515,7 @@ class MainWindow(QMainWindow):
         self.pending_errors_frame.setVisible(False)
         solicitud_layout.addWidget(self.pending_errors_frame)
 
-        datos_basicos_label = QLabel("Datos básicos")
+        datos_basicos_label = QLabel("Datos de la Reserva")
         datos_basicos_label.setProperty("role", "sectionTitle")
         solicitud_layout.addWidget(datos_basicos_label)
 
@@ -604,7 +604,7 @@ class MainWindow(QMainWindow):
         solicitud_row.addStretch(1)
         solicitud_layout.addLayout(solicitud_row)
 
-        validacion_label = QLabel("Validación")
+        validacion_label = QLabel("Errores pendientes")
         validacion_label.setProperty("role", "sectionTitle")
         solicitud_layout.addWidget(validacion_label)
 
@@ -628,9 +628,6 @@ class MainWindow(QMainWindow):
         self.tramo_field_error.setVisible(False)
         solicitud_layout.addWidget(self.tramo_field_error)
 
-        observaciones_label = QLabel("Observaciones")
-        observaciones_label.setProperty("role", "sectionTitle")
-        solicitud_layout.addWidget(observaciones_label)
 
         notas_row = QHBoxLayout()
         notas_row.setSpacing(8)
@@ -668,7 +665,7 @@ class MainWindow(QMainWindow):
         self.revisar_ocultas_button.setVisible(False)
         self.revisar_ocultas_button.clicked.connect(self._on_review_hidden_pendientes)
         pending_tools.addWidget(self.revisar_ocultas_button)
-        self.pending_details_button = QPushButton("Ver detalles")
+        self.pending_details_button = QPushButton("Detalles activos")
         self.pending_details_button.setProperty("variant", "ghost")
         pending_tools.addWidget(self.pending_details_button)
         self.pending_filter_warning = QLabel("")
@@ -753,7 +750,7 @@ class MainWindow(QMainWindow):
         self.abrir_pdf_check.setChecked(True)
         right_actions.addWidget(self.abrir_pdf_check)
 
-        self.confirmar_button = QPushButton("Confirmar y generar")
+        self.confirmar_button = QPushButton("Confirmar y generar PDF")
         self.confirmar_button.setProperty("variant", "secondary")
         self.confirmar_button.clicked.connect(self._on_confirmar)
         right_actions.addWidget(self.confirmar_button)
@@ -771,11 +768,9 @@ class MainWindow(QMainWindow):
         pendientes_footer.addLayout(right_actions)
         pending_details_layout.addLayout(pendientes_footer)
         pendientes_layout.addWidget(self.pending_details_content, 1)
-        self._configure_disclosure(
-            self.pending_details_button,
-            self.pending_details_content,
-            expandido_por_defecto=True,
-        )
+        self.pending_details_button.setCheckable(False)
+        self.pending_details_button.setEnabled(False)
+        self.pending_details_content.setVisible(True)
         solicitudes_list_layout.addWidget(pendientes_card, 1)
         self.solicitudes_splitter.addWidget(solicitudes_form_panel)
         self.solicitudes_splitter.addWidget(solicitudes_list_panel)
@@ -868,6 +863,10 @@ class MainWindow(QMainWindow):
         self.historico_clear_filters_button = QPushButton("Limpiar filtros")
         self.historico_clear_filters_button.setProperty("variant", "secondary")
         filtros_row_2.addWidget(self.historico_clear_filters_button)
+        self.historico_sync_button = QPushButton("Sync")
+        self.historico_sync_button.setProperty("variant", "secondary")
+        self.historico_sync_button.clicked.connect(self._on_sync)
+        filtros_row_2.addWidget(self.historico_sync_button)
         filtros_row_2.addStretch(1)
         filtros_layout.addLayout(filtros_row_2)
         historico_filters_panel = QWidget()
@@ -983,6 +982,11 @@ class MainWindow(QMainWindow):
         persona_delete.addWidget(self.delete_persona_button)
         persona_delete.addStretch(1)
         persona_layout.addLayout(persona_delete)
+        self.config_delegada_combo = QComboBox()
+        self.config_delegada_combo.addItem("Todas", None)
+        self.config_delegada_combo.currentIndexChanged.connect(self._on_config_delegada_changed)
+        persona_layout.addWidget(QLabel("Delegada activa"))
+        persona_layout.addWidget(self.config_delegada_combo)
         config_layout.addWidget(persona_card)
 
         ajustes_card, ajustes_layout = self._create_card("Grupo y PDF")
@@ -1018,6 +1022,14 @@ class MainWindow(QMainWindow):
         self.sync_scope_label = QLabel("Rango: --")
         self.sync_scope_label.setProperty("role", "secondary")
         credenciales_layout.addWidget(self.sync_scope_label)
+        self.config_sync_button = QPushButton("Sync ahora")
+        self.config_sync_button.setProperty("variant", "secondary")
+        self.config_sync_button.clicked.connect(self._on_sync)
+        credenciales_layout.addWidget(self.config_sync_button)
+        self.config_test_connection_button = QPushButton("Probar conexión")
+        self.config_test_connection_button.setProperty("variant", "secondary")
+        self.config_test_connection_button.clicked.connect(self._on_simulate_sync)
+        credenciales_layout.addWidget(self.config_test_connection_button)
         config_layout.addWidget(credenciales_card)
         config_layout.addStretch(1)
         self.main_tabs.addTab(config_tab, "Configuración")
@@ -1217,6 +1229,7 @@ class MainWindow(QMainWindow):
         self.historico_hasta_date.dateChanged.connect(self._apply_historico_filters)
         self.historico_last_30_button.clicked.connect(self._apply_historico_last_30_days)
         self.historico_clear_filters_button.clicked.connect(self._clear_historico_filters)
+        self._restaurar_contexto_guardado()
 
         from PySide6.QtGui import QKeySequence, QShortcut
 
@@ -1679,6 +1692,12 @@ class MainWindow(QMainWindow):
         for persona_id, nombre in sorted(persona_nombres.items(), key=lambda item: item[1].lower()):
             self.historico_delegada_combo.addItem(nombre, persona_id)
         self.historico_delegada_combo.blockSignals(False)
+        self.config_delegada_combo.blockSignals(True)
+        self.config_delegada_combo.clear()
+        self.config_delegada_combo.addItem("Todas", None)
+        for persona_id, nombre in sorted(persona_nombres.items(), key=lambda item: item[1].lower()):
+            self.config_delegada_combo.addItem(nombre, persona_id)
+        self.config_delegada_combo.blockSignals(False)
         self._on_persona_changed()
 
     def _current_persona(self) -> PersonaDTO | None:
@@ -1715,6 +1734,25 @@ class MainWindow(QMainWindow):
         self._update_solicitud_preview()
         self._update_global_context()
 
+    def _on_config_delegada_changed(self, *_args) -> None:
+        persona_id = self.config_delegada_combo.currentData()
+        self._settings.setValue("contexto/delegada_activa", persona_id)
+        if persona_id is None:
+            return
+        for index in range(self.persona_combo.count()):
+            if self.persona_combo.itemData(index) == persona_id:
+                self.persona_combo.setCurrentIndex(index)
+                break
+
+    def _restaurar_contexto_guardado(self) -> None:
+        delegada_id = self._settings.value("contexto/delegada_activa", None)
+        historico_id = self._settings.value("historico/delegada", None)
+        for combo, value in ((self.config_delegada_combo, delegada_id), (self.historico_delegada_combo, historico_id)):
+            for index in range(combo.count()):
+                if str(combo.itemData(index)) == str(value):
+                    combo.setCurrentIndex(index)
+                    break
+
     def _apply_historico_text_filter(self) -> None:
         self.historico_proxy_model.set_search_text(self.historico_search_input.text())
         self._update_action_state()
@@ -1722,7 +1760,9 @@ class MainWindow(QMainWindow):
     def _apply_historico_filters(self) -> None:
         self.historico_proxy_model.set_date_range(self.historico_desde_date.date(), self.historico_hasta_date.date())
         self.historico_proxy_model.set_estado_code(self.historico_estado_combo.currentData())
-        self.historico_proxy_model.set_delegada_id(self.historico_delegada_combo.currentData())
+        delegada_id = self.historico_delegada_combo.currentData()
+        self.historico_proxy_model.set_delegada_id(delegada_id)
+        self._settings.setValue("historico/delegada", delegada_id)
         self._apply_historico_text_filter()
         self._update_historico_empty_state()
 
@@ -1823,13 +1863,18 @@ class MainWindow(QMainWindow):
 
             duplicate = self._solicitud_use_cases.buscar_duplicado(solicitud)
             if duplicate is not None:
-                blocking["duplicado"] = "⚠ Ya existe una solicitud similar."
+                blocking["duplicado"] = "⚠ Ya existe una solicitud duplicada para la misma delegada, fecha y tramo."
                 self._duplicate_target = duplicate
 
             pending_duplicate_row = self._find_pending_duplicate_row(solicitud)
             if pending_duplicate_row is not None:
-                blocking["duplicado"] = "⚠ Ya existe una solicitud similar."
+                blocking["duplicado"] = "⚠ Ya existe una solicitud duplicada para la misma delegada, fecha y tramo."
                 self._duplicate_target = self._pending_solicitudes[pending_duplicate_row]
+
+            similares = [item for item in self._solicitud_use_cases.buscar_similares(solicitud) if item.id != (duplicate.id if duplicate else None)]
+            if similares:
+                ids_similares = [str(item.id) for item in similares if item.id is not None]
+                warnings["similares"] = "Posibles similares: " + ", ".join(ids_similares)
 
             conflicto = self._solicitud_use_cases.validar_conflicto_dia(
                 solicitud.persona_id, solicitud.fecha_pedida, solicitud.completo
@@ -1936,6 +1981,17 @@ class MainWindow(QMainWindow):
 
     def _on_sync(self) -> None:
         if not self._ui_ready:
+            return
+        if hasattr(self._sync_service, "is_configured") and not self._sync_service.is_configured():
+            self.toast.warning(
+                "Falta configurar Google Sheets o compartir la hoja con la cuenta de servicio.",
+                title="Sync no disponible",
+                action_label="Ver detalle",
+                action_callback=lambda: self._show_error_detail(
+                    titulo="Sync no disponible",
+                    mensaje="Configura credenciales y comparte la hoja para habilitar la sincronización.",
+                ),
+            )
             return
         self._pending_sync_plan = None
         self._active_sync_id = None
@@ -2254,7 +2310,7 @@ class MainWindow(QMainWindow):
         first_blocking_error = next(iter(blocking_errors.values()), "")
         self.agregar_button.setEnabled(persona_selected and form_valid and not has_blocking_errors)
         has_pending = bool(self._pending_solicitudes)
-        can_confirm = has_pending and not self._pending_conflict_rows and not self._pending_view_all and not has_blocking_errors
+        can_confirm = has_pending and not self._pending_conflict_rows and not has_blocking_errors
         self.insertar_sin_pdf_button.setEnabled(persona_selected and can_confirm)
         selected_pending = self._selected_pending_solicitudes()
         self.confirmar_button.setEnabled(persona_selected and can_confirm and bool(selected_pending))
@@ -2346,9 +2402,9 @@ class MainWindow(QMainWindow):
 
     def _update_step_context(self, active_step: int) -> None:
         messages = {
-            1: "Completa los datos obligatorios",
-            2: "Revisa las solicitudes pendientes",
-            3: "Confirma para registrar definitivamente",
+            1: "Pendientes: 0 · Seleccionadas: 0 · Modo: Delegada",
+            2: "Pendientes en revisión",
+            3: "Lista para confirmar y generar PDF",
         }
         self.stepper_context_label.setText(messages.get(active_step, ""))
 
@@ -2360,18 +2416,10 @@ class MainWindow(QMainWindow):
 
         persona = self._current_persona()
         delegada = persona.nombre if persona is not None else "Sin delegada"
-        fechas = sorted({solicitud.fecha_pedida for solicitud in selected_pending})
-        fecha_resumen = fechas[0] if len(fechas) == 1 else f"{fechas[0]} +{len(fechas) - 1}"
+        modo = "Todas" if self._pending_view_all else f"Delegada: {delegada}"
         total_min = self._sum_solicitudes_minutes(selected_pending)
         self.confirmation_summary_label.setText(
-            " · ".join(
-                [
-                    f"Delegada: {delegada}",
-                    f"Fecha: {fecha_resumen}",
-                    f"Total horas: {self._format_minutes(total_min)}",
-                    f"Solicitudes: {len(selected_pending)}",
-                ]
-            )
+            f"Pendientes: {len(self._pending_solicitudes)} · Seleccionadas: {len(selected_pending)} · Modo: {modo} · Total: {self._format_minutes(total_min)}"
         )
         self.confirmation_summary_label.setVisible(True)
 
@@ -2775,13 +2823,16 @@ class MainWindow(QMainWindow):
                     {"count": len(selected), "destino": pdf_path},
                     operation.correlation_id,
                 )
-                creadas, pendientes_restantes, errores, generado = (
-                    self._solicitud_use_cases.confirmar_y_generar_pdf(
-                        selected,
-                        Path(pdf_path),
-                        correlation_id=operation.correlation_id,
-                    )
+                generado, ids_confirmadas, resumen_pdf = self._solicitud_use_cases.confirmar_y_generar_pdf_por_filtro(
+                    filtro_delegada=None if self._pending_view_all else (persona.id or None),
+                    pendientes=selected,
+                    destino=Path(pdf_path),
+                    correlation_id=operation.correlation_id,
                 )
+                ids_set = set(ids_confirmadas)
+                creadas = [sol for sol in selected if sol.id in ids_set]
+                pendientes_restantes = [sol for sol in selected if sol.id not in ids_set]
+                errores = [] if ids_confirmadas else [resumen_pdf]
                 log_event(
                     logger,
                     "confirmar_y_generar_pdf_finished",
@@ -2820,7 +2871,7 @@ class MainWindow(QMainWindow):
                     correlation_id,
                 )
             self._ask_push_after_pdf()
-            self.toast.success("Exportación PDF OK")
+            self.toast.success("PDF generado correctamente", title="Confirmación", action_label="Abrir PDF", action_callback=lambda: _abrir_archivo_local(generado) if generado else None)
         _ = pendientes_restantes
         self._reload_pending_views()
         self._refresh_historico()
@@ -3341,8 +3392,38 @@ class MainWindow(QMainWindow):
                 extra={"correlation_id": mapped.incident_id},
             )
         message = mapped.as_text()
-        self.toast.error(message, title="Error")
+        self.toast.error(
+            message,
+            title="Error",
+            action_label="Ver detalle",
+            action_callback=lambda: self._show_error_detail(
+                titulo=mapped.title,
+                mensaje=message,
+                incident_id=getattr(mapped, "incident_id", None),
+                correlation_id=getattr(mapped, "incident_id", None),
+                stack=str(error),
+            ),
+        )
         QMessageBox.critical(self, mapped.title, message)
+
+    def _show_error_detail(
+        self,
+        *,
+        titulo: str,
+        mensaje: str,
+        incident_id: str | None = None,
+        correlation_id: str | None = None,
+        stack: str | None = None,
+    ) -> None:
+        payload = {
+            "mensaje": mensaje,
+            "incident_id": incident_id or "N/D",
+            "correlation_id": correlation_id or "N/D",
+            "resumen": stack or "Sin detalle técnico",
+        }
+        dialog = HistoricoDetalleDialog(payload, self)
+        dialog.setWindowTitle(titulo)
+        dialog.exec()
 
     def _show_optional_notice(self, key: str, title: str, message: str) -> None:
         if bool(self._settings.value(key, False, type=bool)):
