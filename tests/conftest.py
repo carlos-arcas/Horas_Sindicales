@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib
 import os
 import platform
 import sqlite3
@@ -25,36 +24,10 @@ if _is_linux_headless():
     os.environ.setdefault("QT_OPENGL", "software")
 
 
-_UI_BACKEND_ERROR: str | None = None
-
-
-def _detect_ui_backend_issue() -> str | None:
-    try:
-        importlib.import_module("PySide6")
-        importlib.import_module("PySide6.QtWidgets")
-        return None
-    except Exception as exc:  # pragma: no cover - depende del host de ejecución
-        return f"PySide6/Qt no disponible para tests UI: {exc}"
-
-
 def pytest_configure(config: pytest.Config) -> None:
-    global _UI_BACKEND_ERROR
     config.addinivalue_line("markers", "ui: tests de interfaz PySide6")
     config.addinivalue_line("markers", "headless_safe: test UI que no requiere backend Qt")
     config.addinivalue_line("markers", "metrics: tests de métricas/calidad (radon opcional)")
-    _UI_BACKEND_ERROR = _detect_ui_backend_issue()
-
-
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    skip_ui = None
-    if _UI_BACKEND_ERROR is not None:
-        skip_ui = pytest.mark.skip(reason=_UI_BACKEND_ERROR)
-
-    for item in items:
-        if "tests/ui/" in item.nodeid and "headless_safe" not in item.keywords:
-            item.add_marker(pytest.mark.ui)
-        if skip_ui is not None and item.get_closest_marker("ui") is not None:
-            item.add_marker(skip_ui)
 
 
 from app.application.dto import SolicitudDTO
