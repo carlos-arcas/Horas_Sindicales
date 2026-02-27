@@ -345,8 +345,23 @@ class ToastManager(QWidget):
     ) -> None:
         self.show_toast(message=message, level=level, title=title, duration_ms=duration_ms)
 
-    def success(self, message: str, title: str | None = None, duration_ms: int | None = None) -> None:
-        self.show_success(message=message, title=title, duration_ms=3000 if duration_ms is None else duration_ms)
+    def success(
+        self,
+        message: str,
+        title: str | None = None,
+        duration_ms: int | None = None,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+        action_icon: str | None = None,
+    ) -> None:
+        self.show_success(
+            message=message,
+            title=title,
+            duration_ms=3000 if duration_ms is None else duration_ms,
+            action_label=action_label,
+            action_callback=action_callback,
+            action_icon=action_icon,
+        )
 
     def info(self, message: str, title: str | None = None, duration_ms: int | None = None) -> None:
         self.show_info(message=message, title=title, duration_ms=3000 if duration_ms is None else duration_ms)
@@ -354,8 +369,25 @@ class ToastManager(QWidget):
     def warning(self, message: str, title: str | None = None, duration_ms: int | None = None) -> None:
         self.show_warning(message=message, title=title, duration_ms=3000 if duration_ms is None else duration_ms)
 
-    def error(self, message: str, title: str | None = None, duration_ms: int | None = None) -> None:
-        self.show_error(message=message, title=title, duration_ms=3000 if duration_ms is None else duration_ms)
+    def error(
+        self,
+        message: str,
+        title: str | None = None,
+        duration_ms: int | None = None,
+        details: str | None = None,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+        action_icon: str | None = None,
+    ) -> None:
+        full_message = message if not details else f"{message}\n{details}"
+        self.show_error(
+            message=full_message,
+            title=title,
+            duration_ms=3000 if duration_ms is None else duration_ms,
+            action_label=action_label,
+            action_callback=action_callback,
+            action_icon=action_icon,
+        )
 
     def _enqueue_or_spawn(self, request: ToastRequest) -> None:
         if not self._is_active:

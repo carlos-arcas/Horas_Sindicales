@@ -140,3 +140,59 @@ def test_confirmar_pdf_por_filtro_sin_pendientes_devuelve_warning(connection, tm
     assert ruta is None
     assert ids == []
     assert "Sin pendientes" in resumen
+
+
+def test_confirmar_lote_resuelve_colision_pdf_con_sufijo_incremental(connection, tmp_path: Path) -> None:
+    persona_repo = PersonaRepositorySQLite(connection)
+    solicitud_repo = SolicitudRepositorySQLite(connection)
+    persona = persona_repo.create(
+        Persona(
+            id=None,
+            nombre="Delegada Demo",
+            genero="F",
+            horas_mes_min=600,
+            horas_ano_min=7200,
+            is_active=True,
+            cuad_lun_man_min=240,
+            cuad_lun_tar_min=240,
+            cuad_mar_man_min=240,
+            cuad_mar_tar_min=240,
+            cuad_mie_man_min=240,
+            cuad_mie_tar_min=240,
+            cuad_jue_man_min=240,
+            cuad_jue_tar_min=240,
+            cuad_vie_man_min=240,
+            cuad_vie_tar_min=240,
+            cuad_sab_man_min=0,
+            cuad_sab_tar_min=0,
+            cuad_dom_man_min=0,
+            cuad_dom_tar_min=0,
+        )
+    )
+
+    fake_pdf = FakeGeneradorPdf()
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf)
+    solicitud = SolicitudDTO(
+        id=None,
+        persona_id=int(persona.id or 0),
+        fecha_solicitud="2025-01-10",
+        fecha_pedida="2025-01-15",
+        desde="09:00",
+        hasta="11:00",
+        completo=False,
+        horas=2.0,
+        observaciones="Obs",
+        pdf_path=None,
+        pdf_hash=None,
+        notas="Nota",
+    )
+
+    (tmp_path / "solicitud.pdf").write_bytes(b"existing")
+
+    _creadas, _pendientes, _errores, pdf_path = use_case.confirmar_lote_y_generar_pdf(
+        [solicitud],
+        tmp_path / "solicitud.pdf",
+    )
+
+    assert pdf_path == tmp_path / "solicitud(1).pdf"
+    assert pdf_path.exists()

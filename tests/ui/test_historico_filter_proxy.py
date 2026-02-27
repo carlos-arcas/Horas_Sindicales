@@ -357,3 +357,22 @@ def test_invalid_date_and_missing_fields_paths() -> None:
     # fecha faltante + campos textuales None no deben romper filtros de texto.
     proxy.set_search_text("pendiente")
     assert proxy.filterAcceptsRow(8, QModelIndex()) is True
+
+
+def test_range_filter_normalizes_inverted_dates() -> None:
+    proxy = _build_proxy()
+    proxy.set_filters(
+        delegada_id=None,
+        ver_todas=True,
+        year_mode="RANGE",
+        year=None,
+        month=None,
+        date_from=QDate(2026, 3, 1),
+        date_to=QDate(2026, 1, 1),
+    )
+
+    state = proxy.filter_state()
+    assert state["from"] is not None
+    assert state["to"] is not None
+    assert state["from"] <= state["to"]
+    assert proxy.rowCount() > 0

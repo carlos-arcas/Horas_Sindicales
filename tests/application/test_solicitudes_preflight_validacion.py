@@ -100,7 +100,7 @@ def test_validacion_declarativa_rechaza_intervalo_invalido() -> None:
         validar_solicitud_dto_declarativo(dto)
 
 
-def test_confirmar_lote_preflight_bloquea_si_pdf_ya_existe(connection, tmp_path: Path) -> None:
+def test_confirmar_lote_preflight_resuelve_colision_si_pdf_ya_existe(connection, tmp_path: Path) -> None:
     persona_repo = PersonaRepositorySQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
@@ -109,8 +109,9 @@ def test_confirmar_lote_preflight_bloquea_si_pdf_ya_existe(connection, tmp_path:
     destino = tmp_path / "duplicado.pdf"
     destino.write_bytes(b"contenido previo")
 
-    with pytest.raises(BusinessRuleError, match="Colisión de ruta destino"):
-        use_case.confirmar_lote_y_generar_pdf([_solicitud(persona_id)], destino)
+    _creadas, _pendientes, _errores, pdf_path = use_case.confirmar_lote_y_generar_pdf([_solicitud(persona_id)], destino)
+
+    assert pdf_path == tmp_path / "duplicado(1).pdf"
 
 
 class FakeGeneradorPdfFalla(FakeGeneradorPdf):

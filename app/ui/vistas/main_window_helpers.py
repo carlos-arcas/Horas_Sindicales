@@ -93,6 +93,7 @@ def show_sync_error_dialog_from_exception(
     show_message_with_details: Callable[..., None],
     open_options_callback: Callable[[], None],
     retry_callback: Callable[[], None],
+    open_google_sheets_config_callback: Callable[[], None] | None = None,
     toast_warning: Callable[[str, str, int], None],
 ) -> None:
     """Extraído para desacoplar mapeo de errores y permitir testear rutas sin la MainWindow."""
@@ -118,10 +119,10 @@ def show_sync_error_dialog_from_exception(
             title,
             "No se pudo sincronizar.\n"
             f"Causa probable: La hoja no está compartida con {email_hint}.\n"
-            "Acción recomendada: Comparte la hoja con ese email como Editor.",
+            f"Acción recomendada: Comparte el spreadsheet con la cuenta de servicio: {email_hint}.",
             None,
             icon,
-            action_buttons=(("Ir a configuración", open_options_callback), ("Reintentar", retry_callback)),
+            action_buttons=(("Abrir configuración de Google Sheets", open_google_sheets_config_callback or open_options_callback), ("Reintentar", retry_callback)),
         )
         return
     if isinstance(error, SheetsNotFoundError):

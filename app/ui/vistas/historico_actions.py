@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QDate
-from PySide6.QtWidgets import QDialog
+from PySide6.QtWidgets import QDialog, QMessageBox
 
 from app.core.observability import OperationContext, log_event
 from app.domain.services import BusinessRuleError, ValidacionError
@@ -20,14 +20,28 @@ def apply_historico_filters(window: Any) -> None:
     year_mode, year, month = window._historico_period_filter_state()
     ver_todas = window.historico_todas_delegadas_check.isChecked()
     delegada_id = None if ver_todas else window.historico_delegada_combo.currentData()
+    date_from = window.historico_desde_date.date()
+    date_to = window.historico_hasta_date.date()
+
+    if year_mode == "RANGE" and date_from.isValid() and date_to.isValid() and date_from > date_to:
+        # Para juniors: corregimos automáticamente para no bloquear al usuario ni colapsar la UI.
+        date_from, date_to = date_to, date_from
+        window.historico_desde_date.setDate(date_from)
+        window.historico_hasta_date.setDate(date_to)
+        QMessageBox.information(
+            window,
+            "Rango ajustado",
+            "La fecha 'Desde' era posterior a 'Hasta'. Se corrigió automáticamente el rango.",
+        )
+
     window.historico_proxy_model.set_filters(
         delegada_id=delegada_id,
         ver_todas=ver_todas,
         year_mode=year_mode,
         year=year,
         month=month,
-        date_from=window.historico_desde_date.date(),
-        date_to=window.historico_hasta_date.date(),
+        date_from=date_from,
+        date_to=date_to,
     )
     window.historico_proxy_model.set_estado_code(window.historico_estado_combo.currentData())
     window._settings.setValue("historico/delegada", delegada_id)
@@ -152,4 +166,3 @@ def on_open_historico_detalle(window: Any) -> None:
     }
     dialog = window._historico_detalle_dialog_class(payload, window)
     dialog.exec()
-
