@@ -302,3 +302,15 @@ Con la ejecución del roadmap descrito, el proyecto puede llegar de forma realis
 - Los **quick wins** deben agruparse en PRs de **Fase 1** para acelerar mejora visible temprana.
 - El **roadmap** define el orden de ejecución: no adelantar fases sin cerrar bloqueantes previos.
 - El **score** solo sube cuando el cambio está cubierto por **tests** y supera el **quality gate** completo.
+
+---
+
+## Addendum de auditoría portfolio (rápida)
+
+Fecha: 2026-02-27.
+
+- README declara arquitectura por capas y casos de uso claros, pero el quality gate público sigue en 70% CORE y no alcanza el estándar contractual de 85%.
+- La interfaz de ejecución en Windows está bien expuesta (`lanzar_app.bat`, `ejecutar_tests.bat`, `menu_validacion.bat`), lo cual suma valor demo para reclutadores.
+- Existen utilidades de observabilidad con `correlation_id`, pero falta estandarizar `incident_id` en README y evidencia visual de troubleshooting extremo a extremo.
+- Se observan usos de `print()` en scripts auxiliares, lo que contradice el estándar “solo logging estructurado” fuera de ejemplos controlados.
+- El plan de mejora recomendado es elevar gate a 85% de forma incremental, reforzar README para venta portfolio y blindar comprobaciones de clean architecture con tests de importaciones.
