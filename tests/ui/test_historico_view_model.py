@@ -89,7 +89,7 @@ def test_sin_filtros_activos_devuelve_todas_las_filas() -> None:
     vm.proxy_model.set_filters(
         delegada_id=None,
         ver_todas=True,
-        year_mode="RANGE",
+        year_mode=None,
         year=None,
         month=None,
         date_from=None,
@@ -105,7 +105,7 @@ def test_ver_todas_true_ignora_filtro_de_delegada() -> None:
     vm.proxy_model.set_filters(
         delegada_id=999,
         ver_todas=True,
-        year_mode="RANGE",
+        year_mode=None,
         year=None,
         month=None,
         date_from=None,
@@ -113,3 +113,13 @@ def test_ver_todas_true_ignora_filtro_de_delegada() -> None:
     )
 
     assert vm.proxy_model.rowCount() == vm.source_model.rowCount()
+
+
+def test_proxy_arranca_sin_filtro_de_periodo_activo() -> None:
+    vm = _build_view_model()
+
+    state = vm.proxy_model.filter_state()
+
+    assert state["year_mode"] is None
+    assert state["from"] is None
+    assert state["to"] is None
