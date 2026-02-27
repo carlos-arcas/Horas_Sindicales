@@ -59,6 +59,40 @@ def test_sheets_config_probe_happy_path_valida_hojas_y_cabeceras(tmp_path) -> No
     assert result["headers"][0] is True
 
 
+def test_sheets_config_probe_sin_configuracion() -> None:
+    result = SheetsConfigProbe(_ConfigStoreFake(None), _SheetsClientFake(worksheets={}, header_row=[])).check()
+
+    assert result["credentials"][0] is False
+    assert result["worksheet"][1] == "No se puede validar hojas sin configuración."
+
+
+def test_sheets_config_probe_con_config_incompleta_no_intenta_abrir(tmp_path) -> None:
+    config = _Config(credentials_path=str(tmp_path / "faltante.json"), spreadsheet_id="")
+    client = _SheetsClientFake(worksheets={}, header_row=[])
+
+    result = SheetsConfigProbe(_ConfigStoreFake(config), client).check()
+
+    assert client.opened_with is None
+    assert result["credentials"][0] is False
+    assert result["spreadsheet"][0] is False
+    assert result["headers"][1] == "No se puede validar cabeceras todavía."
+
+
+def test_sheets_config_probe_detecta_worksheets_y_headers_faltantes(tmp_path) -> None:
+    cred_file = tmp_path / "creds.json"
+    cred_file.write_text("{}", encoding="utf-8")
+    config = _Config(credentials_path=str(cred_file), spreadsheet_id="spreadsheet-id")
+    headers_incompletos = ["marca_temporal", "email"]
+    client = _SheetsClientFake(worksheets={"solicitudes": object()}, header_row=headers_incompletos)
+
+    result = SheetsConfigProbe(_ConfigStoreFake(config), client).check()
+
+    assert result["worksheet"][0] is False
+    assert "Faltan worksheets" in result["worksheet"][1]
+    assert result["headers"][0] is False
+    assert "Faltan cabeceras" in result["headers"][1]
+
+
 def test_sheets_config_probe_si_google_falla_marca_errores(tmp_path) -> None:
     cred_file = tmp_path / "creds.json"
     cred_file.write_text("{}", encoding="utf-8")

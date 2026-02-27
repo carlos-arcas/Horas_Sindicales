@@ -8,6 +8,65 @@ from typing import Callable
 from app.application.sheets_service import SHEETS_SCHEMA
 from app.domain.ports import SheetsClientPort, SheetsConfigStorePort, SqlConnectionPort
 
+_SYNC_ACTION = "open_sync_settings"
+
+
+def _base_missing_config_result() -> dict[str, tuple[bool, str, str]]:
+    return {
+        "credentials": (False, "Falta configurar credenciales.", _SYNC_ACTION),
+        "spreadsheet": (False, "Falta configurar Spreadsheet ID.", _SYNC_ACTION),
+        "worksheet": (False, "No se puede validar hojas sin configuración.", _SYNC_ACTION),
+        "headers": (False, "No se puede validar cabeceras sin configuración.", _SYNC_ACTION),
+    }
+
+
+def _base_config_result(credentials_ok: bool, spreadsheet_ok: bool) -> dict[str, tuple[bool, str, str]]:
+    return {
+        "credentials": (
+            credentials_ok,
+            "Credenciales presentes y legibles." if credentials_ok else "Credenciales ausentes o no accesibles.",
+            _SYNC_ACTION,
+        ),
+        "spreadsheet": (
+            spreadsheet_ok,
+            "Spreadsheet ID configurado." if spreadsheet_ok else "Falta Spreadsheet ID.",
+            _SYNC_ACTION,
+        ),
+    }
+
+
+def _pending_remote_validation_result(
+    base_result: dict[str, tuple[bool, str, str]],
+) -> dict[str, tuple[bool, str, str]]:
+    base_result["worksheet"] = (False, "No se puede validar la hoja todavía.", _SYNC_ACTION)
+    base_result["headers"] = (False, "No se puede validar cabeceras todavía.", _SYNC_ACTION)
+    return base_result
+
+
+def _worksheet_result(worksheets: dict[str, object]) -> tuple[bool, str, str]:
+    missing = [name for name in ("delegadas", "solicitudes", "cuadrantes") if name not in worksheets]
+    message = "Todas las worksheets esperadas existen." if not missing else f"Faltan worksheets: {', '.join(missing)}."
+    return (not missing, message, _SYNC_ACTION)
+
+
+def _headers_result(worksheets: dict[str, object], header_row: list[str]) -> tuple[bool, str, str]:
+    if "solicitudes" not in worksheets:
+        return (True, "Cabeceras principales detectadas.", _SYNC_ACTION)
+
+    current_headers = [cell.strip().lower() for cell in header_row]
+    expected = SHEETS_SCHEMA["solicitudes"]
+    missing_headers = [head for head in expected if head not in current_headers]
+    if missing_headers:
+        return (False, f"Faltan cabeceras en solicitudes: {', '.join(missing_headers[:4])}.", _SYNC_ACTION)
+    return (True, "Cabeceras principales detectadas.", _SYNC_ACTION)
+
+
+def _remote_validation_error_result(exc: Exception) -> dict[str, tuple[bool, str, str]]:
+    return {
+        "worksheet": (False, f"No se pudo acceder al Spreadsheet: {exc}", _SYNC_ACTION),
+        "headers": (False, "No se pudo validar rango/cabeceras.", _SYNC_ACTION),
+    }
+
 
 class SheetsConfigProbe:
     def __init__(self, config_store: SheetsConfigStorePort, sheets_client: SheetsClientPort) -> None:
@@ -17,56 +76,31 @@ class SheetsConfigProbe:
     def check(self) -> dict[str, tuple[bool, str, str]]:
         config = self._config_store.load()
         if not config:
-            return {
-                "credentials": (False, "Falta configurar credenciales.", "open_sync_settings"),
-                "spreadsheet": (False, "Falta configurar Spreadsheet ID.", "open_sync_settings"),
-                "worksheet": (False, "No se puede validar hojas sin configuración.", "open_sync_settings"),
-                "headers": (False, "No se puede validar cabeceras sin configuración.", "open_sync_settings"),
-            }
+            return _base_missing_config_result()
 
         credentials_ok = bool(config.credentials_path and Path(config.credentials_path).exists())
         spreadsheet_ok = bool(config.spreadsheet_id)
-        result = {
-            "credentials": (
-                credentials_ok,
-                "Credenciales presentes y legibles." if credentials_ok else "Credenciales ausentes o no accesibles.",
-                "open_sync_settings",
-            ),
-            "spreadsheet": (
-                spreadsheet_ok,
-                "Spreadsheet ID configurado." if spreadsheet_ok else "Falta Spreadsheet ID.",
-                "open_sync_settings",
-            ),
-        }
+        result = _base_config_result(credentials_ok, spreadsheet_ok)
+
         if not credentials_ok or not spreadsheet_ok:
-            result["worksheet"] = (False, "No se puede validar la hoja todavía.", "open_sync_settings")
-            result["headers"] = (False, "No se puede validar cabeceras todavía.", "open_sync_settings")
-            return result
+            return _pending_remote_validation_result(result)
 
         try:
             self._sheets_client.open_spreadsheet(Path(config.credentials_path), config.spreadsheet_id)
             worksheets = self._sheets_client.get_worksheets_by_title()
-            missing = [name for name in ("delegadas", "solicitudes", "cuadrantes") if name not in worksheets]
-            result["worksheet"] = (
-                not missing,
-                "Todas las worksheets esperadas existen." if not missing else f"Faltan worksheets: {', '.join(missing)}.",
-                "open_sync_settings",
-            )
-            headers_ok = True
-            header_msg = "Cabeceras principales detectadas."
-            if "solicitudes" in worksheets:
-                values = self._sheets_client.read_all_values("solicitudes")
-                current_headers = [cell.strip().lower() for cell in values[0]] if values else []
-                expected = SHEETS_SCHEMA["solicitudes"]
-                missing_headers = [head for head in expected if head not in current_headers]
-                headers_ok = not missing_headers
-                if missing_headers:
-                    header_msg = f"Faltan cabeceras en solicitudes: {', '.join(missing_headers[:4])}."
-            result["headers"] = (headers_ok, header_msg, "open_sync_settings")
+            header_row = self._load_solicitudes_header_row(worksheets)
+            result["worksheet"] = _worksheet_result(worksheets)
+            result["headers"] = _headers_result(worksheets, header_row)
+            return result
         except Exception as exc:  # noqa: BLE001
-            result["worksheet"] = (False, f"No se pudo acceder al Spreadsheet: {exc}", "open_sync_settings")
-            result["headers"] = (False, "No se pudo validar rango/cabeceras.", "open_sync_settings")
-        return result
+            result.update(_remote_validation_error_result(exc))
+            return result
+
+    def _load_solicitudes_header_row(self, worksheets: dict[str, object]) -> list[str]:
+        if "solicitudes" not in worksheets:
+            return []
+        values = self._sheets_client.read_all_values("solicitudes")
+        return values[0] if values else []
 
 
 class DefaultConnectivityProbe:
