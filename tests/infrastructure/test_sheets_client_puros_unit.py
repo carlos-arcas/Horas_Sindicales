@@ -6,6 +6,9 @@ from app.infrastructure.sheets_client_puros import (
     normalize_batch_get_result,
     worksheet_from_operation_name,
     worksheet_name_from_range,
+    write_backoff_seconds,
+    read_backoff_seconds,
+    should_retry_rate_limit,
 )
 from app.infrastructure.sheets_errors import SheetsApiCompatibilityError
 
@@ -64,3 +67,10 @@ def test_worksheet_from_operation_name(operation_name: str, expected: str | None
 def test_normalize_batch_get_result_lanza_compatibilidad_para_tipos_no_soportados() -> None:
     with pytest.raises(SheetsApiCompatibilityError):
         normalize_batch_get_result(["A"], object())
+
+
+def test_retry_helpers_puros() -> None:
+    assert should_retry_rate_limit(1, 5) is True
+    assert should_retry_rate_limit(5, 5) is False
+    assert write_backoff_seconds(3) == 4
+    assert read_backoff_seconds(2, 1) == 2

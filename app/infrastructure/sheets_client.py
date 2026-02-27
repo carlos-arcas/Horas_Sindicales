@@ -15,8 +15,11 @@ from app.domain.ports import SheetsClientPort
 from app.domain.sheets_errors import SheetsPermissionError, SheetsRateLimitError
 from app.infrastructure.sheets_client_puros import (
     normalize_batch_get_result,
+    read_backoff_seconds,
+    should_retry_rate_limit,
     worksheet_from_operation_name,
     worksheet_name_from_range,
+    write_backoff_seconds,
 )
 from app.infrastructure.sheets_errors import map_gspread_exception
 
@@ -207,7 +210,7 @@ class SheetsClient(SheetsClientPort):
                     raise SheetsRateLimitError(
                         "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta."
                     ) from exc
-                backoff_seconds = _BASE_BACKOFF_SECONDS * (2 ** (attempt - 1))
+                backoff_seconds = read_backoff_seconds(attempt, _BASE_BACKOFF_SECONDS)
                 logger.warning(
                     "Rate limit en Google Sheets (%s). intento=%s/%s backoff=%.3fs",
                     operation_name,
@@ -225,27 +228,12 @@ class SheetsClient(SheetsClientPort):
             except gspread.exceptions.APIError as exc:
                 mapped_error = map_gspread_exception(exc)
                 if not isinstance(mapped_error, SheetsRateLimitError):
-                    if isinstance(mapped_error, SheetsPermissionError):
-                        resolved_spreadsheet_id = self._resolve_spreadsheet_id(spreadsheet_id=spreadsheet_id)
-                        try:
-                            self._log_permission_error(
-                                mapped_error,
-                                spreadsheet_id=resolved_spreadsheet_id,
-                                worksheet_name=self._worksheet_from_operation_name(operation_name),
-                            )
-                        except Exception:  # pragma: no cover - logging should never break sync flows
-                            logger.exception("No se pudo registrar un error de permisos de Google Sheets")
+                    self._handle_permission_error(mapped_error, operation_name, spreadsheet_id)
                     raise mapped_error from exc
-                if attempt >= _WRITE_MAX_RETRIES:
-                    logger.error(
-                        "Google Sheets rate limit persistente en escritura %s tras %s intentos.",
-                        operation_name,
-                        attempt,
-                    )
-                    raise SheetsRateLimitError(
-                        "Límite de escritura de Google Sheets alcanzado. Espera 1 minuto y reintenta."
-                    ) from exc
-                backoff_seconds = 2 ** (attempt - 1)
+                if not should_retry_rate_limit(attempt, _WRITE_MAX_RETRIES):
+                    logger.error("Google Sheets rate limit persistente en escritura %s tras %s intentos.", operation_name, attempt)
+                    raise SheetsRateLimitError("Límite de escritura de Google Sheets alcanzado. Espera 1 minuto y reintenta.") from exc
+                backoff_seconds = write_backoff_seconds(attempt)
                 logger.warning(
                     "Rate limit en escritura Google Sheets (%s). intento=%s/%s backoff=%ss",
                     operation_name,
@@ -255,6 +243,24 @@ class SheetsClient(SheetsClientPort):
                 )
                 time.sleep(backoff_seconds)
         raise RuntimeError("No se pudo completar la escritura en Google Sheets.")
+
+    def _handle_permission_error(
+        self,
+        mapped_error: Exception,
+        operation_name: str,
+        spreadsheet_id: str | None,
+    ) -> None:
+        if not isinstance(mapped_error, SheetsPermissionError):
+            return
+        resolved_spreadsheet_id = self._resolve_spreadsheet_id(spreadsheet_id=spreadsheet_id)
+        try:
+            self._log_permission_error(
+                mapped_error,
+                spreadsheet_id=resolved_spreadsheet_id,
+                worksheet_name=self._worksheet_from_operation_name(operation_name),
+            )
+        except Exception:  # pragma: no cover - logging should never break sync flows
+            logger.exception("No se pudo registrar un error de permisos de Google Sheets")
 
     @staticmethod
     def _worksheet_name_from_range(range_name: str) -> str | None:
