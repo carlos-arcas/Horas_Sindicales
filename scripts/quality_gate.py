@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import importlib.util
 import json
 import logging
 import subprocess
@@ -64,20 +65,17 @@ def preflight_pytest() -> None:
         text=True,
     ).returncode != 0:
         LOGGER.error(
-            "Falta pytest. Instala dependencias dev: pip install -r requirements-dev.txt"
+            "Falta pytest en el entorno activo. Ejecuta: python -m pip install -r requirements-dev.txt"
         )
         raise SystemExit(2)
 
-    help_result = subprocess.run(
-        [sys.executable, "-m", "pytest", "--help"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-    has_cov_flag = help_result.returncode == 0 and "--cov" in help_result.stdout
-    if not has_cov_flag:
+    if importlib.util.find_spec("pytest_cov") is None:
         LOGGER.error(
-            "Falta pytest-cov. Instala dependencias dev: pip install -r requirements-dev.txt"
+            "Falta pytest-cov en el entorno activo. "
+            "Instala dependencias dev con: python -m pip install -r requirements-dev.txt"
+        )
+        LOGGER.error(
+            "En CI, verifica que el job ejecute 'pip install -r requirements-dev.txt' antes del quality gate."
         )
         raise SystemExit(2)
 
