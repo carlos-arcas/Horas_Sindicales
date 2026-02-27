@@ -6,6 +6,42 @@ from typing import Any
 from app.application.sync_normalization import normalize_hhmm
 
 
+def _pick_value(row: dict[str, Any], key: str | tuple[str, ...], default: Any = "") -> Any:
+    if isinstance(key, tuple):
+        for candidate in key:
+            value = row.get(candidate)
+            if value:
+                return value
+        return default
+    return row.get(key) or default
+
+
+def _coerce_str(value: Any, default: str = "") -> str:
+    return value or default
+
+
+def _coerce_int(value: Any, default: int = 0) -> int:
+    if value in (None, ""):
+        return default
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_float(value: Any, default: float = 0.0) -> float:
+    if value in (None, ""):
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_fecha(value: Any) -> str:
+    return normalize_date(_coerce_str(value)) or ""
+
+
 def normalize_date(value: str | None) -> str | None:
     if value is None:
         return None
@@ -235,13 +271,13 @@ def canonical_remote_solicitud_estado(row: dict[str, Any], worksheet_name: str) 
 
 
 def _normalize_dates(payload: dict[str, Any], row: dict[str, Any]) -> None:
-    payload["fecha"] = normalize_date(row.get("fecha") or row.get("fecha_pedida")) or ""
-    payload["created_at"] = normalize_date(row.get("created_at")) or payload["fecha"] or ""
+    payload["fecha"] = _normalize_fecha(_pick_value(row, ("fecha", "fecha_pedida")))
+    payload["created_at"] = _normalize_fecha(_pick_value(row, "created_at")) or payload["fecha"] or ""
 
 
 def _normalize_numeric_fields(payload: dict[str, Any], row: dict[str, Any]) -> None:
     if row.get("minutos_total") in (None, "") and row.get("horas") not in (None, ""):
-        payload["minutos_total"] = int_or_zero(row.get("horas"))
+        payload["minutos_total"] = _coerce_int(row.get("horas"))
     payload["desde_h"], payload["desde_m"], payload["hasta_h"], payload["hasta_m"] = (
         canonical_remote_solicitud_time_parts(row)
     )
@@ -268,27 +304,32 @@ def _validate_required_fields(payload: dict[str, Any]) -> None:
 
 
 def normalize_remote_solicitud_row(row: dict[str, Any], worksheet_name: str) -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "uuid": row.get("uuid") or "",
-        "delegada_uuid": row.get("delegada_uuid") or "",
-        "delegada_nombre": row.get("delegada_nombre") or row.get("Delegada") or "",
-        "fecha": row.get("fecha") or row.get("fecha_pedida") or "",
-        "desde": row.get("desde") or row.get("hora_desde") or "",
-        "hasta": row.get("hasta") or row.get("hora_hasta") or "",
-        "desde_h": row.get("desde_h") or "",
-        "desde_m": row.get("desde_m") or "",
-        "hasta_h": row.get("hasta_h") or "",
-        "hasta_m": row.get("hasta_m") or "",
-        "completo": row.get("completo") or "",
-        "minutos_total": row.get("minutos_total") or "",
-        "horas": row.get("horas") or "",
-        "notas": row.get("notas") or "",
-        "estado": row.get("estado") or "",
-        "created_at": row.get("created_at") or "",
-        "updated_at": row.get("updated_at") or "",
-        "source_device": row.get("source_device") or "",
-        "deleted": row.get("deleted") or "",
-        "pdf_id": row.get("pdf_id") or "",
+    field_getters: dict[str, str | tuple[str, ...]] = {
+        "uuid": "uuid",
+        "delegada_uuid": "delegada_uuid",
+        "delegada_nombre": ("delegada_nombre", "Delegada"),
+        "fecha": ("fecha", "fecha_pedida"),
+        "desde": ("desde", "hora_desde"),
+        "hasta": ("hasta", "hora_hasta"),
+        "desde_h": "desde_h",
+        "desde_m": "desde_m",
+        "hasta_h": "hasta_h",
+        "hasta_m": "hasta_m",
+        "completo": "completo",
+        "minutos_total": "minutos_total",
+        "horas": "horas",
+        "notas": "notas",
+        "estado": "estado",
+        "created_at": "created_at",
+        "updated_at": "updated_at",
+        "source_device": "source_device",
+        "deleted": "deleted",
+        "pdf_id": "pdf_id",
+    }
+    normalizers: dict[str, Any] = {field: _coerce_str for field in field_getters}
+    payload = {
+        field: normalizers[field](_pick_value(row, key))
+        for field, key in field_getters.items()
     }
     _normalize_dates(payload, row)
     _normalize_numeric_fields(payload, row)
