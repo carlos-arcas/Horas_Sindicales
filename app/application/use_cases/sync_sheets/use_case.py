@@ -15,12 +15,16 @@ from app.application.sync_normalization import normalize_hhmm, solicitud_unique_
 from app.application.use_cases import sync_sheets_core
 from app.application.use_cases.sync_sheets.executor import execute_plan
 from app.application.use_cases.sync_sheets.planner import build_plan
+from app.application.use_cases.sync_sheets.sync_sheets_helpers import (
+    execute_with_validation,
+    rowcol_to_a1,
+    rows_with_index,
+)
 from app.domain.ports import (
     SheetsClientPort,
     SheetsConfigStorePort,
     SheetsRepositoryPort,
     SqlConnectionPort,
-    SqlCursorPort,
 )
 from app.domain.sheets_errors import SheetsConfigError, SheetsRateLimitError
 from app.domain.sync_models import SyncExecutionPlan, SyncFieldDiff, SyncPlanItem, SyncSummary
@@ -47,26 +51,6 @@ HEADER_CANONICO_SOLICITUDES = [
     "deleted",
     "pdf_id",
 ]
-
-
-def _rowcol_to_a1(row: int, col: int) -> str:
-    label = ""
-    current = col
-    while current > 0:
-        current, rem = divmod(current - 1, 26)
-        label = chr(65 + rem) + label
-    return f"{label}{row}"
-
-
-def _execute_with_validation(cursor: SqlCursorPort, sql: str, params: tuple[object, ...], context: str) -> None:
-    expected = sql.count("?")
-    actual = len(params)
-    if expected != actual:
-        raise ValueError(
-            f"SQL param mismatch for {context}: expected {expected} placeholders, got {actual} parameters."
-        )
-    cursor.execute(sql, params)
-
 
 
 class SheetsSyncService:
@@ -1179,7 +1163,7 @@ class SheetsSyncService:
 
     def _insert_persona_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:
         cursor = self._connection.cursor()
-        _execute_with_validation(
+        execute_with_validation(
             cursor,
             """
             INSERT INTO personas (
@@ -1224,7 +1208,7 @@ class SheetsSyncService:
     def _update_persona_from_remote(self, persona_id: int, row: dict[str, Any]) -> None:
         cursor = self._connection.cursor()
         deleted = self._int_or_zero(row.get("deleted"))
-        _execute_with_validation(
+        execute_with_validation(
             cursor,
             """
             UPDATE personas
@@ -1273,7 +1257,7 @@ class SheetsSyncService:
             return False, 0, 1
         desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
         hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
-        _execute_with_validation(
+        execute_with_validation(
             cursor,
             """
             INSERT INTO solicitudes (
@@ -1333,7 +1317,7 @@ class SheetsSyncService:
             return False, 0, 1
         desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
         hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
-        _execute_with_validation(
+        execute_with_validation(
             cursor,
             """
             UPDATE solicitudes
@@ -1461,7 +1445,7 @@ class SheetsSyncService:
             SET cuad_{dia}_man_min = ?, cuad_{dia}_tar_min = ?
             WHERE id = ?
             """
-        _execute_with_validation(cursor, sql, (man_min, tar_min, persona_id), "personas.update_cuadrante")
+        execute_with_validation(cursor, sql, (man_min, tar_min, persona_id), "personas.update_cuadrante")
         self._connection.commit()
 
     def _sync_local_cuadrantes_from_personas(self) -> None:
@@ -1571,43 +1555,8 @@ class SheetsSyncService:
         aliases: dict[str, list[str]] | None = None,
     ) -> tuple[list[str], list[tuple[int, dict[str, Any]]]]:
         cache_name = worksheet_name or getattr(worksheet, "title", None)
-        if cache_name:
-            values = self._client.read_all_values(cache_name)
-        else:
-            values = worksheet.get_all_values()
-        if not values:
-            return [], []
-        headers = values[0]
-        canonical_by_header: dict[str, str] = {}
-        if aliases:
-            lowered_map: dict[str, str] = {}
-            for canonical, names in aliases.items():
-                lowered_map[canonical.strip().lower()] = canonical
-                for name in names:
-                    lowered_map[name.strip().lower()] = canonical
-            for header in headers:
-                key = str(header).strip().lower()
-                canonical_by_header[header] = lowered_map.get(key, header)
-        rows: list[tuple[int, dict[str, Any]]] = []
-        for row_number, row in enumerate(values[1:], start=2):
-            if not any(str(cell).strip() for cell in row):
-                continue
-            payload = {
-                headers[i]: row[i] if i < len(row) else ""
-                for i in range(len(headers))
-                if str(headers[i]).strip()
-            }
-            if canonical_by_header:
-                canonical_payload: dict[str, Any] = {}
-                for original_key, value in payload.items():
-                    canonical_key = canonical_by_header.get(original_key, original_key)
-                    if canonical_key not in canonical_payload or not str(canonical_payload.get(canonical_key, "")).strip():
-                        canonical_payload[canonical_key] = value
-                payload = canonical_payload
-            payload["__row_number__"] = row_number
-            rows.append((row_number, payload))
-        logger.info("Read worksheet=%s filas_leidas=%s", cache_name or worksheet.title, len(rows))
-        return headers, rows
+        values = self._client.read_all_values(cache_name) if cache_name else worksheet.get_all_values()
+        return rows_with_index(values, worksheet_name=cache_name or worksheet.title, aliases=aliases)
 
     def _header_map(self, headers: list[str], expected: list[str]) -> list[str]:
         if not headers:
@@ -1626,7 +1575,7 @@ class SheetsSyncService:
     def _update_row(self, worksheet: Any, row_number: int, headers: list[str], payload: dict[str, Any]) -> None:
         # Evita write-per-row: acumulamos updates y se ejecutan en un único batch_update por worksheet.
         row_values = [payload.get(header, "") for header in headers]
-        range_name = f"A{row_number}:{_rowcol_to_a1(row_number, len(headers))}"
+        range_name = f"A{row_number}:{rowcol_to_a1(row_number, len(headers))}"
         self._pending_batch_updates.setdefault(worksheet.title, []).append({"range": range_name, "values": [row_values]})
 
     def _append_row(self, worksheet: Any, headers: list[str], payload: dict[str, Any]) -> None:
@@ -1641,7 +1590,7 @@ class SheetsSyncService:
         self._pending_values_batch_updates = {}
 
     def _queue_values_batch_update(self, worksheet: Any, row_number: int, col_idx: int, value: Any) -> None:
-        a1_cell = _rowcol_to_a1(row_number, col_idx)
+        a1_cell = rowcol_to_a1(row_number, col_idx)
         sheet_title = worksheet.title.replace("'", "''")
         range_name = f"'{sheet_title}'!{a1_cell}"
         self._pending_values_batch_updates.setdefault(worksheet.title, []).append({"range": range_name, "values": [[value]]})
