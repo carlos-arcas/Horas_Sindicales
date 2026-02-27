@@ -16,6 +16,11 @@ from app.application.use_cases import sync_sheets_core
 from app.application.use_cases.sync_sheets.executor import execute_plan
 from app.application.use_cases.sync_sheets.helpers import (
     build_solicitudes_sync_plan,
+    calcular_bloque_horario_solicitud,
+    construir_payload_actualizacion_solicitud,
+    construir_payload_insercion_solicitud,
+    extraer_datos_delegada,
+    normalizar_fechas_solicitud,
     sync_local_cuadrantes_from_personas,
 )
 from app.application.use_cases.sync_sheets.planner import build_plan
@@ -1130,31 +1135,76 @@ class SheetsSyncService:
         self._connection.commit()
 
     def _insert_solicitud_from_remote(self, uuid_value: str, row: dict[str, Any]) -> tuple[bool, int, int]:
-        cursor = self._connection.cursor()
-        delegada_uuid = str(row.get("delegada_uuid") or "").strip()
-        delegada_nombre = " ".join(str(row.get("delegada_nombre") or row.get("Delegada") or "").split())
+        persona_id = self._resolver_persona_para_solicitud(row, uuid_value)
+        if persona_id is None:
+            return False, 1, 1
+        fecha_normalizada, created_normalizada = normalizar_fechas_solicitud(row, self._normalize_date)
+        if not fecha_normalizada:
+            logger.warning("Solicitud %s descartada por fecha inválida en pull: %s", uuid_value, row.get("fecha"))
+            return False, 0, 1
+        desde_min, hasta_min = calcular_bloque_horario_solicitud(row, self._join_minutes)
+        payload = construir_payload_insercion_solicitud(
+            uuid_value,
+            persona_id,
+            row,
+            fecha_normalizada,
+            created_normalizada,
+            desde_min,
+            hasta_min,
+            self._int_or_zero,
+            self._now_iso,
+        )
+        self._ejecutar_insert_remoto_solicitud(payload)
+        self._connection.commit()
+        logger.info("Solicitud importada a tabla local 'solicitudes' (histórico): uuid=%s", uuid_value)
+        return True, 0, 0
+
+    def _update_solicitud_from_remote(self, solicitud_id: int, row: dict[str, Any]) -> tuple[bool, int, int]:
+        identificador = str(row.get("uuid") or solicitud_id)
+        persona_id = self._resolver_persona_para_solicitud(row, identificador)
+        if persona_id is None:
+            return False, 1, 1
+        fecha_normalizada, created_normalizada = normalizar_fechas_solicitud(row, self._normalize_date)
+        if not fecha_normalizada:
+            logger.warning("Solicitud id=%s no actualizada por fecha inválida en pull: %s", solicitud_id, row.get("fecha"))
+            return False, 0, 1
+        desde_min, hasta_min = calcular_bloque_horario_solicitud(row, self._join_minutes)
+        payload = construir_payload_actualizacion_solicitud(
+            solicitud_id,
+            persona_id,
+            row,
+            fecha_normalizada,
+            created_normalizada,
+            desde_min,
+            hasta_min,
+            self._int_or_zero,
+            self._now_iso,
+        )
+        self._ejecutar_update_remoto_solicitud(payload)
+        self._connection.commit()
+        return True, 0, 0
+
+    def _resolver_persona_para_solicitud(self, row: dict[str, Any], identificador: str) -> int | None:
+        delegada_uuid, delegada_nombre = extraer_datos_delegada(row)
         if not delegada_uuid:
             logger.warning(
                 "Solicitud %s sin delegada_uuid, resolviendo por nombre '%s'",
-                uuid_value,
+                identificador,
                 delegada_nombre,
             )
         resolved_uuid = get_or_resolve_delegada_uuid(self._connection, delegada_uuid, delegada_nombre)
         if not resolved_uuid:
-            logger.warning("Solicitud omitida por delegada no resuelta: %s", uuid_value)
-            return False, 1, 1
+            logger.warning("Solicitud omitida por delegada no resuelta: %s", identificador)
+            return None
         persona_id = self._persona_id_from_uuid(resolved_uuid)
         if persona_id is None:
-            logger.warning("Solicitud omitida por delegada no resuelta: %s", uuid_value)
-            return False, 1, 1
+            logger.warning("Solicitud omitida por delegada no resuelta: %s", identificador)
+            return None
         logger.info("Delegada resuelta: %s %s", resolved_uuid, delegada_nombre)
-        fecha_normalizada = self._normalize_date(row.get("fecha") or row.get("fecha_pedida"))
-        created_normalizada = self._normalize_date(row.get("created_at")) or fecha_normalizada
-        if not fecha_normalizada:
-            logger.warning("Solicitud %s descartada por fecha inválida en pull: %s", uuid_value, row.get("fecha"))
-            return False, 0, 1
-        desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
-        hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
+        return persona_id
+
+    def _ejecutar_insert_remoto_solicitud(self, payload: tuple[Any, ...]) -> None:
+        cursor = self._connection.cursor()
         execute_with_validation(
             cursor,
             """
@@ -1164,57 +1214,12 @@ class SheetsSyncService:
                 generated, created_at, updated_at, source_device, deleted
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                uuid_value,
-                persona_id,
-                created_normalizada,
-                fecha_normalizada,
-                desde_min,
-                hasta_min,
-                1 if self._int_or_zero(row.get("completo")) else 0,
-                self._int_or_zero(row.get("minutos_total") or row.get("horas")),
-                None,
-                row.get("notas") or "",
-                None,
-                row.get("pdf_id"),
-                1,
-                created_normalizada,
-                row.get("updated_at") or self._now_iso(),
-                row.get("source_device"),
-                self._int_or_zero(row.get("deleted")),
-            ),
+            payload,
             "solicitudes.insert_remote",
         )
-        self._connection.commit()
-        logger.info("Solicitud importada a tabla local 'solicitudes' (histórico): uuid=%s", uuid_value)
-        return True, 0, 0
 
-    def _update_solicitud_from_remote(self, solicitud_id: int, row: dict[str, Any]) -> tuple[bool, int, int]:
+    def _ejecutar_update_remoto_solicitud(self, payload: tuple[Any, ...]) -> None:
         cursor = self._connection.cursor()
-        delegada_uuid = str(row.get("delegada_uuid") or "").strip()
-        delegada_nombre = " ".join(str(row.get("delegada_nombre") or row.get("Delegada") or "").split())
-        if not delegada_uuid:
-            logger.warning(
-                "Solicitud %s sin delegada_uuid, resolviendo por nombre '%s'",
-                row.get("uuid") or solicitud_id,
-                delegada_nombre,
-            )
-        resolved_uuid = get_or_resolve_delegada_uuid(self._connection, delegada_uuid, delegada_nombre)
-        if not resolved_uuid:
-            logger.warning("Solicitud omitida por delegada no resuelta: %s", row.get("uuid") or solicitud_id)
-            return False, 1, 1
-        persona_id = self._persona_id_from_uuid(resolved_uuid)
-        if persona_id is None:
-            logger.warning("Solicitud omitida por delegada no resuelta: %s", row.get("uuid") or solicitud_id)
-            return False, 1, 1
-        logger.info("Delegada resuelta: %s %s", resolved_uuid, delegada_nombre)
-        fecha_normalizada = self._normalize_date(row.get("fecha") or row.get("fecha_pedida"))
-        created_normalizada = self._normalize_date(row.get("created_at")) or fecha_normalizada
-        if not fecha_normalizada:
-            logger.warning("Solicitud id=%s no actualizada por fecha inválida en pull: %s", solicitud_id, row.get("fecha"))
-            return False, 0, 1
-        desde_min = self._join_minutes(row.get("desde_h"), row.get("desde_m"))
-        hasta_min = self._join_minutes(row.get("hasta_h"), row.get("hasta_m"))
         execute_with_validation(
             cursor,
             """
@@ -1224,25 +1229,9 @@ class SheetsSyncService:
                 source_device = ?, deleted = ?, generated = 1
             WHERE id = ?
             """,
-            (
-                persona_id,
-                fecha_normalizada,
-                desde_min,
-                hasta_min,
-                1 if self._int_or_zero(row.get("completo")) else 0,
-                self._int_or_zero(row.get("minutos_total") or row.get("horas")),
-                row.get("notas") or "",
-                row.get("pdf_id"),
-                created_normalizada,
-                row.get("updated_at") or self._now_iso(),
-                row.get("source_device"),
-                self._int_or_zero(row.get("deleted")),
-                solicitud_id,
-            ),
+            payload,
             "solicitudes.update_remote",
         )
-        self._connection.commit()
-        return True, 0, 0
 
     @staticmethod
     def _normalize_date(value: str | None) -> str | None:
