@@ -51,6 +51,15 @@ from app.application.use_cases.solicitudes.helpers_puros import (
     resultado_error_creacion,
     saldo_insuficiente,
 )
+from app.application.use_cases.solicitudes.helpers_puros_2 import (
+    correlation_id_or_new,
+    debe_emitir_evento,
+    mensaje_duplicado_desde_estado,
+    payload_evento_exito,
+    payload_evento_inicio,
+    rango_en_minutos,
+    solicitud_desde_dto,
+)
 from app.application.use_cases.solicitudes.confirmacion_pdf_service import (
     PathFileSystem,
     actualizar_pdf_en_repo as _actualizar_pdf_en_repo,
@@ -63,7 +72,6 @@ from app.application.use_cases.solicitudes.validacion_service import (
     calcular_minutos as _calcular_minutos,
     calcular_saldos as _calcular_saldos,
     normalize_date,
-    normalize_time,
     parse_year_month as _parse_year_month,
     solicitud_key,
     total_cuadrante_por_fecha as _total_cuadrante_por_fecha,
@@ -244,8 +252,21 @@ class SolicitudUseCases:
         una vista consistente después de validar duplicados y conflictos del día.
         """
         correlation_id = _resolver_correlation_id(correlation_id, contexto)
-        if not correlation_id:
-            correlation_id = str(uuid.uuid4())
+        correlation_id = correlation_id_or_new(correlation_id, str(uuid.uuid4()))
+        self._log_inicio_agregar_solicitud(dto, correlation_id)
+        dto_normalizado, persona = self._validar_y_normalizar_dto(dto)
+        self._validar_conflicto_y_duplicado(dto_normalizado, persona)
+        creada, saldos = self._crear_solicitud_y_saldos(dto_normalizado, persona)
+        if debe_emitir_evento(correlation_id):
+            log_event(
+                logger,
+                "solicitud_create_succeeded",
+                payload_evento_exito(creada.id, creada.persona_id),
+                correlation_id,
+            )
+        return _solicitud_to_dto(creada), saldos
+
+    def _log_inicio_agregar_solicitud(self, dto: SolicitudDTO, correlation_id: str) -> None:
         logger.info(
             "Creando solicitud persona_id=%s fecha_pedida=%s completo=%s desde=%s hasta=%s",
             dto.persona_id,
@@ -254,61 +275,35 @@ class SolicitudUseCases:
             dto.desde,
             dto.hasta,
         )
-        if correlation_id:
-            log_event(
-                logger,
-                "solicitud_create_started",
-                {"persona_id": dto.persona_id, "fecha_pedida": dto.fecha_pedida},
-                correlation_id,
-            )
-        if dto.persona_id <= 0:
-            raise BusinessRuleError("Selecciona una delegada válida antes de guardar la solicitud.")
+        if debe_emitir_evento(correlation_id):
+            log_event(logger, "solicitud_create_started", payload_evento_inicio(dto), correlation_id)
+
+    def _validar_y_normalizar_dto(self, dto: SolicitudDTO) -> tuple[SolicitudDTO, Persona]:
+        mensaje_persona = mensaje_persona_invalida(dto.persona_id)
+        if mensaje_persona is not None:
+            raise BusinessRuleError(mensaje_persona)
         validar_solicitud_dto_declarativo(dto)
         persona = self._persona_repo.get_by_id(dto.persona_id)
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
+        return normalizar_dto_para_creacion(dto), persona
 
-        dto = replace(
-            dto,
-            fecha_pedida=normalize_date(dto.fecha_pedida),
-            fecha_solicitud=normalize_date(dto.fecha_solicitud),
-            desde=None if dto.desde is None else normalize_time(dto.desde),
-            hasta=None if dto.hasta is None else normalize_time(dto.hasta),
-        )
-
+    def _validar_conflicto_y_duplicado(self, dto: SolicitudDTO, persona: Persona) -> None:
         conflicto = self.validar_conflicto_dia(dto.persona_id, dto.fecha_pedida, dto.completo)
         if not conflicto.ok:
-            raise BusinessRuleError(
-                "Conflicto completo/parcial en la misma fecha. "
-                f"Acción sugerida: {conflicto.accion_sugerida}."
-            )
+            raise BusinessRuleError(mensaje_conflicto(conflicto.accion_sugerida))
 
-        desde_min = parse_hhmm(dto.desde) if dto.desde else None
-        hasta_min = parse_hhmm(dto.hasta) if dto.hasta else None
         duplicate_key = solicitud_key(dto, persona=persona, delegada_uuid=self._delegada_uuid(dto.persona_id))
         duplicate = self.buscar_duplicado(dto)
-        if duplicate is not None:
-            logger.debug("Duplicado detectado al agregar solicitud. nueva=%s existente_id=%s", duplicate_key, duplicate.id)
-            if duplicate.generated:
-                raise BusinessRuleError("Duplicado confirmado")
-            raise BusinessRuleError("Duplicado pendiente")
+        if duplicate is None:
+            return
+        logger.debug("Duplicado detectado al agregar solicitud. nueva=%s existente_id=%s", duplicate_key, duplicate.id)
+        raise BusinessRuleError(mensaje_duplicado_desde_estado(duplicate.generated))
 
+    def _crear_solicitud_y_saldos(self, dto: SolicitudDTO, persona: Persona) -> tuple[Solicitud, SaldosDTO]:
+        desde_min, hasta_min = rango_en_minutos(dto.desde, dto.hasta)
         minutos = _calcular_minutos(dto, persona)
-        notas = dto.notas if dto.notas is not None else dto.observaciones
-        solicitud = Solicitud(
-            id=None,
-            persona_id=dto.persona_id,
-            fecha_solicitud=dto.fecha_solicitud,
-            fecha_pedida=dto.fecha_pedida,
-            desde_min=desde_min,
-            hasta_min=hasta_min,
-            completo=dto.completo,
-            horas_solicitadas_min=minutos,
-            observaciones=dto.observaciones,
-            notas=notas,
-            pdf_path=dto.pdf_path,
-            pdf_hash=dto.pdf_hash,
-        )
+        solicitud = solicitud_desde_dto(dto, minutos=minutos, desde_min=desde_min, hasta_min=hasta_min)
         validar_solicitud(solicitud)
         creada = self._repo.create(solicitud)
         logger.info(
@@ -320,15 +315,7 @@ class SolicitudUseCases:
             dto.hasta,
         )
         year, month = _parse_year_month(dto.fecha_pedida)
-        saldos = self.calcular_saldos(dto.persona_id, year, month)
-        if correlation_id:
-            log_event(
-                logger,
-                "solicitud_create_succeeded",
-                {"solicitud_id": creada.id, "persona_id": creada.persona_id},
-                correlation_id,
-            )
-        return _solicitud_to_dto(creada), saldos
+        return creada, self.calcular_saldos(dto.persona_id, year, month)
 
     def _delegada_uuid(self, persona_id: int) -> str:
         delegada_uuid = self._persona_repo.get_or_create_uuid(persona_id)
