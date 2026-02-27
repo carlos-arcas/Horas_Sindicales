@@ -32,7 +32,6 @@ def _window_stub(*, form_valid: bool, form_message: str, selected_pending: list[
         _resolve_operativa_step=lambda form_valid, has_pending, selected_pending, can_confirm: 3 if selected_pending and can_confirm else (2 if has_pending or form_valid else 1),
         _set_operativa_step=lambda _step: None,
         _update_step_context=lambda _step: None,
-        _update_confirmation_summary=lambda _selected: None,
         agregar_button=_WidgetStub(),
         insertar_sin_pdf_button=_WidgetStub(),
         confirmar_button=_WidgetStub(),

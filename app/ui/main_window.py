@@ -47,7 +47,6 @@ class MainWindow:
         active_step = self._resolve_operativa_step(form_valid and not has_blocking_errors, has_pending, selected_pending, can_confirm)
         self._set_operativa_step(active_step)
         self._update_step_context(active_step)
-        self._update_confirmation_summary(selected_pending)
 
     def _update_stepper_state(
         self,

@@ -34,5 +34,6 @@ def test_main_window_incluye_shell_sin_cabecera_global() -> None:
     assert window.stacked_pages is not None
     assert window.statusBar() is not None
     assert getattr(window, "header_shell", None) is None
+    assert getattr(window, "confirmation_summary_label", None) is None
     window.close()
     app.processEvents()

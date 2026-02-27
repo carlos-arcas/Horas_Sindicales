@@ -396,7 +396,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.pendientes_table = self.huerfanas_table = None
         self.pendientes_model = self.huerfanas_model = None
         self.huerfanas_label = None
-        self.confirmation_summary_label = None
         self.sync_button = self.confirm_sync_button = None
         self.retry_failed_button = self.simulate_sync_button = self.review_conflicts_button = None
         self.go_to_sync_config_button = self.copy_sync_report_button = None
@@ -1617,7 +1616,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         has_pending = bool(self._pending_solicitudes)
         can_confirm = has_pending and not self._pending_conflict_rows and not has_blocking_errors
         self.insertar_sin_pdf_button.setEnabled(persona_selected and can_confirm)
-        selected_pending = self._selected_pending_solicitudes()
         pendientes_count = len(self._iterar_pendientes_en_tabla())
         self.confirmar_button.setEnabled(debe_habilitar_confirmar_pdf(pendientes_count))
         self.edit_persona_button.setEnabled(persona_selected)
@@ -1633,23 +1631,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.generar_pdf_button.setText(f"Exportar histórico PDF ({selected_count})")
         self._sync_historico_select_all_visible_state()
 
-        self._update_confirmation_summary(selected_pending)
         self._dump_estado_pendientes("after_update_action_state")
-
-    def _update_confirmation_summary(self, selected_pending: list[SolicitudDTO]) -> None:
-        if not selected_pending:
-            self.confirmation_summary_label.clear()
-            self.confirmation_summary_label.setVisible(False)
-            return
-
-        persona = self._current_persona()
-        delegada = persona.nombre if persona is not None else "Sin delegada"
-        modo = "Todas" if self._pending_view_all else f"Delegada: {delegada}"
-        total_min = self._sum_solicitudes_minutes(selected_pending)
-        self.confirmation_summary_label.setText(
-            f"Pendientes: {len(self._pending_solicitudes)} · Seleccionadas: {len(selected_pending)} · Modo: {modo} · Total: {self._format_minutes(total_min)}"
-        )
-        self.confirmation_summary_label.setVisible(True)
 
     def _selected_pending_solicitudes(self) -> list[SolicitudDTO]:
         selected_rows = self._selected_pending_row_indexes()
