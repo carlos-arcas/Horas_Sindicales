@@ -139,35 +139,55 @@ Ejecución manual equivalente:
 PYTHONPATH=. pytest -q
 ```
 
-Separación equivalente a CI:
+## Calidad y CI
+
+El pipeline de CI se divide en tres carriles:
+
+- **CORE (bloqueante):** lint + tests `-m "not ui"` + coverage de capas core (`domain/application/infrastructure/bootstrap/configuracion/core/entrypoints/pdf`).
+- **UI_SMOKE (bloqueante):** subset estable de UI que valida arranque/sanidad Qt en modo headless mínimo (`QT_QPA_PLATFORM=minimal`, sin rendering real).
+- **UI_EXTENDED (no bloqueante):** suite UI completa en Linux con dependencias gráficas (`xvfb`, `libgl`, libs `xcb`) para detección de regresiones más amplias.
+
+¿Por qué `UI_EXTENDED` es opcional?
+
+- La suite UI completa depende de stack gráfico del runner (libGL/xcb), más frágil y costoso.
+- El objetivo del carril bloqueante es proteger regresiones críticas con señales estables; la validación extendida se mantiene para observabilidad adicional sin bloquear entrega.
+
+Separación equivalente a CI en local:
 
 ```bash
-# Core (obligatorio en CI): lint + tests no-UI + coverage
+# CORE (bloqueante en CI)
 ruff check .
-pytest -q -m "not ui" --cov=app --cov-report=term-missing --cov-fail-under=$(python -c "import json;print(json.load(open('.config/quality_gate.json', encoding='utf-8'))['coverage_fail_under'])")
+COVERAGE_FAIL_UNDER=$(python -c "import json; d=json.load(open('.config/quality_gate.json', encoding='utf-8')); print(d.get('coverage_fail_under_core', d['coverage_fail_under']))")
+COVERAGE_TARGETS=$(python -c "import json; d=json.load(open('.config/quality_gate.json', encoding='utf-8')); print(' '.join(f'--cov={x}' for x in d.get('core_coverage_targets', ['app'])))")
+pytest -q -m "not ui" ${COVERAGE_TARGETS} --cov-report=term-missing --cov-fail-under=${COVERAGE_FAIL_UNDER}
 
-# UI (job independiente en CI, ejecutado con xvfb)
-xvfb-run -a pytest -q tests/ui
+# UI_SMOKE (bloqueante)
+QT_QPA_PLATFORM=minimal QT_OPENGL=software LIBGL_ALWAYS_SOFTWARE=1 RUN_UI_TESTS=1 \
+pytest -q tests/ui/test_qt_sanity.py tests/ui/test_ui_smoke_startup.py tests/ui/test_models_qt_smoke.py
+
+# UI_EXTENDED (opcional, requiere stack gráfico)
+RUN_UI_TESTS=1 QT_QPA_PLATFORM=offscreen QT_OPENGL=software xvfb-run -a pytest -q tests/ui
 ```
 
-## Quality Gate
+### Quality gate
 
-Este proyecto bloquea merges si:
-- Tests fallan
-- Cobertura mínima no se alcanza
-- Lint detecta errores
+El gate de calidad mide y bloquea por:
 
-El umbral actual de cobertura se define en `.config/quality_gate.json` (clave `coverage_fail_under`) y hoy es **63%**.
-Consulta la política en `docs/coverage_policy.md`.
+- Estado de tests core.
+- Cobertura mínima **CORE >= 70%** (sin incluir `app/ui` en el cálculo bloqueante).
+- Estado de lint (`ruff check`).
+
+Además, el pipeline genera un reporte reproducible (`scripts/report_quality.py`) con:
+
+- Top 20 archivos por LOC.
+- Top 20 por complejidad (con `radon`; fallback simple por LOC si no está disponible).
+- Coverage por paquete: `domain`, `application`, `infrastructure`, `ui`.
 
 Comando local recomendado:
+
 ```bash
 make gate
 ```
-
-Para subir el umbral, crea un PR que aumente `coverage_fail_under` tras validar una cobertura total mayor en CI (redondeada hacia abajo).
-
-
 
 ## Observabilidad y Correlation ID
 
