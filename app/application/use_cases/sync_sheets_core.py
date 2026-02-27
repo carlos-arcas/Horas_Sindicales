@@ -234,6 +234,39 @@ def canonical_remote_solicitud_estado(row: dict[str, Any], worksheet_name: str) 
     return ""
 
 
+def _normalize_dates(payload: dict[str, Any], row: dict[str, Any]) -> None:
+    payload["fecha"] = normalize_date(row.get("fecha") or row.get("fecha_pedida")) or ""
+    payload["created_at"] = normalize_date(row.get("created_at")) or payload["fecha"] or ""
+
+
+def _normalize_numeric_fields(payload: dict[str, Any], row: dict[str, Any]) -> None:
+    if row.get("minutos_total") in (None, "") and row.get("horas") not in (None, ""):
+        payload["minutos_total"] = int_or_zero(row.get("horas"))
+    payload["desde_h"], payload["desde_m"], payload["hasta_h"], payload["hasta_m"] = (
+        canonical_remote_solicitud_time_parts(row)
+    )
+
+
+def _normalize_text_fields(payload: dict[str, Any], row: dict[str, Any], worksheet_name: str) -> None:
+    payload["delegada_uuid"], payload["delegada_nombre"] = canonical_remote_solicitud_person_fields(row)
+    payload["estado"] = canonical_remote_solicitud_estado(row, worksheet_name)
+
+
+def _validate_required_fields(payload: dict[str, Any]) -> None:
+    required_fields = (
+        "uuid",
+        "delegada_uuid",
+        "delegada_nombre",
+        "fecha",
+        "estado",
+        "created_at",
+        "updated_at",
+    )
+    for field in required_fields:
+        if payload.get(field) is None:
+            payload[field] = ""
+
+
 def normalize_remote_solicitud_row(row: dict[str, Any], worksheet_name: str) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "uuid": row.get("uuid") or "",
@@ -257,16 +290,8 @@ def normalize_remote_solicitud_row(row: dict[str, Any], worksheet_name: str) -> 
         "deleted": row.get("deleted") or "",
         "pdf_id": row.get("pdf_id") or "",
     }
-    payload["fecha"] = normalize_date(row.get("fecha") or row.get("fecha_pedida")) or ""
-    payload["created_at"] = normalize_date(row.get("created_at")) or payload["fecha"] or ""
-    if row.get("minutos_total") in (None, "") and row.get("horas") not in (None, ""):
-        payload["minutos_total"] = int_or_zero(row.get("horas"))
-
-    payload["delegada_uuid"], payload["delegada_nombre"] = canonical_remote_solicitud_person_fields(row)
-
-    payload["desde_h"], payload["desde_m"], payload["hasta_h"], payload["hasta_m"] = (
-        canonical_remote_solicitud_time_parts(row)
-    )
-
-    payload["estado"] = canonical_remote_solicitud_estado(row, worksheet_name)
+    _normalize_dates(payload, row)
+    _normalize_numeric_fields(payload, row)
+    _normalize_text_fields(payload, row, worksheet_name)
+    _validate_required_fields(payload)
     return payload
