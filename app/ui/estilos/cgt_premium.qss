@@ -161,6 +161,22 @@ QPushButton[variant="secondary"]:hover, QPushButton[role="secondary"]:hover {
     background-color: #F5F5F5;
 }
 
+QPushButton[variant="success"] {
+    background-color: #2E9E5B;
+    color: #FFFFFF;
+    border: 1px solid #2E9E5B;
+}
+
+QPushButton[variant="success"]:hover {
+    background-color: #26834C;
+    border-color: #26834C;
+}
+
+QPushButton[variant="success"]:pressed {
+    background-color: #1E6A3D;
+    border-color: #1E6A3D;
+}
+
 QPushButton[variant="danger"], QPushButton[intent="destructive"] {
     background-color: #8A0014;
     color: #FFFFFF;

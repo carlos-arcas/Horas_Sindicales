@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
 from typing import Any
 from unittest.mock import Mock
@@ -96,3 +97,12 @@ def test_solicitudes_pull_source_titles_raises_when_no_supported_sheets(connecti
 
     with pytest.raises(SheetsConfigError):
         service._solicitudes_pull_source_titles(object())
+
+
+def test_get_last_sync_at_returns_none_when_sync_state_table_is_missing() -> None:
+    raw_connection = sqlite3.connect(":memory:")
+    raw_connection.row_factory = sqlite3.Row
+    raw_connection.execute("CREATE TABLE sync_config (key TEXT PRIMARY KEY, value TEXT)")
+    service = _build_service(raw_connection)
+
+    assert service.get_last_sync_at() is None

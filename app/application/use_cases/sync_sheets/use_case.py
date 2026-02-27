@@ -262,7 +262,15 @@ class SheetsSyncService:
 
     def _get_last_sync_at(self) -> str | None:
         cursor = self._connection.cursor()
-        cursor.execute("SELECT last_sync_at FROM sync_state WHERE id = 1")
+        try:
+            cursor.execute("SELECT last_sync_at FROM sync_state WHERE id = 1")
+        except Exception as exc:
+            # CI y pruebas aisladas pueden inicializar una conexión sin migraciones.
+            # Devolvemos None para mantener la app operativa sin romper el arranque.
+            if "no such table: sync_state" in str(exc).lower():
+                logger.warning("sync_state table missing; returning empty last_sync_at")
+                return None
+            raise
         row = cursor.fetchone()
         if not row:
             return None
