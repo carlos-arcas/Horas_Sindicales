@@ -219,9 +219,13 @@ Ejemplo de búsqueda local:
 rg '"correlation_id": "<ID>"' -n .
 ```
 
-## Auditoría técnica
+## Auditorías y roadmap
 
-Ver `docs/auditoria_senior.md` para el análisis completo, roadmap y scorecard.
+- `docs/auditoria_general.md` (evaluación técnica consolidada y mapa de riesgos).
+- `docs/auditoria_portfolio.md` (narrativa de portfolio para recruiter/hiring manager).
+- `docs/auditoria_senior.md` (análisis senior complementario).
+- `docs/roadmap_senior.md` (plan de seniorización con KPIs y backlog por fases).
+- `docs/docs_style_guide.md` (estándar documental del repositorio).
 
 ## Cómo correr auditoría de producto
 
@@ -238,6 +242,32 @@ python scripts/product_audit.py --auto --out docs/auditoria_producto.md --json-o
 ```
 
 Esto genera `docs/auditoria_producto.md` y un snapshot versionado en `docs/audits/`.
+
+
+## Evidence-based claims (cómo se valida)
+
+Las afirmaciones técnicas de este README se validan con artefactos y comandos reproducibles:
+
+```bash
+# 1) Ver carriles CI y qué bloquea release
+sed -n "1,220p" .github/workflows/ci.yml
+
+# 2) Ver umbral de cobertura CORE
+cat .config/quality_gate.json
+
+# 3) Ejecutar quality gate local
+make gate
+
+# 4) Ejecutar tests core equivalentes al carril bloqueante
+COVERAGE_FAIL_UNDER=$(python -c "import json; d=json.load(open('.config/quality_gate.json', encoding='utf-8')); print(d.get('coverage_fail_under_core', d['coverage_fail_under']))")
+COVERAGE_TARGETS=$(python -c "import json; d=json.load(open('.config/quality_gate.json', encoding='utf-8')); print(' '.join(f'--cov={x}' for x in d.get('core_coverage_targets', ['app'])))")
+pytest -q -m "not ui" ${COVERAGE_TARGETS} --cov-report=term-missing --cov-fail-under=${COVERAGE_FAIL_UNDER}
+
+# 5) Inspeccionar hotspots (LOC/complejidad/cobertura por paquete)
+python scripts/report_quality.py --out logs/quality_report.txt
+```
+
+Si una métrica no está disponible como artefacto en repositorio (por ejemplo, SLO productivos en producción), debe tratarse como **asunción** y documentar cómo instrumentarla.
 
 ## Documentación mínima obligatoria
 
