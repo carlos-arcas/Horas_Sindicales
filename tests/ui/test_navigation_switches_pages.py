@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import pytest
+from tests.ui.conftest import require_qt
 
 qt = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
-QApplication = qt.QApplication
+QApplication = require_qt()
 QListWidget = qt.QListWidget
 QStackedWidget = qt.QStackedWidget
 QWidget = qt.QWidget

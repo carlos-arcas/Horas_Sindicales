@@ -5,8 +5,9 @@ from unittest.mock import Mock
 
 import logging
 import pytest
+from tests.ui.conftest import require_qt
 
-pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
+require_qt()
 
 from app.ui.vistas.main_window_vista import MainWindow
 

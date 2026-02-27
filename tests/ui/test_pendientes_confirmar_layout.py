@@ -3,11 +3,12 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+from tests.ui.conftest import require_qt
 
 qt = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
 Qt = qt.Qt
 widgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
-QApplication = widgets.QApplication
+QApplication = require_qt()
 QFrame = widgets.QFrame
 QLabel = widgets.QLabel
 

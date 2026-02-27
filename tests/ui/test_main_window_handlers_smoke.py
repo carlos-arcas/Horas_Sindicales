@@ -3,8 +3,9 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+from tests.ui.conftest import require_qt
 
-QApplication = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError).QApplication
+QApplication = require_qt()
 QMessageBox = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError).QMessageBox
 
 from app.bootstrap.container import build_container

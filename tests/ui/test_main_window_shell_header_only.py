@@ -3,9 +3,10 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+from tests.ui.conftest import require_qt
 
 qtwidgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
-QApplication = qtwidgets.QApplication
+QApplication = require_qt()
 QPushButton = qtwidgets.QPushButton
 
 from app.bootstrap.container import build_container
