@@ -42,8 +42,6 @@ def _window_stub(*, form_valid: bool, form_message: str, selected_pending: list[
         editar_pdf_button=_WidgetStub(),
         eliminar_button=_WidgetStub(),
         eliminar_pendiente_button=_WidgetStub(),
-        ver_detalle_button=_WidgetStub(),
-        resync_historico_button=_WidgetStub(),
         generar_pdf_button=_WidgetStub(),
         stepper_labels=stepper,
             )
