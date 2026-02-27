@@ -42,3 +42,6 @@ class SyncSheetsUseCase:
 
     def store_sync_config_value(self, key: str, value: str) -> None:
         self._sync_port.store_sync_config_value(key, value)
+
+    def ensure_connection(self) -> None:
+        self._sync_port.ensure_connection()

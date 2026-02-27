@@ -25,8 +25,6 @@ class OperationFeedback:
     timestamp: str | None = None
     result_id: str | None = None
     details: list[str] | None = None
-    action_label: str | None = None
-    action_callback: Callable[[], None] | None = None
 
 
 @dataclass(slots=True)
@@ -106,8 +104,6 @@ class NotificationService:
             timestamp=feedback.timestamp or datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
             result_id=feedback.result_id or self._next_result_id(),
             details=feedback.details,
-            action_label=feedback.action_label,
-            action_callback=feedback.action_callback,
         )
 
     def _status_to_toast_level(self, status: str) -> str:
@@ -131,8 +127,6 @@ class NotificationService:
             level=self._status_to_toast_level(normalized.status),
             title=normalized.title,
             duration_ms=7000,
-            action_label="Ver detalle",
-            action_callback=lambda: self.show_operation_details(normalized),
         )
         if show_details:
             self.show_operation_details(normalized)
@@ -152,8 +146,6 @@ class NotificationService:
         dialog = OperationFeedbackDialog(
             normalized.title,
             detail_lines,
-            action_label=normalized.action_label,
-            action_callback=normalized.action_callback,
             parent=self._parent,
         )
         dialog.exec()
@@ -171,8 +163,6 @@ class NotificationService:
                 affected_count=1,
                 incidents="Sin incidencias.",
                 next_step="Revisar pendientes o añadir otra solicitud.",
-                action_label="Deshacer",
-                action_callback=on_undo,
             )
         )
 

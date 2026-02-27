@@ -56,6 +56,9 @@ class SyncSheetsAdapter(SheetsSyncPort):
     def register_pdf_log(self, persona_id: int, fechas: list[str], pdf_hash: str | None) -> None:
         self._run_with_connection(lambda service: service.register_pdf_log(persona_id, fechas, pdf_hash))
 
+    def ensure_connection(self) -> None:
+        self._run_with_connection(lambda service: service.ensure_connection())
+
     def _run_with_connection(self, operation):
         connection = self._connection_factory()
         try:

@@ -294,15 +294,16 @@ class ToastManager(QWidget):
             return
         normalized_level = level if level in LEVELS else "info"
         duration_value = DEFAULT_DURATIONS_MS[normalized_level] if duration_ms is None else int(duration_ms)
-        req = ToastRequest(
-            message=message,
-            level=normalized_level,
-            title=title,
-            duration_ms=duration_value,
-            close_on_click=bool(opts.get("close_on_click", True)),
-            action_label=opts.get("action_label") if isinstance(opts.get("action_label"), str) else None,
-            action_callback=opts.get("action_callback") if callable(opts.get("action_callback")) else None,
-        )
+        payload = {
+            "message": message,
+            "level": normalized_level,
+            "title": title,
+            "duration_ms": duration_value,
+            "close_on_click": bool(opts.get("close_on_click", True)),
+            "action_label": opts.get("action_label") if isinstance(opts.get("action_label"), str) else None,
+            "action_callback": opts.get("action_callback") if callable(opts.get("action_callback")) else None,
+        }
+        req = ToastRequest(**payload)
         self._enqueue_or_spawn(req)
 
     def show_info(
@@ -369,16 +370,17 @@ class ToastManager(QWidget):
         self._queue.append(request)
 
     def _spawn_toast(self, request: ToastRequest) -> None:
-        toast = ToastWidget(
-            message=request.message,
-            level=request.level,
-            title=request.title,
-            duration_ms=request.duration_ms,
-            close_on_click=request.close_on_click,
-            action_label=request.action_label,
-            action_callback=request.action_callback,
-            parent=self,
-        )
+        toast_payload = {
+            "message": request.message,
+            "level": request.level,
+            "title": request.title,
+            "duration_ms": request.duration_ms,
+            "close_on_click": request.close_on_click,
+            "action_label": request.action_label,
+            "action_callback": request.action_callback,
+            "parent": self,
+        }
+        toast = ToastWidget(**toast_payload)
         toast.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
         toast.closed.connect(self._on_toast_finished)
         self._active_toasts.append(toast)
