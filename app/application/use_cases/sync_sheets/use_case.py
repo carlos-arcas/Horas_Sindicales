@@ -24,6 +24,10 @@ from app.application.use_cases.sync_sheets.helpers import (
     sync_local_cuadrantes_from_personas,
 )
 from app.application.use_cases.sync_sheets import payloads_puros
+from app.application.use_cases.sync_sheets.action_planning import plan_pull_solicitud_action
+from app.application.use_cases.sync_sheets.conflict_policy import is_conflict as conflict_policy_is_conflict
+from app.application.use_cases.sync_sheets.normalization_rules import normalize_remote_solicitud_row, normalize_remote_uuid
+from app.application.use_cases.sync_sheets.persona_resolution_rules import build_persona_resolution_plan
 from app.application.use_cases.sync_sheets.planner import build_plan
 from app.application.use_cases.sync_sheets.sync_sheets_helpers import (
     execute_with_validation,
@@ -396,7 +400,7 @@ class SheetsSyncService:
         try:
             for row_number, raw_row in rows:
                 self._set_pull_solicitud_samples(stats, raw_row)
-                row = self._normalize_remote_solicitud_row(raw_row, worksheet_name)
+                row = normalize_remote_solicitud_row(raw_row, worksheet_name)
                 if stats["sample_fecha_after"] is None:
                     stats["sample_fecha_after"] = str(row.get("fecha") or "")
                 self._process_pull_solicitud_row(worksheet, headers, row_number, row, last_sync_at, stats)
@@ -423,53 +427,54 @@ class SheetsSyncService:
         last_sync_at: str | None,
         stats: dict[str, Any],
     ) -> None:
-        uuid_value = str(row.get("uuid", "")).strip()
-        if not uuid_value:
-            self._handle_pull_solicitud_without_uuid(worksheet, headers, row_number, row, stats)
-            return
-        self._handle_pull_solicitud_with_uuid(uuid_value, row, last_sync_at, stats)
+        uuid_value = normalize_remote_uuid(row.get("uuid"))
+        existing = self._find_solicitud_by_composite_key(row) if not uuid_value else None
+        local_row = self._fetch_solicitud(uuid_value) if uuid_value else None
+        remote_updated_at = self._parse_iso(row.get("updated_at")) if uuid_value else None
+        skip_duplicate = bool(uuid_value and local_row is None and self._skip_pull_duplicate(uuid_value, row, stats))
+        action = plan_pull_solicitud_action(
+            has_uuid=bool(uuid_value),
+            has_existing_for_empty_uuid=existing is not None,
+            has_local_uuid=local_row is not None,
+            skip_duplicate=skip_duplicate,
+            conflict_detected=bool(local_row and self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at)),
+            remote_is_newer=bool(local_row and self._is_remote_newer(local_row["updated_at"], remote_updated_at)),
+        )
+        self._apply_pull_solicitud_plan(action, worksheet, headers, row_number, row, uuid_value, existing, local_row, stats)
 
-    def _handle_pull_solicitud_without_uuid(
-        self, worksheet: Any, headers: list[str], row_number: int, row: dict[str, Any], stats: dict[str, Any]
+    def _apply_pull_solicitud_plan(
+        self,
+        action: str,
+        worksheet: Any,
+        headers: list[str],
+        row_number: int,
+        row: dict[str, Any],
+        uuid_value: str,
+        existing: Any | None,
+        local_row: Any | None,
+        stats: dict[str, Any],
     ) -> None:
-        existing = self._find_solicitud_by_composite_key(row)
-        if existing is not None:
+        if action == "backfill_without_uuid":
             stats["omitted_duplicates"] += 1
-            uuid_value = str(existing["uuid"] or "").strip()
-        else:
-            uuid_value = self._generate_uuid()
-            self._accumulate_write_result(
-                stats,
-                self._insert_solicitud_from_remote(uuid_value, row),
-                "inserted_ws",
-            )
-        if self._enable_backfill:
-            self._backfill_uuid(worksheet, headers, row_number, "uuid", uuid_value)
-
-    def _handle_pull_solicitud_with_uuid(
-        self, uuid_value: str, row: dict[str, Any], last_sync_at: str | None, stats: dict[str, Any]
-    ) -> None:
-        remote_updated_at = self._parse_iso(row.get("updated_at"))
-        local_row = self._fetch_solicitud(uuid_value)
-        if local_row is None:
-            if self._skip_pull_duplicate(uuid_value, row, stats):
-                return
-            self._accumulate_write_result(
-                stats,
-                self._insert_solicitud_from_remote(uuid_value, row),
-                "inserted_ws",
-            )
+            existing_uuid = str(existing["uuid"] or "").strip() if existing is not None else ""
+            if self._enable_backfill and existing_uuid:
+                self._backfill_uuid(worksheet, headers, row_number, "uuid", existing_uuid)
             return
-        if self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at):
+        if action == "insert_without_uuid":
+            generated_uuid = self._generate_uuid()
+            self._accumulate_write_result(stats, self._insert_solicitud_from_remote(generated_uuid, row), "inserted_ws")
+            if self._enable_backfill:
+                self._backfill_uuid(worksheet, headers, row_number, "uuid", generated_uuid)
+            return
+        if action == "insert_with_uuid":
+            self._accumulate_write_result(stats, self._insert_solicitud_from_remote(uuid_value, row), "inserted_ws")
+            return
+        if action == "store_conflict" and local_row is not None:
             self._store_conflict("solicitudes", uuid_value, dict(local_row), row)
             stats["conflicts"] += 1
             return
-        if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
-            self._accumulate_write_result(
-                stats,
-                self._update_solicitud_from_remote(local_row["id"], row),
-                "updated_ws",
-            )
+        if action == "update_local" and local_row is not None:
+            self._accumulate_write_result(stats, self._update_solicitud_from_remote(local_row["id"], row), "updated_ws")
 
     def _skip_pull_duplicate(self, uuid_value: str, row: dict[str, Any], stats: dict[str, Any]) -> bool:
         duplicate_key = self._solicitud_dedupe_key_from_remote_row(row)
@@ -522,13 +527,6 @@ class SheetsSyncService:
         selected_titles = titles or self._solicitudes_pull_source_titles(spreadsheet)
         return [(title, self._get_worksheet(spreadsheet, title)) for title in selected_titles]
 
-
-    def _normalize_remote_solicitud_row(self, row: dict[str, Any], worksheet_name: str) -> dict[str, Any]:
-        return sync_sheets_core.normalize_remote_solicitud_row(row, worksheet_name)
-
-    @staticmethod
-    def _remote_hhmm(hours: Any, minutes: Any, full_value: Any) -> str | None:
-        return sync_sheets_core.remote_hhmm(hours, minutes, full_value)
 
     def _pull_cuadrantes(
         self, spreadsheet: Any, last_sync_at: str | None
@@ -964,7 +962,7 @@ class SheetsSyncService:
         nombre = payloads_puros.valor_normalizado(row.get("nombre"))
         by_uuid = self._fetch_persona(persona_uuid) if persona_uuid else None
         by_nombre = self._fetch_persona_by_nombre(nombre) if nombre else None
-        plan = payloads_puros.resolver_persona_accion(persona_uuid, nombre, by_uuid, by_nombre)
+        plan = build_persona_resolution_plan(persona_uuid, nombre, by_uuid, by_nombre)
         return self._apply_persona_resolution(plan, row, nombre)
 
     def _apply_persona_resolution(
@@ -1476,7 +1474,7 @@ class SheetsSyncService:
     def _is_conflict(
         self, local_updated_at: str | None, remote_updated_at: datetime | None, last_sync_at: str | None
     ) -> bool:
-        return sync_sheets_core.is_conflict(local_updated_at, remote_updated_at, last_sync_at)
+        return conflict_policy_is_conflict(local_updated_at, remote_updated_at, last_sync_at)
 
     def _is_remote_newer(self, local_updated_at: str | None, remote_updated_at: datetime | None) -> bool:
         return sync_sheets_core.is_remote_newer(local_updated_at, remote_updated_at)
