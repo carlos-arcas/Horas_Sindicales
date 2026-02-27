@@ -43,6 +43,8 @@ PYTHONPATH=. pytest -q
 
 ## Cobertura
 
+Consulta también la política contractual y el roadmap de umbrales en `docs/coverage_policy.md`.
+
 Para medir cobertura explícitamente, usar `pytest` con `--cov`:
 
 ```bash

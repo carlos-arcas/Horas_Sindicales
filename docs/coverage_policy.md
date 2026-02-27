@@ -1,36 +1,75 @@
-# Política de cobertura
+# Política de cobertura CORE
 
-## Fuente única de verdad
+## Contrato de cobertura
 
-El umbral de cobertura del proyecto vive únicamente en `.config/quality_gate.json` bajo la clave `coverage_fail_under_core` (fallback `coverage_fail_under`).
+La fuente única de verdad del quality gate es `.config/quality_gate.json`.
 
-Umbral actual CORE: **70%** (sin incluir `app/ui` en el gate bloqueante).
+- Clave activa: `coverage_fail_under_core`.
+- Fallback de compatibilidad: `coverage_fail_under`.
+- Umbral actual (fase 1): **80%**.
+- Objetivo contractual final: **85%**.
 
-## Ejecución del gate
+Roadmap incremental del umbral:
 
-El gate de calidad se ejecuta con:
+1. **80%** (PR#1: setup + contrato + documentación)
+2. **83%** (PR#2: subida con batería de tests adicional)
+3. **85%** (objetivo final de portfolio)
+
+## Qué incluye CORE
+
+El cálculo CORE se limita a las capas no UI definidas en `core_coverage_targets`:
+
+- `app/domain`
+- `app/application`
+- `app/infrastructure`
+- `app/bootstrap`
+- `app/configuracion`
+- `app/core`
+- `app/entrypoints`
+- `app/pdf`
+
+Regla: `app/ui` queda fuera del umbral bloqueante CORE.
+
+## Ejecución reproducible
+
+### CLI (Windows/Linux/macOS)
 
 ```bash
 python scripts/quality_gate.py
 ```
 
-Este script:
+### Windows (doble clic)
 
-- Lee el umbral desde `.config/quality_gate.json`.
-- Ejecuta `ruff check .`.
-- Ejecuta `pytest -q -m "not ui"` con targets de cobertura configurables en
-  `core_coverage_targets` y `--cov-fail-under=<valor>`.
+```bat
+quality_gate.bat
+```
 
-## Cómo subir el umbral
+### Flujo de tests recomendado en Windows
 
-Para elevar cobertura mínima:
+```bat
+ejecutar_tests.bat
+menu_validacion.bat
+```
 
-1. Sube cobertura real en CI con nuevos tests.
-2. Redondea hacia abajo el total reportado (ej: `67.3 -> 67`).
-3. Abre un PR que incremente `coverage_fail_under_core` en `.config/quality_gate.json`.
+## Fallos de prerequisitos (mensaje esperado)
 
-## Reglas
+El script `scripts/quality_gate.py` valida prerequisitos antes de correr `pytest --cov`:
 
-- Prohibido hardcodear `--cov-fail-under` en CI, Makefile o scripts de release.
-- El valor solo puede definirse en `.config/quality_gate.json`.
-- No se baja el umbral una vez incrementado.
+1. Comprueba que `pytest` esté instalado.
+2. Comprueba que `pytest-cov` esté disponible.
+
+Si falta `pytest-cov`, aborta con código distinto de 0 y mensaje claro:
+
+> `Falta pytest-cov. Instala dependencias dev: pip install -r requirements-dev.txt`
+
+## Recuperación ante fallo por dependencias
+
+1. Activar entorno virtual.
+2. Instalar dependencias base y dev:
+
+```bash
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+
+3. Reejecutar `python scripts/quality_gate.py`.
