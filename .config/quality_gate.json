@@ -1,6 +1,6 @@
 {
-  "coverage_fail_under": 70,
-  "coverage_fail_under_core": 70,
+  "coverage_fail_under": 80,
+  "coverage_fail_under_core": 80,
   "core_coverage_targets": [
     "app/domain",
     "app/application",
