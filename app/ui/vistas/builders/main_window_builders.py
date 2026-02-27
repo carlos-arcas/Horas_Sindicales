@@ -499,24 +499,26 @@ def build_main_window_widgets(window: "MainWindow") -> None:
 
     window.historico_export_hint_label = QLabel("Para exportar, selecciona los registros que quieras exportar.")
     window.historico_export_hint_label.setProperty("role", "secondary")
+    window.historico_export_hint_label.setStyleSheet("font-size: 11px;")
     historico_details_layout.addWidget(window.historico_export_hint_label)
 
     historico_actions = QHBoxLayout()
     historico_actions.setSpacing(10)
+    window.historico_actions_layout = historico_actions
     window.eliminar_button = QPushButton("Eliminar (0)")
     window.eliminar_button.setProperty("variant", "primary")
     window.eliminar_button.setProperty("intent", "destructive")
     window.eliminar_button.clicked.connect(window._on_eliminar)
     historico_actions.addWidget(window.eliminar_button)
 
-    window.historico_select_all_visible_check = QCheckBox("Seleccionar todo (visible)")
-    window.historico_select_all_visible_check.toggled.connect(window._on_historico_select_all_visible_toggled)
-    historico_actions.addWidget(window.historico_select_all_visible_check)
-
     window.generar_pdf_button = QPushButton("Exportar histórico PDF (0)")
     window.generar_pdf_button.setProperty("variant", "secondary")
     window.generar_pdf_button.clicked.connect(window._on_generar_pdf_historico)
     historico_actions.addWidget(window.generar_pdf_button)
+
+    window.historico_select_all_visible_check = QCheckBox("Seleccionar todo (visible)")
+    window.historico_select_all_visible_check.toggled.connect(window._on_historico_select_all_visible_toggled)
+    historico_actions.addWidget(window.historico_select_all_visible_check)
 
     historico_actions.addStretch(1)
 

@@ -118,7 +118,6 @@ try:
         apply_historico_default_range,
         apply_historico_filters,
         apply_historico_last_30_days,
-        clear_historico_filters,
         on_generar_pdf_historico,
         on_historico_apply_filters,
         on_historico_periodo_mode_changed,
@@ -154,8 +153,8 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     on_confirmar = on_insertar_sin_pdf = prompt_confirm_pdf_path = _qt_unavailable
     show_confirmation_closure = show_pdf_actions_dialog = sum_solicitudes_minutes = undo_confirmation = _qt_unavailable
     apply_historico_default_range = apply_historico_filters = apply_historico_last_30_days = _qt_unavailable
-    clear_historico_filters = on_generar_pdf_historico = on_historico_apply_filters = _qt_unavailable
-    on_historico_periodo_mode_changed = on_open_historico_detalle = on_resync_historico = _qt_unavailable
+    on_generar_pdf_historico = on_historico_apply_filters = _qt_unavailable
+    on_historico_periodo_mode_changed = on_open_historico_detalle = _qt_unavailable
     abrir_archivo_local = _qt_unavailable
     build_estado_pendientes_debug_payload = build_historico_filters_payload = _qt_unavailable
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
@@ -1037,9 +1036,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _on_historico_apply_filters(self) -> None:
         on_historico_apply_filters(self)
-
-    def _clear_historico_filters(self) -> None:
-        clear_historico_filters(self)
 
     def _on_open_saldos_modal(self) -> None:
         logger.info("UI_SALDOS_MODAL_OPEN")

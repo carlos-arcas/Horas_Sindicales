@@ -74,19 +74,6 @@ def on_historico_apply_filters(window: Any) -> None:
     window._apply_historico_filters()
 
 
-def clear_historico_filters(window: Any) -> None:
-    logger.info("UI_HISTORICO_CLEAR_FILTERS")
-    window.historico_todas_delegadas_check.setChecked(True)
-    window.historico_delegada_combo.setCurrentIndex(0)
-    window.historico_periodo_rango_radio.setChecked(True)
-    window.historico_periodo_anual_spin.setValue(QDate.currentDate().year())
-    window.historico_periodo_mes_ano_spin.setValue(QDate.currentDate().year())
-    window.historico_periodo_mes_combo.setCurrentIndex(QDate.currentDate().month() - 1)
-    window._apply_historico_default_range()
-    window._on_historico_periodo_mode_changed()
-    window._apply_historico_filters()
-
-
 def on_generar_pdf_historico(window: Any) -> None:
     persona = window._current_persona()
     if persona is None:
@@ -166,12 +153,3 @@ def on_open_historico_detalle(window: Any) -> None:
     dialog = window._historico_detalle_dialog_class(payload, window)
     dialog.exec()
 
-
-def on_resync_historico(window: Any) -> None:
-    selected_count = len(window._selected_historico_solicitudes())
-    if selected_count == 0:
-        return
-    window.toast.info(
-        f"Re-sincronización preparada para {selected_count} solicitud(es). Ejecuta Sincronizar para completar.",
-        title="Histórico",
-    )
