@@ -12,7 +12,7 @@
 09. app/infrastructure/repos_conflicts_sqlite.py -> 343 LOC
 10. app/ui/conflicts_dialog.py -> 331 LOC
 11. app/application/use_cases/sync_sheets_core.py -> 276 LOC
-12. app/infrastructure/sheets_client.py -> 266 LOC
+12. app/infrastructure/sheets_client.py -> 271 LOC
 13. app/ui/person_dialog.py -> 258 LOC
 14. app/pdf/pdf_builder.py -> 254 LOC
 15. app/ui/historico_view.py -> 253 LOC
@@ -35,7 +35,7 @@
 09. app/infrastructure/repos_conflicts_sqlite.py -> 343
 10. app/ui/conflicts_dialog.py -> 331
 11. app/application/use_cases/sync_sheets_core.py -> 276
-12. app/infrastructure/sheets_client.py -> 266
+12. app/infrastructure/sheets_client.py -> 271
 13. app/ui/person_dialog.py -> 258
 14. app/pdf/pdf_builder.py -> 254
 15. app/ui/historico_view.py -> 253

@@ -61,3 +61,15 @@ def _normalize_from_list(
     for range_name, values in zip(ranges, values_by_range):
         mapped[range_name] = values if isinstance(values, list) else []
     return mapped
+
+
+def should_retry_rate_limit(attempt: int, max_retries: int) -> bool:
+    return attempt < max_retries
+
+
+def write_backoff_seconds(attempt: int) -> int:
+    return 2 ** (attempt - 1)
+
+
+def read_backoff_seconds(attempt: int, base_seconds: int) -> int:
+    return base_seconds * (2 ** (attempt - 1))
