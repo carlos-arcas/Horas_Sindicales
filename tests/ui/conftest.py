@@ -32,4 +32,9 @@ def pytest_collection_modifyitems(config, items):
 
     skip_qt = pytest.mark.skip(reason="PySide6 no disponible correctamente en entorno CI")
     for item in items:
-        item.add_marker(skip_qt)
+        nodeid = item.nodeid
+        is_ui_path = nodeid.startswith("tests/ui/") or "/tests/ui/" in nodeid
+        has_ui_marker = item.get_closest_marker("qt") or item.get_closest_marker("ui")
+
+        if is_ui_path or has_ui_marker:
+            item.add_marker(skip_qt)
