@@ -51,7 +51,6 @@ from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, Soli
 from app.application.use_cases.solicitudes.validaciones import (
     clave_duplicado_solicitud,
     detectar_duplicados_en_pendientes,
-    validar_seleccion_confirmacion,
 )
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.request_time import validate_request_inputs
@@ -87,7 +86,7 @@ from app.ui.sync_reporting import (
     persist_report,
     to_markdown,
 )
-from app.core.observability import OperationContext, log_event
+from app.core.observability import OperationContext
 from app.ui.workers.sincronizacion_workers import PushWorker
 from app.bootstrap.logging import log_operational_error
 from app.ui.vistas.main_window_health_mixin import MainWindowHealthMixin
@@ -98,6 +97,32 @@ from app.ui.vistas.builders.main_window_builders import (
     build_status_bar,
 )
 from app.ui.vistas.confirmar_pdf_state import debe_habilitar_confirmar_pdf
+from app.ui.vistas.confirmacion_actions import (
+    ask_push_after_pdf,
+    build_confirmation_payload,
+    execute_confirmar_with_pdf,
+    finalize_confirmar_with_pdf,
+    iterar_pendientes_en_tabla,
+    on_confirmar,
+    on_insertar_sin_pdf,
+    prompt_confirm_pdf_path,
+    show_confirmation_closure,
+    show_pdf_actions_dialog,
+    sum_solicitudes_minutes,
+    undo_confirmation,
+)
+from app.ui.vistas.historico_actions import (
+    apply_historico_default_range,
+    apply_historico_filters,
+    apply_historico_last_30_days,
+    clear_historico_filters,
+    on_generar_pdf_historico,
+    on_historico_apply_filters,
+    on_historico_periodo_mode_changed,
+    on_open_historico_detalle,
+    on_resync_historico,
+)
+from app.ui.vistas.ui_helpers import abrir_archivo_local
 
 try:
     from PySide6.QtPdf import QPdfDocument
@@ -122,17 +147,6 @@ def resolve_active_delegada_id(delegada_ids: list[int], preferred_id: object) ->
         if str(delegada_id) == preferred_as_text:
             return delegada_id
     return delegada_ids[0]
-
-
-def _abrir_archivo_local(path: Path) -> None:
-    from PySide6.QtCore import QUrl
-    from PySide6.QtGui import QDesktopServices
-
-    QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
-
-
-def _abrir_carpeta_contenedora(path: Path) -> None:
-    _abrir_archivo_local(path.parent)
 
 
 class OptionalConfirmDialog(QDialog):
@@ -221,7 +235,7 @@ class PdfPreviewDialog(QDialog):
         if PDF_PREVIEW_AVAILABLE and self._pdf_document is not None:
             self._pdf_document.load(str(generated))
             return
-        _abrir_archivo_local(generated)
+        abrir_archivo_local(generated)
 
     def _save_as(self) -> None:
         if self._last_pdf_path is None:
@@ -375,6 +389,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._solicitudes_controller = SolicitudesController(self)
         self._sync_controller = SyncController(self)
         self._pdf_controller = PdfController(self._solicitud_use_cases)
+        self._pdf_preview_dialog_class = PdfPreviewDialog
+        self._historico_detalle_dialog_class = HistoricoDetalleDialog
         self.setWindowTitle("Horas Sindicales")
         self._build_ui()
         self._validate_required_widgets()
@@ -961,22 +977,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return "RANGE", None, None
 
     def _apply_historico_filters(self) -> None:
-        year_mode, year, month = self._historico_period_filter_state()
-        ver_todas = self.historico_todas_delegadas_check.isChecked()
-        delegada_id = None if ver_todas else self.historico_delegada_combo.currentData()
-        self.historico_proxy_model.set_filters(
-            delegada_id=delegada_id,
-            ver_todas=ver_todas,
-            year_mode=year_mode,
-            year=year,
-            month=month,
-            date_from=self.historico_desde_date.date(),
-            date_to=self.historico_hasta_date.date(),
-        )
-        self.historico_proxy_model.set_estado_code(self.historico_estado_combo.currentData())
-        self._settings.setValue("historico/delegada", delegada_id)
-        self._apply_historico_text_filter()
-        self._update_historico_empty_state()
+        apply_historico_filters(self)
 
 
     def _update_historico_empty_state(self) -> None:
@@ -986,13 +987,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.historico_details_content.setVisible(has_rows and self.historico_details_button.isChecked())
 
     def _apply_historico_default_range(self) -> None:
-        self.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
-        self.historico_hasta_date.setDate(QDate.currentDate())
+        apply_historico_default_range(self)
 
     def _apply_historico_last_30_days(self) -> None:
-        self.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
-        self.historico_hasta_date.setDate(QDate.currentDate())
-        self._apply_historico_filters()
+        apply_historico_last_30_days(self)
 
     def _on_historico_todas_delegadas_toggled(self, checked: bool) -> None:
         self.historico_delegada_combo.setEnabled(not checked)
@@ -1000,42 +998,13 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.historico_delegada_combo.setCurrentIndex(0)
 
     def _on_historico_periodo_mode_changed(self) -> None:
-        anual_activo = self.historico_periodo_anual_radio.isChecked()
-        mes_activo = self.historico_periodo_mes_radio.isChecked()
-        rango_activo = self.historico_periodo_rango_radio.isChecked()
-
-        self.historico_periodo_anual_spin.setEnabled(anual_activo)
-        self.historico_periodo_mes_ano_spin.setEnabled(mes_activo)
-        self.historico_periodo_mes_combo.setEnabled(mes_activo)
-        self.historico_desde_date.setEnabled(rango_activo)
-        self.historico_hasta_date.setEnabled(rango_activo)
+        on_historico_periodo_mode_changed(self)
 
     def _on_historico_apply_filters(self) -> None:
-        year_mode, year, month = self._historico_period_filter_state()
-        delegada_id = None if self.historico_todas_delegadas_check.isChecked() else self.historico_delegada_combo.currentData()
-        logger.info(
-            "UI_HISTORICO_APPLY_FILTERS todas=%s delegada_id=%s año=%s mes=%s desde=%s hasta=%s modo=%s",
-            self.historico_todas_delegadas_check.isChecked(),
-            delegada_id,
-            year,
-            month,
-            self.historico_desde_date.date().toString("yyyy-MM-dd"),
-            self.historico_hasta_date.date().toString("yyyy-MM-dd"),
-            year_mode,
-        )
-        self._apply_historico_filters()
+        on_historico_apply_filters(self)
 
     def _clear_historico_filters(self) -> None:
-        logger.info("UI_HISTORICO_CLEAR_FILTERS")
-        self.historico_todas_delegadas_check.setChecked(True)
-        self.historico_delegada_combo.setCurrentIndex(0)
-        self.historico_periodo_rango_radio.setChecked(True)
-        self.historico_periodo_anual_spin.setValue(QDate.currentDate().year())
-        self.historico_periodo_mes_ano_spin.setValue(QDate.currentDate().year())
-        self.historico_periodo_mes_combo.setCurrentIndex(QDate.currentDate().month() - 1)
-        self._apply_historico_default_range()
-        self._on_historico_periodo_mode_changed()
-        self._apply_historico_filters()
+        clear_historico_filters(self)
 
     def _on_open_saldos_modal(self) -> None:
         logger.info("UI_SALDOS_MODAL_OPEN")
@@ -1361,7 +1330,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _on_open_sync_logs(self) -> None:
         self._logs_dir.mkdir(parents=True, exist_ok=True)
-        _abrir_archivo_local(self._logs_dir)
+        abrir_archivo_local(self._logs_dir)
 
     def _on_sync_finished(self, summary: SyncSummary) -> None:
         self._pending_sync_plan = None
@@ -2133,241 +2102,20 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return True
 
     def _on_insertar_sin_pdf(self) -> None:
-        logger.info("CLICK confirmar_sin_pdf handler=_on_insertar_sin_pdf")
-        self._dump_estado_pendientes("click_confirmar_sin_pdf")
-        if not self._run_preconfirm_checks():
-            logger.info("_on_insertar_sin_pdf early_return motivo=preconfirm_checks")
-            return
-        persona = self._current_persona()
-        selected = self._selected_pending_solicitudes()
-        if persona is None:
-            logger.info("_on_insertar_sin_pdf early_return motivo=no_persona")
-            return
-        warning_message = validar_seleccion_confirmacion(len(selected))
-        if warning_message:
-            self.toast.warning(warning_message, title="Selección requerida")
-            logger.info("_on_insertar_sin_pdf early_return motivo=sin_seleccion")
-            return
-        if self._pending_conflict_rows:
-            logger.info("_on_insertar_sin_pdf early_return motivo=conflictos_pendientes")
-            self.toast.warning(
-                "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
-                title="Conflictos detectados",
-            )
-            return
-
-        try:
-            self._set_processing_state(True)
-            with OperationContext("confirmar_sin_pdf") as operation:
-                log_event(logger, "confirmar_sin_pdf_started", {"count": len(selected)}, operation.correlation_id)
-                confirmadas_ids, errores, _ruta, creadas, pendientes_restantes = self._solicitudes_controller.confirmar_lote(
-                    selected,
-                    correlation_id=operation.correlation_id,
-                    generar_pdf=False,
-                )
-                self._procesar_resultado_confirmacion(confirmadas_ids, errores, pendientes_restantes)
-                log_event(
-                    logger,
-                    "confirmar_sin_pdf_finished",
-                    {"creadas": len(creadas), "errores": len(errores)},
-                    operation.correlation_id,
-                )
-                self._show_confirmation_closure(
-                    creadas,
-                    errores,
-                    operation_name="confirmar_sin_pdf",
-                    correlation_id=operation.correlation_id,
-                )
-                self._notify_historico_filter_if_hidden(creadas)
-        finally:
-            self._set_processing_state(False)
-
+        on_insertar_sin_pdf(self)
     def _on_confirmar(self) -> None:
-        try:
-            logger.info("CLICK confirmar_pdf handler=_on_confirmar")
-            self._dump_estado_pendientes("click_confirmar_pdf")
-            pendientes_en_tabla = self._iterar_pendientes_en_tabla()
-            logger.debug("DEBUG_PENDIENTES_COUNT %s", len(pendientes_en_tabla))
-            for pendiente in pendientes_en_tabla:
-                logger.debug("DEBUG_PENDIENTE %s", pendiente)
-
-            selected = [
-                self.pendientes_model.solicitud_at(item["row"])
-                for item in pendientes_en_tabla
-                if self.pendientes_model is not None
-            ]
-            selected = [sol for sol in selected if sol is not None]
-            selected_ids = [sol.id for sol in selected]
-            editing = self._selected_pending_for_editing()
-            persona = self._current_persona()
-            log_extra = {
-                "selected_count": len(selected),
-                "selected_ids": selected_ids,
-                "editing_id": editing.id if editing is not None else None,
-                "persona_id": persona.id if persona is not None else None,
-                "fecha": self.fecha_input.date().toString("yyyy-MM-dd"),
-                "desde": self.desde_input.time().toString("HH:mm"),
-                "hasta": self.hasta_input.time().toString("HH:mm"),
-            }
-            logger.info("UI_CLICK_CONFIRMAR_PDF", extra=log_extra)
-
-            def _return_early(reason: str) -> None:
-                logger.warning("UI_CONFIRMAR_PDF_RETURN_EARLY", extra={**log_extra, "reason": reason})
-
-            if not self._ui_ready:
-                logger.info("_on_confirmar early_return motivo=ui_not_ready")
-                _return_early("ui_not_ready")
-                return
-            logger.debug("_on_confirmar paso=validar_preconfirm_checks")
-            if not selected:
-                self.toast.warning("No hay pendientes", title="Sin pendientes")
-                logger.info("_on_confirmar early_return motivo=no_pending_rows")
-                _return_early("no_pending_rows")
-                return
-            if not self._run_preconfirm_checks():
-                logger.info("_on_confirmar early_return motivo=preconfirm_checks")
-                _return_early("preconfirm_checks")
-                return
-            logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", self._selected_pending_row_indexes(), selected_ids)
-            if persona is None:
-                logger.info("_on_confirmar early_return motivo=no_persona")
-                _return_early("no_persona")
-                return
-            if self._pending_conflict_rows:
-                logger.info("_on_confirmar early_return motivo=conflictos_pendientes")
-                self.toast.warning(
-                    "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
-                    title="Conflictos detectados",
-                )
-                _return_early("conflictos_pendientes")
-                return
-
-            pdf_path = self._prompt_confirm_pdf_path(selected)
-            if pdf_path is None:
-                logger.info("_on_confirmar early_return motivo=pdf_path_cancelado")
-                _return_early("pdf_path_cancelado")
-                return
-            logger.debug("_on_confirmar paso=pdf_path_seleccionado path=%s", pdf_path)
-
-            logger.debug("_on_confirmar paso=llamar_execute_confirmar_with_pdf")
-            outcome = self._execute_confirmar_with_pdf(persona, selected, pdf_path)
-            if outcome is None:
-                logger.info("_on_confirmar early_return motivo=execute_confirmar_none")
-                _return_early("execute_confirmar_none")
-                return
-            correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes = outcome
-            logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(generado) if generado else None)
-
-            self._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes)
-        except Exception:
-            logger.exception("UI_CONFIRMAR_PDF_EXCEPTION")
-            raise
-
+        on_confirmar(self)
     def _iterar_pendientes_en_tabla(self) -> list[dict[str, object]]:
-        if self.pendientes_table is None:
-            return []
-        model = self.pendientes_table.model()
-        if model is None:
-            return []
-
-        total_rows = model.rowCount()
-        total_cols = model.columnCount()
-        delegada_col: int | None = None
-        for col in range(total_cols):
-            header = model.headerData(col, Qt.Horizontal, Qt.DisplayRole)
-            if str(header).strip().lower() == "delegada":
-                delegada_col = col
-                break
-
-        pendientes: list[dict[str, object]] = []
-        for row in range(total_rows):
-            solicitud = self.pendientes_model.solicitud_at(row) if self.pendientes_model is not None else None
-            fecha = model.index(row, 0).data() if total_cols > 0 else ""
-            desde = model.index(row, 1).data() if total_cols > 1 else ""
-            hasta = model.index(row, 2).data() if total_cols > 2 else ""
-            delegada = model.index(row, delegada_col).data() if delegada_col is not None else None
-            pendientes.append(
-                {
-                    "row": row,
-                    "id": solicitud.id if solicitud is not None else None,
-                    "fecha": fecha if fecha not in (None, "-") else "",
-                    "desde": desde if desde not in (None, "-") else "",
-                    "hasta": hasta if hasta not in (None, "-") else "",
-                    "persona_id": solicitud.persona_id if solicitud is not None else None,
-                    "delegada": delegada if delegada not in (None, "-") else None,
-                }
-            )
-        return pendientes
-
+        return iterar_pendientes_en_tabla(self)
     def _prompt_confirm_pdf_path(self, selected: list[SolicitudDTO]) -> str | None:
-        try:
-            default_name = self._solicitud_use_cases.sugerir_nombre_pdf(selected)
-        except (ValidacionError, BusinessRuleError) as exc:
-            self.toast.warning(str(exc), title="Validación")
-            return None
-        except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error preparando PDF")
-            self._show_critical_error(exc)
-            return None
-
-        default_path = str(Path.home() / default_name)
-        pdf_path, _ = QFileDialog.getSaveFileName(self, "Guardar PDF", default_path, "PDF (*.pdf)")
-        return pdf_path or None
-
+        return prompt_confirm_pdf_path(self, selected)
     def _execute_confirmar_with_pdf(
         self,
         persona: PersonaDTO,
         selected: list[SolicitudDTO],
         pdf_path: str,
     ) -> tuple[str | None, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None] | None:
-        correlation_id: str | None = None
-        try:
-            self._set_processing_state(True)
-            with OperationContext("confirmar_y_generar_pdf") as operation:
-                correlation_id = operation.correlation_id
-                logger.debug("_execute_confirmar_with_pdf paso=validar_seleccion count=%s", len(selected))
-                logger.debug("_execute_confirmar_with_pdf paso=ids_seleccionadas ids=%s", [sol.id for sol in selected])
-                log_event(
-                    logger,
-                    "confirmar_y_generar_pdf_started",
-                    {"count": len(selected), "destino": pdf_path},
-                    operation.correlation_id,
-                )
-                confirmadas_ids, errores, generado, creadas, pendientes_restantes = self._solicitudes_controller.confirmar_lote(
-                    selected,
-                    correlation_id=operation.correlation_id,
-                    generar_pdf=True,
-                    pdf_path=pdf_path,
-                    filtro_delegada=None if self._pending_view_all else (persona.id or None),
-                )
-                logger.debug("_execute_confirmar_with_pdf paso=llamada_servicio_confirmar ok=True")
-                logger.debug("_execute_confirmar_with_pdf paso=llamada_generador_pdf ruta=%s", str(generado) if generado else "")
-                log_event(
-                    logger,
-                    "confirmar_y_generar_pdf_finished",
-                    {"creadas": len(creadas), "errores": len(errores), "pdf_generado": bool(generado)},
-                    operation.correlation_id,
-                )
-                return correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes
-        except Exception as exc:  # pragma: no cover - fallback
-            if isinstance(exc, OSError):
-                log_operational_error(
-                    logger,
-                    "File export failed during confirm+PDF",
-                    exc=exc,
-                    extra={
-                        "operation": "confirmar_y_generar_pdf",
-                        "persona_id": persona.id or 0,
-                        "correlation_id": correlation_id,
-                    },
-                )
-            else:
-                logger.exception("Error confirmando solicitudes")
-            self._show_critical_error(exc)
-            return None
-        finally:
-            self._set_processing_state(False)
-
+        return execute_confirmar_with_pdf(self, persona, selected, pdf_path)
     def _finalize_confirmar_with_pdf(
         self,
         persona: PersonaDTO,
@@ -2378,34 +2126,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         errores: list[str],
         pendientes_restantes: list[SolicitudDTO] | None,
     ) -> None:
-        logger.debug("_finalize_confirmar_with_pdf paso=ruta_pdf_final ruta=%s", str(generado) if generado else None)
-        if generado and self.abrir_pdf_check.isChecked():
-            logger.debug("_finalize_confirmar_with_pdf paso=intento_abrir_pdf enabled=True")
-            _abrir_archivo_local(generado)
-        if generado and creadas:
-            pdf_hash = creadas[0].pdf_hash
-            fechas = [solicitud.fecha_pedida for solicitud in creadas]
-            self._sync_service.register_pdf_log(persona.id or 0, fechas, pdf_hash)
-            if correlation_id:
-                log_event(
-                    logger,
-                    "register_pdf_log",
-                    {"persona_id": persona.id or 0, "fechas": len(fechas)},
-                    correlation_id,
-                )
-            self._ask_push_after_pdf()
-            self._toast_success("PDF generado correctamente", title="Confirmación")
-            if generado.exists():
-                self._show_pdf_actions_dialog(generado)
-        self._procesar_resultado_confirmacion(confirmadas_ids, errores, pendientes_restantes)
-        self._show_confirmation_closure(
-            creadas,
-            errores,
-            operation_name="confirmar_y_generar_pdf",
-            correlation_id=correlation_id,
-        )
-        self._notify_historico_filter_if_hidden(creadas)
-
+        finalize_confirmar_with_pdf(self, persona, correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes)
     def _toast_success(
         self,
         message: str,
@@ -2421,26 +2142,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         toast_error(self.toast, message, title=title)
 
     def _show_pdf_actions_dialog(self, generated_path: Path) -> None:
-        if not generated_path.exists():
-            return
-        dialog = QMessageBox(self)
-        dialog.setWindowTitle("PDF generado")
-        dialog.setText("PDF generado correctamente")
-        open_pdf_button = dialog.addButton("Abrir PDF", QMessageBox.ButtonRole.ActionRole)
-        open_folder_button = dialog.addButton("Abrir carpeta", QMessageBox.ButtonRole.ActionRole)
-        close_button = dialog.addButton("Cerrar", QMessageBox.ButtonRole.RejectRole)
-        dialog.exec()
-        clicked = dialog.clickedButton()
-        if clicked is open_pdf_button:
-            _abrir_archivo_local(generated_path)
-        elif clicked is open_folder_button:
-            _abrir_carpeta_contenedora(generated_path)
-        elif clicked is close_button:
-            return
-
+        show_pdf_actions_dialog(self, generated_path)
     def _sum_solicitudes_minutes(self, solicitudes: list[SolicitudDTO]) -> int:
-        return sum(int(round(solicitud.horas * 60)) for solicitud in solicitudes)
-
+        return sum_solicitudes_minutes(solicitudes)
     def _show_confirmation_closure(
         self,
         creadas: list[SolicitudDTO],
@@ -2449,25 +2153,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         operation_name: str,
         correlation_id: str | None = None,
     ) -> None:
-        payload = self._build_confirmation_payload(creadas, errores, correlation_id=correlation_id)
-        log_event(
-            logger,
-            "confirmation_closure_recorded",
-            {
-                "operation": operation_name,
-                "result_id": payload.result_id,
-                "status": payload.status,
-                "count": payload.count,
-                "delegadas": payload.delegadas,
-                "total_minutes": payload.total_minutes,
-                "saldo_disponible": payload.saldo_disponible,
-                "errores": payload.errores,
-                "timestamp": payload.timestamp,
-            },
-            payload.correlation_id or correlation_id or payload.result_id,
-        )
-        self.notifications.show_confirmation_closure(payload)
-
+        show_confirmation_closure(self, creadas, errores, operation_name=operation_name, correlation_id=correlation_id)
     def _build_confirmation_payload(
         self,
         creadas: list[SolicitudDTO],
@@ -2475,61 +2161,11 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         *,
         correlation_id: str | None = None,
     ) -> ConfirmationSummaryPayload:
-        persona_nombres = {persona.id: persona.nombre for persona in self._personas if persona.id is not None}
-        delegadas = sorted({persona_nombres.get(s.persona_id, f"ID {s.persona_id}") for s in creadas})
-        if not creadas:
-            status = "error"
-        elif errores:
-            status = "partial"
-        else:
-            status = "success"
-        undo_ids = [solicitud.id for solicitud in creadas if solicitud.id is not None]
-        return ConfirmationSummaryPayload(
-            count=len(creadas),
-            total_minutes=self._sum_solicitudes_minutes(creadas),
-            delegadas=delegadas,
-            saldo_disponible=self.saldos_card.saldo_periodo_restante_text(),
-            errores=errores,
-            status=status,
-            timestamp=datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-            result_id=f"CFM-{datetime.now().strftime('%y%m%d%H%M%S')}",
-            correlation_id=correlation_id,
-            on_view_history=self._focus_historico_search,
-            on_sync_now=self._on_push_now,
-            on_return_to_operativa=lambda: self.main_tabs.setCurrentIndex(0),
-            undo_seconds=12 if undo_ids else None,
-            on_undo=(lambda: self._undo_confirmation(undo_ids)) if undo_ids else None,
-        )
-
+        return build_confirmation_payload(self, creadas, errores, correlation_id=correlation_id)
     def _undo_confirmation(self, solicitud_ids: list[int]) -> None:
-        if self._sync_in_progress:
-            self.toast.warning("La sincronización está en curso. Ahora no se puede deshacer.", title="Deshacer no disponible")
-            return
-        removed = 0
-        for solicitud_id in solicitud_ids:
-            try:
-                with OperationContext("deshacer_confirmacion") as operation:
-                    self._solicitud_use_cases.eliminar_solicitud(solicitud_id, correlation_id=operation.correlation_id)
-                removed += 1
-            except BusinessRuleError:
-                continue
-        self._reload_pending_views()
-        self._refresh_historico()
-        self._refresh_saldos()
-        if removed:
-            toast_success(self.toast, f"Se deshicieron {removed} confirmaciones.")
-
+        undo_confirmation(self, solicitud_ids)
     def _ask_push_after_pdf(self) -> None:
-        dialog = QMessageBox(self)
-        dialog.setWindowTitle("PDF generado")
-        dialog.setText("PDF generado. ¿Quieres sincronizar ahora con Google Sheets?")
-        subir_button = dialog.addButton("Subir ahora", QMessageBox.AcceptRole)
-        dialog.addButton("Más tarde", QMessageBox.RejectRole)
-        dialog.exec()
-        if dialog.clickedButton() != subir_button:
-            return
-        self._on_push_now()
-
+        ask_push_after_pdf(self)
     def _on_push_now(self) -> None:
         if not self._sync_service.is_configured():
             self.toast.warning("No hay configuración de Google Sheets. Abre Opciones para configurarlo.", title="Sin configuración")
@@ -3033,61 +2669,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return str(payload.get("client_email", "")).strip() or None
 
     def _on_generar_pdf_historico(self) -> None:
-        persona = self._current_persona()
-        if persona is None:
-            return
-        selected = self._selected_historico_solicitudes()
-        if not selected:
-            self.toast.info("No hay solicitudes para exportar.", title="Histórico")
-            return
-        try:
-            default_name = self._solicitud_use_cases.sugerir_nombre_pdf(selected)
-        except (ValidacionError, BusinessRuleError) as exc:
-            self.toast.warning(str(exc), title="Validación")
-            return
-        except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error preparando PDF histórico")
-            self._show_critical_error(exc)
-            return
-        def _generate_preview(target: Path) -> Path:
-            with OperationContext("exportar_historico_pdf") as operation:
-                log_event(
-                    logger,
-                    "exportar_historico_pdf_started",
-                    {"persona_id": persona.id or 0, "count": len(selected)},
-                    operation.correlation_id,
-                )
-                pdf = self._solicitud_use_cases.generar_pdf_historico(
-                    selected, target, correlation_id=operation.correlation_id
-                )
-                log_event(logger, "exportar_historico_pdf_finished", {"path": str(pdf)}, operation.correlation_id)
-                return pdf
-
-        try:
-            preview = PdfPreviewDialog(_generate_preview, default_name, self)
-            result = preview.exec()
-        except (ValidacionError, BusinessRuleError) as exc:
-            self.toast.warning(str(exc), title="Validación")
-            return
-        except Exception as exc:  # pragma: no cover - fallback
-            if isinstance(exc, OSError):
-                log_operational_error(
-                    logger,
-                    "File export failed during PDF preview",
-                    exc=exc,
-                    extra={"operation": "exportar_historico_pdf", "persona_id": persona.id or 0},
-                )
-            else:
-                logger.exception("Error generando previsualización de PDF histórico")
-            self._show_critical_error(exc)
-            return
-        if result == QDialog.DialogCode.Accepted:
-            self._show_optional_notice(
-                "confirmaciones/export_pdf_ok",
-                "Exportación",
-                "Exportación PDF OK",
-            )
-
+        on_generar_pdf_historico(self)
     def _on_eliminar(self) -> None:
         logger.info("CLICK eliminar_historico handler=_on_eliminar selected=%s", len(self._selected_historico_solicitudes()))
         seleccionadas = [sol for sol in self._selected_historico_solicitudes() if sol.id is not None]
@@ -3282,35 +2864,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._update_action_state()
 
     def _on_open_historico_detalle(self) -> None:
-        solicitud = self._selected_historico()
-        if solicitud is None:
-            return
-        estado = status_badge("CONFIRMED") if solicitud.generated else status_badge("PENDING")
-        payload = {
-            "ID": str(solicitud.id or "-"),
-            "Delegada": self.historico_model.persona_name_for_id(solicitud.persona_id) or str(solicitud.persona_id),
-            "Fecha solicitada": solicitud.fecha_solicitud,
-            "Fecha pedida": solicitud.fecha_pedida,
-            "Desde": solicitud.desde or "-",
-            "Hasta": solicitud.hasta or "-",
-            "Completo": "Sí" if solicitud.completo else "No",
-            "Horas": str(solicitud.horas),
-            "Estado": estado,
-            "Observaciones": solicitud.observaciones or "",
-            "Notas": solicitud.notas or "",
-        }
-        dialog = HistoricoDetalleDialog(payload, self)
-        dialog.exec()
-
+        on_open_historico_detalle(self)
     def _on_resync_historico(self) -> None:
-        selected_count = len(self._selected_historico_solicitudes())
-        if selected_count == 0:
-            return
-        self.toast.info(
-            f"Re-sincronización preparada para {selected_count} solicitud(es). Ejecuta Sincronizar para completar.",
-            title="Histórico",
-        )
-
+        on_resync_historico(self)
     def _current_saldo_filtro(self) -> PeriodoFiltro:
         periodo_base = self.fecha_input.date() if hasattr(self, "fecha_input") else QDate.currentDate()
         return PeriodoFiltro.mensual(periodo_base.year(), periodo_base.month())
