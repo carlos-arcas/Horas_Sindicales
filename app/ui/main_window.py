@@ -34,14 +34,13 @@ class MainWindow:
         selected_historico = self._selected_historico_solicitudes()
         self.eliminar_button.setEnabled(persona_selected and bool(selected_historico))
         self.eliminar_pendiente_button.setEnabled(bool(self._pending_solicitudes))
-        self.ver_detalle_button.setEnabled(persona_selected and len(selected_historico) == 1)
-        self.resync_historico_button.setEnabled(persona_selected and bool(selected_historico))
         self.generar_pdf_button.setEnabled(persona_selected and bool(selected_historico))
         selected_count = len(selected_historico)
         self.eliminar_button.setText(f"Eliminar ({selected_count})")
-        self.ver_detalle_button.setText(f"Ver detalle ({selected_count})")
-        self.resync_historico_button.setText(f"Re-sincronizar ({selected_count})")
-        self.generar_pdf_button.setText(f"Generar PDF ({selected_count})")
+        self.generar_pdf_button.setText(f"Exportar histórico PDF ({selected_count})")
+        if hasattr(self, "_sync_historico_select_all_visible_state"):
+            self._sync_historico_select_all_visible_state()
+
 
         self._update_stepper_state(form_valid, has_blocking_errors, first_blocking_error, form_message)
 

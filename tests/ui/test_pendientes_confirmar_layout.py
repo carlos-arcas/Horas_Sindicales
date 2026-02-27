@@ -67,7 +67,6 @@ def test_historico_arranca_desplegado_al_abrir_solicitudes_incorporadas() -> Non
 
     window._switch_sidebar_page(2)
 
-    assert window.historico_details_button.isChecked() is True
     assert window.historico_details_content.isVisible() is True
 
     window.close()

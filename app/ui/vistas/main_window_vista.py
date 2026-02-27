@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 try:
-    from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, QThread
+    from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, QThread, QItemSelectionModel
     # `QKeyEvent` vive en QtGui en PySide6 (no en QtCore); importarlo aquí evita NameError en eventFilter.
     from PySide6.QtGui import QKeyEvent
     from PySide6.QtWidgets import (
@@ -43,7 +43,7 @@ except Exception:  # pragma: no cover - habilita import en entornos CI sin Qt
     class _QtFallbackBase:
         pass
 
-    QDate = QEvent = QSettings = QTime = QTimer = Qt = QObject = QThread = object
+    QDate = QEvent = QSettings = QTime = QTimer = Qt = QObject = QThread = QItemSelectionModel = object
     QKeyEvent = object
     QCheckBox = QComboBox = QDateEdit = QDialog = QFileDialog = QHBoxLayout = QLabel = object
     QMainWindow = type("QMainWindow", (_QtFallbackBase,), {})
@@ -123,7 +123,6 @@ try:
         on_historico_apply_filters,
         on_historico_periodo_mode_changed,
         on_open_historico_detalle,
-        on_resync_historico,
     )
     from app.ui.vistas.ui_helpers import abrir_archivo_local
     from app.ui.vistas.main_window_helpers import (
@@ -408,14 +407,16 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.last_sync_metrics_label = self.conflicts_reminder_label = None
         self.historico_search_input = self.historico_estado_combo = self.historico_delegada_combo = None
         self.historico_desde_date = self.historico_hasta_date = None
-        self.historico_apply_filters_button = self.historico_clear_filters_button = None
+        self.historico_apply_filters_button = None
         self.historico_todas_delegadas_check = None
         self.historico_periodo_anual_radio = self.historico_periodo_mes_radio = self.historico_periodo_rango_radio = None
         self.historico_periodo_anual_spin = self.historico_periodo_mes_ano_spin = self.historico_periodo_mes_combo = None
         self.historico_table = self.historico_model = self.historico_proxy_model = None
-        self.historico_empty_state = self.historico_details_button = self.historico_details_content = None
+        self.historico_empty_state = self.historico_details_content = None
         self.open_saldos_modal_button = None
-        self.resync_historico_button = self.generar_pdf_button = self.ver_detalle_button = self.eliminar_button = None
+        self.generar_pdf_button = self.eliminar_button = None
+        self.historico_select_all_visible_check = self.historico_sync_button = None
+        self.historico_export_hint_label = None
         self.editar_pdf_button = self.abrir_pdf_check = self.goto_existing_button = None
         self.total_preview_input = None
         self.add_persona_button = self.edit_persona_button = self.delete_persona_button = None
@@ -841,7 +842,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.historico_desde_date,
             self.historico_hasta_date,
             self.historico_apply_filters_button,
-            self.historico_clear_filters_button,
             self.open_saldos_modal_button,
             self.add_persona_button,
             self.edit_persona_button,
@@ -854,8 +854,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.insertar_sin_pdf_button,
             self.confirmar_button,
             self.eliminar_button,
-            self.ver_detalle_button,
-            self.resync_historico_button,
             self.generar_pdf_button,
         ]
         for control in controls:
@@ -877,8 +875,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.setTabOrder(self.historico_delegada_combo, self.historico_desde_date)
         self.setTabOrder(self.historico_desde_date, self.historico_hasta_date)
         self.setTabOrder(self.historico_hasta_date, self.historico_apply_filters_button)
-        self.setTabOrder(self.historico_apply_filters_button, self.historico_clear_filters_button)
-        self.setTabOrder(self.historico_clear_filters_button, self.historico_table)
+        self.setTabOrder(self.historico_apply_filters_button, self.historico_table)
 
     def _focus_historico_search(self) -> None:
         self.main_tabs.setCurrentIndex(1)
@@ -1023,8 +1020,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _update_historico_empty_state(self) -> None:
         has_rows = self.historico_proxy_model.rowCount() > 0
         self.historico_empty_state.setVisible(not has_rows)
-        self.historico_details_button.setVisible(has_rows)
-        self.historico_details_content.setVisible(has_rows and self.historico_details_button.isChecked())
+        self.historico_details_content.setVisible(has_rows)
 
     def _apply_historico_default_range(self) -> None:
         apply_historico_default_range(self)
@@ -1631,14 +1627,11 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         selected_historico = self._selected_historico_solicitudes()
         self.eliminar_button.setEnabled(persona_selected and bool(selected_historico))
         self.eliminar_pendiente_button.setEnabled(bool(self._pending_solicitudes))
-        self.ver_detalle_button.setEnabled(persona_selected and len(selected_historico) == 1)
-        self.resync_historico_button.setEnabled(persona_selected and bool(selected_historico))
         self.generar_pdf_button.setEnabled(persona_selected and bool(selected_historico))
         selected_count = len(selected_historico)
         self.eliminar_button.setText(f"Eliminar ({selected_count})")
-        self.ver_detalle_button.setText(f"Ver detalle ({selected_count})")
-        self.resync_historico_button.setText(f"Re-sincronizar ({selected_count})")
-        self.generar_pdf_button.setText(f"Generar PDF ({selected_count})")
+        self.generar_pdf_button.setText(f"Exportar histórico PDF ({selected_count})")
+        self._sync_historico_select_all_visible_state()
 
         self._update_confirmation_summary(selected_pending)
         self._dump_estado_pendientes("after_update_action_state")
@@ -1807,6 +1800,36 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             if solicitud is not None:
                 solicitudes.append(solicitud)
         return solicitudes
+
+    def _on_historico_select_all_visible_toggled(self, checked: bool) -> None:
+        selection_model = self.historico_table.selectionModel()
+        if selection_model is None:
+            return
+        if checked:
+            for row in range(self.historico_proxy_model.rowCount()):
+                index = self.historico_proxy_model.index(row, 0)
+                selection_model.select(index, QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows)
+        else:
+            for row in range(self.historico_proxy_model.rowCount()):
+                index = self.historico_proxy_model.index(row, 0)
+                selection_model.select(index, QItemSelectionModel.SelectionFlag.Deselect | QItemSelectionModel.SelectionFlag.Rows)
+        self._update_action_state()
+
+    def _sync_historico_select_all_visible_state(self) -> None:
+        if self.historico_select_all_visible_check is None:
+            return
+        visible_rows = self.historico_proxy_model.rowCount()
+        if visible_rows == 0:
+            self.historico_select_all_visible_check.blockSignals(True)
+            self.historico_select_all_visible_check.setChecked(False)
+            self.historico_select_all_visible_check.setEnabled(False)
+            self.historico_select_all_visible_check.blockSignals(False)
+            return
+        selected_count = len(self.historico_table.selectionModel().selectedRows())
+        self.historico_select_all_visible_check.blockSignals(True)
+        self.historico_select_all_visible_check.setEnabled(True)
+        self.historico_select_all_visible_check.setChecked(selected_count == visible_rows)
+        self.historico_select_all_visible_check.blockSignals(False)
 
     def _on_add_persona(self) -> None:
         dialog = PersonaDialog(self)
@@ -2765,8 +2788,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _on_open_historico_detalle(self) -> None:
         on_open_historico_detalle(self)
-    def _on_resync_historico(self) -> None:
-        on_resync_historico(self)
+
     def _current_saldo_filtro(self) -> PeriodoFiltro:
         periodo_base = self.fecha_input.date() if hasattr(self, "fecha_input") else QDate.currentDate()
         return PeriodoFiltro.mensual(periodo_base.year(), periodo_base.month())

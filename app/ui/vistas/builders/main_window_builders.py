@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QSpinBox,
+    QStyle,
     QSplitter,
     QStatusBar,
     QTabWidget,
@@ -402,9 +403,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     empty_layout.addWidget(window.historico_empty_button, alignment=Qt.AlignLeft)
     historico_layout.addWidget(window.historico_empty_state)
 
-    window.historico_details_button = QPushButton("Ver filtros y listado")
-    window.historico_details_button.setProperty("variant", "secondary")
-    historico_layout.addWidget(window.historico_details_button)
     window.historico_details_content = QWidget()
     historico_details_layout = QVBoxLayout(window.historico_details_content)
     historico_details_layout.setContentsMargins(0, 0, 0, 0)
@@ -482,13 +480,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.historico_apply_filters_button.setProperty("variant", "secondary")
     filtros_row_2.addWidget(window.historico_apply_filters_button)
 
-    window.historico_clear_filters_button = QPushButton("Limpiar")
-    window.historico_clear_filters_button.setProperty("variant", "secondary")
-    filtros_row_2.addWidget(window.historico_clear_filters_button)
-    window.historico_sync_button = QPushButton("Sync")
-    window.historico_sync_button.setProperty("variant", "secondary")
-    window.historico_sync_button.clicked.connect(window._on_sync)
-    filtros_row_2.addWidget(window.historico_sync_button)
     filtros_row_2.addStretch(1)
     filtros_layout.addLayout(filtros_row_2)
     historico_filters_panel = QWidget()
@@ -518,38 +509,37 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     historico_header.setSectionResizeMode(QHeaderView.Stretch)
     historico_details_layout.addWidget(window.historico_table, 1)
 
+    window.historico_export_hint_label = QLabel("Para exportar, selecciona los registros que quieras exportar.")
+    window.historico_export_hint_label.setProperty("role", "secondary")
+    historico_details_layout.addWidget(window.historico_export_hint_label)
+
     historico_actions = QHBoxLayout()
     historico_actions.setSpacing(10)
-    historico_actions.addStretch(1)
     window.eliminar_button = QPushButton("Eliminar (0)")
     window.eliminar_button.setProperty("variant", "primary")
     window.eliminar_button.setProperty("intent", "destructive")
     window.eliminar_button.clicked.connect(window._on_eliminar)
     historico_actions.addWidget(window.eliminar_button)
 
-    window.ver_detalle_button = QPushButton("Ver detalle (0)")
-    window.ver_detalle_button.setProperty("variant", "secondary")
-    window.ver_detalle_button.clicked.connect(window._on_open_historico_detalle)
-    historico_actions.addWidget(window.ver_detalle_button)
-
-    window.resync_historico_button = QPushButton("Re-sincronizar (0)")
-    window.resync_historico_button.setProperty("variant", "secondary")
-    window.resync_historico_button.clicked.connect(window._on_resync_historico)
-    historico_actions.addWidget(window.resync_historico_button)
+    window.historico_select_all_visible_check = QCheckBox("Seleccionar todo (visible)")
+    window.historico_select_all_visible_check.toggled.connect(window._on_historico_select_all_visible_toggled)
+    historico_actions.addWidget(window.historico_select_all_visible_check)
 
     window.generar_pdf_button = QPushButton("Exportar histórico PDF (0)")
     window.generar_pdf_button.setProperty("variant", "secondary")
     window.generar_pdf_button.clicked.connect(window._on_generar_pdf_historico)
     historico_actions.addWidget(window.generar_pdf_button)
+
+    historico_actions.addStretch(1)
+
+    window.historico_sync_button = QPushButton("Sincronizar con Google Sheets")
+    window.historico_sync_button.setProperty("variant", "primary")
+    window.historico_sync_button.setIcon(window.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
+    window.historico_sync_button.clicked.connect(window._on_sync)
+    historico_actions.addWidget(window.historico_sync_button)
+
     historico_details_layout.addLayout(historico_actions)
     historico_layout.addWidget(window.historico_details_content, 1)
-    window._configure_disclosure(
-        window.historico_details_button,
-        window.historico_details_content,
-        collapsed_text="Ver filtros y listado",
-        expanded_text="Ocultar filtros y listado",
-        expandido_por_defecto=True,
-    )
 
     window.saldos_card = build_saldos_widget(window)
     historico_tab_layout.addWidget(historico_card, 1)
@@ -848,7 +838,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.historico_periodo_mes_radio.toggled.connect(window._on_historico_periodo_mode_changed)
     window.historico_periodo_rango_radio.toggled.connect(window._on_historico_periodo_mode_changed)
     window.historico_apply_filters_button.clicked.connect(window._on_historico_apply_filters)
-    window.historico_clear_filters_button.clicked.connect(window._clear_historico_filters)
     window.open_saldos_modal_button.clicked.connect(window._on_open_saldos_modal)
     window.main_tabs.currentChanged.connect(window._on_main_tab_changed)
     window._restaurar_contexto_guardado()
