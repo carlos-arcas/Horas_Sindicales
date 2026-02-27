@@ -9,6 +9,7 @@ from app.application.dto import SolicitudDTO
 from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.core.observability import OperationContext, log_event
 from app.domain.services import BusinessRuleError, ValidacionError
+from app.ui.toast_helpers import toast_success
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +120,7 @@ class SolicitudesController:
         w._update_action_state()
         w.notifications.notify_added_pending(creada, on_undo=lambda: w._undo_last_added_pending(creada.id))
         if pendiente_en_edicion is not None:
-            w.toast.success("Pendiente actualizada", title="Operación completada")
+            toast_success(w.toast, "Pendiente actualizada", title="Operación completada")
 
     def refresh_historico(self) -> list[SolicitudDTO]:
         return list(self.window._solicitud_use_cases.listar_historico())

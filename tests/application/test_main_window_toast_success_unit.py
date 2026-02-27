@@ -35,7 +35,13 @@ def _load_toast_success_method():
     ast.fix_missing_locations(isolated_module)
 
     logger_spy = _LoggerSpy()
-    namespace: dict[str, object] = {"logger": logger_spy}
+    def toast_success(toast, message: str, title: str | None = None) -> None:
+        if title:
+            toast.success(message, title=title)
+        else:
+            toast.success(message)
+
+    namespace: dict[str, object] = {"logger": logger_spy, "toast_success": toast_success}
     exec(compile(isolated_module, filename=str(source_path), mode="exec"), namespace)
     return namespace["_toast_success"], logger_spy
 
@@ -45,9 +51,9 @@ def test_toast_success_reintenta_sin_kwargs_si_toast_no_los_soporta() -> None:
     fake_toast = _FakeToastNoKwargs()
     instance = SimpleNamespace(toast=fake_toast)
 
-    method(instance, "PDF generado correctamente", title="Confirmación", action_label="Abrir PDF")
+    method(instance, "PDF generado correctamente", title="Confirmación")
 
     assert fake_toast.calls == [
         ("PDF generado correctamente", "Confirmación"),
     ]
-    assert any("UI_TOAST_DEGRADED" in message for message in logger_spy.messages)
+    assert logger_spy.messages == []

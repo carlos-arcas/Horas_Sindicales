@@ -7,10 +7,10 @@ def _source() -> str:
     return Path("app/ui/vistas/main_window_vista.py").read_text(encoding="utf-8")
 
 
-def test_toast_error_tiene_accion_ver_detalle_con_handler() -> None:
+def test_toast_error_mantiene_detalle_en_dialogo() -> None:
     source = _source()
-    assert 'action_label="Ver detalle"' in source
     assert "def _show_error_detail(" in source
+    assert "QMessageBox.critical" in source
 
 
 def test_labels_clave_sin_fondo_gris_en_stylesheet_inline() -> None:

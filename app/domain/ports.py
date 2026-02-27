@@ -240,6 +240,9 @@ class SheetsSyncPort(Protocol):
     def register_pdf_log(self, persona_id: int, fechas: list[str], pdf_hash: str | None) -> None:
         ...
 
+    def ensure_connection(self) -> None:
+        ...
+
 
 SheetsConfigRepository = SheetsConfigStorePort
 

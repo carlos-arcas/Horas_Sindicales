@@ -77,7 +77,7 @@ from app.ui.controllers.solicitudes_controller import SolicitudesController
 from app.ui.controllers.sync_controller import SyncController
 from app.ui.controllers.pdf_controller import PdfController
 from app.ui.notification_service import ConfirmationSummaryPayload, NotificationService, OperationFeedback
-from app.ui.toast_compat import ui_toast_error, ui_toast_success
+from app.ui.toast_helpers import toast_error, toast_success
 from app.ui.components.saldos_card import SaldosCard
 from app.ui.sync_reporting import (
     build_config_incomplete_report,
@@ -394,6 +394,19 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
         self._post_init_load()
+        QTimer.singleShot(0, self._warmup_sync_client)
+
+    def _warmup_sync_client(self) -> None:
+        try:
+            if hasattr(self._sync_service, "ensure_connection"):
+                self._sync_service.ensure_connection()
+        except Exception as exc:  # pragma: no cover - warmup no debe bloquear la UI
+            log_operational_error(
+                logger,
+                "SYNC_WARMUP_FAILED",
+                exc=exc,
+                extra={"operation": "sync_warmup"},
+            )
 
     def _post_init_load(self) -> None:
         run_init_refresh(
@@ -1277,11 +1290,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.toast.warning(
                 "Falta configurar Google Sheets o compartir la hoja con la cuenta de servicio.",
                 title="Sync no disponible",
-                action_label="Ver detalle",
-                action_callback=lambda: self._show_error_detail(
-                    titulo="Sync no disponible",
-                    mensaje="Configura credenciales y comparte la hoja para habilitar la sincronización.",
-                ),
             )
             return
         self._pending_sync_plan = None
@@ -1340,7 +1348,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         if self._last_sync_report is None:
             return
         QApplication.clipboard().setText(to_markdown(self._last_sync_report))
-        self.toast.success("Informe copiado al portapapeles.", title="Sincronización")
+        toast_success(self.toast, "Informe copiado al portapapeles.", title="Sincronización")
 
     def _on_open_sync_logs(self) -> None:
         self._logs_dir.mkdir(parents=True, exist_ok=True)
@@ -1396,8 +1404,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 incidents=incidents,
                 next_step="Revisa conflictos o continúa operando según el estado mostrado.",
                 status=feedback_status,
-                action_label="Ver detalle",
-                action_callback=self._on_show_sync_details,
             )
         )
         self._show_sync_summary_dialog(f"Resultado: {self._status_to_label(status)}", summary)
@@ -1481,8 +1487,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 incidents="Se detectó un error durante el proceso.",
                 next_step="Revisa el detalle y vuelve a intentar.",
                 status="error",
-                action_label="Ver detalle",
-                action_callback=self._on_show_sync_details,
             )
         )
         self._show_sync_error_dialog(error, details)
@@ -1799,7 +1803,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         if confirmadas_ids:
             self._post_confirm_success(confirmadas_ids, pendientes_restantes)
             self._refresh_saldos()
-            self.toast.success(f"{len(confirmadas_ids)} solicitudes confirmadas", title="Confirmación")
+            toast_success(self.toast, f"{len(confirmadas_ids)} solicitudes confirmadas", title="Confirmación")
             if errores:
                 self.toast.warning(f"{len(errores)} errores", title="Confirmación")
         elif errores:
@@ -2381,13 +2385,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                     correlation_id,
                 )
             self._ask_push_after_pdf()
-            action_rendered = self._toast_success(
-                "PDF generado correctamente",
-                title="Confirmación",
-                action_text="Abrir PDF",
-                action_callback=lambda: _abrir_archivo_local(generado),
-            )
-            if not action_rendered and generado.exists():
+            self._toast_success("PDF generado correctamente", title="Confirmación")
+            if generado.exists():
                 self._show_pdf_actions_dialog(generado)
         self._procesar_resultado_confirmacion(confirmadas_ids, errores, pendientes_restantes)
         self._show_confirmation_closure(
@@ -2402,77 +2401,33 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self,
         message: str,
         title: str | None = None,
-        *,
-        action_text: str | None = None,
-        action_callback: Callable[[], None] | None = None,
-    ) -> bool:
-        return ui_toast_success(
-            self.toast,
-            message,
-            title=title,
-            action_text=action_text,
-            action=action_callback,
-        )
+    ) -> None:
+        toast_success(self.toast, message, title=title)
 
     def _toast_error(
         self,
         message: str,
         title: str | None = None,
-        *,
-        action_text: str | None = None,
-        action_callback: Callable[[], None] | None = None,
-    ) -> bool:
-        action_rendered = ui_toast_error(
-            self.toast,
-            message,
-            title=title,
-            action_text=action_text,
-            action=action_callback,
-        )
-        if action_text and action_callback and not action_rendered:
-            dialog = QMessageBox(self)
-            dialog.setIcon(QMessageBox.Icon.Critical)
-            dialog.setWindowTitle(title or "Error")
-            dialog.setText(message)
-            action_button = dialog.addButton(action_text, QMessageBox.ButtonRole.AcceptRole)
-            dialog.addButton(QMessageBox.StandardButton.Close)
-            dialog.open()
-
-            def _handle_click(clicked: object) -> None:
-                if clicked is action_button:
-                    action_callback()
-
-            dialog.buttonClicked.connect(_handle_click)
-        return action_rendered
+    ) -> None:
+        toast_error(self.toast, message, title=title)
 
     def _show_pdf_actions_dialog(self, generated_path: Path) -> None:
-        logger.info("UI_TOAST_ACTION_FALLBACK_USED method=pdf_success_dialog path=%s", generated_path)
-        dialog = QDialog(self)
-        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        if not generated_path.exists():
+            return
+        dialog = QMessageBox(self)
         dialog.setWindowTitle("PDF generado")
-        dialog.setModal(False)
-        layout = QVBoxLayout(dialog)
-        layout.addWidget(QLabel("PDF generado correctamente"))
-        route_input = QLineEdit(str(generated_path))
-        route_input.setReadOnly(True)
-        layout.addWidget(route_input)
-
-        actions = QHBoxLayout()
-        copy_button = QPushButton("Copiar")
-        open_pdf_button = QPushButton("Abrir PDF")
-        open_folder_button = QPushButton("Abrir carpeta")
-        close_button = QPushButton("Cerrar")
-
-        copy_button.clicked.connect(lambda: QApplication.clipboard().setText(route_input.text()))
-        open_pdf_button.clicked.connect(lambda: _abrir_archivo_local(generated_path))
-        open_folder_button.clicked.connect(lambda: _abrir_carpeta_contenedora(generated_path))
-        close_button.clicked.connect(dialog.close)
-
-        for button in (copy_button, open_pdf_button, open_folder_button, close_button):
-            actions.addWidget(button)
-        layout.addLayout(actions)
-
-        dialog.show()
+        dialog.setText("PDF generado correctamente")
+        open_pdf_button = dialog.addButton("Abrir PDF", QMessageBox.ButtonRole.ActionRole)
+        open_folder_button = dialog.addButton("Abrir carpeta", QMessageBox.ButtonRole.ActionRole)
+        close_button = dialog.addButton("Cerrar", QMessageBox.ButtonRole.RejectRole)
+        dialog.exec()
+        clicked = dialog.clickedButton()
+        if clicked is open_pdf_button:
+            _abrir_archivo_local(generated_path)
+        elif clicked is open_folder_button:
+            _abrir_carpeta_contenedora(generated_path)
+        elif clicked is close_button:
+            return
 
     def _sum_solicitudes_minutes(self, solicitudes: list[SolicitudDTO]) -> int:
         return sum(int(round(solicitud.horas * 60)) for solicitud in solicitudes)
@@ -2553,7 +2508,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._refresh_historico()
         self._refresh_saldos()
         if removed:
-            self.toast.success(f"Se deshicieron {removed} confirmaciones.")
+            toast_success(self.toast, f"Se deshicieron {removed} confirmaciones.")
 
     def _ask_push_after_pdf(self) -> None:
         dialog = QMessageBox(self)
@@ -2877,7 +2832,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.toast.warning(message, title=title, duration_ms=7000)
             self._show_details_dialog(title, message)
         else:
-            self.toast.success(message, title=title)
+            toast_success(self.toast, message, title=title)
 
     def _show_message_with_details(
         self,
@@ -2989,14 +2944,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._toast_error(
             message,
             title="Error",
-            action_text="Ver detalle",
-            action_callback=lambda: self._show_error_detail(
-                titulo=mapped.title,
-                mensaje=message,
-                incident_id=getattr(mapped, "incident_id", None),
-                correlation_id=getattr(mapped, "incident_id", None),
-                stack=str(error),
-            ),
         )
         QMessageBox.critical(self, mapped.title, message)
 
@@ -3238,14 +3185,45 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             len(solicitudes),
             solicitud_ids[:5],
         )
-        self.historico_model.set_solicitudes(solicitudes)
-        self.historico_table.sortByColumn(0, Qt.DescendingOrder)
+
+        table = self.historico_table
+        model = self.historico_model
+        proxy_model = self.historico_proxy_model
+
+        model.set_solicitudes(solicitudes)
+        table.sortByColumn(0, Qt.DescendingOrder)
         self._apply_historico_filters()
         self._update_action_state()
-        row_count = self.historico_proxy_model.rowCount()
+        row_count = proxy_model.rowCount()
         logger.info("UI_HISTORICO_TABLE_RENDER row_count=%s", row_count)
+
         if len(solicitudes) > 0 and row_count == 0:
+            selection_model = table.selectionModel()
+            logger.error(
+                "UI_HISTORICO_DEBUG pre: widget=%s model=%s rowCount=%s sorting=%s updates=%s",
+                type(table).__name__,
+                type(table.model()).__name__ if table.model() is not None else None,
+                row_count,
+                table.isSortingEnabled(),
+                table.updatesEnabled(),
+            )
             logger.error("UI_HISTORICO_RENDER_MISMATCH count=%s row_count=%s", len(solicitudes), row_count)
+            logger.error(
+                "UI_HISTORICO_RENDER_RETRY source_rows=%s proxy_rows=%s selected_rows=%s",
+                model.rowCount(),
+                row_count,
+                selection_model.selectedRows().__len__() if selection_model is not None else 0,
+            )
+            model.beginResetModel()
+            model.endResetModel()
+            model.layoutChanged.emit()
+            self._apply_historico_filters()
+            table.viewport().update()
+            row_count = proxy_model.rowCount()
+            logger.error("UI_HISTORICO_DEBUG post: expected=%s rowCount=%s", len(solicitudes), row_count)
+            if row_count == 0:
+                toast_error(self.toast, "No se pudo renderizar el histórico (ver logs)")
+
         if row_count == 0:
             logger.info("UI_HISTORICO_REFRESH_EMPTY")
 

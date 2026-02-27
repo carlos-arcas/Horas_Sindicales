@@ -90,17 +90,13 @@ class SheetsSyncService:
         self._enable_backfill = enable_backfill
 
     def pull(self) -> SyncSummary:
-        spreadsheet = self._open_spreadsheet()
-        self._prepare_sync_context(spreadsheet)
-        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+        spreadsheet = self._ensure_connection_ready()
         summary = self._pull_with_spreadsheet(spreadsheet)
         self._log_sync_stats("pull")
         return summary
 
     def push(self) -> SyncSummary:
-        spreadsheet = self._open_spreadsheet()
-        self._prepare_sync_context(spreadsheet)
-        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+        spreadsheet = self._ensure_connection_ready()
         summary = self._push_with_spreadsheet(spreadsheet)
         self._log_sync_stats("push")
         return summary
@@ -109,9 +105,7 @@ class SheetsSyncService:
         return self.sync_bidirectional()
 
     def sync_bidirectional(self) -> SyncSummary:
-        spreadsheet = self._open_spreadsheet()
-        self._prepare_sync_context(spreadsheet)
-        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+        spreadsheet = self._ensure_connection_ready()
         pull_summary = self._pull_with_spreadsheet(spreadsheet)
         # Garantiza persistencia local del pull antes de cualquier push/refresh de UI.
         self._connection.commit()
@@ -129,15 +123,11 @@ class SheetsSyncService:
         )
 
     def simulate_sync_plan(self) -> SyncExecutionPlan:
-        spreadsheet = self._open_spreadsheet()
-        self._prepare_sync_context(spreadsheet)
-        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+        spreadsheet = self._ensure_connection_ready()
         return build_plan(self, spreadsheet)
 
     def execute_sync_plan(self, plan: SyncExecutionPlan) -> SyncSummary:
-        spreadsheet = self._open_spreadsheet()
-        self._prepare_sync_context(spreadsheet)
-        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+        spreadsheet = self._ensure_connection_ready()
         return execute_plan(self, spreadsheet, plan)
 
     def get_last_sync_at(self) -> str | None:
@@ -146,6 +136,9 @@ class SheetsSyncService:
     def is_configured(self) -> bool:
         config = self._config_store.load()
         return bool(config and config.spreadsheet_id and config.credentials_path)
+
+    def ensure_connection(self) -> None:
+        self._ensure_connection_ready()
 
     def store_sync_config_value(self, key: str, value: str) -> None:
         if not self.is_configured():
@@ -282,6 +275,12 @@ class SheetsSyncService:
             duplicates_skipped=omitted_duplicates,
             conflicts_detected=conflicts,
         )
+
+    def _ensure_connection_ready(self) -> Any:
+        spreadsheet = self._open_spreadsheet()
+        self._prepare_sync_context(spreadsheet)
+        self._repository.ensure_schema(spreadsheet, SHEETS_SCHEMA)
+        return spreadsheet
 
     def _open_spreadsheet(self) -> Any:
         config = self._config_store.load()
