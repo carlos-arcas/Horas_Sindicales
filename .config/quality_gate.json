@@ -1,3 +1,14 @@
 {
-  "coverage_fail_under": 63
+  "coverage_fail_under": 70,
+  "coverage_fail_under_core": 70,
+  "core_coverage_targets": [
+    "app/domain",
+    "app/application",
+    "app/infrastructure",
+    "app/bootstrap",
+    "app/configuracion",
+    "app/core",
+    "app/entrypoints",
+    "app/pdf"
+  ]
 }

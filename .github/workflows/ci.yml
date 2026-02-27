@@ -34,15 +34,59 @@ jobs:
       - name: Lint
         run: ruff check .
 
-      - name: Tests no-UI + coverage
+      - name: Tests CORE + coverage (sin UI)
         run: |
-          COVERAGE_FAIL_UNDER=$(python -c "import json;print(json.load(open('.config/quality_gate.json', encoding='utf-8'))['coverage_fail_under'])")
-          pytest -q -m "not ui" --cov=app --cov-report=term-missing --cov-fail-under=${COVERAGE_FAIL_UNDER}
+          COVERAGE_FAIL_UNDER=$(python -c "import json; d=json.load(open('.config/quality_gate.json', encoding='utf-8')); print(d.get('coverage_fail_under_core', d['coverage_fail_under']))")
+          COVERAGE_TARGETS=$(python -c "import json; d=json.load(open('.config/quality_gate.json', encoding='utf-8')); print(' '.join(f'--cov={x}' for x in d.get('core_coverage_targets', ['app'])))")
+          pytest -q -m "not ui" ${COVERAGE_TARGETS} --cov-report=term-missing --cov-fail-under=${COVERAGE_FAIL_UNDER}
 
-  ui:
+      - name: Reporte de calidad (LOC/CC/Coverage por paquete)
+        run: |
+          python scripts/report_quality.py --out logs/quality_report.txt
+
+      - name: Subir artefacto de calidad
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report-py${{ matrix.python-version }}
+          path: |
+            logs/quality_report.txt
+            logs/coverage.json
+
+  ui_smoke:
+    runs-on: ubuntu-latest
+    env:
+      CI: 'true'
+      RUN_UI_TESTS: '1'
+      QT_QPA_PLATFORM: minimal
+      QT_OPENGL: software
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: UI smoke tests (subset estable, sin rendering real)
+        run: |
+          pytest -q \
+            tests/ui/test_qt_sanity.py \
+            tests/ui/test_ui_smoke_startup.py \
+            tests/ui/test_models_qt_smoke.py
+
+  ui_extended:
     runs-on: ubuntu-latest
     continue-on-error: true
     env:
+      CI: 'true'
       QT_QPA_PLATFORM: offscreen
       QT_OPENGL: software
       RUN_UI_TESTS: '1'
@@ -80,5 +124,5 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      - name: UI tests (headless via xvfb)
+      - name: UI extended tests (headless via xvfb)
         run: xvfb-run -a pytest -q tests/ui
