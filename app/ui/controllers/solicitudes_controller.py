@@ -22,20 +22,43 @@ class SolicitudesController:
         w = self.window
         logger.info("Botón Agregar pulsado en pantalla de Peticiones")
         solicitud = w._build_preview_solicitud()
+        solicitud, pendiente_en_edicion = self._validate_inputs(solicitud)
+        if solicitud is None:
+            return
+
+        if not self._handle_duplicate(solicitud, pendiente_en_edicion):
+            return
+
+        solicitud = self._persist_pendiente(solicitud, pendiente_en_edicion)
+        if solicitud is None:
+            return
+
+        self._update_ui_after_add(solicitud, pendiente_en_edicion)
+
+    def _validate_inputs(self, solicitud: SolicitudDTO | None) -> tuple[SolicitudDTO | None, SolicitudDTO | None]:
+        w = self.window
         if solicitud is None:
             w.notifications.notify_validation_error(
                 what="No se puede añadir la solicitud.",
                 why="Falta seleccionar una delegada.",
                 how="Selecciona una delegada en Configuración y vuelve a intentarlo.",
             )
-            return
+            return None, None
+        return solicitud, w._selected_pending_for_editing()
 
-        pendiente_en_edicion = w._selected_pending_for_editing()
-
+    def _handle_duplicate(self, solicitud: SolicitudDTO, pendiente_en_edicion: SolicitudDTO | None) -> bool:
+        w = self.window
         duplicate = w._solicitud_use_cases.buscar_duplicado(solicitud)
         if duplicate is not None and (pendiente_en_edicion is None or duplicate.id != pendiente_en_edicion.id):
-            if not w._handle_duplicate_detected(duplicate):
-                return
+            return w._handle_duplicate_detected(duplicate)
+        return True
+
+    def _persist_pendiente(
+        self,
+        solicitud: SolicitudDTO,
+        pendiente_en_edicion: SolicitudDTO | None,
+    ) -> SolicitudDTO | None:
+        w = self.window
 
         try:
             minutos = w._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
@@ -47,11 +70,11 @@ class SolicitudesController:
             )
             if not solicitud.completo:
                 w.desde_input.setFocus()
-            return
+            return None
         except Exception as exc:  # pragma: no cover - fallback
             logger.error("Error calculando minutos de la petición", exc_info=True)
             w._show_critical_error(exc)
-            return
+            return None
 
         notas_text = w.notas_input.toPlainText().strip()
         solicitud = replace(
@@ -105,15 +128,19 @@ class SolicitudesController:
                 why=f"{str(exc)}.",
                 how="Corrige el formulario y vuelve a pulsar 'Añadir pendiente'.",
             )
-            return
+            return None
         except Exception as exc:  # pragma: no cover - fallback
             log_event(logger, "agregar_pendiente_failed", {"error": str(exc)}, operation.correlation_id)
             logger.error("Error insertando petición en base de datos", exc_info=True)
             w._show_critical_error(exc)
-            return
+            return None
         finally:
             w._set_processing_state(False)
 
+        return creada
+
+    def _update_ui_after_add(self, creada: SolicitudDTO, pendiente_en_edicion: SolicitudDTO | None) -> None:
+        w = self.window
         w.notas_input.setPlainText("")
         w._refresh_historico()
         w._refresh_saldos()
