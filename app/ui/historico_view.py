@@ -46,6 +46,8 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         self._year_mode: str | None = None
         self._year: int | None = None
         self._month: int | None = None
+        self._from: date | None = None
+        self._to: date | None = None
         self.setDynamicSortFilter(True)
 
     def set_search_text(self, text: str) -> None:
@@ -92,6 +94,8 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         self._month = int(month) if month is not None else None
         self._date_from_py = self._normalize_date(date_from)
         self._date_to_py = self._normalize_date(date_to)
+        self._from = self._date_from_py
+        self._to = self._date_to_py
         self._date_from = QDate(self._date_from_py.year, self._date_from_py.month, self._date_from_py.day) if self._date_from_py else None
         self._date_to = QDate(self._date_to_py.year, self._date_to_py.month, self._date_to_py.day) if self._date_to_py else None
         self.invalidateFilter()

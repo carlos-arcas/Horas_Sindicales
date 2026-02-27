@@ -3201,16 +3201,14 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         model = self.historico_model
         proxy_model = self.historico_proxy_model
 
-        was_sorting_enabled = table.isSortingEnabled()
         table.setSortingEnabled(False)
         if proxy_model.sourceModel() is not model:
             proxy_model.setSourceModel(model)
         model.set_solicitudes(solicitudes)
         self._apply_historico_filters()
         proxy_model.invalidateFilter()
-        table.setSortingEnabled(was_sorting_enabled)
-        if was_sorting_enabled:
-            table.sortByColumn(0, Qt.DescendingOrder)
+        table.setSortingEnabled(True)
+        table.sortByColumn(0, Qt.DescendingOrder)
         self._update_action_state()
         row_count = proxy_model.rowCount()
         logger.info("UI_HISTORICO_TABLE_RENDER row_count=%s", row_count)
