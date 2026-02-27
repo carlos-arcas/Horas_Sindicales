@@ -1,4 +1,6 @@
+import inspect
 import os
+from pathlib import Path
 
 import pytest
 
@@ -15,6 +17,14 @@ def _qt_ready() -> bool:
 
 
 def require_qt():
+    # Este helper es exclusivo de tests UI: evita dependencia accidental en tests no-UI.
+    caller_file = Path(inspect.stack()[1].filename).as_posix()
+    if "/tests/ui/" not in f"/{caller_file}":
+        raise RuntimeError(
+            "require_qt() solo debe usarse desde tests/ui/** para no "
+            "acoplar tests no-UI al backend Qt."
+        )
+
     try:
         from PySide6.QtCore import QEvent
         from PySide6.QtWidgets import QApplication
@@ -26,6 +36,23 @@ def require_qt():
             "PySide6 no disponible correctamente en entorno CI",
             allow_module_level=True,
         )
+
+
+def _is_ui_item(item: pytest.Item) -> bool:
+    """True solo para tests cuyo path real cae dentro de tests/ui/**."""
+
+    item_path = getattr(item, "path", None)
+    if item_path is None:
+        legacy_path = getattr(item, "fspath", None)
+        if legacy_path is None:
+            return False
+        item_path = Path(str(legacy_path))
+
+    normalized_parts = Path(str(item_path)).as_posix().split("/")
+    for idx in range(len(normalized_parts) - 1):
+        if normalized_parts[idx] == "tests" and normalized_parts[idx + 1] == "ui":
+            return True
+    return False
 
 
 def pytest_collection_modifyitems(config, items):
@@ -44,10 +71,10 @@ def pytest_collection_modifyitems(config, items):
         reason="PySide6 no disponible correctamente en entorno CI"
     )
 
+    # Explicación breve: solo tocamos tests en tests/ui/** para no skippear
+    # accidentalmente tests de dominio/infra cuando Qt no está disponible.
     for item in items:
-        nodeid = item.nodeid
-        is_ui_path = nodeid.startswith("tests/ui/") or "/tests/ui/" in nodeid
-        if not is_ui_path:
+        if not _is_ui_item(item):
             continue
 
         if skip_ui_in_ci:
