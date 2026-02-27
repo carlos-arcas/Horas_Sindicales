@@ -1018,7 +1018,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _update_historico_empty_state(self) -> None:
         has_rows = self.historico_proxy_model.rowCount() > 0
         self.historico_empty_state.setVisible(not has_rows)
-        self.historico_details_content.setVisible(has_rows)
+        # Los filtros de histórico deben permanecer utilizables incluso sin resultados.
+        self.historico_details_content.setVisible(True)
 
     def _apply_historico_default_range(self) -> None:
         apply_historico_default_range(self)
@@ -1508,6 +1509,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _on_open_opciones(self) -> None:
         self._sync_controller.on_open_opciones()
+
+    def _open_google_sheets_config(self) -> None:
+        self._on_open_opciones()
 
     def _set_config_incomplete_state(self) -> None:
         report = build_config_incomplete_report(
@@ -2213,6 +2217,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             show_message_with_details=self._show_message_with_details,
             open_options_callback=self._on_open_opciones,
             retry_callback=self._sync_controller.on_sync,
+            open_google_sheets_config_callback=self._open_google_sheets_config,
             toast_warning=lambda message, title, duration_ms: self.toast.warning(
                 message,
                 title=title,
@@ -2709,14 +2714,21 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         model = self.historico_model
         proxy_model = self.historico_proxy_model
 
+        previous_sorting_enabled = table.isSortingEnabled()
+        table.setUpdatesEnabled(False)
         table.setSortingEnabled(False)
-        if proxy_model.sourceModel() is not model:
-            proxy_model.setSourceModel(model)
-        model.set_solicitudes(solicitudes)
-        self._apply_historico_filters()
-        proxy_model.invalidateFilter()
-        table.setSortingEnabled(True)
-        table.sortByColumn(0, Qt.DescendingOrder)
+        try:
+            if proxy_model.sourceModel() is not model:
+                proxy_model.setSourceModel(model)
+            model.set_solicitudes(solicitudes)
+            self._apply_historico_filters()
+            proxy_model.invalidateFilter()
+            proxy_model.invalidate()
+        finally:
+            table.setSortingEnabled(previous_sorting_enabled)
+            table.setUpdatesEnabled(True)
+
+        QTimer.singleShot(0, lambda: table.sortByColumn(0, Qt.DescendingOrder))
         self._update_action_state()
         row_count = proxy_model.rowCount()
         logger.info("UI_HISTORICO_TABLE_RENDER row_count=%s", row_count)

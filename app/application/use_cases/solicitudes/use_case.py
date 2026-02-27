@@ -561,6 +561,20 @@ class SolicitudUseCases:
             raise BusinessRuleError("No hay generador PDF configurado.")
         return self._generador_pdf.construir_nombre_archivo(persona.nombre, fechas)
 
+    def _resolve_pdf_destination_collision(self, destino: Path) -> Path:
+        """Devuelve un destino disponible sin romper el flujo si el archivo ya existe."""
+        if not self._fs.existe(destino):
+            return destino
+        stem = destino.stem
+        suffix = destino.suffix or ".pdf"
+        parent = destino.parent
+        # Para juniors: evitamos BusinessRuleError por colisión proponiendo copia incremental.
+        for index in range(1, 10_000):
+            candidate = parent / f"{stem}({index}){suffix}"
+            if not self._fs.existe(candidate):
+                return candidate
+        raise BusinessRuleError(f"No se pudo resolver colisión de ruta destino: {destino}")
+
     def confirmar_lote_y_generar_pdf(
         self,
         solicitudes: Iterable[SolicitudDTO],
@@ -576,10 +590,12 @@ class SolicitudUseCases:
         for solicitud in solicitudes_list:
             validar_solicitud_dto_declarativo(solicitud)
 
+        destino_resuelto = self._resolve_pdf_destination_collision(destino)
+
         preflight = ConfirmacionPdfOperacion(fs=self._fs, generador_pdf=self._generador_pdf).ejecutar(
             RequestConfirmacionPdf(
                 solicitudes=solicitudes_list,
-                destino=destino,
+                destino=destino_resuelto,
                 dry_run=True,
                 overwrite=False,
             )
@@ -593,7 +609,7 @@ class SolicitudUseCases:
         )
         pdf_path, creadas = self._generar_pdf_confirmadas(
             creadas,
-            destino,
+            destino_resuelto,
             correlation_id=correlation_id,
         )
 

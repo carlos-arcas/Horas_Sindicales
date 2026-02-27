@@ -403,13 +403,19 @@ def build_main_window_widgets(window: "MainWindow") -> None:
 
     window.historico_search_input = QLineEdit()
     window.historico_search_input.setPlaceholderText("Buscar")
-    window.historico_search_input.setVisible(False)
 
     window.historico_estado_combo = QComboBox()
     window.historico_estado_combo.addItem("Todos", None)
     for estado in ESTADOS_HISTORICO.values():
         window.historico_estado_combo.addItem(estado.label, estado.code)
-    window.historico_estado_combo.setVisible(False)
+
+    filtros_row_search = QHBoxLayout()
+    filtros_row_search.setSpacing(8)
+    filtros_row_search.addWidget(QLabel("Buscar"))
+    filtros_row_search.addWidget(window.historico_search_input, 1)
+    filtros_row_search.addWidget(QLabel("Estado"))
+    filtros_row_search.addWidget(window.historico_estado_combo)
+    filtros_layout.addLayout(filtros_row_search)
 
     filtros_row_1 = QHBoxLayout()
     filtros_row_1.setSpacing(8)

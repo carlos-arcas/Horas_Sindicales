@@ -92,14 +92,20 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         self._year_mode = year_mode or None
         self._year = int(year) if year is not None else None
         self._month = int(month) if month is not None else None
-        self._date_from_py = self._normalize_date(date_from)
-        self._date_to_py = self._normalize_date(date_to)
+        normalized_from = self._normalize_date(date_from)
+        normalized_to = self._normalize_date(date_to)
+        # Para juniors: normalizamos rango invertido aquí para evitar estados internos imposibles
+        # (from > to) que pueden dejar al proxy permanentemente en 0 filas.
+        if normalized_from and normalized_to and normalized_from > normalized_to:
+            normalized_from, normalized_to = normalized_to, normalized_from
+
+        self._date_from_py = normalized_from
+        self._date_to_py = normalized_to
         self._from = self._date_from_py
         self._to = self._date_to_py
         self._date_from = QDate(self._date_from_py.year, self._date_from_py.month, self._date_from_py.day) if self._date_from_py else None
         self._date_to = QDate(self._date_to_py.year, self._date_to_py.month, self._date_to_py.day) if self._date_to_py else None
         self.invalidateFilter()
-        self.invalidate()
 
     def filter_state(self) -> dict[str, object]:
         return {
