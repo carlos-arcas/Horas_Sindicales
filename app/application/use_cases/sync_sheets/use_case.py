@@ -23,6 +23,7 @@ from app.application.use_cases.sync_sheets.helpers import (
     normalizar_fechas_solicitud,
     sync_local_cuadrantes_from_personas,
 )
+from app.application.use_cases.sync_sheets import payloads_puros
 from app.application.use_cases.sync_sheets.planner import build_plan
 from app.application.use_cases.sync_sheets.sync_sheets_helpers import (
     execute_with_validation,
@@ -295,30 +296,43 @@ class SheetsSyncService:
         downloaded = 0
         conflicts = 0
         for row_number, row in rows:
-            nombre_value = str(row.get("nombre", "")).strip()
-            uuid_value = str(row.get("uuid", "")).strip()
-            if not uuid_value and not nombre_value:
-                logger.warning("Fila delegada sin uuid ni nombre; se omite: %s", row)
-                continue
-            local_row, was_inserted, persona_uuid = self._get_or_create_persona(row)
-            if self._enable_backfill and not str(row.get("uuid", "")).strip() and persona_uuid:
-                self._backfill_uuid(worksheet, headers, row_number, "uuid", persona_uuid)
-            if was_inserted:
-                downloaded += 1
-                continue
-            if not uuid_value or local_row is None or local_row["uuid"] != uuid_value:
-                # Sin UUID remoto, o con colisión de nombre+UUID, no hay clave remota estable para merge por timestamps.
-                continue
-            remote_updated_at = self._parse_iso(row.get("updated_at"))
-            if self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at):
-                self._store_conflict("delegadas", uuid_value, dict(local_row), row)
-                conflicts += 1
-                continue
-            if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
-                self._update_persona_from_remote(local_row["id"], row)
-                downloaded += 1
+            row_downloaded, row_conflicts = self._process_pull_delegada_row(
+                worksheet,
+                headers,
+                row_number,
+                row,
+                last_sync_at,
+            )
+            downloaded += row_downloaded
+            conflicts += row_conflicts
         self._flush_write_batches(spreadsheet, worksheet)
         return downloaded, conflicts
+
+    def _process_pull_delegada_row(
+        self,
+        worksheet: Any,
+        headers: list[str],
+        row_number: int,
+        row: dict[str, Any],
+        last_sync_at: str | None,
+    ) -> tuple[int, int]:
+        uuid_value = payloads_puros.valor_normalizado(row.get("uuid"))
+        if payloads_puros.es_fila_vacia(row, ("uuid", "nombre")):
+            logger.warning("Fila delegada sin uuid ni nombre; se omite: %s", row)
+            return 0, 0
+        local_row, was_inserted, persona_uuid = self._get_or_create_persona(row)
+        if payloads_puros.requiere_backfill_uuid(self._enable_backfill, row.get("uuid"), persona_uuid):
+            self._backfill_uuid(worksheet, headers, row_number, "uuid", str(persona_uuid))
+        if was_inserted or not uuid_value or local_row is None or local_row["uuid"] != uuid_value:
+            return (1, 0) if was_inserted else (0, 0)
+        remote_updated_at = self._parse_iso(row.get("updated_at"))
+        if self._is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at):
+            self._store_conflict("delegadas", uuid_value, dict(local_row), row)
+            return 0, 1
+        if self._is_remote_newer(local_row["updated_at"], remote_updated_at):
+            self._update_persona_from_remote(local_row["id"], row)
+            return 1, 0
+        return 0, 0
 
     def _pull_solicitudes(
         self, spreadsheet: Any, last_sync_at: str | None, solicitud_titles: list[str] | None = None
@@ -845,31 +859,7 @@ class SheetsSyncService:
         )
 
     def _remote_solicitud_payload(self, remote_row: dict[str, Any]) -> tuple[Any, ...]:
-        desde_hhmm = remote_row.get("desde") or self._remote_hhmm(
-            remote_row.get("desde_h"), remote_row.get("desde_m"), None
-        )
-        hasta_hhmm = remote_row.get("hasta") or self._remote_hhmm(
-            remote_row.get("hasta_h"), remote_row.get("hasta_m"), None
-        )
-        return (
-            remote_row.get("uuid", ""),
-            remote_row.get("delegada_uuid") or remote_row.get("delegado_uuid") or "",
-            remote_row.get("delegada_nombre") or remote_row.get("Delegada") or remote_row.get("delegado_nombre") or "",
-            self._to_iso_date(remote_row.get("fecha") or remote_row.get("fecha_pedida")),
-            self._hour_component_from_hhmm(desde_hhmm),
-            self._minute_component_from_hhmm(desde_hhmm),
-            self._hour_component_from_hhmm(hasta_hhmm),
-            self._minute_component_from_hhmm(hasta_hhmm),
-            self._int_or_zero(remote_row.get("completo")),
-            self._int_or_zero(remote_row.get("horas") or remote_row.get("minutos_total")),
-            remote_row.get("notas") or "",
-            remote_row.get("estado") or "",
-            self._to_iso_date(remote_row.get("created_at") or remote_row.get("fecha")),
-            self._to_iso_date(remote_row.get("updated_at")),
-            remote_row.get("source_device") or "",
-            self._int_or_zero(remote_row.get("deleted")),
-            remote_row.get("pdf_id") or "",
-        )
+        return payloads_puros.payload_remoto_solicitud(remote_row)
 
     def _push_cuadrantes(
         self, spreadsheet: Any, last_sync_at: str | None
@@ -957,49 +947,52 @@ class SheetsSyncService:
         return cursor.fetchone()
 
     def _get_or_create_persona(self, row: dict[str, Any]) -> tuple[Any | None, bool, str | None]:
-        persona_uuid = str(row.get("uuid", "")).strip() or None
-        nombre = str(row.get("nombre", "")).strip()
-
-        if persona_uuid:
-            by_uuid = self._fetch_persona(persona_uuid)
-            if by_uuid is not None:
-                logger.info("Persona existente: uuid=%s, nombre=%s", by_uuid["uuid"], by_uuid["nombre"])
-                return by_uuid, False, by_uuid["uuid"]
-
-            by_nombre = self._fetch_persona_by_nombre(nombre) if nombre else None
-            if by_nombre is not None:
-                existing_uuid = (by_nombre["uuid"] or "").strip()
-                if existing_uuid and existing_uuid != persona_uuid:
-                    logger.warning(
-                        "Colisión persona por nombre; se prioriza existente. nombre=%s uuid_local=%s uuid_remoto=%s",
-                        nombre,
-                        existing_uuid,
-                        persona_uuid,
-                    )
-                elif not existing_uuid:
-                    cursor = self._connection.cursor()
-                    cursor.execute(
-                        "UPDATE personas SET uuid = ?, updated_at = ? WHERE id = ?",
-                        (persona_uuid, row.get("updated_at") or self._now_iso(), by_nombre["id"]),
-                    )
-                    self._connection.commit()
-                    by_nombre = self._fetch_persona(persona_uuid) or by_nombre
-                logger.info("Persona existente: uuid=%s, nombre=%s", by_nombre["uuid"], by_nombre["nombre"])
-                return by_nombre, False, by_nombre["uuid"]
-
-            logger.info("Insertando persona nueva: uuid=%s, nombre=%s", persona_uuid, nombre)
-            self._insert_persona_from_remote(persona_uuid, row)
-            return self._fetch_persona(persona_uuid), True, persona_uuid
-
+        persona_uuid = payloads_puros.uuid_o_none(row.get("uuid"))
+        nombre = payloads_puros.valor_normalizado(row.get("nombre"))
+        by_uuid = self._fetch_persona(persona_uuid) if persona_uuid else None
         by_nombre = self._fetch_persona_by_nombre(nombre) if nombre else None
-        if by_nombre is not None:
-            logger.info("Persona existente: uuid=%s, nombre=%s", by_nombre["uuid"], by_nombre["nombre"])
-            return by_nombre, False, by_nombre["uuid"]
+        plan = payloads_puros.resolver_persona_accion(persona_uuid, nombre, by_uuid, by_nombre)
+        return self._apply_persona_resolution(plan, row, nombre)
 
-        generated_uuid = self._generate_uuid()
-        logger.info("Insertando persona nueva: uuid=%s, nombre=%s", generated_uuid, nombre)
-        self._insert_persona_from_remote(generated_uuid, row)
-        return self._fetch_persona(generated_uuid), True, generated_uuid
+    def _apply_persona_resolution(
+        self,
+        plan: dict[str, Any],
+        row: dict[str, Any],
+        nombre: str,
+    ) -> tuple[Any | None, bool, str | None]:
+        accion = plan["accion"]
+        if accion == "usar_uuid":
+            return self._persona_result(self._fetch_persona(plan["uuid"]), False)
+        if accion in {"usar_nombre", "colision_nombre"}:
+            if accion == "colision_nombre":
+                logger.warning(
+                    "Colisión persona por nombre; se prioriza existente. nombre=%s uuid_local=%s uuid_remoto=%s",
+                    plan.get("nombre"),
+                    plan.get("uuid"),
+                    payloads_puros.valor_normalizado(row.get("uuid")),
+                )
+            return self._persona_result(self._fetch_persona_by_nombre(nombre), False)
+        if accion == "asignar_uuid_por_nombre":
+            self._assign_uuid_to_persona(plan["id"], plan["uuid"], row)
+            return self._persona_result(self._fetch_persona(plan["uuid"]) or self._fetch_persona_by_nombre(nombre), False)
+        target_uuid = plan["uuid"] or self._generate_uuid()
+        logger.info("Insertando persona nueva: uuid=%s, nombre=%s", target_uuid, nombre)
+        self._insert_persona_from_remote(target_uuid, row)
+        return self._persona_result(self._fetch_persona(target_uuid), True)
+
+    def _persona_result(self, persona: Any | None, was_inserted: bool) -> tuple[Any | None, bool, str | None]:
+        if persona is not None:
+            logger.info("Persona existente: uuid=%s, nombre=%s", persona["uuid"], persona["nombre"])
+            return persona, was_inserted, persona["uuid"]
+        return None, was_inserted, None
+
+    def _assign_uuid_to_persona(self, persona_id: int, persona_uuid: str, row: dict[str, Any]) -> None:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            "UPDATE personas SET uuid = ?, updated_at = ? WHERE id = ?",
+            (persona_uuid, row.get("updated_at") or self._now_iso(), persona_id),
+        )
+        self._connection.commit()
 
     def _find_solicitud_by_composite_key(self, row: dict[str, Any]) -> Any | None:
         delegada_uuid = str(row.get("delegada_uuid", "")).strip() or None
