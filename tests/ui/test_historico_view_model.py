@@ -113,3 +113,20 @@ def test_ver_todas_true_ignora_filtro_de_delegada() -> None:
     )
 
     assert vm.proxy_model.rowCount() == vm.source_model.rowCount()
+
+
+def test_rango_excluye_fecha_fuera_de_limite_con_tipo_date() -> None:
+    vm = _build_view_model()
+    vm.source_model._fecha_pedida_dates[0] = "02/03/2026"
+
+    vm.proxy_model.set_date_range(QDate(2026, 1, 28), QDate(2026, 2, 27))
+
+    assert vm.proxy_model.rowCount() == 1
+
+
+def test_rango_muestra_fecha_dentro_de_limite() -> None:
+    vm = _build_view_model()
+
+    vm.proxy_model.set_date_range(QDate(2026, 2, 1), QDate(2026, 2, 28))
+
+    assert vm.proxy_model.rowCount() == 1

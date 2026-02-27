@@ -145,10 +145,14 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
                 return False
         elif self._year_mode == "RANGE" and (self._date_from_py or self._date_to_py):
             if fecha is None:
+                return True
+            from_date = self._normalize_date(self._date_from_py)
+            to_date = self._normalize_date(self._date_to_py)
+            if from_date and to_date and not (from_date <= fecha <= to_date):
                 return False
-            if self._date_from_py and fecha < self._date_from_py:
+            if from_date and fecha < from_date:
                 return False
-            if self._date_to_py and fecha > self._date_to_py:
+            if to_date and fecha > to_date:
                 return False
 
         if self._filter_regex.pattern():
@@ -179,17 +183,27 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         if isinstance(source_model, SolicitudesTableModel):
             idx = source_model.index(source_row, 0)
             fecha = source_model.data(idx, SOLICITUD_FECHA_ROLE)
-            if isinstance(fecha, date):
-                return fecha
-            return source_model.fecha_pedida_date_at(source_row)
+            fecha_dt = self._normalize_date(fecha)
+            if fecha_dt is not None:
+                return fecha_dt
+            return self._normalize_date(source_model.fecha_pedida_date_at(source_row))
         return None
 
     @staticmethod
-    def _normalize_date(value: QDate | date | None) -> date | None:
+    def _normalize_date(value: QDate | date | datetime | str | None) -> date | None:
         if value is None:
             return None
+        if isinstance(value, datetime):
+            return value.date()
         if isinstance(value, date):
             return value
+        if isinstance(value, str):
+            for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+                try:
+                    return datetime.strptime(value, fmt).date()
+                except ValueError:
+                    continue
+            return None
         if isinstance(value, QDate) and value.isValid():
             return date(value.year(), value.month(), value.day())
         return None
