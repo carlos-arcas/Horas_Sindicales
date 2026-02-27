@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from datetime import date, datetime
+
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 from PySide6.QtGui import QColor, QFont
 
 from app.application.dto import PersonaDTO, SolicitudDTO
 from app.domain.time_utils import minutes_to_hhmm
 from app.ui.patterns import status_badge
+
+
+SOLICITUD_FECHA_ROLE = Qt.UserRole + 1
 
 
 def _format_minutes(minutes: int) -> str:
@@ -86,6 +91,7 @@ class SolicitudesTableModel(QAbstractTableModel):
         self._show_estado = show_estado
         self._persona_nombres: dict[int, str] = {}
         self._conflict_rows: set[int] = set()
+        self._fecha_pedida_dates: list[date | None] = [self._parse_fecha_pedida(sol.fecha_pedida) for sol in self._solicitudes]
 
     def _effective_headers(self) -> list[str]:
         headers = list(self._headers)
@@ -104,6 +110,8 @@ class SolicitudesTableModel(QAbstractTableModel):
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
         if not index.isValid():
             return None
+        if role == SOLICITUD_FECHA_ROLE and index.column() == 0:
+            return self._fecha_pedida_dates[index.row()]
         role_handlers = {
             Qt.DisplayRole: self._data_display,
             Qt.ToolTipRole: self._data_tooltip,
@@ -180,6 +188,7 @@ class SolicitudesTableModel(QAbstractTableModel):
         self.beginResetModel()
         self._solicitudes = solicitudes
         self._conflict_rows = set()
+        self._fecha_pedida_dates = [self._parse_fecha_pedida(sol.fecha_pedida) for sol in self._solicitudes]
         self.endResetModel()
 
     def solicitud_at(self, row: int) -> SolicitudDTO | None:
@@ -191,6 +200,7 @@ class SolicitudesTableModel(QAbstractTableModel):
         row = len(self._solicitudes)
         self.beginInsertRows(QModelIndex(), row, row)
         self._solicitudes.append(solicitud)
+        self._fecha_pedida_dates.append(self._parse_fecha_pedida(solicitud.fecha_pedida))
         self.endInsertRows()
 
     def solicitudes(self) -> list[SolicitudDTO]:
@@ -200,7 +210,20 @@ class SolicitudesTableModel(QAbstractTableModel):
         self.beginResetModel()
         self._solicitudes = []
         self._conflict_rows = set()
+        self._fecha_pedida_dates = []
         self.endResetModel()
+
+    def fecha_pedida_date_at(self, row: int) -> date | None:
+        if 0 <= row < len(self._fecha_pedida_dates):
+            return self._fecha_pedida_dates[row]
+        return None
+
+    @staticmethod
+    def _parse_fecha_pedida(value: str) -> date | None:
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            return None
 
     def set_conflict_rows(self, rows: set[int]) -> None:
         self.beginResetModel()

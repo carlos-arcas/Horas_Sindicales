@@ -81,3 +81,35 @@ def test_filtra_por_combinacion() -> None:
     vm.proxy_model.set_date_range(QDate(2026, 1, 1), QDate(2026, 1, 31))
 
     assert vm.proxy_model.rowCount() == 1
+
+
+def test_sin_filtros_activos_devuelve_todas_las_filas() -> None:
+    vm = _build_view_model()
+
+    vm.proxy_model.set_filters(
+        delegada_id=None,
+        ver_todas=True,
+        year_mode="RANGE",
+        year=None,
+        month=None,
+        date_from=None,
+        date_to=None,
+    )
+
+    assert vm.proxy_model.rowCount() == vm.source_model.rowCount()
+
+
+def test_ver_todas_true_ignora_filtro_de_delegada() -> None:
+    vm = _build_view_model()
+
+    vm.proxy_model.set_filters(
+        delegada_id=999,
+        ver_todas=True,
+        year_mode="RANGE",
+        year=None,
+        month=None,
+        date_from=None,
+        date_to=None,
+    )
+
+    assert vm.proxy_model.rowCount() == vm.source_model.rowCount()
