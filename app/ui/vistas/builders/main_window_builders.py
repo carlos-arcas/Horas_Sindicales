@@ -104,18 +104,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     solicitud_card, solicitud_layout = window._create_card("")
     solicitud_layout.setSpacing(12)
 
-    window.confirmation_summary_label = QLabel("")
-    window.confirmation_summary_label.setProperty("role", "secondary")
-    window.confirmation_summary_label.setVisible(False)
-    window.confirmation_summary_label.setWordWrap(True)
-    solicitud_layout.addWidget(window.confirmation_summary_label)
-
-    header_separator = QFrame()
-    header_separator.setFrameShape(QFrame.Shape.HLine)
-    header_separator.setFrameShadow(QFrame.Shadow.Plain)
-    header_separator.setProperty("role", "subtleSeparator")
-    solicitud_layout.addWidget(header_separator)
-
     window.pending_errors_frame = QFrame()
     window.pending_errors_frame.setProperty("role", "notice")
     pending_errors_layout = QVBoxLayout(window.pending_errors_frame)
