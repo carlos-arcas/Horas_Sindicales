@@ -64,6 +64,7 @@ class SheetsSyncService:
         self._pending_batch_updates: dict[str, list[dict[str, Any]]] = {}
         self._pending_values_batch_updates: dict[str, list[dict[str, Any]]] = {}
         self._enable_backfill = enable_backfill
+        self._defer_local_commits = False
 
     def pull(self) -> SyncSummary:
         spreadsheet = self._ensure_connection_ready()
@@ -389,12 +390,23 @@ class SheetsSyncService:
             "sample_fecha_after": None,
         }
         logger.info("Pull solicitudes: worksheet=%s filas_leidas=%s", worksheet_name, len(rows))
-        for row_number, raw_row in rows:
-            self._set_pull_solicitud_samples(stats, raw_row)
-            row = self._normalize_remote_solicitud_row(raw_row, worksheet_name)
-            if stats["sample_fecha_after"] is None:
-                stats["sample_fecha_after"] = str(row.get("fecha") or "")
-            self._process_pull_solicitud_row(worksheet, headers, row_number, row, last_sync_at, stats)
+        cursor = self._connection.cursor()
+        cursor.execute("SAVEPOINT pull_solicitudes_worksheet")
+        self._defer_local_commits = True
+        try:
+            for row_number, raw_row in rows:
+                self._set_pull_solicitud_samples(stats, raw_row)
+                row = self._normalize_remote_solicitud_row(raw_row, worksheet_name)
+                if stats["sample_fecha_after"] is None:
+                    stats["sample_fecha_after"] = str(row.get("fecha") or "")
+                self._process_pull_solicitud_row(worksheet, headers, row_number, row, last_sync_at, stats)
+            cursor.execute("RELEASE SAVEPOINT pull_solicitudes_worksheet")
+        except Exception:
+            cursor.execute("ROLLBACK TO SAVEPOINT pull_solicitudes_worksheet")
+            cursor.execute("RELEASE SAVEPOINT pull_solicitudes_worksheet")
+            raise
+        finally:
+            self._defer_local_commits = False
         return stats
 
     @staticmethod
@@ -593,7 +605,8 @@ class SheetsSyncService:
                     ),
                 )
                 downloaded += 1
-        self._connection.commit()
+        if not self._defer_local_commits:
+            self._connection.commit()
         return downloaded
 
     def _pull_config(self, spreadsheet: Any) -> int:
@@ -1148,7 +1161,8 @@ class SheetsSyncService:
             self._now_iso,
         )
         self._ejecutar_insert_remoto_solicitud(payload)
-        self._connection.commit()
+        if not self._defer_local_commits:
+            self._connection.commit()
         logger.info("Solicitud importada a tabla local 'solicitudes' (histórico): uuid=%s", uuid_value)
         return True, 0, 0
 
@@ -1174,7 +1188,8 @@ class SheetsSyncService:
             self._now_iso,
         )
         self._ejecutar_update_remoto_solicitud(payload)
-        self._connection.commit()
+        if not self._defer_local_commits:
+            self._connection.commit()
         return True, 0, 0
 
     def _resolver_persona_para_solicitud(self, row: dict[str, Any], identificador: str) -> int | None:
@@ -1358,7 +1373,8 @@ class SheetsSyncService:
                 self._now_iso(),
             ),
         )
-        self._connection.commit()
+        if not self._defer_local_commits:
+            self._connection.commit()
 
     def _rows_with_index(
         self,
@@ -1367,7 +1383,14 @@ class SheetsSyncService:
         aliases: dict[str, list[str]] | None = None,
     ) -> tuple[list[str], list[tuple[int, dict[str, Any]]]]:
         cache_name = worksheet_name or getattr(worksheet, "title", None)
-        values = self._client.read_all_values(cache_name) if cache_name else worksheet.get_all_values()
+        if cache_name:
+            try:
+                values = self._client.read_all_values(cache_name)
+            except SheetsRateLimitError:
+                logger.warning("Rate limit al leer worksheet=%s; reintentando una vez.", cache_name)
+                values = self._client.read_all_values(cache_name)
+        else:
+            values = worksheet.get_all_values()
         return rows_with_index(values, worksheet_name=cache_name or worksheet.title, aliases=aliases)
 
     def _header_map(self, headers: list[str], expected: list[str]) -> list[str]:
