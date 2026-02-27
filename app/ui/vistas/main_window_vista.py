@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import json
 import sqlite3
-from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -19,7 +18,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
