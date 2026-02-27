@@ -123,49 +123,20 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         if solicitud is None:
             return False
 
-        if (
-            self._delegada_id is None
-            and self._ver_todas
-            and (self._year_mode is None or self._year_mode == "NONE")
-            and self._date_from_py is None
-            and self._date_to_py is None
-            and not self._estado_code
-            and not self._filter_regex.pattern()
-        ):
+        if not self._has_filters():
             return True
 
-        has_period_filter = (
-            (self._year_mode == "ALL_YEAR" and self._year is not None)
-            or (self._year_mode == "YEAR_MONTH" and self._year is not None and self._month is not None)
-            or (self._year_mode == "RANGE" and (self._date_from_py is not None or self._date_to_py is not None))
-        )
-        has_text_filter = bool(self._filter_regex.pattern())
-        if not has_text_filter and not self._estado_code and not has_period_filter and (self._ver_todas or self._delegada_id is None):
-            return True
+        fecha = self._extract_fecha(source_row)
+
+        if not self._match_delegada(solicitud):
+            return False
+
+        if not self._match_date_mode(fecha):
+            return False
 
         if self._estado_code:
             estado = HistoricoStatusResolver.resolve(solicitud)
             if estado.code != self._estado_code:
-                return False
-
-        if not self._ver_todas and self._delegada_id is not None and solicitud.persona_id != self._delegada_id:
-            return False
-
-        fecha = self._coerce_to_date(self._source_fecha(source_row))
-        if self._year_mode == "ALL_YEAR" and self._year is not None:
-            if fecha is None or fecha.year != self._year:
-                return False
-        elif self._year_mode == "YEAR_MONTH" and self._year is not None and self._month is not None:
-            if fecha is None or fecha.year != self._year or fecha.month != self._month:
-                return False
-        elif self._year_mode == "RANGE" and (self._date_from_py or self._date_to_py):
-            date_from = self._coerce_to_date(self._date_from_py)
-            date_to = self._coerce_to_date(self._date_to_py)
-            if fecha is None:
-                return True
-            if date_from and fecha < date_from:
-                return False
-            if date_to and fecha > date_to:
                 return False
 
         if self._filter_regex.pattern():
@@ -190,6 +161,66 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
                 return False
 
         return True
+
+    def _has_filters(self) -> bool:
+        has_delegada_filter = not self._ver_todas and self._delegada_id is not None
+        return any((
+            has_delegada_filter,
+            self._has_period_filter(),
+            bool(self._estado_code),
+            bool(self._filter_regex.pattern()),
+        ))
+
+    def _has_period_filter(self) -> bool:
+        if self._year_mode == "ALL_YEAR":
+            return self._year is not None
+        if self._year_mode == "YEAR_MONTH":
+            return self._year is not None and self._month is not None
+        if self._year_mode == "RANGE":
+            return self._date_from_py is not None or self._date_to_py is not None
+        return False
+
+    def _match_delegada(self, solicitud: SolicitudDTO) -> bool:
+        if self._ver_todas or self._delegada_id is None:
+            return True
+        return solicitud.persona_id == self._delegada_id
+
+    def _match_date_mode(self, fecha: date | None) -> bool:
+        if self._year_mode == "ALL_YEAR":
+            return self._match_year(fecha)
+        if self._year_mode == "YEAR_MONTH":
+            return self._match_year_month(fecha)
+        if self._year_mode == "RANGE":
+            return self._match_range(fecha)
+        return True
+
+    def _match_year(self, fecha: date | None) -> bool:
+        if self._year is None:
+            return True
+        if fecha is None:
+            return False
+        return fecha.year == self._year
+
+    def _match_year_month(self, fecha: date | None) -> bool:
+        if self._year is None or self._month is None:
+            return True
+        if fecha is None:
+            return False
+        return fecha.year == self._year and fecha.month == self._month
+
+    def _match_range(self, fecha: date | None) -> bool:
+        if not self._date_from_py and not self._date_to_py:
+            return True
+        if fecha is None:
+            return True
+        if self._date_from_py and fecha < self._date_from_py:
+            return False
+        if self._date_to_py and fecha > self._date_to_py:
+            return False
+        return True
+
+    def _extract_fecha(self, source_row: int) -> date | None:
+        return self._coerce_to_date(self._source_fecha(source_row))
 
     def _source_fecha(self, source_row: int) -> date | str | None:
         source_model = self.sourceModel()
