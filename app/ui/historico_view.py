@@ -147,7 +147,7 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         if not self._ver_todas and self._delegada_id is not None and solicitud.persona_id != self._delegada_id:
             return False
 
-        fecha = self._source_fecha(source_row)
+        fecha = self._coerce_to_date(self._source_fecha(source_row))
         if self._year_mode == "ALL_YEAR" and self._year is not None:
             if fecha is None or fecha.year != self._year:
                 return False
@@ -155,11 +155,13 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
             if fecha is None or fecha.year != self._year or fecha.month != self._month:
                 return False
         elif self._year_mode == "RANGE" and (self._date_from_py or self._date_to_py):
+            date_from = self._coerce_to_date(self._date_from_py)
+            date_to = self._coerce_to_date(self._date_to_py)
             if fecha is None:
+                return True
+            if date_from and fecha < date_from:
                 return False
-            if self._date_from_py and fecha < self._date_from_py:
-                return False
-            if self._date_to_py and fecha > self._date_to_py:
+            if date_to and fecha > date_to:
                 return False
 
         if self._filter_regex.pattern():
@@ -185,14 +187,32 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
 
         return True
 
-    def _source_fecha(self, source_row: int) -> date | None:
+    def _source_fecha(self, source_row: int) -> date | str | None:
         source_model = self.sourceModel()
         if isinstance(source_model, SolicitudesTableModel):
             idx = source_model.index(source_row, 0)
             fecha = source_model.data(idx, SOLICITUD_FECHA_ROLE)
             if isinstance(fecha, date):
                 return fecha
+            if isinstance(fecha, str):
+                return fecha
             return source_model.fecha_pedida_date_at(source_row)
+        return None
+
+    @staticmethod
+    def _coerce_to_date(value: date | str | None) -> date | None:
+        if value is None:
+            return None
+        if isinstance(value, date):
+            return value
+        if not isinstance(value, str):
+            return None
+
+        for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
         return None
 
     @staticmethod

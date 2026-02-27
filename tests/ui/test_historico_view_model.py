@@ -123,3 +123,21 @@ def test_proxy_arranca_sin_filtro_de_periodo_activo() -> None:
     assert state["year_mode"] is None
     assert state["from"] is None
     assert state["to"] is None
+
+
+def test_filtra_rango_con_fecha_string_fuera_de_rango() -> None:
+    vm = HistoricalViewModel([_solicitud(1, "2026-03-02", 1, "nota", True)])
+    vm.source_model._fecha_pedida_dates[0] = "02/03/2026"
+
+    vm.proxy_model.set_date_range(QDate(2026, 1, 28), QDate(2026, 2, 27))
+
+    assert vm.proxy_model.rowCount() == 0
+
+
+def test_filtra_rango_con_fecha_string_dentro_de_rango() -> None:
+    vm = HistoricalViewModel([_solicitud(1, "2026-02-02", 1, "nota", True)])
+    vm.source_model._fecha_pedida_dates[0] = "02/02/2026"
+
+    vm.proxy_model.set_date_range(QDate(2026, 1, 28), QDate(2026, 2, 27))
+
+    assert vm.proxy_model.rowCount() == 1
