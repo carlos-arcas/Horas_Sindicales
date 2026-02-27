@@ -1,0 +1,1 @@
+-- No-op rollback: la tabla sync_state puede contener estado operativo de sincronización.

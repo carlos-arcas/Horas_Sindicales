@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -261,6 +262,7 @@ class SheetsSyncService:
         return spreadsheet
 
     def _get_last_sync_at(self) -> str | None:
+        self._ensure_sync_state_table()
         cursor = self._connection.cursor()
         cursor.execute("SELECT last_sync_at FROM sync_state WHERE id = 1")
         row = cursor.fetchone()
@@ -269,11 +271,37 @@ class SheetsSyncService:
         return row["last_sync_at"]
 
     def _set_last_sync_at(self, timestamp: str) -> None:
+        self._ensure_sync_state_table()
         cursor = self._connection.cursor()
         cursor.execute(
-            "UPDATE sync_state SET last_sync_at = ? WHERE id = 1",
+            """
+            INSERT INTO sync_state (id, last_sync_at)
+            VALUES (1, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                last_sync_at = excluded.last_sync_at
+            """,
             (timestamp,),
         )
+        self._connection.commit()
+
+    def _ensure_sync_state_table(self) -> None:
+        cursor = self._connection.cursor()
+        try:
+            cursor.execute("SELECT 1 FROM sync_state WHERE id = 1")
+            return
+        except sqlite3.OperationalError as exc:
+            if "no such table: sync_state" not in str(exc).lower():
+                raise
+            logger.warning("Tabla sync_state ausente; creando estructura mínima de sincronización.")
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sync_state (
+                id INTEGER PRIMARY KEY CHECK(id = 1),
+                last_sync_at TEXT NULL
+            )
+            """
+        )
+        cursor.execute("INSERT OR IGNORE INTO sync_state (id, last_sync_at) VALUES (1, NULL)")
         self._connection.commit()
 
     def _pull_delegadas(self, spreadsheet: Any, last_sync_at: str | None) -> tuple[int, int]:
