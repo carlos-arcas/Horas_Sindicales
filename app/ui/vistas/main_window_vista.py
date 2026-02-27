@@ -955,11 +955,27 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.historico_proxy_model.set_search_text(self.historico_search_input.text())
         self._update_action_state()
 
+    def _historico_period_filter_state(self) -> tuple[str, int | None, int | None]:
+        if self.historico_periodo_anual_radio.isChecked():
+            return "ALL_YEAR", self.historico_periodo_anual_spin.value(), None
+        if self.historico_periodo_mes_radio.isChecked():
+            return "YEAR_MONTH", self.historico_periodo_mes_ano_spin.value(), self.historico_periodo_mes_combo.currentData()
+        return "RANGE", None, None
+
     def _apply_historico_filters(self) -> None:
-        self.historico_proxy_model.set_date_range(self.historico_desde_date.date(), self.historico_hasta_date.date())
+        year_mode, year, month = self._historico_period_filter_state()
+        ver_todas = self.historico_todas_delegadas_check.isChecked()
+        delegada_id = None if ver_todas else self.historico_delegada_combo.currentData()
+        self.historico_proxy_model.set_filters(
+            delegada_id=delegada_id,
+            ver_todas=ver_todas,
+            year_mode=year_mode,
+            year=year,
+            month=month,
+            date_from=self.historico_desde_date.date(),
+            date_to=self.historico_hasta_date.date(),
+        )
         self.historico_proxy_model.set_estado_code(self.historico_estado_combo.currentData())
-        delegada_id = self.historico_delegada_combo.currentData()
-        self.historico_proxy_model.set_delegada_id(delegada_id)
         self._settings.setValue("historico/delegada", delegada_id)
         self._apply_historico_text_filter()
         self._update_historico_empty_state()
@@ -997,25 +1013,19 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.historico_hasta_date.setEnabled(rango_activo)
 
     def _on_historico_apply_filters(self) -> None:
-        if self.historico_periodo_anual_radio.isChecked():
-            modo = "ANUAL"
-        elif self.historico_periodo_mes_radio.isChecked():
-            modo = "ANUAL_MES"
-        else:
-            modo = "RANGO"
-
+        year_mode, year, month = self._historico_period_filter_state()
         delegada_id = None if self.historico_todas_delegadas_check.isChecked() else self.historico_delegada_combo.currentData()
         logger.info(
             "UI_HISTORICO_APPLY_FILTERS todas=%s delegada_id=%s año=%s mes=%s desde=%s hasta=%s modo=%s",
             self.historico_todas_delegadas_check.isChecked(),
             delegada_id,
-            self.historico_periodo_mes_ano_spin.value() if modo == "ANUAL_MES" else self.historico_periodo_anual_spin.value(),
-            self.historico_periodo_mes_combo.currentData() if modo == "ANUAL_MES" else None,
+            year,
+            month,
             self.historico_desde_date.date().toString("yyyy-MM-dd"),
             self.historico_hasta_date.date().toString("yyyy-MM-dd"),
-            modo,
+            year_mode,
         )
-        # TODO: invocar refresh real de histórico (p.ej. self._refresh_historico()) cuando se implemente el backend de filtros.
+        self._apply_historico_filters()
 
     def _clear_historico_filters(self) -> None:
         logger.info("UI_HISTORICO_CLEAR_FILTERS")
@@ -1027,6 +1037,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.historico_periodo_mes_combo.setCurrentIndex(QDate.currentDate().month() - 1)
         self._apply_historico_default_range()
         self._on_historico_periodo_mode_changed()
+        self._apply_historico_filters()
 
     def _on_open_saldos_modal(self) -> None:
         logger.info("UI_SALDOS_MODAL_OPEN")
@@ -3190,9 +3201,16 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         model = self.historico_model
         proxy_model = self.historico_proxy_model
 
+        was_sorting_enabled = table.isSortingEnabled()
+        table.setSortingEnabled(False)
+        if proxy_model.sourceModel() is not model:
+            proxy_model.setSourceModel(model)
         model.set_solicitudes(solicitudes)
-        table.sortByColumn(0, Qt.DescendingOrder)
         self._apply_historico_filters()
+        proxy_model.invalidateFilter()
+        table.setSortingEnabled(was_sorting_enabled)
+        if was_sorting_enabled:
+            table.sortByColumn(0, Qt.DescendingOrder)
         self._update_action_state()
         row_count = proxy_model.rowCount()
         logger.info("UI_HISTORICO_TABLE_RENDER row_count=%s", row_count)
@@ -3208,6 +3226,17 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 table.updatesEnabled(),
             )
             logger.error("UI_HISTORICO_RENDER_MISMATCH count=%s row_count=%s", len(solicitudes), row_count)
+            proxy_state = proxy_model.filter_state()
+            logger.error(
+                "UI_HISTORICO_PROXY_STATE ver_todas=%s delegada_id=%s year_mode=%s year=%s month=%s from=%s to=%s",
+                proxy_state["ver_todas"],
+                proxy_state["delegada_id"],
+                proxy_state["year_mode"],
+                proxy_state["year"],
+                proxy_state["month"],
+                proxy_state["from"],
+                proxy_state["to"],
+            )
             logger.error(
                 "UI_HISTORICO_RENDER_RETRY source_rows=%s proxy_rows=%s selected_rows=%s",
                 model.rowCount(),

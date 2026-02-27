@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Iterable
 
 from PySide6.QtCore import QDate, QModelIndex, QRegularExpression, QSortFilterProxyModel, Qt
 
 from app.application.dto import SolicitudDTO
-from app.ui.models_qt import SolicitudesTableModel
+from app.ui.models_qt import SOLICITUD_FECHA_ROLE, SolicitudesTableModel
 from app.ui.patterns import status_badge
 
 
@@ -38,8 +38,14 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         self._filter_regex = QRegularExpression()
         self._date_from: QDate | None = None
         self._date_to: QDate | None = None
+        self._date_from_py: date | None = None
+        self._date_to_py: date | None = None
         self._estado_code: str | None = None
         self._delegada_id: int | None = None
+        self._ver_todas: bool = True
+        self._year_mode: str = "RANGE"
+        self._year: int | None = None
+        self._month: int | None = None
         self.setDynamicSortFilter(True)
 
     def set_search_text(self, text: str) -> None:
@@ -49,9 +55,15 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         self.invalidateFilter()
 
     def set_date_range(self, date_from: QDate | None, date_to: QDate | None) -> None:
-        self._date_from = date_from
-        self._date_to = date_to
-        self.invalidateFilter()
+        self.set_filters(
+            delegada_id=self._delegada_id,
+            ver_todas=self._ver_todas,
+            year_mode="RANGE",
+            year=self._year,
+            month=self._month,
+            date_from=date_from,
+            date_to=date_to,
+        )
 
     def set_estado_code(self, estado_code: str | None) -> None:
         self._estado_code = estado_code
@@ -59,7 +71,42 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
 
     def set_delegada_id(self, delegada_id: int | None) -> None:
         self._delegada_id = delegada_id
+        self._ver_todas = delegada_id is None
         self.invalidateFilter()
+
+    def set_filters(
+        self,
+        *,
+        delegada_id: int | None,
+        ver_todas: bool,
+        year_mode: str,
+        year: int | None,
+        month: int | None,
+        date_from: QDate | date | None,
+        date_to: QDate | date | None,
+    ) -> None:
+        self._delegada_id = int(delegada_id) if delegada_id is not None else None
+        self._ver_todas = bool(ver_todas)
+        self._year_mode = year_mode or "RANGE"
+        self._year = int(year) if year is not None else None
+        self._month = int(month) if month is not None else None
+        self._date_from_py = self._normalize_date(date_from)
+        self._date_to_py = self._normalize_date(date_to)
+        self._date_from = QDate(self._date_from_py.year, self._date_from_py.month, self._date_from_py.day) if self._date_from_py else None
+        self._date_to = QDate(self._date_to_py.year, self._date_to_py.month, self._date_to_py.day) if self._date_to_py else None
+        self.invalidateFilter()
+        self.invalidate()
+
+    def filter_state(self) -> dict[str, object]:
+        return {
+            "ver_todas": self._ver_todas,
+            "delegada_id": self._delegada_id,
+            "year_mode": self._year_mode,
+            "year": self._year,
+            "month": self._month,
+            "from": self._date_from_py,
+            "to": self._date_to_py,
+        }
 
     def _source_solicitud(self, source_row: int) -> SolicitudDTO | None:
         source_model = self.sourceModel()
@@ -72,21 +119,36 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         if solicitud is None:
             return False
 
+        has_period_filter = (
+            (self._year_mode == "ALL_YEAR" and self._year is not None)
+            or (self._year_mode == "YEAR_MONTH" and self._year is not None and self._month is not None)
+            or (self._year_mode == "RANGE" and (self._date_from_py is not None or self._date_to_py is not None))
+        )
+        has_text_filter = bool(self._filter_regex.pattern())
+        if not has_text_filter and not self._estado_code and not has_period_filter and (self._ver_todas or self._delegada_id is None):
+            return True
+
         if self._estado_code:
             estado = HistoricoStatusResolver.resolve(solicitud)
             if estado.code != self._estado_code:
                 return False
 
-        if self._delegada_id is not None and solicitud.persona_id != self._delegada_id:
+        if not self._ver_todas and self._delegada_id is not None and solicitud.persona_id != self._delegada_id:
             return False
 
-        if self._date_from or self._date_to:
-            fecha = QDate.fromString(solicitud.fecha_pedida, "yyyy-MM-dd")
-            if not fecha.isValid():
+        fecha = self._source_fecha(source_row)
+        if self._year_mode == "ALL_YEAR" and self._year is not None:
+            if fecha is None or fecha.year != self._year:
                 return False
-            if self._date_from and fecha < self._date_from:
+        elif self._year_mode == "YEAR_MONTH" and self._year is not None and self._month is not None:
+            if fecha is None or fecha.year != self._year or fecha.month != self._month:
                 return False
-            if self._date_to and fecha > self._date_to:
+        elif self._year_mode == "RANGE" and (self._date_from_py or self._date_to_py):
+            if fecha is None:
+                return False
+            if self._date_from_py and fecha < self._date_from_py:
+                return False
+            if self._date_to_py and fecha > self._date_to_py:
                 return False
 
         if self._filter_regex.pattern():
@@ -111,6 +173,26 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
                 return False
 
         return True
+
+    def _source_fecha(self, source_row: int) -> date | None:
+        source_model = self.sourceModel()
+        if isinstance(source_model, SolicitudesTableModel):
+            idx = source_model.index(source_row, 0)
+            fecha = source_model.data(idx, SOLICITUD_FECHA_ROLE)
+            if isinstance(fecha, date):
+                return fecha
+            return source_model.fecha_pedida_date_at(source_row)
+        return None
+
+    @staticmethod
+    def _normalize_date(value: QDate | date | None) -> date | None:
+        if value is None:
+            return None
+        if isinstance(value, date):
+            return value
+        if isinstance(value, QDate) and value.isValid():
+            return date(value.year(), value.month(), value.day())
+        return None
 
     def lessThan(self, left: QModelIndex, right: QModelIndex) -> bool:  # noqa: N802
         source_model = self.sourceModel()
