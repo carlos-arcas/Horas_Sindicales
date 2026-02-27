@@ -4,7 +4,6 @@ import re
 import sqlite3
 from pathlib import Path
 
-import pytest
 from tests.ui.conftest import require_qt
 
 QApplication = require_qt()
