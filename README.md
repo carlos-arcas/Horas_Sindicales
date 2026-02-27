@@ -139,6 +139,17 @@ Ejecución manual equivalente:
 PYTHONPATH=. pytest -q
 ```
 
+Separación equivalente a CI:
+
+```bash
+# Core (obligatorio en CI): lint + tests no-UI + coverage
+ruff check .
+pytest -q -m "not ui" --cov=app --cov-report=term-missing --cov-fail-under=$(python -c "import json;print(json.load(open('.config/quality_gate.json', encoding='utf-8'))['coverage_fail_under'])")
+
+# UI (job independiente en CI, ejecutado con xvfb)
+xvfb-run -a pytest -q tests/ui
+```
+
 ## Quality Gate
 
 Este proyecto bloquea merges si:
