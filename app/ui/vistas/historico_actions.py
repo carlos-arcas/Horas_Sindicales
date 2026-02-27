@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import QDialog
@@ -11,9 +11,6 @@ from app.core.observability import OperationContext, log_event
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.bootstrap.logging import log_operational_error
 from app.ui.patterns import status_badge
-
-if TYPE_CHECKING:
-    from app.application.dto import SolicitudDTO
 
 
 logger = logging.getLogger(__name__)
