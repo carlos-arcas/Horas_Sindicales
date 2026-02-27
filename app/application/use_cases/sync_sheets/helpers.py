@@ -185,3 +185,85 @@ def _get_persona_minutes(cursor: Any, persona_id: int, dia: str, segmento: str) 
     )
     row = cursor.fetchone()
     return row["value"] if row and row["value"] is not None else 0
+
+
+def extraer_datos_delegada(fila_remota: dict[str, Any]) -> tuple[str, str]:
+    uuid_delegada = str(fila_remota.get("delegada_uuid") or "").strip()
+    nombre_raw = fila_remota.get("delegada_nombre") or fila_remota.get("Delegada") or ""
+    nombre_delegada = " ".join(str(nombre_raw).split())
+    return uuid_delegada, nombre_delegada
+
+
+def normalizar_fechas_solicitud(
+    fila_remota: dict[str, Any],
+    funcion_normalizar_fecha: Any,
+) -> tuple[str | None, str | None]:
+    fecha_solicitud = funcion_normalizar_fecha(fila_remota.get("fecha") or fila_remota.get("fecha_pedida"))
+    fecha_creacion = funcion_normalizar_fecha(fila_remota.get("created_at")) or fecha_solicitud
+    return fecha_solicitud, fecha_creacion
+
+
+def calcular_bloque_horario_solicitud(fila_remota: dict[str, Any], funcion_unir_minutos: Any) -> tuple[int, int]:
+    desde_min = funcion_unir_minutos(fila_remota.get("desde_h"), fila_remota.get("desde_m"))
+    hasta_min = funcion_unir_minutos(fila_remota.get("hasta_h"), fila_remota.get("hasta_m"))
+    return desde_min, hasta_min
+
+
+def construir_payload_insercion_solicitud(
+    uuid_solicitud: str,
+    persona_id: int,
+    fila_remota: dict[str, Any],
+    fecha_solicitud: str,
+    fecha_creacion: str,
+    desde_min: int,
+    hasta_min: int,
+    funcion_entero: Any,
+    funcion_ahora_iso: Any,
+) -> tuple[Any, ...]:
+    return (
+        uuid_solicitud,
+        persona_id,
+        fecha_creacion,
+        fecha_solicitud,
+        desde_min,
+        hasta_min,
+        1 if funcion_entero(fila_remota.get("completo")) else 0,
+        funcion_entero(fila_remota.get("minutos_total") or fila_remota.get("horas")),
+        None,
+        fila_remota.get("notas") or "",
+        None,
+        fila_remota.get("pdf_id"),
+        1,
+        fecha_creacion,
+        fila_remota.get("updated_at") or funcion_ahora_iso(),
+        fila_remota.get("source_device"),
+        funcion_entero(fila_remota.get("deleted")),
+    )
+
+
+def construir_payload_actualizacion_solicitud(
+    solicitud_id: int,
+    persona_id: int,
+    fila_remota: dict[str, Any],
+    fecha_solicitud: str,
+    fecha_creacion: str,
+    desde_min: int,
+    hasta_min: int,
+    funcion_entero: Any,
+    funcion_ahora_iso: Any,
+) -> tuple[Any, ...]:
+    return (
+        persona_id,
+        fecha_solicitud,
+        desde_min,
+        hasta_min,
+        1 if funcion_entero(fila_remota.get("completo")) else 0,
+        funcion_entero(fila_remota.get("minutos_total") or fila_remota.get("horas")),
+        fila_remota.get("notas") or "",
+        fila_remota.get("pdf_id"),
+        fecha_creacion,
+        fila_remota.get("updated_at") or funcion_ahora_iso(),
+        fila_remota.get("source_device"),
+        funcion_entero(fila_remota.get("deleted")),
+        solicitud_id,
+    )
