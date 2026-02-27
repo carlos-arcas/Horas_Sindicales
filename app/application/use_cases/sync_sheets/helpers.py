@@ -41,6 +41,7 @@ def build_solicitudes_sync_plan(
             row,
             remote_index,
             last_sync_at,
+            canonical_header,
             values,
             errors,
         )
@@ -78,6 +79,7 @@ def _build_solicitud_plan_for_local_row(
     row: Any,
     remote_index: dict[str, dict[str, Any]],
     last_sync_at: str | None,
+    canonical_header: list[str],
     values: list[tuple[Any, ...]],
     errors: list[str],
 ) -> SyncPlanItem | None:
