@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import sqlite3
+
 from app.application.use_cases.sync_sheets.helpers import (
+    _build_solicitud_plan_for_local_row,
+    _get_persona_minutes,
+    build_solicitudes_sync_plan,
     _build_solicitud_diffs,
     calcular_bloque_horario_solicitud,
     construir_payload_actualizacion_solicitud,
     construir_payload_insercion_solicitud,
     extraer_datos_delegada,
     normalizar_fechas_solicitud,
+    sync_local_cuadrantes_from_personas,
 )
 
 
@@ -210,3 +216,207 @@ def test_payloads_son_tuplas_con_longitud_estable() -> None:
     assert isinstance(actualizacion, tuple)
     assert len(insercion) == 17
     assert len(actualizacion) == 13
+
+
+class _FakeSyncService:
+    def __init__(self) -> None:
+        self._connection = sqlite3.connect(":memory:")
+        self._connection.row_factory = sqlite3.Row
+        self.last_sync_at = "2026-01-01T00:00:00Z"
+        self.now = "2026-02-01T10:00:00Z"
+        self.remote_rows = [
+            (3, {"uuid": "u-update", "updated_at": "2025-12-05T00:00:00Z", "raw": "remote-old"}),
+            (4, {"uuid": "u-unchanged", "updated_at": "2026-01-06T00:00:00Z", "raw": "same"}),
+            (5, {"uuid": "u-conflict", "updated_at": "2026-01-07T00:00:00Z", "raw": "remote-new"}),
+            (6, {"uuid": "u-only-remote", "updated_at": "2026-01-10T00:00:00Z", "raw": "ghost"}),
+        ]
+        self._seed_schema()
+
+    def _seed_schema(self) -> None:
+        cursor = self._connection.cursor()
+        cursor.executescript(
+            """
+            CREATE TABLE personas (
+                id INTEGER PRIMARY KEY,
+                uuid TEXT,
+                nombre TEXT,
+                cuad_lun_man_min INTEGER,
+                cuad_lun_tar_min INTEGER,
+                cuad_mar_man_min INTEGER,
+                cuad_mar_tar_min INTEGER,
+                cuad_mie_man_min INTEGER,
+                cuad_mie_tar_min INTEGER,
+                cuad_jue_man_min INTEGER,
+                cuad_jue_tar_min INTEGER,
+                cuad_vie_man_min INTEGER,
+                cuad_vie_tar_min INTEGER,
+                cuad_sab_man_min INTEGER,
+                cuad_sab_tar_min INTEGER,
+                cuad_dom_man_min INTEGER,
+                cuad_dom_tar_min INTEGER,
+                updated_at TEXT
+            );
+            CREATE TABLE solicitudes (
+                id INTEGER PRIMARY KEY,
+                uuid TEXT,
+                persona_id INTEGER,
+                fecha_pedida TEXT,
+                desde_min INTEGER,
+                hasta_min INTEGER,
+                completo INTEGER,
+                horas_solicitadas_min INTEGER,
+                notas TEXT,
+                created_at TEXT,
+                updated_at TEXT,
+                source_device TEXT,
+                deleted INTEGER,
+                pdf_hash TEXT
+            );
+            CREATE TABLE cuadrantes (
+                id INTEGER PRIMARY KEY,
+                uuid TEXT,
+                delegada_uuid TEXT,
+                dia_semana TEXT,
+                man_min INTEGER,
+                tar_min INTEGER,
+                updated_at TEXT,
+                deleted INTEGER
+            );
+            """
+        )
+        cursor.execute(
+            """
+            INSERT INTO personas (
+                id, uuid, nombre,
+                cuad_lun_man_min, cuad_lun_tar_min,
+                cuad_mar_man_min, cuad_mar_tar_min,
+                cuad_mie_man_min, cuad_mie_tar_min,
+                cuad_jue_man_min, cuad_jue_tar_min,
+                cuad_vie_man_min, cuad_vie_tar_min,
+                cuad_sab_man_min, cuad_sab_tar_min,
+                cuad_dom_man_min, cuad_dom_tar_min,
+                updated_at
+            ) VALUES (1, 'per-1', 'Ana', 10, 20, 11, 21, 12, 22, 13, 23, 14, 24, 15, 25, 16, 26, '2026-01-01T00:00:00Z')
+            """
+        )
+        for idx, uuid, raw, updated in [
+            (1, "u-create", "local-create", "2026-01-06T00:00:00Z"),
+            (2, "u-update", "local-new", "2026-01-06T00:00:00Z"),
+            (3, "u-unchanged", "same", "2026-01-06T00:00:00Z"),
+            (4, "u-conflict", "local-conflict", "2026-01-06T00:00:00Z"),
+            (5, "", "bad-uuid", "2026-01-06T00:00:00Z"),
+            (6, "u-old", "old", "2025-01-06T00:00:00Z"),
+        ]:
+            cursor.execute(
+                """
+                INSERT INTO solicitudes (
+                    id, uuid, persona_id, fecha_pedida, desde_min, hasta_min,
+                    completo, horas_solicitadas_min, notas, created_at, updated_at, source_device, deleted, pdf_hash
+                ) VALUES (?, ?, 1, '2026-01-02', 60, 120, 1, 60, ?, '2026-01-02', ?, 'dev', 0, ?)
+                """,
+                (idx, uuid, raw, updated, raw),
+            )
+        self._connection.commit()
+
+    def _get_worksheet(self, spreadsheet, name: str) -> str:
+        assert spreadsheet == "sheet"
+        assert name == "solicitudes"
+        return "ws"
+
+    def _rows_with_index(self, worksheet: str):
+        assert worksheet == "ws"
+        return ["uuid", "updated_at", "raw"], self.remote_rows
+
+    def _uuid_index(self, rows):
+        return {row["uuid"]: row for _, row in rows if row.get("uuid")}
+
+    def _get_last_sync_at(self):
+        return self.last_sync_at
+
+    def _is_after_last_sync(self, updated: str | None, last_sync: str) -> bool:
+        return bool(updated and updated > last_sync)
+
+    def _parse_iso(self, value: str | None):
+        return value
+
+    def _is_conflict(self, local_updated: str | None, remote_updated: str | None, last_sync: str | None) -> bool:
+        return bool(
+            last_sync
+            and local_updated
+            and remote_updated
+            and local_updated > last_sync
+            and remote_updated > last_sync
+            and remote_updated > local_updated
+        )
+
+    def _local_solicitud_payload(self, row):
+        return (row["uuid"], row["updated_at"], row["notas"])
+
+    def _remote_solicitud_payload(self, row):
+        return (row.get("uuid"), row.get("updated_at"), row.get("raw"))
+
+    def _now_iso(self) -> str:
+        return self.now
+
+    def _generate_uuid(self) -> str:
+        return "uuid-generado"
+
+
+def test_build_solicitudes_sync_plan_cubre_create_update_unchanged_conflict_y_errores() -> None:
+    service = _FakeSyncService()
+    plan = build_solicitudes_sync_plan(service, spreadsheet="sheet", canonical_header=["uuid", "updated_at", "raw"])
+
+    assert plan.generated_at == "2026-02-01T10:00:00Z"
+    assert [item.uuid for item in plan.to_create] == ["u-create"]
+    assert [item.uuid for item in plan.to_update] == ["u-update"]
+    assert [item.uuid for item in plan.unchanged] == ["u-unchanged"]
+    assert [item.uuid for item in plan.conflicts] == ["u-conflict"]
+    assert plan.potential_errors == ("Solicitud sin UUID: no puede sincronizarse.",)
+    assert plan.values_matrix[0] == ("uuid", "updated_at", "raw")
+    assert ("u-only-remote", "2026-01-10T00:00:00Z", "ghost") in plan.values_matrix
+
+
+def test_build_solicitud_plan_for_local_row_descarta_si_no_supera_last_sync() -> None:
+    service = _FakeSyncService()
+    values: list[tuple[object, ...]] = []
+    errors: list[str] = []
+    row = {"uuid": "u-1", "updated_at": "2025-01-01T00:00:00Z", "notas": "x"}
+    action = _build_solicitud_plan_for_local_row(service, row, {}, "2026-01-01T00:00:00Z", ["uuid", "updated_at", "raw"], values, errors)
+
+    assert action is None
+    assert values == []
+    assert errors == []
+
+
+def test_sync_local_cuadrantes_from_personas_inserta_y_actualiza_y_genera_uuid() -> None:
+    service = _FakeSyncService()
+    cursor = service._connection.cursor()
+    cursor.execute(
+        "INSERT INTO personas (id, uuid, nombre, cuad_lun_man_min, cuad_lun_tar_min, updated_at) VALUES (2, '', 'SinUUID', 30, 40, '2026-01-01T00:00:00Z')"
+    )
+    cursor.execute(
+        "INSERT INTO cuadrantes (uuid, delegada_uuid, dia_semana, man_min, tar_min, updated_at, deleted) VALUES ('c-1', 'per-1', 'lun', 10, 20, '2026-01-01T00:00:00Z', 0)"
+    )
+    service._connection.commit()
+
+    sync_local_cuadrantes_from_personas(service)
+
+    total = service._connection.execute("SELECT COUNT(*) AS total FROM cuadrantes").fetchone()["total"]
+    assert total == 14
+    lun = service._connection.execute(
+        "SELECT man_min, tar_min, updated_at FROM cuadrantes WHERE delegada_uuid = 'per-1' AND dia_semana = 'lun'"
+    ).fetchone()
+    assert lun["man_min"] == 10
+    assert lun["tar_min"] == 20
+    assert lun["updated_at"] == "2026-01-01T00:00:00Z"
+    nueva_uuid = service._connection.execute("SELECT uuid FROM personas WHERE id = 2").fetchone()["uuid"]
+    assert nueva_uuid == "uuid-generado"
+
+
+def test_get_persona_minutes_devuelve_cero_si_no_hay_valor() -> None:
+    service = _FakeSyncService()
+    cursor = service._connection.cursor()
+    cursor.execute("UPDATE personas SET cuad_dom_tar_min = NULL WHERE id = 1")
+    service._connection.commit()
+
+    assert _get_persona_minutes(cursor, 1, "dom", "tar") == 0

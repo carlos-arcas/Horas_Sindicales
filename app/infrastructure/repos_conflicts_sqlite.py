@@ -5,6 +5,18 @@ import sqlite3
 
 from app.application.ports.conflicts_repository import ConflictRecord
 from datetime import datetime, timezone
+from app.infrastructure.conflicts_payloads import (
+    apply_mark_dirty,
+    build_cuadrante_data_local,
+    build_cuadrante_data_remote,
+    build_persona_cuad_fields,
+    build_persona_data_local,
+    build_persona_data_remote,
+    build_solicitud_data_local,
+    build_solicitud_data_remote,
+    solicitud_insert_params,
+    solicitud_update_params,
+)
 
 
 def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: tuple[object, ...], context: str) -> None:
@@ -94,49 +106,12 @@ class SQLiteConflictsRepository:
         row = cursor.fetchone()
         persona_id = row["id"] if row else None
         if remote:
-            data = {
-                "nombre": snapshot.get("nombre"),
-                "genero": snapshot.get("genero"),
-                "horas_mes_min": self._int_or_zero(snapshot.get("bolsa_mes_min")),
-                "horas_ano_min": self._int_or_zero(snapshot.get("bolsa_anual_min")),
-                "is_active": 0
-                if self._int_or_zero(snapshot.get("deleted"))
-                else (1 if self._int_or_zero(snapshot.get("activa")) else 0),
-                "updated_at": snapshot.get("updated_at") or self._now_iso(),
-                "source_device": snapshot.get("source_device"),
-                "deleted": self._int_or_zero(snapshot.get("deleted")),
-            }
+            data = build_persona_data_remote(snapshot, self._int_or_zero, self._now_iso())
             cuad_fields = {}
         else:
-            data = {
-                "nombre": snapshot.get("nombre"),
-                "genero": snapshot.get("genero"),
-                "horas_mes_min": self._int_or_zero(snapshot.get("horas_mes_min")),
-                "horas_ano_min": self._int_or_zero(snapshot.get("horas_ano_min")),
-                "is_active": 1 if self._int_or_zero(snapshot.get("is_active", 1)) else 0,
-                "updated_at": snapshot.get("updated_at") or self._now_iso(),
-                "source_device": snapshot.get("source_device"),
-                "deleted": self._int_or_zero(snapshot.get("deleted")),
-            }
-            cuad_fields = {
-                "cuad_lun_man_min": self._int_or_zero(snapshot.get("cuad_lun_man_min")),
-                "cuad_lun_tar_min": self._int_or_zero(snapshot.get("cuad_lun_tar_min")),
-                "cuad_mar_man_min": self._int_or_zero(snapshot.get("cuad_mar_man_min")),
-                "cuad_mar_tar_min": self._int_or_zero(snapshot.get("cuad_mar_tar_min")),
-                "cuad_mie_man_min": self._int_or_zero(snapshot.get("cuad_mie_man_min")),
-                "cuad_mie_tar_min": self._int_or_zero(snapshot.get("cuad_mie_tar_min")),
-                "cuad_jue_man_min": self._int_or_zero(snapshot.get("cuad_jue_man_min")),
-                "cuad_jue_tar_min": self._int_or_zero(snapshot.get("cuad_jue_tar_min")),
-                "cuad_vie_man_min": self._int_or_zero(snapshot.get("cuad_vie_man_min")),
-                "cuad_vie_tar_min": self._int_or_zero(snapshot.get("cuad_vie_tar_min")),
-                "cuad_sab_man_min": self._int_or_zero(snapshot.get("cuad_sab_man_min")),
-                "cuad_sab_tar_min": self._int_or_zero(snapshot.get("cuad_sab_tar_min")),
-                "cuad_dom_man_min": self._int_or_zero(snapshot.get("cuad_dom_man_min")),
-                "cuad_dom_tar_min": self._int_or_zero(snapshot.get("cuad_dom_tar_min")),
-            }
-        if mark_dirty:
-            data["updated_at"] = self._now_iso()
-            data["source_device"] = device_id
+            data = build_persona_data_local(snapshot, self._int_or_zero, self._now_iso())
+            cuad_fields = build_persona_cuad_fields(snapshot, self._int_or_zero)
+        data = apply_mark_dirty(data, mark_dirty, device_id, self._now_iso())
         if persona_id:
             _execute_with_validation(
                 cursor,
@@ -240,40 +215,10 @@ class SQLiteConflictsRepository:
             persona_id = self._persona_id_from_uuid(snapshot.get("delegada_uuid"))
             if persona_id is None:
                 raise RuntimeError("Delegada no encontrada para aplicar solicitud remota.")
-            desde_min = self._join_minutes(snapshot.get("desde_h"), snapshot.get("desde_m"))
-            hasta_min = self._join_minutes(snapshot.get("hasta_h"), snapshot.get("hasta_m"))
-            data = {
-                "persona_id": persona_id,
-                "fecha_pedida": snapshot.get("fecha"),
-                "desde_min": desde_min,
-                "hasta_min": hasta_min,
-                "completo": 1 if self._int_or_zero(snapshot.get("completo")) else 0,
-                "horas_solicitadas_min": self._int_or_zero(snapshot.get("minutos_total")),
-                "notas": snapshot.get("notas") or "",
-                "pdf_hash": snapshot.get("pdf_id") or "",
-                "created_at": snapshot.get("created_at") or snapshot.get("fecha"),
-                "updated_at": snapshot.get("updated_at") or self._now_iso(),
-                "source_device": snapshot.get("source_device"),
-                "deleted": self._int_or_zero(snapshot.get("deleted")),
-            }
+            data = build_solicitud_data_remote(snapshot, persona_id, self._join_minutes, self._int_or_zero, self._now_iso())
         else:
-            data = {
-                "persona_id": self._int_or_zero(snapshot.get("persona_id")),
-                "fecha_pedida": snapshot.get("fecha_pedida"),
-                "desde_min": snapshot.get("desde_min"),
-                "hasta_min": snapshot.get("hasta_min"),
-                "completo": 1 if self._int_or_zero(snapshot.get("completo")) else 0,
-                "horas_solicitadas_min": self._int_or_zero(snapshot.get("horas_solicitadas_min")),
-                "notas": snapshot.get("notas") or "",
-                "pdf_hash": snapshot.get("pdf_hash") or "",
-                "created_at": snapshot.get("created_at") or snapshot.get("fecha_pedida"),
-                "updated_at": snapshot.get("updated_at") or self._now_iso(),
-                "source_device": snapshot.get("source_device"),
-                "deleted": self._int_or_zero(snapshot.get("deleted")),
-            }
-        if mark_dirty:
-            data["updated_at"] = self._now_iso()
-            data["source_device"] = device_id
+            data = build_solicitud_data_local(snapshot, self._int_or_zero, self._now_iso())
+        data = apply_mark_dirty(data, mark_dirty, device_id, self._now_iso())
         if solicitud_id:
             _execute_with_validation(
                 cursor,
@@ -284,21 +229,7 @@ class SQLiteConflictsRepository:
                     source_device = ?, deleted = ?
                 WHERE id = ?
                 """,
-                (
-                    data["persona_id"],
-                    data["fecha_pedida"],
-                    data["desde_min"],
-                    data["hasta_min"],
-                    data["completo"],
-                    data["horas_solicitadas_min"],
-                    data["notas"],
-                    data["pdf_hash"],
-                    data["created_at"],
-                    data["updated_at"],
-                    data["source_device"],
-                    data["deleted"],
-                    solicitud_id,
-                ),
+                solicitud_update_params(data, solicitud_id),
                 "solicitudes.update",
             )
         else:
@@ -311,24 +242,7 @@ class SQLiteConflictsRepository:
                     created_at, updated_at, source_device, deleted
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (
-                    uuid_value,
-                    data["persona_id"],
-                    data["created_at"],
-                    data["fecha_pedida"],
-                    data["desde_min"],
-                    data["hasta_min"],
-                    data["completo"],
-                    data["horas_solicitadas_min"],
-                    None,
-                    data["notas"],
-                    None,
-                    data["pdf_hash"],
-                    data["created_at"],
-                    data["updated_at"],
-                    data["source_device"],
-                    data["deleted"],
-                ),
+                solicitud_insert_params(uuid_value, data),
                 "solicitudes.insert",
             )
 
@@ -338,30 +252,10 @@ class SQLiteConflictsRepository:
         row = cursor.fetchone()
         cuadrante_id = row["id"] if row else None
         if remote:
-            man_min = self._join_minutes(snapshot.get("man_h"), snapshot.get("man_m"))
-            tar_min = self._join_minutes(snapshot.get("tar_h"), snapshot.get("tar_m"))
-            data = {
-                "delegada_uuid": snapshot.get("delegada_uuid"),
-                "dia_semana": snapshot.get("dia_semana"),
-                "man_min": man_min,
-                "tar_min": tar_min,
-                "updated_at": snapshot.get("updated_at") or self._now_iso(),
-                "source_device": snapshot.get("source_device"),
-                "deleted": self._int_or_zero(snapshot.get("deleted")),
-            }
+            data = build_cuadrante_data_remote(snapshot, self._join_minutes, self._int_or_zero, self._now_iso())
         else:
-            data = {
-                "delegada_uuid": snapshot.get("delegada_uuid"),
-                "dia_semana": snapshot.get("dia_semana"),
-                "man_min": self._int_or_zero(snapshot.get("man_min")),
-                "tar_min": self._int_or_zero(snapshot.get("tar_min")),
-                "updated_at": snapshot.get("updated_at") or self._now_iso(),
-                "source_device": snapshot.get("source_device"),
-                "deleted": self._int_or_zero(snapshot.get("deleted")),
-            }
-        if mark_dirty:
-            data["updated_at"] = self._now_iso()
-            data["source_device"] = device_id
+            data = build_cuadrante_data_local(snapshot, self._int_or_zero, self._now_iso())
+        data = apply_mark_dirty(data, mark_dirty, device_id, self._now_iso())
         if cuadrante_id:
             cursor.execute(
                 """
