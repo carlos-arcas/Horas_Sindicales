@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -123,6 +122,13 @@ from app.ui.vistas.historico_actions import (
     on_resync_historico,
 )
 from app.ui.vistas.ui_helpers import abrir_archivo_local
+from app.ui.vistas.main_window_helpers import (
+    build_estado_pendientes_debug_payload,
+    build_historico_filters_payload,
+    handle_historico_render_mismatch,
+    log_estado_pendientes,
+    show_sync_error_dialog_from_exception,
+)
 
 try:
     from PySide6.QtPdf import QPdfDocument
@@ -1623,58 +1629,15 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return [self._pending_solicitudes[row] for row in selected_rows if 0 <= row < len(self._pending_solicitudes)]
 
     def _build_debug_estado_pendientes(self) -> dict[str, object]:
-        editing_pending = self._selected_pending_for_editing()
-        selected_rows = self._selected_pending_row_indexes()
-        solicitud = self._build_preview_solicitud()
-        dto_form_actual = None
-        clave_form_normalizada = None
-        duplicate_eval: dict[str, object] = {
-            "function": "detectar_duplicados_en_pendientes",
-            "params": {
-                "pendientes_count": len(self._pending_solicitudes),
-            },
-            "resultado": None,
-        }
-        if solicitud is not None:
-            dto_form_actual = {
-                "persona_id": solicitud.persona_id,
-                "fecha": solicitud.fecha_pedida,
-                "desde": solicitud.desde,
-                "hasta": solicitud.hasta,
-                "completo": solicitud.completo,
-            }
-            clave_form_normalizada = list(clave_duplicado_solicitud(solicitud))
-            duplicate_eval["resultado"] = [
-                list(clave)
-                for clave in detectar_duplicados_en_pendientes(self._pending_solicitudes)
-            ]
-
-        lista_pendientes = []
-        for index, pendiente in enumerate(self._pending_solicitudes):
-            lista_pendientes.append(
-                {
-                    "id": pendiente.id,
-                    "index": index,
-                    "clave_normalizada": list(clave_duplicado_solicitud(pendiente)),
-                }
-            )
-
-        return {
-            "editing_pending_id": editing_pending.id if editing_pending is not None else None,
-            "editing_pending_index": selected_rows[0] if editing_pending is not None and selected_rows else None,
-            "selected_pending_rows": selected_rows,
-            "selected_pending_count": len(selected_rows),
-            "dto_form_actual": dto_form_actual,
-            "clave_form_normalizada": clave_form_normalizada,
-            "lista_pendientes": lista_pendientes,
-            "duplicados_en_pendientes": duplicate_eval,
-            "cta_decision": {
-                "text": self.agregar_button.text(),
-                "enabled": bool(self.agregar_button.isEnabled()),
-                "reason": "form_add_or_update",
-                "hint": "",
-            },
-        }
+        # Para juniors: lo sacamos a helper para bajar LOC y poder testear diagnóstico sin instanciar la ventana completa.
+        return build_estado_pendientes_debug_payload(
+            editing_pending=self._selected_pending_for_editing(),
+            selected_rows=self._selected_pending_row_indexes(),
+            solicitud_form=self._build_preview_solicitud(),
+            pending_solicitudes=self._pending_solicitudes,
+            agregar_button_text=self.agregar_button.text(),
+            agregar_button_enabled=bool(self.agregar_button.isEnabled()),
+        )
 
     def _dump_estado_pendientes(self, motivo: str) -> dict:
         try:
@@ -1683,7 +1646,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             estado = {"motivo": motivo, "error": str(exc)}
             logger.exception("estado_pendientes_failed motivo=%s", motivo)
             return estado
-        logger.debug("estado_pendientes[%s]=%s", motivo, json.dumps(estado, ensure_ascii=False, default=str, indent=2))
+        log_estado_pendientes(motivo, estado)
         return estado
 
     def _on_pending_selection_changed(self) -> None:
@@ -2207,90 +2170,19 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.conflicts_reminder_label.setText(f"Hay {total} conflictos pendientes. Revisa antes de sincronizar.")
 
     def _show_sync_error_dialog(self, error: Exception, details: str | None) -> None:
-        if details:
-            logger.error("Detalle técnico de sincronización: %s", details)
-        title = "Error de sincronización"
-        icon = QMessageBox.Critical
-        if isinstance(error, SheetsApiDisabledError):
-            self._show_message_with_details(
-                title,
-                "No se pudo sincronizar.\n"
-                "Causa probable: La API de Google Sheets no está habilitada en el proyecto de Google Cloud.\n"
-                "Acción recomendada: Actívala en Google Cloud Console y vuelve a reintentar en 2-5 minutos.",
-                None,
-                icon,
-                action_buttons=(("Ir a configuración", self._on_open_opciones), ("Reintentar", self._sync_controller.on_sync)),
-            )
-            return
-        if isinstance(error, SheetsPermissionError):
-            email = self._service_account_email()
-            email_hint = f"{email}" if email else "la cuenta de servicio"
-            self._show_message_with_details(
-                title,
-                "No se pudo sincronizar.\n"
-                f"Causa probable: La hoja no está compartida con {email_hint}.\n"
-                "Acción recomendada: Comparte la hoja con ese email como Editor.",
-                None,
-                icon,
-                action_buttons=(("Ir a configuración", self._on_open_opciones), ("Reintentar", self._sync_controller.on_sync)),
-            )
-            return
-        if isinstance(error, SheetsNotFoundError):
-            self._show_message_with_details(
-                title,
-                "No se pudo sincronizar.\n"
-                "Causa probable: El Spreadsheet ID/URL es inválido o la hoja no existe.\n"
-                "Acción recomendada: Revisa el ID/URL en configuración y vuelve a intentarlo.",
-                None,
-                icon,
-                action_buttons=(("Ir a configuración", self._on_open_opciones),),
-            )
-            return
-        if isinstance(error, SheetsCredentialsError):
-            self._show_message_with_details(
-                title,
-                "No se pudo sincronizar.\n"
-                "Causa probable: La credencial JSON no es válida o no se puede leer.\n"
-                "Acción recomendada: Selecciona de nuevo el archivo de credenciales en configuración.",
-                None,
-                icon,
-                action_buttons=(("Ir a configuración", self._on_open_opciones),),
-            )
-            return
-        if isinstance(error, SheetsRateLimitError):
-            self.toast.warning(
-                "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta.",
-                title="Sincronización pausada",
-                duration_ms=6000,
-            )
-            self._show_message_with_details(
-                title,
-                "Sincronización pausada temporalmente.\n"
-                "Causa probable: Google Sheets aplicó límite de peticiones.\n"
-                "Acción recomendada: Espera 1 minuto y pulsa Reintentar.",
-                None,
-                QMessageBox.Warning,
-                action_buttons=(("Reintentar", self._sync_controller.on_sync),),
-            )
-            return
-        if isinstance(error, SheetsConfigError):
-            self._show_message_with_details(
-                title,
-                "No se pudo sincronizar.\n"
-                "Causa probable: Falta completar la configuración de Google Sheets.\n"
-                "Acción recomendada: Abre configuración, guarda credenciales e ID de hoja, y reintenta.",
-                None,
-                QMessageBox.Warning,
-                action_buttons=(("Ir a configuración", self._on_open_opciones),),
-            )
-            return
-        fallback_message = map_error_to_ui_message(error)
-        self._show_message_with_details(
-            title,
-            fallback_message.as_text(),
-            None,
-            QMessageBox.Critical if fallback_message.severity == "blocking" else QMessageBox.Warning,
-            action_buttons=(("Reintentar", self._sync_controller.on_sync),),
+        # Para juniors: extraemos mapeo de errores para reducir LOC y volverlo testeable como función aislada.
+        show_sync_error_dialog_from_exception(
+            error=error,
+            details=details,
+            service_account_email=self._service_account_email(),
+            show_message_with_details=self._show_message_with_details,
+            open_options_callback=self._on_open_opciones,
+            retry_callback=self._sync_controller.on_sync,
+            toast_warning=lambda message, title, duration_ms: self.toast.warning(
+                message,
+                title=title,
+                duration_ms=duration_ms,
+            ),
         )
 
     def _apply_sync_report(self, report) -> None:
@@ -2755,15 +2647,16 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             logger.info("UI_HISTORICO_REFRESH_SKIPPED_NO_WIDGETS")
             return
         persona = self._current_persona()
-        historico_filters = {
-            "delegada_id": self.historico_delegada_combo.currentData(),
-            "estado": self.historico_estado_combo.currentData(),
-            "desde": self.historico_desde_date.date().toString("yyyy-MM-dd"),
-            "hasta": self.historico_hasta_date.date().toString("yyyy-MM-dd"),
-            "search": self.historico_search_input.text().strip(),
-            "force": force,
-            "tab_index": self.main_tabs.currentIndex() if self.main_tabs is not None else None,
-        }
+        # Para juniors: snapshot de filtros se mueve a helper para simplificar lectura de refresh.
+        historico_filters = build_historico_filters_payload(
+            delegada_id=self.historico_delegada_combo.currentData(),
+            estado=self.historico_estado_combo.currentData(),
+            desde=self.historico_desde_date.date().toString("yyyy-MM-dd"),
+            hasta=self.historico_hasta_date.date().toString("yyyy-MM-dd"),
+            search=self.historico_search_input.text().strip(),
+            force=force,
+            tab_index=self.main_tabs.currentIndex() if self.main_tabs is not None else None,
+        )
         logger.info(
             "UI_HISTORICO_REFRESH_START persona_id=%s filtros=%s",
             persona.id if persona is not None else None,
@@ -2793,43 +2686,16 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         row_count = proxy_model.rowCount()
         logger.info("UI_HISTORICO_TABLE_RENDER row_count=%s", row_count)
 
-        if len(solicitudes) > 0 and row_count == 0:
-            selection_model = table.selectionModel()
-            logger.error(
-                "UI_HISTORICO_DEBUG pre: widget=%s model=%s rowCount=%s sorting=%s updates=%s",
-                type(table).__name__,
-                type(table.model()).__name__ if table.model() is not None else None,
-                row_count,
-                table.isSortingEnabled(),
-                table.updatesEnabled(),
-            )
-            logger.error("UI_HISTORICO_RENDER_MISMATCH count=%s row_count=%s", len(solicitudes), row_count)
-            proxy_state = proxy_model.filter_state()
-            logger.error(
-                "UI_HISTORICO_PROXY_STATE ver_todas=%s delegada_id=%s year_mode=%s year=%s month=%s from=%s to=%s",
-                proxy_state["ver_todas"],
-                proxy_state["delegada_id"],
-                proxy_state["year_mode"],
-                proxy_state["year"],
-                proxy_state["month"],
-                proxy_state["from"],
-                proxy_state["to"],
-            )
-            logger.error(
-                "UI_HISTORICO_RENDER_RETRY source_rows=%s proxy_rows=%s selected_rows=%s",
-                model.rowCount(),
-                row_count,
-                selection_model.selectedRows().__len__() if selection_model is not None else 0,
-            )
-            model.beginResetModel()
-            model.endResetModel()
-            model.layoutChanged.emit()
-            self._apply_historico_filters()
-            table.viewport().update()
-            row_count = proxy_model.rowCount()
-            logger.error("UI_HISTORICO_DEBUG post: expected=%s rowCount=%s", len(solicitudes), row_count)
-            if row_count == 0:
-                toast_error(self.toast, "No se pudo renderizar el histórico (ver logs)")
+        # Para juniors: recuperación de mismatch extraída a helper (menos LOC + más fácil de probar).
+        row_count = handle_historico_render_mismatch(
+            solicitudes=solicitudes,
+            row_count=row_count,
+            table=table,
+            model=model,
+            proxy_model=proxy_model,
+            apply_historico_filters=self._apply_historico_filters,
+            toast_error_callback=lambda message: toast_error(self.toast, message),
+        )
 
         if row_count == 0:
             logger.info("UI_HISTORICO_REFRESH_EMPTY")
