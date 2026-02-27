@@ -10,6 +10,19 @@ from typing import Callable, Iterable, TypeVar
 from app.domain.models import GrupoConfig, Persona, Solicitud
 from app.domain.ports import CuadranteRepository, GrupoConfigRepository, PersonaRepository, SolicitudRepository
 from app.domain.services import es_duplicada
+from app.infrastructure.repos_sqlite_builders import (
+    PERSONA_SELECT_FIELDS,
+    SOLICITUD_SELECT_FIELDS,
+    build_period_filters,
+    build_soft_delete_many_sql,
+    build_solicitud_candidate,
+    bool_from_db,
+    int_or_zero,
+    persona_insert_params,
+    persona_update_params,
+    row_to_persona,
+    solicitud_insert_params,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -51,16 +64,6 @@ def _run_with_locked_retry(operation: Callable[[], _T], *, context: str) -> _T:
     return operation()
 
 
-def _int_or_zero(value: int | None) -> int:
-    return 0 if value is None else int(value)
-
-
-def _bool_from_db(value: int | None) -> bool | None:
-    if value is None:
-        return None
-    return bool(value)
-
-
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -83,150 +86,32 @@ class PersonaRepositorySQLite(PersonaRepository):
 
     def list_all(self, include_inactive: bool = False) -> Iterable[Persona]:
         cursor = self._connection.cursor()
-        sql = """
-            SELECT id, nombre, genero,
-                   horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
-                   is_active,
-                   cuad_lun_man_min, cuad_lun_tar_min,
-                   cuad_mar_man_min, cuad_mar_tar_min,
-                   cuad_mie_man_min, cuad_mie_tar_min,
-                   cuad_jue_man_min, cuad_jue_tar_min,
-                   cuad_vie_man_min, cuad_vie_tar_min,
-                   cuad_sab_man_min, cuad_sab_tar_min,
-                   cuad_dom_man_min, cuad_dom_tar_min,
-                   cuadrante_uniforme, trabaja_finde
-            FROM personas
-        """
+        sql = f"SELECT {PERSONA_SELECT_FIELDS} FROM personas"
         if not include_inactive:
             sql += " WHERE is_active = 1 AND (deleted = 0 OR deleted IS NULL)"
         else:
             sql += " WHERE deleted = 0 OR deleted IS NULL"
         sql += " ORDER BY nombre"
         cursor.execute(sql)
-        rows = cursor.fetchall()
-        return [
-            Persona(
-                id=row["id"],
-                nombre=row["nombre"],
-                genero=row["genero"],
-                horas_mes_min=_int_or_zero(row["horas_mes_min"]),
-                horas_ano_min=_int_or_zero(row["horas_ano_min"]),
-                is_active=_bool_from_db(row["is_active"]) if "is_active" in row.keys() else True,
-                cuad_lun_man_min=_int_or_zero(row["cuad_lun_man_min"]),
-                cuad_lun_tar_min=_int_or_zero(row["cuad_lun_tar_min"]),
-                cuad_mar_man_min=_int_or_zero(row["cuad_mar_man_min"]),
-                cuad_mar_tar_min=_int_or_zero(row["cuad_mar_tar_min"]),
-                cuad_mie_man_min=_int_or_zero(row["cuad_mie_man_min"]),
-                cuad_mie_tar_min=_int_or_zero(row["cuad_mie_tar_min"]),
-                cuad_jue_man_min=_int_or_zero(row["cuad_jue_man_min"]),
-                cuad_jue_tar_min=_int_or_zero(row["cuad_jue_tar_min"]),
-                cuad_vie_man_min=_int_or_zero(row["cuad_vie_man_min"]),
-                cuad_vie_tar_min=_int_or_zero(row["cuad_vie_tar_min"]),
-                cuad_sab_man_min=_int_or_zero(row["cuad_sab_man_min"]),
-                cuad_sab_tar_min=_int_or_zero(row["cuad_sab_tar_min"]),
-                cuad_dom_man_min=_int_or_zero(row["cuad_dom_man_min"]),
-                cuad_dom_tar_min=_int_or_zero(row["cuad_dom_tar_min"]),
-                cuadrante_uniforme=_bool_from_db(row["cuadrante_uniforme"]) if "cuadrante_uniforme" in row.keys() else False,
-                trabaja_finde=_bool_from_db(row["trabaja_finde"]) if "trabaja_finde" in row.keys() else False,
-            )
-            for row in rows
-        ]
+        return [row_to_persona(row) for row in cursor.fetchall()]
 
     def get_by_id(self, persona_id: int) -> Persona | None:
         cursor = self._connection.cursor()
         cursor.execute(
-            """
-            SELECT id, nombre, genero,
-                   horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
-                   is_active,
-                   cuad_lun_man_min, cuad_lun_tar_min,
-                   cuad_mar_man_min, cuad_mar_tar_min,
-                   cuad_mie_man_min, cuad_mie_tar_min,
-                   cuad_jue_man_min, cuad_jue_tar_min,
-                   cuad_vie_man_min, cuad_vie_tar_min,
-                   cuad_sab_man_min, cuad_sab_tar_min,
-                   cuad_dom_man_min, cuad_dom_tar_min,
-                   cuadrante_uniforme, trabaja_finde
-            FROM personas
-            WHERE id = ? AND (deleted = 0 OR deleted IS NULL)
-            """,
+            f"SELECT {PERSONA_SELECT_FIELDS} FROM personas WHERE id = ? AND (deleted = 0 OR deleted IS NULL)",
             (persona_id,),
         )
         row = cursor.fetchone()
-        if not row:
-            return None
-        return Persona(
-            id=row["id"],
-            nombre=row["nombre"],
-            genero=row["genero"],
-            horas_mes_min=_int_or_zero(row["horas_mes_min"]),
-            horas_ano_min=_int_or_zero(row["horas_ano_min"]),
-            is_active=_bool_from_db(row["is_active"]) if "is_active" in row.keys() else True,
-            cuad_lun_man_min=_int_or_zero(row["cuad_lun_man_min"]),
-            cuad_lun_tar_min=_int_or_zero(row["cuad_lun_tar_min"]),
-            cuad_mar_man_min=_int_or_zero(row["cuad_mar_man_min"]),
-            cuad_mar_tar_min=_int_or_zero(row["cuad_mar_tar_min"]),
-            cuad_mie_man_min=_int_or_zero(row["cuad_mie_man_min"]),
-            cuad_mie_tar_min=_int_or_zero(row["cuad_mie_tar_min"]),
-            cuad_jue_man_min=_int_or_zero(row["cuad_jue_man_min"]),
-            cuad_jue_tar_min=_int_or_zero(row["cuad_jue_tar_min"]),
-            cuad_vie_man_min=_int_or_zero(row["cuad_vie_man_min"]),
-            cuad_vie_tar_min=_int_or_zero(row["cuad_vie_tar_min"]),
-            cuad_sab_man_min=_int_or_zero(row["cuad_sab_man_min"]),
-            cuad_sab_tar_min=_int_or_zero(row["cuad_sab_tar_min"]),
-            cuad_dom_man_min=_int_or_zero(row["cuad_dom_man_min"]),
-            cuad_dom_tar_min=_int_or_zero(row["cuad_dom_tar_min"]),
-            cuadrante_uniforme=_bool_from_db(row["cuadrante_uniforme"]) if "cuadrante_uniforme" in row.keys() else False,
-            trabaja_finde=_bool_from_db(row["trabaja_finde"]) if "trabaja_finde" in row.keys() else False,
-        )
+        return row_to_persona(row) if row else None
 
     def get_by_nombre(self, nombre: str) -> Persona | None:
         cursor = self._connection.cursor()
         cursor.execute(
-            """
-            SELECT id, nombre, genero,
-                   horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
-                   is_active,
-                   cuad_lun_man_min, cuad_lun_tar_min,
-                   cuad_mar_man_min, cuad_mar_tar_min,
-                   cuad_mie_man_min, cuad_mie_tar_min,
-                   cuad_jue_man_min, cuad_jue_tar_min,
-                   cuad_vie_man_min, cuad_vie_tar_min,
-                   cuad_sab_man_min, cuad_sab_tar_min,
-                   cuad_dom_man_min, cuad_dom_tar_min,
-                   cuadrante_uniforme, trabaja_finde
-            FROM personas
-            WHERE nombre = ? AND (deleted = 0 OR deleted IS NULL)
-            """,
+            f"SELECT {PERSONA_SELECT_FIELDS} FROM personas WHERE nombre = ? AND (deleted = 0 OR deleted IS NULL)",
             (nombre,),
         )
         row = cursor.fetchone()
-        if not row:
-            return None
-        return Persona(
-            id=row["id"],
-            nombre=row["nombre"],
-            genero=row["genero"],
-            horas_mes_min=_int_or_zero(row["horas_mes_min"]),
-            horas_ano_min=_int_or_zero(row["horas_ano_min"]),
-            is_active=_bool_from_db(row["is_active"]) if "is_active" in row.keys() else True,
-            cuad_lun_man_min=_int_or_zero(row["cuad_lun_man_min"]),
-            cuad_lun_tar_min=_int_or_zero(row["cuad_lun_tar_min"]),
-            cuad_mar_man_min=_int_or_zero(row["cuad_mar_man_min"]),
-            cuad_mar_tar_min=_int_or_zero(row["cuad_mar_tar_min"]),
-            cuad_mie_man_min=_int_or_zero(row["cuad_mie_man_min"]),
-            cuad_mie_tar_min=_int_or_zero(row["cuad_mie_tar_min"]),
-            cuad_jue_man_min=_int_or_zero(row["cuad_jue_man_min"]),
-            cuad_jue_tar_min=_int_or_zero(row["cuad_jue_tar_min"]),
-            cuad_vie_man_min=_int_or_zero(row["cuad_vie_man_min"]),
-            cuad_vie_tar_min=_int_or_zero(row["cuad_vie_tar_min"]),
-            cuad_sab_man_min=_int_or_zero(row["cuad_sab_man_min"]),
-            cuad_sab_tar_min=_int_or_zero(row["cuad_sab_tar_min"]),
-            cuad_dom_man_min=_int_or_zero(row["cuad_dom_man_min"]),
-            cuad_dom_tar_min=_int_or_zero(row["cuad_dom_tar_min"]),
-            cuadrante_uniforme=_bool_from_db(row["cuadrante_uniforme"]) if "cuadrante_uniforme" in row.keys() else False,
-            trabaja_finde=_bool_from_db(row["trabaja_finde"]) if "trabaja_finde" in row.keys() else False,
-        )
+        return row_to_persona(row) if row else None
 
     def create(self, persona: Persona) -> Persona:
         cursor = self._connection.cursor()
@@ -244,33 +129,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                 updated_at, deleted
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                persona_uuid,
-                persona.nombre,
-                persona.genero,
-                persona.horas_mes_min,
-                persona.horas_ano_min,
-                0,
-                1 if persona.is_active else 0,
-                persona.cuad_lun_man_min,
-                persona.cuad_lun_tar_min,
-                persona.cuad_mar_man_min,
-                persona.cuad_mar_tar_min,
-                persona.cuad_mie_man_min,
-                persona.cuad_mie_tar_min,
-                persona.cuad_jue_man_min,
-                persona.cuad_jue_tar_min,
-                persona.cuad_vie_man_min,
-                persona.cuad_vie_tar_min,
-                persona.cuad_sab_man_min,
-                persona.cuad_sab_tar_min,
-                persona.cuad_dom_man_min,
-                persona.cuad_dom_tar_min,
-                1 if persona.cuadrante_uniforme else 0,
-                1 if persona.trabaja_finde else 0,
-                updated_at,
-                0,
-            ),
+            persona_insert_params(persona, persona_uuid, updated_at),
             "personas.insert",
         )
         self._connection.commit()
@@ -315,32 +174,7 @@ class PersonaRepositorySQLite(PersonaRepository):
                 updated_at = ?
             WHERE id = ?
             """,
-            (
-                persona.nombre,
-                persona.genero,
-                persona.horas_mes_min,
-                persona.horas_ano_min,
-                0,
-                1 if persona.is_active else 0,
-                persona.cuad_lun_man_min,
-                persona.cuad_lun_tar_min,
-                persona.cuad_mar_man_min,
-                persona.cuad_mar_tar_min,
-                persona.cuad_mie_man_min,
-                persona.cuad_mie_tar_min,
-                persona.cuad_jue_man_min,
-                persona.cuad_jue_tar_min,
-                persona.cuad_vie_man_min,
-                persona.cuad_vie_tar_min,
-                persona.cuad_sab_man_min,
-                persona.cuad_sab_tar_min,
-                persona.cuad_dom_man_min,
-                persona.cuad_dom_tar_min,
-                1 if persona.cuadrante_uniforme else 0,
-                1 if persona.trabaja_finde else 0,
-                updated_at,
-                persona.id,
-            ),
+            persona_update_params(persona, updated_at),
             "personas.update",
         )
         self._connection.commit()
@@ -349,39 +183,11 @@ class PersonaRepositorySQLite(PersonaRepository):
     def get_by_uuid(self, persona_uuid: str) -> Persona | None:
         cursor = self._connection.cursor()
         cursor.execute(
-            """
-            SELECT id, nombre, genero,
-                   horas_mes_min, horas_ano_min, horas_jornada_defecto_min,
-                   is_active,
-                   cuad_lun_man_min, cuad_lun_tar_min,
-                   cuad_mar_man_min, cuad_mar_tar_min,
-                   cuad_mie_man_min, cuad_mie_tar_min,
-                   cuad_jue_man_min, cuad_jue_tar_min,
-                   cuad_vie_man_min, cuad_vie_tar_min,
-                   cuad_sab_man_min, cuad_sab_tar_min,
-                   cuad_dom_man_min, cuad_dom_tar_min,
-                   cuadrante_uniforme, trabaja_finde
-            FROM personas
-            WHERE uuid = ? AND (deleted = 0 OR deleted IS NULL)
-            """,
+            f"SELECT {PERSONA_SELECT_FIELDS} FROM personas WHERE uuid = ? AND (deleted = 0 OR deleted IS NULL)",
             (persona_uuid,),
         )
         row = cursor.fetchone()
-        if not row:
-            return None
-        return Persona(
-            id=row["id"], nombre=row["nombre"], genero=row["genero"],
-            horas_mes_min=_int_or_zero(row["horas_mes_min"]), horas_ano_min=_int_or_zero(row["horas_ano_min"]),
-            is_active=_bool_from_db(row["is_active"]),
-            cuad_lun_man_min=_int_or_zero(row["cuad_lun_man_min"]), cuad_lun_tar_min=_int_or_zero(row["cuad_lun_tar_min"]),
-            cuad_mar_man_min=_int_or_zero(row["cuad_mar_man_min"]), cuad_mar_tar_min=_int_or_zero(row["cuad_mar_tar_min"]),
-            cuad_mie_man_min=_int_or_zero(row["cuad_mie_man_min"]), cuad_mie_tar_min=_int_or_zero(row["cuad_mie_tar_min"]),
-            cuad_jue_man_min=_int_or_zero(row["cuad_jue_man_min"]), cuad_jue_tar_min=_int_or_zero(row["cuad_jue_tar_min"]),
-            cuad_vie_man_min=_int_or_zero(row["cuad_vie_man_min"]), cuad_vie_tar_min=_int_or_zero(row["cuad_vie_tar_min"]),
-            cuad_sab_man_min=_int_or_zero(row["cuad_sab_man_min"]), cuad_sab_tar_min=_int_or_zero(row["cuad_sab_tar_min"]),
-            cuad_dom_man_min=_int_or_zero(row["cuad_dom_man_min"]), cuad_dom_tar_min=_int_or_zero(row["cuad_dom_tar_min"]),
-            cuadrante_uniforme=_bool_from_db(row["cuadrante_uniforme"]), trabaja_finde=_bool_from_db(row["trabaja_finde"]),
-        )
+        return row_to_persona(row) if row else None
 
     def get_or_create_uuid(self, persona_id: int) -> str | None:
         cursor = self._connection.cursor()
@@ -457,13 +263,13 @@ class SolicitudRepositorySQLite(SolicitudRepository):
     def _row_to_solicitud(row: sqlite3.Row) -> Solicitud:
         return Solicitud(
             id=row["id"],
-            persona_id=_int_or_zero(row["persona_id"]),
+            persona_id=int_or_zero(row["persona_id"]),
             fecha_solicitud=row["fecha_solicitud"],
             fecha_pedida=row["fecha_pedida"],
             desde_min=row["desde_min"],
             hasta_min=row["hasta_min"],
             completo=bool(row["completo"]),
-            horas_solicitadas_min=_int_or_zero(row["horas_solicitadas_min"]),
+            horas_solicitadas_min=int_or_zero(row["horas_solicitadas_min"]),
             observaciones=row["observaciones"],
             notas=row["notas"],
             pdf_path=row["pdf_path"],
@@ -554,35 +360,19 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor = self._connection.cursor()
 
         def _query() -> list[Solicitud]:
-            if month is None:
-                cursor.execute(
-                    """
-                    SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                           horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
-                    FROM solicitudes
-                    WHERE persona_id = ?
-                      AND strftime('%Y', fecha_pedida) = ?
-                      AND generated = 1
-                      AND (deleted = 0 OR deleted IS NULL)
-                    ORDER BY fecha_pedida DESC
-                    """,
-                    (persona_id, f"{year:04d}"),
-                )
-            else:
-                cursor.execute(
-                    """
-                    SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                           horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
-                    FROM solicitudes
-                    WHERE persona_id = ?
-                      AND strftime('%Y', fecha_pedida) = ?
-                      AND strftime('%m', fecha_pedida) = ?
-                      AND generated = 1
-                      AND (deleted = 0 OR deleted IS NULL)
-                    ORDER BY fecha_pedida DESC
-                    """,
-                    (persona_id, f"{year:04d}", f"{month:02d}"),
-                )
+            where_period, period_params = build_period_filters(year, month)
+            cursor.execute(
+                f"""
+                SELECT {SOLICITUD_SELECT_FIELDS}
+                FROM solicitudes
+                WHERE persona_id = ?
+                  AND {where_period}
+                  AND generated = 1
+                  AND (deleted = 0 OR deleted IS NULL)
+                ORDER BY fecha_pedida DESC
+                """,
+                (persona_id, *period_params),
+            )
             return [self._row_to_solicitud(row) for row in cursor.fetchall()]
 
         return _run_with_locked_retry(_query, context="solicitudes.list_by_persona_and_period")
@@ -677,21 +467,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         completo: bool,
     ) -> Solicitud | None:
         cursor = self._connection.cursor()
-        candidate = Solicitud(
-            id=None,
-            persona_id=persona_id,
-            fecha_solicitud=fecha_pedida,
-            fecha_pedida=fecha_pedida,
-            desde_min=desde_min,
-            hasta_min=hasta_min,
-            completo=completo,
-            horas_solicitadas_min=0,
-            observaciones=None,
-            notas=None,
-            pdf_path=None,
-            pdf_hash=None,
-            generated=False,
-        )
+        candidate = build_solicitud_candidate(persona_id, fecha_pedida, desde_min, hasta_min, completo)
 
         clauses = [
             "s.persona_id = ?",
@@ -760,24 +536,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated, created_at, updated_at, deleted
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                solicitud_uuid,
-                solicitud.persona_id,
-                solicitud.fecha_solicitud,
-                solicitud.fecha_pedida,
-                solicitud.desde_min,
-                solicitud.hasta_min,
-                int(solicitud.completo),
-                solicitud.horas_solicitadas_min,
-                solicitud.observaciones,
-                solicitud.notas or "",
-                solicitud.pdf_path,
-                solicitud.pdf_hash,
-                0,
-                created_at,
-                created_at,
-                0,
-            ),
+            solicitud_insert_params(solicitud, solicitud_uuid, created_at),
             "solicitudes.insert",
         )
         self._connection.commit()
@@ -817,9 +576,8 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         if not ids:
             return
         cursor = self._connection.cursor()
-        placeholders = ",".join("?" for _ in ids)
-        sql = f"UPDATE solicitudes SET deleted = 1, updated_at = ? WHERE id IN ({placeholders})"
-        _execute_with_validation(cursor, sql, [_now_iso(), *ids], "solicitudes.delete_by_ids")
+        sql, delete_params = build_soft_delete_many_sql(ids)
+        _execute_with_validation(cursor, sql, [_now_iso(), *delete_params], "solicitudes.delete_by_ids")
         self._connection.commit()
 
     def update_pdf_info(self, solicitud_id: int, pdf_path: str, pdf_hash: str | None) -> None:
@@ -874,10 +632,10 @@ class GrupoConfigRepositorySQLite(GrupoConfigRepository):
         return GrupoConfig(
             id=row["id"],
             nombre_grupo=row["nombre_grupo"],
-            bolsa_anual_grupo_min=_int_or_zero(row["bolsa_anual_grupo_min"]),
+            bolsa_anual_grupo_min=int_or_zero(row["bolsa_anual_grupo_min"]),
             pdf_logo_path=row["pdf_logo_path"],
             pdf_intro_text=row["pdf_intro_text"],
-            pdf_include_hours_in_horario=_bool_from_db(row["pdf_include_hours_in_horario"]),
+            pdf_include_hours_in_horario=bool_from_db(row["pdf_include_hours_in_horario"]),
         )
 
     def upsert(self, config: GrupoConfig) -> GrupoConfig:
