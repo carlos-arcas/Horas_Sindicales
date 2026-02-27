@@ -13,7 +13,15 @@ from app.bootstrap.logging import log_operational_error
 from app.core.observability import get_correlation_id
 from app.domain.ports import SheetsClientPort
 from app.domain.sheets_errors import SheetsPermissionError, SheetsRateLimitError
-from app.infrastructure.sheets_errors import SheetsApiCompatibilityError, map_gspread_exception
+from app.infrastructure.sheets_client_puros import (
+    calcular_backoff_escritura,
+    calcular_backoff_lectura,
+    extraer_nombre_hoja_de_rango,
+    extraer_worksheet_desde_operacion,
+    normalizar_resultado_batch_get,
+    resolver_spreadsheet_id,
+)
+from app.infrastructure.sheets_errors import map_gspread_exception
 
 logger = logging.getLogger(__name__)
 
@@ -122,34 +130,12 @@ class SheetsClient(SheetsClientPort):
             lambda: self._spreadsheet.values_batch_get(ranges),
         )
         self._read_calls_count += 1
-        mapped = self._normalize_batch_get_result(ranges, values_by_range)
+        mapped = normalizar_resultado_batch_get(ranges, values_by_range)
         for range_name, normalized_values in mapped.items():
-            worksheet_name = self._worksheet_name_from_range(range_name)
+            worksheet_name = extraer_nombre_hoja_de_rango(range_name)
             if worksheet_name:
                 self._worksheet_values_cache[worksheet_name] = normalized_values
         return mapped
-
-    @staticmethod
-    def _normalize_batch_get_result(ranges: list[str], values_by_range: Any) -> dict[str, list[list[str]]]:
-        mapped: dict[str, list[list[str]]] = {range_name: [] for range_name in ranges}
-        if isinstance(values_by_range, dict):
-            value_ranges = values_by_range.get("valueRanges", [])
-            logger.debug("values_batch_get returned %s valueRanges", len(value_ranges) if isinstance(value_ranges, list) else 0)
-            if isinstance(value_ranges, list):
-                for value_range in value_ranges:
-                    if not isinstance(value_range, dict):
-                        continue
-                    range_name = value_range.get("range")
-                    if not isinstance(range_name, str):
-                        continue
-                    values = value_range.get("values", [])
-                    mapped[range_name] = values if isinstance(values, list) else []
-            return mapped
-        if isinstance(values_by_range, list):
-            for range_name, values in zip(ranges, values_by_range):
-                mapped[range_name] = values if isinstance(values, list) else []
-            return mapped
-        raise SheetsApiCompatibilityError("Versión de gspread no soporta batch_get; usa values_batch_get")
 
     def get_read_calls_count(self) -> int:
         return self._read_calls_count
@@ -201,8 +187,8 @@ class SheetsClient(SheetsClientPort):
                     if isinstance(mapped_error, SheetsPermissionError):
                         self._log_permission_error(
                             mapped_error,
-                            spreadsheet_id=spreadsheet_id or getattr(self._spreadsheet, "id", None),
-                            worksheet_name=self._worksheet_from_operation_name(operation_name),
+                            spreadsheet_id=resolver_spreadsheet_id(spreadsheet_id, self._spreadsheet),
+                            worksheet_name=extraer_worksheet_desde_operacion(operation_name),
                         )
                     raise mapped_error from exc
                 if attempt >= _MAX_RETRIES:
@@ -214,7 +200,7 @@ class SheetsClient(SheetsClientPort):
                     raise SheetsRateLimitError(
                         "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta."
                     ) from exc
-                backoff_seconds = _BASE_BACKOFF_SECONDS * (2 ** (attempt - 1))
+                backoff_seconds = calcular_backoff_lectura(attempt, _BASE_BACKOFF_SECONDS)
                 logger.warning(
                     "Rate limit en Google Sheets (%s). intento=%s/%s backoff=%.3fs",
                     operation_name,
@@ -233,12 +219,12 @@ class SheetsClient(SheetsClientPort):
                 mapped_error = map_gspread_exception(exc)
                 if not isinstance(mapped_error, SheetsRateLimitError):
                     if isinstance(mapped_error, SheetsPermissionError):
-                        resolved_spreadsheet_id = self._resolve_spreadsheet_id(spreadsheet_id=spreadsheet_id)
+                        resolved_spreadsheet_id = resolver_spreadsheet_id(spreadsheet_id, self._spreadsheet)
                         try:
                             self._log_permission_error(
                                 mapped_error,
                                 spreadsheet_id=resolved_spreadsheet_id,
-                                worksheet_name=self._worksheet_from_operation_name(operation_name),
+                                worksheet_name=extraer_worksheet_desde_operacion(operation_name),
                             )
                         except Exception:  # pragma: no cover - logging should never break sync flows
                             logger.exception("No se pudo registrar un error de permisos de Google Sheets")
@@ -252,7 +238,7 @@ class SheetsClient(SheetsClientPort):
                     raise SheetsRateLimitError(
                         "Límite de escritura de Google Sheets alcanzado. Espera 1 minuto y reintenta."
                     ) from exc
-                backoff_seconds = 2 ** (attempt - 1)
+                backoff_seconds = calcular_backoff_escritura(attempt)
                 logger.warning(
                     "Rate limit en escritura Google Sheets (%s). intento=%s/%s backoff=%ss",
                     operation_name,
@@ -263,36 +249,21 @@ class SheetsClient(SheetsClientPort):
                 time.sleep(backoff_seconds)
         raise RuntimeError("No se pudo completar la escritura en Google Sheets.")
 
+
+    @staticmethod
+    def _normalize_batch_get_result(ranges: list[str], values_by_range: Any) -> dict[str, list[list[str]]]:
+        return normalizar_resultado_batch_get(ranges, values_by_range)
+
     @staticmethod
     def _worksheet_name_from_range(range_name: str) -> str | None:
-        if "!" in range_name:
-            sheet_part = range_name.split("!", 1)[0].strip()
-        else:
-            sheet_part = range_name.strip()
-        if not sheet_part:
-            return None
-        if sheet_part.startswith("'") and sheet_part.endswith("'"):
-            sheet_part = sheet_part[1:-1].replace("''", "'")
-        return sheet_part
+        return extraer_nombre_hoja_de_rango(range_name)
 
     @staticmethod
     def _worksheet_from_operation_name(operation_name: str) -> str | None:
-        start = operation_name.find("(")
-        end = operation_name.rfind(")")
-        if start < 0 or end <= start:
-            return None
-        worksheet_name = operation_name[start + 1 : end].strip()
-        return worksheet_name or None
+        return extraer_worksheet_desde_operacion(operation_name)
 
     def _resolve_spreadsheet_id(self, *, spreadsheet_id: str | None = None) -> str | None:
-        if spreadsheet_id:
-            return spreadsheet_id
-
-        current_spreadsheet = self._spreadsheet
-        if current_spreadsheet is None:
-            return None
-
-        return getattr(current_spreadsheet, "id", None)
+        return resolver_spreadsheet_id(spreadsheet_id, self._spreadsheet)
 
     @staticmethod
     def _log_permission_error(
