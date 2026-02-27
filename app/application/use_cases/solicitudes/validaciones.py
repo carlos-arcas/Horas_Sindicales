@@ -24,43 +24,94 @@ REGLAS_OBLIGATORIAS: tuple[ReglaValidacionSolicitud, ...] = (
 
 
 def validar_solicitud_dto_declarativo(dto: SolicitudDTO) -> None:
-    errores: list[str] = []
+    """Orquesta validaciones puras para mantener capa de aplicación simple y testeable.
 
+    Mantener este método como coordinador reduce acoplamiento: las reglas de negocio
+    se prueban en funciones pequeñas, sin IO, y la capa de aplicación solo agrega
+    mensajes y decide si levanta la excepción.
+    """
+
+    errores: list[str] = []
+    errores.extend(validar_campos_obligatorios(dto))
+    errores.extend(validar_formato_fechas(dto))
+    errores.extend(validar_regla_jornada(dto))
+    errores.extend(validar_limite_horas(dto.horas))
+
+    if errores:
+        raise ValidacionError("; ".join(errores))
+
+
+def validar_campos_obligatorios(dto: SolicitudDTO) -> list[str]:
+    """Valida presencia de datos base.
+
+    Esta función es pura y aislada; así no depende de infraestructura y se puede
+    testear en milisegundos.
+    """
+
+    errores: list[str] = []
     if dto.persona_id <= 0:
         errores.append(REGLAS_OBLIGATORIAS[0].mensaje)
     if not str(dto.fecha_solicitud).strip():
         errores.append(REGLAS_OBLIGATORIAS[1].mensaje)
     if not str(dto.fecha_pedida).strip():
         errores.append(REGLAS_OBLIGATORIAS[2].mensaje)
+    return errores
 
+
+def validar_formato_fechas(dto: SolicitudDTO) -> list[str]:
+    """Valida formato YYYY-MM-DD solo cuando el campo existe."""
+
+    errores: list[str] = []
     for campo_fecha in ("fecha_solicitud", "fecha_pedida"):
         valor = getattr(dto, campo_fecha)
-        if valor:
-            try:
-                datetime.strptime(valor, "%Y-%m-%d")
-            except ValueError:
-                errores.append(f"{campo_fecha} debe tener formato YYYY-MM-DD.")
+        if not valor:
+            continue
+        try:
+            datetime.strptime(valor, "%Y-%m-%d")
+        except ValueError:
+            errores.append(f"{campo_fecha} debe tener formato YYYY-MM-DD.")
+    return errores
+
+
+def validar_regla_jornada(dto: SolicitudDTO) -> list[str]:
+    """Separa reglas de petición completa/parcial para reducir complejidad ciclomática."""
 
     if dto.completo:
-        if dto.horas < 0:
-            errores.append("Las horas no pueden ser negativas.")
-    else:
-        if not dto.desde or not dto.hasta:
-            errores.append("Desde y hasta son obligatorios para peticiones parciales.")
-        else:
-            try:
-                desde_min = parse_hhmm(dto.desde)
-                hasta_min = parse_hhmm(dto.hasta)
-                if hasta_min <= desde_min:
-                    errores.append("El campo hasta debe ser mayor que desde.")
-            except ValueError:
-                errores.append("Desde/Hasta deben tener formato HH:MM válido.")
+        return validar_jornada_completa(dto.horas)
+    return validar_jornada_parcial(dto.desde, dto.hasta)
 
-    if dto.horas > 24:
-        errores.append("Las horas no pueden superar 24 en una sola petición.")
 
-    if errores:
-        raise ValidacionError("; ".join(errores))
+def validar_jornada_completa(horas: float) -> list[str]:
+    """Regla de negocio específica de jornadas completas."""
+
+    if horas < 0:
+        return ["Las horas no pueden ser negativas."]
+    return []
+
+
+def validar_jornada_parcial(desde: str | None, hasta: str | None) -> list[str]:
+    """Reglas de rango horario para jornadas parciales."""
+
+    if not desde or not hasta:
+        return ["Desde y hasta son obligatorios para peticiones parciales."]
+
+    try:
+        desde_min = parse_hhmm(desde)
+        hasta_min = parse_hhmm(hasta)
+    except ValueError:
+        return ["Desde/Hasta deben tener formato HH:MM válido."]
+
+    if hasta_min <= desde_min:
+        return ["El campo hasta debe ser mayor que desde."]
+    return []
+
+
+def validar_limite_horas(horas: float) -> list[str]:
+    """Límite transversal independiente del tipo de jornada."""
+
+    if horas > 24:
+        return ["Las horas no pueden superar 24 en una sola petición."]
+    return []
 
 
 def clave_duplicado(dto: SolicitudDTO) -> tuple[int, str, str, str]:
