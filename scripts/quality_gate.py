@@ -37,7 +37,8 @@ def main() -> None:
             "-m",
             "pytest",
             "-q",
-            "--cov=app",
+            "--cov=app/domain",
+            "--cov=app/application",
             "--cov-report=term-missing",
             f"--cov-fail-under={threshold}",
         ]

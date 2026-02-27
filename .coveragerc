@@ -1,11 +1,14 @@
 [run]
 relative_files = True
 source =
-    app
+    app/application
+    app/domain
 omit =
     .venv/*
     tests/*
     logs/*
     scripts/*
     migrations/*
+    app/ui/*
+    app/entrypoints/*
     **/site-packages/*

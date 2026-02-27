@@ -18,7 +18,7 @@ Este script:
 
 - Lee el umbral desde `.config/quality_gate.json`.
 - Ejecuta `ruff check .`.
-- Ejecuta `pytest -q --cov=app --cov-report=term-missing --cov-fail-under=<valor>`.
+- Ejecuta `pytest -q --cov=app/domain --cov=app/application --cov-report=term-missing --cov-fail-under=<valor>`.
 
 ## Cómo subir el umbral
 
