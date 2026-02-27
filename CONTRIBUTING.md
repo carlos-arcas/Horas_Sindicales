@@ -35,6 +35,24 @@ Para que un PR sea aceptable, debe cumplir todo lo siguiente:
 - Test de arquitectura en verde.
 - Si cambia comportamiento funcional, se debe añadir o actualizar test.
 
+## Ejecución local alineada con GitHub Actions
+
+La CI está dividida en 2 jobs:
+
+- `core` (obligatorio): lint + tests no-UI + coverage.
+- `ui` (no bloqueante): tests de UI con `xvfb`.
+
+Comandos locales equivalentes:
+
+```bash
+# core
+ruff check .
+pytest -q -m "not ui" --cov=app --cov-report=term-missing --cov-fail-under=$(python -c "import json;print(json.load(open('.config/quality_gate.json', encoding='utf-8'))['coverage_fail_under'])")
+
+# ui
+xvfb-run -a pytest -q tests/ui
+```
+
 ## Convenciones de commits
 
 Se recomienda usar mensajes claros y accionables. Opcionalmente, puedes usar formato **Conventional Commits**:
