@@ -43,7 +43,7 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         self._estado_code: str | None = None
         self._delegada_id: int | None = None
         self._ver_todas: bool = True
-        self._year_mode: str = "RANGE"
+        self._year_mode: str | None = None
         self._year: int | None = None
         self._month: int | None = None
         self.setDynamicSortFilter(True)
@@ -79,7 +79,7 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         *,
         delegada_id: int | None,
         ver_todas: bool,
-        year_mode: str,
+        year_mode: str | None,
         year: int | None,
         month: int | None,
         date_from: QDate | date | None,
@@ -87,7 +87,7 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
     ) -> None:
         self._delegada_id = int(delegada_id) if delegada_id is not None else None
         self._ver_todas = bool(ver_todas)
-        self._year_mode = year_mode or "RANGE"
+        self._year_mode = year_mode or None
         self._year = int(year) if year is not None else None
         self._month = int(month) if month is not None else None
         self._date_from_py = self._normalize_date(date_from)
@@ -118,6 +118,17 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         solicitud = self._source_solicitud(source_row)
         if solicitud is None:
             return False
+
+        if (
+            self._delegada_id is None
+            and self._ver_todas
+            and (self._year_mode is None or self._year_mode == "NONE")
+            and self._date_from_py is None
+            and self._date_to_py is None
+            and not self._estado_code
+            and not self._filter_regex.pattern()
+        ):
+            return True
 
         has_period_filter = (
             (self._year_mode == "ALL_YEAR" and self._year is not None)
