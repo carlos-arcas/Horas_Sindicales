@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 from datetime import datetime
@@ -54,14 +55,6 @@ from app.application.use_cases.solicitudes.validaciones import (
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.request_time import validate_request_inputs
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
-from app.domain.sheets_errors import (
-    SheetsApiDisabledError,
-    SheetsConfigError,
-    SheetsCredentialsError,
-    SheetsNotFoundError,
-    SheetsPermissionError,
-    SheetsRateLimitError,
-)
 from app.ui.conflicts_dialog import ConflictsDialog
 from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
 from app.ui.error_mapping import UiErrorMessage, map_error_to_ui_message
