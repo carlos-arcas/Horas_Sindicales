@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from tests.ui.conftest import require_qt
+
+QApplication = require_qt()
 
 
 class _NoOpService:
@@ -22,7 +25,7 @@ def test_event_filter_accepts_qkeyevent_without_nameerror(monkeypatch: pytest.Mo
     from app.ui.main_window import MainWindow
     from app.ui.vistas import main_window_vista
 
-    app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+    app = QApplication.instance() or QApplication([])
     assert app is not None
 
     monkeypatch.setattr(main_window_vista.MainWindow, "_load_personas", lambda self, select_id=None: None)

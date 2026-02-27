@@ -5,6 +5,9 @@ import traceback
 from typing import Iterator
 
 import pytest
+from tests.ui.conftest import require_qt
+
+QApplication = require_qt()
 
 
 class _NoOpService:
@@ -33,7 +36,7 @@ def test_ui_smoke_startup_without_real_infra(monkeypatch: pytest.MonkeyPatch) ->
     from app.ui.main_window import MainWindow
     from app.ui.vistas import main_window_vista
 
-    q_app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+    q_app = QApplication.instance() or QApplication([])
 
     monkeypatch.setattr(main_window_vista.MainWindow, "_load_personas", lambda self, select_id=None: None)
     monkeypatch.setattr(main_window_vista.MainWindow, "_reload_pending_views", lambda self: None)

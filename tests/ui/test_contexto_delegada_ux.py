@@ -3,9 +3,10 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+from tests.ui.conftest import require_qt
 
 qt = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
-QApplication = qt.QApplication
+QApplication = require_qt()
 QMessageBox = qt.QMessageBox
 
 from app.application.dto import PersonaDTO

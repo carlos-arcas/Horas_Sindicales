@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from tests.ui.conftest import require_qt
 
-QApplication = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError).QApplication
+QApplication = require_qt()
 QWidget = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError).QWidget
 
 from app.ui.components.saldos_card import SaldosCard

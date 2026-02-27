@@ -6,7 +6,9 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from tests.ui.conftest import require_qt
 
+require_qt()
 QtCore = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
 pytest.importorskip("PySide6.QtGui", exc_type=ImportError)
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+from tests.ui.conftest import require_qt
 
 qtwidgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
 qtcore = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
@@ -12,7 +13,7 @@ from app.bootstrap.container import build_container
 import app.ui.vistas.main_window_vista as main_window_vista
 from app.ui.main_window import MainWindow
 
-QApplication = qtwidgets.QApplication
+QApplication = require_qt()
 QEvent = qtcore.QEvent
 Qt = qtcore.Qt
 QKeyEvent = qtgui.QKeyEvent
