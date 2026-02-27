@@ -8,6 +8,62 @@ from typing import Callable
 from app.application.sheets_service import SHEETS_SCHEMA
 from app.domain.ports import SheetsClientPort, SheetsConfigStorePort, SqlConnectionPort
 
+_SYNC_ACTION = "open_sync_settings"
+
+
+def resultado_sin_configuracion() -> dict[str, tuple[bool, str, str]]:
+    return {
+        "credentials": (False, "Falta configurar credenciales.", _SYNC_ACTION),
+        "spreadsheet": (False, "Falta configurar Spreadsheet ID.", _SYNC_ACTION),
+        "worksheet": (False, "No se puede validar hojas sin configuración.", _SYNC_ACTION),
+        "headers": (False, "No se puede validar cabeceras sin configuración.", _SYNC_ACTION),
+    }
+
+
+def validar_configuracion_basica(credentials_path: str, spreadsheet_id: str) -> dict[str, tuple[bool, str, str]]:
+    credentials_ok = bool(credentials_path and Path(credentials_path).exists())
+    spreadsheet_ok = bool(spreadsheet_id)
+    return {
+        "credentials": (
+            credentials_ok,
+            "Credenciales presentes y legibles." if credentials_ok else "Credenciales ausentes o no accesibles.",
+            _SYNC_ACTION,
+        ),
+        "spreadsheet": (
+            spreadsheet_ok,
+            "Spreadsheet ID configurado." if spreadsheet_ok else "Falta Spreadsheet ID.",
+            _SYNC_ACTION,
+        ),
+    }
+
+
+def completar_validaciones_pendientes(resultado: dict[str, tuple[bool, str, str]]) -> dict[str, tuple[bool, str, str]]:
+    salida = dict(resultado)
+    salida["worksheet"] = (False, "No se puede validar la hoja todavía.", _SYNC_ACTION)
+    salida["headers"] = (False, "No se puede validar cabeceras todavía.", _SYNC_ACTION)
+    return salida
+
+
+def validar_worksheets_existentes(worksheets: dict[str, object]) -> tuple[bool, str, str]:
+    missing = [name for name in ("delegadas", "solicitudes", "cuadrantes") if name not in worksheets]
+    if missing:
+        return False, f"Faltan worksheets: {', '.join(missing)}.", _SYNC_ACTION
+    return True, "Todas las worksheets esperadas existen.", _SYNC_ACTION
+
+
+def normalizar_headers_fila(values: list[list[str]]) -> list[str]:
+    if not values:
+        return []
+    return [cell.strip().lower() for cell in values[0]]
+
+
+def validar_headers_solicitudes(current_headers: list[str]) -> tuple[bool, str, str]:
+    expected = SHEETS_SCHEMA["solicitudes"]
+    missing_headers = [head for head in expected if head not in current_headers]
+    if missing_headers:
+        return False, f"Faltan cabeceras en solicitudes: {', '.join(missing_headers[:4])}.", _SYNC_ACTION
+    return True, "Cabeceras principales detectadas.", _SYNC_ACTION
+
 
 class SheetsConfigProbe:
     def __init__(self, config_store: SheetsConfigStorePort, sheets_client: SheetsClientPort) -> None:
@@ -17,56 +73,23 @@ class SheetsConfigProbe:
     def check(self) -> dict[str, tuple[bool, str, str]]:
         config = self._config_store.load()
         if not config:
-            return {
-                "credentials": (False, "Falta configurar credenciales.", "open_sync_settings"),
-                "spreadsheet": (False, "Falta configurar Spreadsheet ID.", "open_sync_settings"),
-                "worksheet": (False, "No se puede validar hojas sin configuración.", "open_sync_settings"),
-                "headers": (False, "No se puede validar cabeceras sin configuración.", "open_sync_settings"),
-            }
+            return resultado_sin_configuracion()
 
-        credentials_ok = bool(config.credentials_path and Path(config.credentials_path).exists())
-        spreadsheet_ok = bool(config.spreadsheet_id)
-        result = {
-            "credentials": (
-                credentials_ok,
-                "Credenciales presentes y legibles." if credentials_ok else "Credenciales ausentes o no accesibles.",
-                "open_sync_settings",
-            ),
-            "spreadsheet": (
-                spreadsheet_ok,
-                "Spreadsheet ID configurado." if spreadsheet_ok else "Falta Spreadsheet ID.",
-                "open_sync_settings",
-            ),
-        }
-        if not credentials_ok or not spreadsheet_ok:
-            result["worksheet"] = (False, "No se puede validar la hoja todavía.", "open_sync_settings")
-            result["headers"] = (False, "No se puede validar cabeceras todavía.", "open_sync_settings")
-            return result
+        result = validar_configuracion_basica(config.credentials_path, config.spreadsheet_id)
+        if not result["credentials"][0] or not result["spreadsheet"][0]:
+            return completar_validaciones_pendientes(result)
 
         try:
             self._sheets_client.open_spreadsheet(Path(config.credentials_path), config.spreadsheet_id)
             worksheets = self._sheets_client.get_worksheets_by_title()
-            missing = [name for name in ("delegadas", "solicitudes", "cuadrantes") if name not in worksheets]
-            result["worksheet"] = (
-                not missing,
-                "Todas las worksheets esperadas existen." if not missing else f"Faltan worksheets: {', '.join(missing)}.",
-                "open_sync_settings",
-            )
-            headers_ok = True
-            header_msg = "Cabeceras principales detectadas."
-            if "solicitudes" in worksheets:
-                values = self._sheets_client.read_all_values("solicitudes")
-                current_headers = [cell.strip().lower() for cell in values[0]] if values else []
-                expected = SHEETS_SCHEMA["solicitudes"]
-                missing_headers = [head for head in expected if head not in current_headers]
-                headers_ok = not missing_headers
-                if missing_headers:
-                    header_msg = f"Faltan cabeceras en solicitudes: {', '.join(missing_headers[:4])}."
-            result["headers"] = (headers_ok, header_msg, "open_sync_settings")
+            result["worksheet"] = validar_worksheets_existentes(worksheets)
+            headers = normalizar_headers_fila(self._sheets_client.read_all_values("solicitudes")) if "solicitudes" in worksheets else []
+            result["headers"] = validar_headers_solicitudes(headers)
+            return result
         except Exception as exc:  # noqa: BLE001
-            result["worksheet"] = (False, f"No se pudo acceder al Spreadsheet: {exc}", "open_sync_settings")
-            result["headers"] = (False, "No se pudo validar rango/cabeceras.", "open_sync_settings")
-        return result
+            result["worksheet"] = (False, f"No se pudo acceder al Spreadsheet: {exc}", _SYNC_ACTION)
+            result["headers"] = (False, "No se pudo validar rango/cabeceras.", _SYNC_ACTION)
+            return result
 
 
 class DefaultConnectivityProbe:
