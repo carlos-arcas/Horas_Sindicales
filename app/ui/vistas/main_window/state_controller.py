@@ -4,45 +4,44 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 try:
-    from PySide6.QtCore import QDate, QEvent, QSettings, QTime, QTimer, Qt, QObject, QThread, QItemSelectionModel
+    from PySide6.QtCore import QDate, QEvent, QItemSelectionModel, QObject, QSettings, QThread, QTime, QTimer, Qt
     # `QKeyEvent` vive en QtGui en PySide6 (no en QtCore); importarlo aquí evita NameError en eventFilter.
     from PySide6.QtGui import QKeyEvent
     from PySide6.QtWidgets import (
+        QAbstractItemView,
+        QApplication,
         QCheckBox,
         QComboBox,
         QDateEdit,
         QDialog,
+        QDialogButtonBox,
         QFileDialog,
+        QFrame,
+        QHeaderView,
         QHBoxLayout,
         QLabel,
         QMainWindow,
         QMessageBox,
-        QPushButton,
-        QApplication,
-        QAbstractItemView,
         QPlainTextEdit,
-        QFrame,
-        QHeaderView,
         QProgressBar,
+        QPushButton,
         QSizePolicy,
         QSplitter,
         QTableView,
-        QTimeEdit,
-        QVBoxLayout,
-        QWidget,
-        QDialogButtonBox,
         QTextEdit,
+        QTimeEdit,
         QTreeWidget,
         QTreeWidgetItem,
+        QVBoxLayout,
+        QWidget,
     )
 except Exception:  # pragma: no cover - habilita import en entornos CI sin Qt
     class _QtFallbackBase:
         pass
 
-    QDate = QEvent = QSettings = QTime = QTimer = Qt = QObject = QThread = QItemSelectionModel = object
+    QDate = QEvent = QItemSelectionModel = QObject = QSettings = QThread = QTime = QTimer = Qt = object
     QKeyEvent = object
     QCheckBox = QComboBox = QDateEdit = QDialog = QFileDialog = QHBoxLayout = QLabel = object
     QMainWindow = type("QMainWindow", (_QtFallbackBase,), {})
@@ -60,9 +59,7 @@ from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
-from app.application.use_cases.solicitudes.validaciones import (
-    detectar_duplicados_en_pendientes,
-)
+from app.application.use_cases.solicitudes.validaciones import detectar_duplicados_en_pendientes
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.request_time import validate_request_inputs
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
@@ -81,68 +78,33 @@ try:
     from app.ui.notification_service import ConfirmationSummaryPayload, NotificationService, OperationFeedback
     from app.ui.toast_helpers import toast_error, toast_success
     from app.ui.components.saldos_card import SaldosCard
-    from app.ui.sync_reporting import (
-        build_config_incomplete_report,
-        build_failed_report,
-        build_simulation_report,
-        build_sync_report,
-        list_sync_history,
-        load_sync_report,
-        persist_report,
-        to_markdown,
-    )
+    from app.ui.sync_reporting import (build_config_incomplete_report, build_failed_report, build_simulation_report,
+                                       build_sync_report, list_sync_history, load_sync_report, persist_report,
+                                       to_markdown)
     from app.ui.workers.sincronizacion_workers import PushWorker
     from app.ui.vistas.main_window_health_mixin import MainWindowHealthMixin
     from app.ui.vistas.init_refresh import run_init_refresh
-    from app.ui.vistas.builders.main_window_builders import (
-        build_main_window_widgets,
-        build_shell_layout,
-        build_status_bar,
-    )
+    from app.ui.vistas.builders.main_window_builders import build_main_window_widgets, build_shell_layout, build_status_bar
     from app.ui.vistas.confirmar_pdf_state import debe_habilitar_confirmar_pdf
-    from app.ui.vistas.confirmacion_actions import (
-        ask_push_after_pdf,
-        build_confirmation_payload,
-        execute_confirmar_with_pdf,
-        finalize_confirmar_with_pdf,
-        iterar_pendientes_en_tabla,
-        on_confirmar,
-        on_insertar_sin_pdf,
-        prompt_confirm_pdf_path,
-        show_confirmation_closure,
-        show_pdf_actions_dialog,
-        sum_solicitudes_minutes,
-        undo_confirmation,
-    )
-    from app.ui.vistas.historico_actions import (
-        apply_historico_default_range,
-        apply_historico_filters,
-        apply_historico_last_30_days,
-        on_generar_pdf_historico,
-        on_historico_apply_filters,
-        on_historico_periodo_mode_changed,
-        on_open_historico_detalle,
-    )
+    from app.ui.vistas.confirmacion_actions import (ask_push_after_pdf, build_confirmation_payload,
+                                                    execute_confirmar_with_pdf, finalize_confirmar_with_pdf,
+                                                    iterar_pendientes_en_tabla, on_confirmar, on_insertar_sin_pdf,
+                                                    prompt_confirm_pdf_path, show_confirmation_closure,
+                                                    show_pdf_actions_dialog, sum_solicitudes_minutes,
+                                                    undo_confirmation)
+    from app.ui.vistas.historico_actions import (apply_historico_default_range, apply_historico_filters,
+                                                 apply_historico_last_30_days, on_generar_pdf_historico,
+                                                 on_historico_apply_filters, on_historico_periodo_mode_changed,
+                                                 on_open_historico_detalle)
     from app.ui.vistas.ui_helpers import abrir_archivo_local
-    from app.ui.vistas.main_window_helpers import (
-        build_estado_pendientes_debug_payload,
-        build_historico_filters_payload,
-        handle_historico_render_mismatch,
-        log_estado_pendientes,
-        show_sync_error_dialog_from_exception,
-    )
-    from app.ui.vistas.solicitudes_presenter import (
-        ActionStateInput,
-        PreventiveValidationViewInput,
-        build_action_state,
-        build_preventive_validation_view_model,
-    )
-    from app.ui.vistas.solicitudes_ux_rules import (
-        SolicitudesFocusInput,
-        SolicitudesStatusInput,
-        build_solicitudes_status,
-        resolve_first_invalid_field,
-    )
+    from app.ui.vistas.main_window_helpers import (build_estado_pendientes_debug_payload,
+                                                   build_historico_filters_payload,
+                                                   handle_historico_render_mismatch, log_estado_pendientes,
+                                                   show_sync_error_dialog_from_exception)
+    from app.ui.vistas.solicitudes_presenter import (ActionStateInput, PreventiveValidationViewInput,
+                                                     build_action_state, build_preventive_validation_view_model)
+    from app.ui.vistas.solicitudes_ux_rules import (SolicitudesFocusInput, SolicitudesStatusInput,
+                                                    build_solicitudes_status, resolve_first_invalid_field)
 except Exception:  # pragma: no cover - habilita import parcial sin dependencias de UI/Qt
     def _qt_unavailable(*args, **kwargs):
         raise RuntimeError("UI no disponible: falta instalación de Qt/PySide6")
@@ -174,33 +136,15 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     abrir_archivo_local = _qt_unavailable
     build_estado_pendientes_debug_payload = build_historico_filters_payload = _qt_unavailable
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
-
 from app.ui.vistas.pending_duplicate_presenter import PendingDuplicateEntrada, resolve_pending_duplicate_row
 from . import data_refresh, form_handlers, layout_builder, wiring
-
-from app.ui.vistas.personas_presenter import (
-    PersonaOption,
-    PersonasLoadInput,
-    build_personas_load_output,
-    resolve_active_delegada_id as resolve_active_delegada_id_presenter,
-)
-
+from app.ui.vistas.personas_presenter import PersonaOption, PersonasLoadInput, build_personas_load_output, resolve_active_delegada_id as resolve_active_delegada_id_presenter
 from app.core.observability import OperationContext
 from app.bootstrap.logging import log_operational_error
 
-try:
-    from PySide6.QtPdf import QPdfDocument
-    from PySide6.QtPdfWidgets import QPdfView
-
-    PDF_PREVIEW_AVAILABLE = True
-except Exception:  # pragma: no cover - depende de instalación local
-    QPdfDocument = None
-    QPdfView = None
-    PDF_PREVIEW_AVAILABLE = False
-
+from .dialogos import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 logger = logging.getLogger(__name__)
 TAB_HISTORICO = 1
-
 
 def set_processing_state(window, in_progress: bool) -> None:
     window.agregar_button.setEnabled(not in_progress)
@@ -211,7 +155,6 @@ def set_processing_state(window, in_progress: bool) -> None:
         window.statusBar().showMessage("Procesando…")
     elif not window._sync_in_progress:
         window.statusBar().clearMessage()
-
 
 def update_action_state(window) -> None:
     if hasattr(window, "_run_preventive_validation"):
@@ -247,137 +190,8 @@ def update_action_state(window) -> None:
     window._update_solicitudes_status_panel()
     window._dump_estado_pendientes("after_update_action_state")
 
-
 def resolve_active_delegada_id(delegada_ids: list[int], preferred_id: object) -> int | None:
-    """Devuelve la delegada activa válida a partir del id preferido y la lista cargada."""
     return resolve_active_delegada_id_presenter(delegada_ids, preferred_id)
-
-
-class OptionalConfirmDialog(QDialog):
-    def __init__(self, title: str, message: str, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setWindowTitle(title)
-        layout = QVBoxLayout(self)
-        layout.setSpacing(8)
-        text = QLabel(message)
-        text.setWordWrap(True)
-        layout.addWidget(text)
-
-        self.skip_next_check = QCheckBox("No mostrar de nuevo")
-        layout.addWidget(self.skip_next_check)
-
-        cancel_button = QPushButton("Cancelar")
-        cancel_button.setProperty("variant", "ghost")
-        cancel_button.clicked.connect(self.reject)
-        ok = QPushButton("Aceptar")
-        ok.setProperty("variant", "primary")
-        ok.clicked.connect(self.accept)
-        layout.addLayout(build_modal_actions(cancel_button, ok))
-        apply_modal_behavior(self, primary_button=ok)
-
-
-class PdfPreviewDialog(QDialog):
-    def __init__(self, pdf_generator, default_name: str, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._pdf_generator = pdf_generator
-        self._default_name = default_name
-        self._last_pdf_path: Path | None = None
-        self._pdf_document = None
-        self.setWindowTitle("Previsualización PDF")
-        self.resize(920, 680)
-        self._build_ui()
-        self._generate_preview()
-
-    def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        self.info_label = QLabel("Genera una vista previa antes de guardar.")
-        self.info_label.setProperty("role", "secondary")
-        layout.addWidget(self.info_label)
-
-        if PDF_PREVIEW_AVAILABLE and QPdfView and QPdfDocument:
-            self._pdf_document = QPdfDocument(self)
-            self._pdf_view = QPdfView(self)
-            self._pdf_view.setDocument(self._pdf_document)
-            layout.addWidget(self._pdf_view, 1)
-        else:
-            self._pdf_view = QLabel(
-                "QPdfView no está disponible en esta instalación.\n"
-                "Se abrirá la vista previa con el visor del sistema."
-            )
-            self._pdf_view.setAlignment(Qt.AlignCenter)
-            self._pdf_view.setWordWrap(True)
-            self._pdf_view.setProperty("role", "secondary")
-            layout.addWidget(self._pdf_view, 1)
-
-        actions = QHBoxLayout()
-        actions.addStretch(1)
-
-        refresh = QPushButton("Generar/Actualizar vista")
-        refresh.setProperty("variant", "secondary")
-        refresh.clicked.connect(self._generate_preview)
-        actions.addWidget(refresh)
-
-        save_as = QPushButton("Guardar como…")
-        save_as.setProperty("variant", "primary")
-        save_as.clicked.connect(self._save_as)
-        actions.addWidget(save_as)
-
-        close_button = QPushButton("Cerrar")
-        close_button.setProperty("variant", "ghost")
-        close_button.clicked.connect(self.reject)
-        actions.addWidget(close_button)
-        layout.addLayout(actions)
-
-        apply_modal_behavior(self)
-
-    def _generate_preview(self) -> None:
-        with NamedTemporaryFile(prefix="horas_sindicales_", suffix=".pdf", delete=False) as tmp:
-            temp_path = Path(tmp.name)
-        generated = self._pdf_generator(temp_path)
-        self._last_pdf_path = generated
-        self.info_label.setText(f"Vista previa lista: {generated.name}")
-        if PDF_PREVIEW_AVAILABLE and self._pdf_document is not None:
-            self._pdf_document.load(str(generated))
-            return
-        abrir_archivo_local(generated)
-
-    def _save_as(self) -> None:
-        if self._last_pdf_path is None:
-            return
-        default_path = str(Path.home() / self._default_name)
-        target_path, _ = QFileDialog.getSaveFileName(self, "Guardar PDF", default_path, "PDF (*.pdf)")
-        if not target_path:
-            return
-        Path(target_path).write_bytes(self._last_pdf_path.read_bytes())
-        self.accept()
-
-    @property
-    def exported_path(self) -> Path | None:
-        return self._last_pdf_path
-
-
-class HistoricoDetalleDialog(QDialog):
-    def __init__(self, payload: dict[str, str], parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setWindowTitle("Detalle de solicitud")
-        self.resize(560, 420)
-        layout = QVBoxLayout(self)
-
-        details = QTextEdit(self)
-        details.setReadOnly(True)
-        body = "\n".join(f"{key}: {value}" for key, value in payload.items())
-        details.setPlainText(body)
-        layout.addWidget(details, 1)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.Close)
-        buttons.rejected.connect(self.reject)
-        buttons.accepted.connect(self.accept)
-        layout.addWidget(buttons)
-
-        close_button = buttons.button(QDialogButtonBox.Close)
-        assert close_button is not None, "QDialogButtonBox.Close debe existir para mantener foco principal"
-        apply_modal_behavior(self, primary_button=close_button)
-
 
 class MainWindow(MainWindowHealthMixin, QMainWindow):
     def __init__(
@@ -547,17 +361,12 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         )
 
     def _init_refresh(self) -> None:
-        run_init_refresh(
-            refresh_resumen=self._refresh_saldos,
-            refresh_pendientes=self._reload_pending_views,
-            refresh_historico=lambda: self._refresh_historico(force=True),
-            emit_log=logger.info,
-        )
+        self._post_init_load()
 
     def _on_main_tab_changed(self, index: int) -> None:
         if index != TAB_HISTORICO:
             return
-        if not self.historico_desde_date.date().isValid() or not self.historico_hasta_date.date().isValid():
+        if not (self.historico_desde_date.date().isValid() and self.historico_hasta_date.date().isValid()):
             self._apply_historico_last_30_days()
         self._refresh_historico(force=False)
 
@@ -636,12 +445,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _build_shell_layout(self) -> None:
         layout_builder.build_shell(self)
 
-
     def _switch_sidebar_page(self, index: int) -> None:
-        """Compatibilidad con tests legados: ahora navega por pestañas."""
-        if self.main_tabs is None:
-            return
-        if 0 <= index <= 2:
+        if self.main_tabs is not None and 0 <= index <= 2:
             self.main_tabs.setCurrentIndex(index)
 
     def _build_status_bar(self) -> None:
@@ -671,10 +476,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._update_responsive_columns()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
-        # Para juniors: `eventFilter` intercepta eventos antes que el widget objetivo.
-        # Si este método lanza una excepción, puede romper incluso el manejador global
-        # que muestra QMessageBox de error. Por eso se protege con try/except defensivo.
-        # Nota: los eventos de teclado en PySide6 son `QKeyEvent` de `QtGui`.
         try:
             if watched is None or event is None:
                 return False
@@ -1046,7 +847,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _apply_historico_filters(self) -> None:
         apply_historico_filters(self)
-
 
     def _update_historico_empty_state(self) -> None:
         has_rows = self.historico_proxy_model.rowCount() > 0
