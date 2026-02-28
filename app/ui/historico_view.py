@@ -9,6 +9,7 @@ from PySide6.QtCore import QDate, QModelIndex, QRegularExpression, QSortFilterPr
 from app.application.dto import SolicitudDTO
 from app.ui.models_qt import SOLICITUD_FECHA_ROLE, SolicitudesTableModel
 from app.ui.patterns import status_badge
+from app.ui.vistas.historico_filter_rules import FiltroHistoricoEntrada, RegistroHistorico, decide_accept
 
 
 @dataclass(frozen=True)
@@ -125,105 +126,52 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         return source_model.solicitud_at(source_row)
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:  # noqa: N802
+        del source_parent
         solicitud = self._source_solicitud(source_row)
         if solicitud is None:
             return False
 
-        if not self._has_filters():
-            return True
+        estado = HistoricoStatusResolver.resolve(solicitud)
+        entrada = self._build_filter_input()
+        row = self._build_row_snapshot(source_row, solicitud, estado)
+        return decide_accept(entrada, row).accept
 
-        fecha = self._extract_fecha(source_row)
+    def _build_filter_input(self) -> FiltroHistoricoEntrada:
+        return FiltroHistoricoEntrada(
+            search_pattern=self._filter_regex.pattern(),
+            year_mode=self._year_mode,
+            year=self._year,
+            month=self._month,
+            date_from=self._date_from_py,
+            date_to=self._date_to_py,
+            estado_code=self._estado_code,
+            delegada_id=self._delegada_id,
+            ver_todas=self._ver_todas,
+        )
 
-        if not self._match_delegada(solicitud):
-            return False
-
-        if not self._match_date_mode(fecha):
-            return False
-
-        if self._estado_code:
-            estado = HistoricoStatusResolver.resolve(solicitud)
-            if estado.code != self._estado_code:
-                return False
-
-        if self._filter_regex.pattern():
-            values = [
-                solicitud.fecha_pedida,
-                solicitud.desde or "",
-                solicitud.hasta or "",
-                solicitud.notas or "",
-                solicitud.observaciones or "",
-                HistoricoStatusResolver.resolve(solicitud).label,
-            ]
-            source_model = self.sourceModel()
-            if isinstance(source_model, SolicitudesTableModel):
-                person_name = source_model.persona_name_for_id(solicitud.persona_id)
-                if person_name:
-                    values.append(person_name)
-                for column in range(source_model.columnCount()):
-                    idx = source_model.index(source_row, column)
-                    values.append(str(source_model.data(idx, Qt.DisplayRole) or ""))
-            haystack = " ".join(values)
-            if not self._filter_regex.match(haystack).hasMatch():
-                return False
-
-        return True
-
-    def _has_filters(self) -> bool:
-        has_delegada_filter = not self._ver_todas and self._delegada_id is not None
-        return any((
-            has_delegada_filter,
-            self._has_period_filter(),
-            bool(self._estado_code),
-            bool(self._filter_regex.pattern()),
-        ))
-
-    def _has_period_filter(self) -> bool:
-        if self._year_mode == "ALL_YEAR":
-            return self._year is not None
-        if self._year_mode == "YEAR_MONTH":
-            return self._year is not None and self._month is not None
-        if self._year_mode == "RANGE":
-            return self._date_from_py is not None or self._date_to_py is not None
-        return False
-
-    def _match_delegada(self, solicitud: SolicitudDTO) -> bool:
-        if self._ver_todas or self._delegada_id is None:
-            return True
-        return solicitud.persona_id == self._delegada_id
-
-    def _match_date_mode(self, fecha: date | None) -> bool:
-        if self._year_mode == "ALL_YEAR":
-            return self._match_year(fecha)
-        if self._year_mode == "YEAR_MONTH":
-            return self._match_year_month(fecha)
-        if self._year_mode == "RANGE":
-            return self._match_range(fecha)
-        return True
-
-    def _match_year(self, fecha: date | None) -> bool:
-        if self._year is None:
-            return True
-        if fecha is None:
-            return False
-        return fecha.year == self._year
-
-    def _match_year_month(self, fecha: date | None) -> bool:
-        if self._year is None or self._month is None:
-            return True
-        if fecha is None:
-            return False
-        return fecha.year == self._year and fecha.month == self._month
-
-    def _match_range(self, fecha: date | None) -> bool:
-        if not self._date_from_py and not self._date_to_py:
-            return True
-        if fecha is None:
-            return True
-        if self._date_from_py and fecha < self._date_from_py:
-            return False
-        if self._date_to_py and fecha > self._date_to_py:
-            return False
-        return True
+    def _build_row_snapshot(self, source_row: int, solicitud: SolicitudDTO, estado: EstadoHistorico) -> RegistroHistorico:
+        values = [
+            solicitud.fecha_pedida,
+            solicitud.desde or "",
+            solicitud.hasta or "",
+            solicitud.notas or "",
+            solicitud.observaciones or "",
+            estado.label,
+        ]
+        source_model = self.sourceModel()
+        if isinstance(source_model, SolicitudesTableModel):
+            person_name = source_model.persona_name_for_id(solicitud.persona_id)
+            if person_name:
+                values.append(person_name)
+            for column in range(source_model.columnCount()):
+                idx = source_model.index(source_row, column)
+                values.append(str(source_model.data(idx, Qt.DisplayRole) or ""))
+        return RegistroHistorico(
+            persona_id=solicitud.persona_id,
+            fecha=self._extract_fecha(source_row),
+            estado_code=estado.code,
+            haystack=" ".join(values),
+        )
 
     def _extract_fecha(self, source_row: int) -> date | None:
         return self._coerce_to_date(self._source_fecha(source_row))
