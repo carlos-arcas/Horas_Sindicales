@@ -35,6 +35,9 @@ jobs:
       - name: Lint
         run: ruff check .
 
+      - name: Verificación de sintaxis (compileall)
+        run: python -m compileall -q app scripts tests
+
       - name: Tests CORE + coverage (sin UI)
         run: |
           COVERAGE_FAIL_UNDER=$(python -c "import json; d=json.load(open('.config/quality_gate.json', encoding='utf-8')); print(d.get('coverage_fail_under_core', d['coverage_fail_under']))")
