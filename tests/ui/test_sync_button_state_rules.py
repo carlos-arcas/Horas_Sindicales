@@ -164,3 +164,59 @@ def test_decidir_estado_reportes(overrides: dict, enabled: bool, reason_code: st
     assert decision.copy_sync_report.enabled is enabled
     assert decision.sync_details.reason_code == reason_code
     assert decision.copy_sync_report.reason_code == reason_code
+
+
+def test_contrato_precedencia_confirm_sync_en_progreso_sobre_no_configurado() -> None:
+    decision = decidir_estado_botones_sync(
+        _entrada_base(
+            sync_en_progreso=True,
+            sync_configurado=False,
+            hay_plan_pendiente=False,
+            plan_tiene_cambios=False,
+            plan_tiene_conflictos=True,
+        )
+    )
+
+    assert decision.confirm_sync.reason_code == "confirm_sync_bloqueado_en_progreso"
+
+
+def test_contrato_texto_tooltip_sync_se_conservan_en_sync_no_configurado() -> None:
+    decision = decidir_estado_botones_sync(
+        _entrada_base(
+            sync_configurado=False,
+            texto_sync_actual="Sincronización deshabilitada",
+            tooltip_sync_actual="Configure la integración",
+        )
+    )
+
+    assert decision.sync.text == "Sincronización deshabilitada"
+    assert decision.sync.tooltip == "Configure la integración"
+
+
+def test_contrato_texto_tooltip_sync_se_conservan_en_sync_en_progreso() -> None:
+    decision = decidir_estado_botones_sync(
+        _entrada_base(
+            sync_en_progreso=True,
+            texto_sync_actual="Sincronizando…",
+            tooltip_sync_actual="Espere a que termine",
+        )
+    )
+
+    assert decision.sync.text == "Sincronizando…"
+    assert decision.sync.tooltip == "Espere a que termine"
+
+
+def test_contrato_reason_code_sync_prioriza_no_configurado_sobre_en_progreso() -> None:
+    decision = decidir_estado_botones_sync(
+        _entrada_base(sync_configurado=False, sync_en_progreso=True)
+    )
+
+    assert decision.sync.reason_code == "sync_no_configurado"
+
+
+def test_contrato_reason_code_review_prioriza_bloqueado_sobre_pendientes() -> None:
+    decision = decidir_estado_botones_sync(
+        _entrada_base(sync_en_progreso=True, conflictos_pendientes_total=3)
+    )
+
+    assert decision.review_conflicts.reason_code == "review_conflictos_bloqueado_en_progreso"

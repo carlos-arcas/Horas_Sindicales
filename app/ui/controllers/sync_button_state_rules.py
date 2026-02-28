@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,83 @@ class EstadoBotonesSyncDecision:
     copy_sync_report: DecisionBotonSync
 
 
+ReglaReasonCode = tuple[Callable[[EstadoBotonSyncEntrada], bool], str]
+
+
+def _first_matching_reason(
+    entrada: EstadoBotonSyncEntrada,
+    reglas: tuple[ReglaReasonCode, ...],
+    default: str,
+) -> str:
+    """Devuelve el primer reason_code cuya regla aplique, respetando precedencia."""
+
+    for predicado, reason_code in reglas:
+        if predicado(entrada):
+            return reason_code
+    return default
+
+
+def _razon_sync(entrada: EstadoBotonSyncEntrada) -> str:
+    """Decide el reason_code de sync principal según configuración y progreso."""
+
+    reglas: tuple[ReglaReasonCode, ...] = (
+        (lambda e: not e.sync_configurado, "sync_no_configurado"),
+        (lambda e: e.sync_en_progreso, "sync_en_progreso"),
+    )
+    return _first_matching_reason(entrada, reglas, "sync_listo")
+
+
+def _razon_confirm_sync(entrada: EstadoBotonSyncEntrada) -> str:
+    """Decide el reason_code de confirmación respetando el orden histórico."""
+
+    reglas: tuple[ReglaReasonCode, ...] = (
+        (lambda e: e.sync_en_progreso, "confirm_sync_bloqueado_en_progreso"),
+        (lambda e: not e.sync_configurado, "confirm_sync_no_configurado"),
+        (lambda e: not e.hay_plan_pendiente, "confirm_sync_sin_plan"),
+        (lambda e: not e.plan_tiene_cambios, "confirm_sync_sin_cambios"),
+        (lambda e: e.plan_tiene_conflictos, "confirm_sync_conflictos"),
+    )
+    return _first_matching_reason(entrada, reglas, "confirm_sync_listo")
+
+
+def _razon_retry(entrada: EstadoBotonSyncEntrada) -> str:
+    """Decide el reason_code de reintento en base a progreso y fallos previos."""
+
+    reglas: tuple[ReglaReasonCode, ...] = (
+        (lambda e: e.sync_en_progreso, "retry_bloqueado_en_progreso"),
+        (lambda e: e.ultimo_reporte_tiene_fallos, "retry_listo"),
+    )
+    return _first_matching_reason(entrada, reglas, "retry_sin_fallos")
+
+
+def _razon_review_conflictos(entrada: EstadoBotonSyncEntrada) -> str:
+    """Decide el reason_code de revisión de conflictos por bloqueo y pendientes."""
+
+    reglas: tuple[ReglaReasonCode, ...] = (
+        (lambda e: e.sync_en_progreso, "review_conflictos_bloqueado_en_progreso"),
+        (lambda e: e.conflictos_pendientes_total > 0, "review_conflictos_pendientes"),
+    )
+    return _first_matching_reason(entrada, reglas, "review_conflictos_sin_pendientes")
+
+
+def _razon_reportes(entrada: EstadoBotonSyncEntrada) -> str:
+    """Decide el reason_code de acciones de reporte."""
+
+    reglas: tuple[ReglaReasonCode, ...] = (
+        (lambda e: e.sync_en_progreso, "reporte_bloqueado_en_progreso"),
+        (lambda e: e.ultimo_reporte_presente, "reporte_listo"),
+    )
+    return _first_matching_reason(entrada, reglas, "reporte_no_disponible")
+
+
+def _texto_review_conflictos(entrada: EstadoBotonSyncEntrada) -> str:
+    """Devuelve el texto visible del botón de conflictos según pendientes."""
+
+    if entrada.conflictos_pendientes_total > 0:
+        return "Revisar conflictos"
+    return "Revisar conflictos (sin pendientes)"
+
+
 
 def decidir_estado_botones_sync(entrada: EstadoBotonSyncEntrada) -> EstadoBotonesSyncDecision:
     """Calcula el estado visible de los botones de sincronización.
@@ -51,12 +129,7 @@ def decidir_estado_botones_sync(entrada: EstadoBotonSyncEntrada) -> EstadoBotone
     """
 
     sync_habilitado = entrada.sync_configurado and not entrada.sync_en_progreso
-    if not entrada.sync_configurado:
-        razon_sync = "sync_no_configurado"
-    elif entrada.sync_en_progreso:
-        razon_sync = "sync_en_progreso"
-    else:
-        razon_sync = "sync_listo"
+    razon_sync = _razon_sync(entrada)
 
     decision_sync = DecisionBotonSync(
         enabled=sync_habilitado,
@@ -66,18 +139,7 @@ def decidir_estado_botones_sync(entrada: EstadoBotonSyncEntrada) -> EstadoBotone
         reason_code=razon_sync,
     )
 
-    if entrada.sync_en_progreso:
-        razon_confirm = "confirm_sync_bloqueado_en_progreso"
-    elif not entrada.sync_configurado:
-        razon_confirm = "confirm_sync_no_configurado"
-    elif not entrada.hay_plan_pendiente:
-        razon_confirm = "confirm_sync_sin_plan"
-    elif not entrada.plan_tiene_cambios:
-        razon_confirm = "confirm_sync_sin_cambios"
-    elif entrada.plan_tiene_conflictos:
-        razon_confirm = "confirm_sync_conflictos"
-    else:
-        razon_confirm = "confirm_sync_listo"
+    razon_confirm = _razon_confirm_sync(entrada)
 
     confirm_habilitado = (
         sync_habilitado
@@ -87,34 +149,14 @@ def decidir_estado_botones_sync(entrada: EstadoBotonSyncEntrada) -> EstadoBotone
     )
 
     retry_habilitado = not entrada.sync_en_progreso and entrada.ultimo_reporte_tiene_fallos
-    if entrada.sync_en_progreso:
-        razon_retry = "retry_bloqueado_en_progreso"
-    elif entrada.ultimo_reporte_tiene_fallos:
-        razon_retry = "retry_listo"
-    else:
-        razon_retry = "retry_sin_fallos"
+    razon_retry = _razon_retry(entrada)
 
     review_habilitado = not entrada.sync_en_progreso and entrada.conflictos_pendientes_total > 0
-    if entrada.sync_en_progreso:
-        razon_review = "review_conflictos_bloqueado_en_progreso"
-    elif entrada.conflictos_pendientes_total > 0:
-        razon_review = "review_conflictos_pendientes"
-    else:
-        razon_review = "review_conflictos_sin_pendientes"
-
-    texto_review = (
-        "Revisar conflictos"
-        if entrada.conflictos_pendientes_total > 0
-        else "Revisar conflictos (sin pendientes)"
-    )
+    razon_review = _razon_review_conflictos(entrada)
+    texto_review = _texto_review_conflictos(entrada)
 
     detalles_habilitado = not entrada.sync_en_progreso and entrada.ultimo_reporte_presente
-    if entrada.sync_en_progreso:
-        razon_detalles = "reporte_bloqueado_en_progreso"
-    elif entrada.ultimo_reporte_presente:
-        razon_detalles = "reporte_listo"
-    else:
-        razon_detalles = "reporte_no_disponible"
+    razon_detalles = _razon_reportes(entrada)
 
     return EstadoBotonesSyncDecision(
         sync=decision_sync,
