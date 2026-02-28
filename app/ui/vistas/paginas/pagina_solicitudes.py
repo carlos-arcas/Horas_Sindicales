@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
+from app.ui.copy_catalog import copy_text
+
 
 class PaginaSolicitudes(QWidget):
     def __init__(self, parent=None, content_widget: QWidget | None = None) -> None:
@@ -11,11 +13,11 @@ class PaginaSolicitudes(QWidget):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
-        title = QLabel("Solicitudes")
+        title = QLabel(copy_text("solicitudes.section_title"))
         title.setProperty("role", "sectionTitle")
         layout.addWidget(title)
 
-        subtitle = QLabel("Gestiona la operativa diaria de solicitudes con una vista clara y consistente.")
+        subtitle = QLabel(copy_text("solicitudes.subtitle"))
         subtitle.setWordWrap(True)
         subtitle.setProperty("role", "secondary")
         layout.addWidget(subtitle)

@@ -142,6 +142,8 @@ class SolicitudesController:
     def _update_ui_after_add(self, creada: SolicitudDTO, pendiente_en_edicion: SolicitudDTO | None) -> None:
         w = self.window
         w.notas_input.setPlainText("")
+        w._solicitudes_last_action_saved = True
+        w._solicitudes_runtime_error = False
         w._refresh_historico()
         w._refresh_saldos()
         w._update_action_state()

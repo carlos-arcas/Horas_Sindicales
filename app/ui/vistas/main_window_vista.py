@@ -66,6 +66,7 @@ from app.application.use_cases.solicitudes.validaciones import (
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.domain.request_time import validate_request_inputs
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
+from app.ui.copy_catalog import copy_text
 try:
     from app.ui.conflicts_dialog import ConflictsDialog
     from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
@@ -136,6 +137,12 @@ try:
         build_action_state,
         build_preventive_validation_view_model,
     )
+    from app.ui.vistas.solicitudes_ux_rules import (
+        SolicitudesFocusInput,
+        SolicitudesStatusInput,
+        build_solicitudes_status,
+        resolve_first_invalid_field,
+    )
 except Exception:  # pragma: no cover - habilita import parcial sin dependencias de UI/Qt
     def _qt_unavailable(*args, **kwargs):
         raise RuntimeError("UI no disponible: falta instalación de Qt/PySide6")
@@ -143,6 +150,8 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     ConflictsDialog = GrupoConfigDialog = PdfConfigDialog = PersonaDialog = ToastManager = object
     ActionStateInput = PreventiveValidationViewInput = object
     build_action_state = build_preventive_validation_view_model = _qt_unavailable
+    build_solicitudes_status = resolve_first_invalid_field = _qt_unavailable
+    SolicitudesFocusInput = SolicitudesStatusInput = object
     PersonasController = SolicitudesController = SyncController = PdfController = object
     ConfirmationSummaryPayload = NotificationService = OperationFeedback = object
     SaldosCard = PushWorker = object
@@ -375,6 +384,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._preventive_validation_timer.setSingleShot(True)
         self._preventive_validation_timer.timeout.connect(self._run_preventive_validation)
         self._ui_ready = False
+        self._solicitudes_runtime_error = False
+        self._solicitudes_last_action_saved = False
         self.status_sync_label: QLabel | None = None
         self.status_sync_progress: QProgressBar | None = None
         self.status_pending_label: QLabel | None = None
@@ -397,6 +408,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.desde_placeholder = self.hasta_placeholder = None
         self.completo_check = self.notas_input = None
         self.pending_errors_frame = self.pending_errors_summary = None
+        self.show_help_toggle = None
+        self.solicitudes_status_label = self.solicitudes_status_hint = None
+        self.solicitudes_tip_1 = self.solicitudes_tip_2 = self.solicitudes_tip_3 = None
         self.solicitud_inline_error = self.delegada_field_error = self.fecha_field_error = self.tramo_field_error = None
         self.insertar_sin_pdf_button = self.confirmar_button = None
         self.agregar_button = self.eliminar_pendiente_button = self.eliminar_huerfana_button = None
@@ -442,6 +456,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._historico_detalle_dialog_class = HistoricoDetalleDialog
         self.setWindowTitle("Horas Sindicales")
         self._build_ui()
+        self._apply_help_preferences()
+        self._apply_solicitudes_tooltips()
         self._validate_required_widgets()
         self.toast.attach_to(self)
         self._load_personas()
@@ -877,6 +893,34 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.setTabOrder(self.agregar_button, self.insertar_sin_pdf_button)
         self.setTabOrder(self.insertar_sin_pdf_button, self.confirmar_button)
 
+    def _apply_help_preferences(self) -> None:
+        saved = self._settings.value("ux/mostrar_ayuda", True, type=bool)
+        if self.show_help_toggle is not None:
+            self.show_help_toggle.setChecked(bool(saved))
+            self.show_help_toggle.toggled.connect(self._on_toggle_help)
+        self._set_help_visibility(bool(saved))
+
+    def _on_toggle_help(self, checked: bool) -> None:
+        self._settings.setValue("ux/mostrar_ayuda", checked)
+        self._set_help_visibility(bool(checked))
+
+    def _set_help_visibility(self, visible: bool) -> None:
+        for tip in (self.solicitudes_tip_1, self.solicitudes_tip_2, self.solicitudes_tip_3):
+            if tip is not None:
+                tip.setVisible(visible)
+        self._apply_solicitudes_tooltips()
+
+    def _apply_solicitudes_tooltips(self) -> None:
+        if self.persona_combo is None:
+            return
+        extended = bool(self.show_help_toggle is None or self.show_help_toggle.isChecked())
+        self.persona_combo.setToolTip(copy_text("solicitudes.tooltip_delegada") if extended else "")
+        self.fecha_input.setToolTip(copy_text("solicitudes.tooltip_fecha") if extended else "")
+        self.desde_input.setToolTip(copy_text("solicitudes.tooltip_desde") if extended else "")
+        self.hasta_input.setToolTip(copy_text("solicitudes.tooltip_hasta") if extended else "")
+        self.total_preview_input.setToolTip(copy_text("solicitudes.tooltip_minutos") if extended else "")
+        self.notas_input.setToolTip(copy_text("solicitudes.tooltip_notas") if extended else "")
+
     def _configure_historico_focus_order(self) -> None:
         self.setTabOrder(self.historico_search_input, self.historico_estado_combo)
         self.setTabOrder(self.historico_estado_combo, self.historico_delegada_combo)
@@ -1143,13 +1187,13 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _collect_base_preventive_errors(self) -> dict[str, str]:
         blocking: dict[str, str] = {}
         if self._current_persona() is None:
-            blocking["delegada"] = "⚠ Selecciona una delegada."
+            blocking["delegada"] = copy_text("solicitudes.validation_delegada")
 
         fecha_pedida = self.fecha_input.date().toString("yyyy-MM-dd")
         try:
             datetime.strptime(fecha_pedida, "%Y-%m-%d")
         except ValueError:
-            blocking["fecha"] = "⚠ Introduce una fecha válida."
+            blocking["fecha"] = copy_text("solicitudes.validation_fecha")
 
         completo = self.completo_check.isChecked()
         tramo_errors = validate_request_inputs(
@@ -1158,7 +1202,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             completo,
         )
         if tramo_errors:
-            blocking["tramo"] = f"⚠ {next(iter(tramo_errors.values()))}"
+            blocking["tramo"] = f"{copy_text("solicitudes.validation_tramo_prefix")} {next(iter(tramo_errors.values()))}"
         return blocking
 
     def _collect_preventive_business_rules(
@@ -1182,7 +1226,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             solicitud.persona_id, solicitud.fecha_pedida, solicitud.completo
         )
         if not conflicto.ok:
-            blocking["conflicto"] = "⚠ Hay un conflicto activo pendiente en esa fecha."
+            blocking["conflicto"] = copy_text("solicitudes.validation_conflict")
 
         if solicitud.completo and self.cuadrante_warning_label.isVisible():
             warnings["cuadrante"] = "⚠ El cuadrante no está configurado y puede alterar el cálculo final."
@@ -1217,11 +1261,11 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                         "persona_id": solicitud.persona_id,
                     },
                 )
-                warnings["db"] = "⚠ Validación parcial temporal: base de datos ocupada."
+                warnings["db"] = "Validación parcial temporal: base de datos ocupada. Vuelve a intentar en unos segundos."
             else:
                 raise
         except (ValidacionError, BusinessRuleError) as exc:
-            blocking.setdefault("tramo", f"⚠ {str(exc)}")
+            blocking.setdefault("tramo", f"{copy_text("solicitudes.validation_tramo_prefix")} {str(exc)}")
 
         self._dump_estado_pendientes("after_collect_preventive_validation")
         return blocking, warnings
@@ -1243,7 +1287,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.tramo_field_error.setVisible(bool(view_model.tramo_error))
         self.tramo_field_error.setText(view_model.tramo_error)
         self.pending_errors_frame.setVisible(view_model.show_pending_errors_frame)
-        self.pending_errors_summary.setText(view_model.summary_text)
+        summary_text = view_model.summary_text
+        if summary_text:
+            summary_text = f"{copy_text("solicitudes.pending_errors_intro")}\n{summary_text}"
+        self.pending_errors_summary.setText(summary_text)
         show_duplicate_cta = view_model.show_duplicate_cta
         self.goto_existing_button.setVisible(show_duplicate_cta)
         logger.debug(
@@ -1270,7 +1317,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._field_touched.update({"delegada", "fecha", "tramo"})
         self._run_preventive_validation()
         if self._blocking_errors:
-            self.toast.warning("Corrige los errores pendientes antes de confirmar.", title="Validación preventiva")
+            self._focus_first_invalid_field()
+            self.toast.warning(copy_text("solicitudes.validation_blocking_toast"), title="Validación preventiva")
             return False
         if self._warnings:
             warning_text = "\n".join(f"• {msg}" for msg in self._warnings.values())
@@ -1296,8 +1344,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _sync_completo_visibility(self, checked: bool) -> None:
         self.desde_input.setEnabled(not checked)
         self.hasta_input.setEnabled(not checked)
-        self.desde_container.setToolTip("No aplica en solicitud completa" if checked else "")
-        self.hasta_container.setToolTip("No aplica en solicitud completa" if checked else "")
+        self.desde_container.setToolTip(copy_text("solicitudes.no_aplica_completo") if checked else "")
+        self.hasta_container.setToolTip(copy_text("solicitudes.no_aplica_completo") if checked else "")
 
     def _on_edit_grupo(self) -> None:
         dialog = GrupoConfigDialog(self._grupo_use_cases, self._sync_service, self)
@@ -1377,9 +1425,12 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _on_sync_finished(self, summary: SyncSummary) -> None:
         self._pending_sync_plan = None
+        self._solicitudes_runtime_error = False
         self.confirm_sync_button.setEnabled(False)
         self._set_sync_in_progress(False)
+        self._solicitudes_runtime_error = True
         self._update_sync_button_state()
+        self._update_solicitudes_status_panel()
         self._refresh_last_sync_label()
         next_attempt_history = tuple(
             [
@@ -1474,7 +1525,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _on_sync_failed(self, payload: object) -> None:
         self._set_sync_in_progress(False)
+        self._solicitudes_runtime_error = True
         self._update_sync_button_state()
+        self._update_solicitudes_status_panel()
         error, details = self._normalize_sync_error(payload)
         if details:
             log_operational_error(
@@ -1598,6 +1651,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.cuadrante_warning_label.setText("Cuadrante no configurado" if warning else "")
         self.solicitud_inline_error.setVisible(False)
         self.solicitud_inline_error.setText("")
+        self._solicitudes_last_action_saved = False
         self._run_preventive_validation()
         self._update_action_state()
 
@@ -1613,6 +1667,27 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         if errors:
             return False, next(iter(errors.values()))
         return True, ""
+
+    def _update_solicitudes_status_panel(self) -> None:
+        if self.solicitudes_status_label is None or self.solicitudes_status_hint is None:
+            return
+        status = build_solicitudes_status(
+            SolicitudesStatusInput(
+                pending_count=len(self._pending_solicitudes),
+                has_blocking_errors=bool(getattr(self, "_blocking_errors", {})),
+                has_runtime_error=self._solicitudes_runtime_error,
+                last_action_saved=self._solicitudes_last_action_saved,
+            )
+        )
+        self.solicitudes_status_label.setText(status.label)
+        self.solicitudes_status_hint.setText(status.hint)
+
+    def _focus_first_invalid_field(self) -> None:
+        first_field = resolve_first_invalid_field(SolicitudesFocusInput(blocking_errors=self._blocking_errors))
+        mapping = {"delegada": self.persona_combo, "fecha": self.fecha_input, "tramo": self.desde_input}
+        target = mapping.get(first_field)
+        if target is not None:
+            target.setFocus()
 
     def _update_action_state(self) -> None:
         if hasattr(self, "_run_preventive_validation"):
@@ -1645,6 +1720,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.eliminar_button.setText(presenter_state.eliminar_text)
         self.generar_pdf_button.setText(presenter_state.generar_pdf_text)
         self._sync_historico_select_all_visible_state()
+        self._update_solicitudes_status_panel()
 
         self._dump_estado_pendientes("after_update_action_state")
 
@@ -2180,7 +2256,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _on_push_finished(self, summary: SyncSummary) -> None:
         self._set_sync_in_progress(False)
+        self._solicitudes_runtime_error = True
         self._update_sync_button_state()
+        self._update_solicitudes_status_panel()
         if summary.conflicts > 0:
             dialog = ConflictsDialog(self._conflicts_service, self)
             dialog.exec()
@@ -2189,7 +2267,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _on_push_failed(self, payload: object) -> None:
         self._set_sync_in_progress(False)
+        self._solicitudes_runtime_error = True
         self._update_sync_button_state()
+        self._update_solicitudes_status_panel()
         error, details = self._normalize_sync_error(payload)
         self._show_sync_error_dialog(error, details)
 
@@ -2512,6 +2592,8 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
                 extra={"correlation_id": mapped.incident_id},
             )
         message = mapped.as_text()
+        self._solicitudes_runtime_error = True
+        self._update_solicitudes_status_panel()
         self._toast_error(
             message,
             title="Error",
@@ -2641,6 +2723,13 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         logger.info(
             "Se pide confirmación de borrado motivo=policy=always_confirm selection_count>0 (instrumentación)",
         )
+        confirm = QMessageBox.question(
+            self,
+            copy_text("solicitudes.confirm_delete_pending_title"),
+            copy_text("solicitudes.confirm_delete_pending_message"),
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
         rows = sorted((index.row() for index in selection), reverse=True)
         ids_to_delete: list[int] = []
         for row in rows:

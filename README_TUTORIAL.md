@@ -1,37 +1,63 @@
-# README_TUTORIAL
+# Tutorial rápido (sin tecnicismos)
 
-## Demo headless en 3 comandos (sin credenciales reales)
+## 1) Cómo usar la pantalla de **Solicitudes**
 
-```bash
-python -m pytest -q tests/application/test_pull_planner.py tests/application/test_push_builder.py
-python -m pytest -q tests/application/test_sync_snapshots.py tests/application/test_sync_reporting_rules.py
-python -m pytest -q tests/application/test_sync_sheets_use_case_planner_runner_contract.py
-```
+1. **Elige la delegada**.
+2. Selecciona la **fecha**.
+3. Completa el tramo **Desde / Hasta** (o marca **Completo**).
+4. (Opcional) añade **Notas**.
+5. Pulsa **Añadir pendiente**.
 
-> Estos tests ejercitan planner/runner/builder y reglas puras sin abrir UI ni depender de Google Sheets real.
+### Qué verás ahora
+- **Ayudas cortas** en cada campo crítico (delegada, fecha, tramo, minutos, notas).
+- Un resumen claro de errores arriba cuando falta algo.
+- Si hay error, el foco va al **primer campo a corregir**.
+- Un panel de estado siempre visible:
+  - **Listo**: puedes seguir trabajando.
+  - **Guardado**: se guardó correctamente.
+  - **Pendiente de sync**: hay cambios locales aún no enviados a Google Sheets.
+  - **Error**: revisa campos marcados o vuelve a intentar.
 
-## Ejecutar tests core
+### Tips útiles
+- **Tip:** pulsa Enter para guardar más rápido.
+- **Tip:** 90 minutos = 1h 30min.
+- **Tip:** marca “Completo” cuando sea una jornada completa.
 
-```bash
-make test
-```
+### Mostrar/Ocultar ayuda
+- Usa el switch **“Mostrar ayuda”** para ver u ocultar tooltips ampliados.
+- La preferencia queda guardada para próximas aperturas.
 
-Alternativa directa:
+---
 
-```bash
-PYTHONPATH=. pytest -q
-```
+## 2) Configurar Sync como asistente (Google Sheets)
 
-## Cómo leer logs y quality_report
+Abre **Configuración > Conexión Google Sheets** y sigue estos pasos:
 
-1. Ejecuta el gate:
-   ```bash
-   make quality
-   ```
-2. Revisa salida consolidada:
-   - `logs/quality_report.txt` (reporte técnico principal)
-   - `logs/summary.txt` (resumen rápido)
-3. Para foco por símbolo/función:
-   ```bash
-   python scripts/report_quality.py --target app/application/use_cases/sync_sheets/use_case.py:SheetsSyncService._pull_solicitudes_worksheet
-   ```
+### Paso 1 · Qué necesitas
+- URL o ID de la hoja.
+- Archivo JSON de credenciales (cuenta de servicio).
+
+### Paso 2 · Cargar credenciales
+- Pega la URL/ID.
+- Pulsa **Seleccionar credenciales JSON…**.
+
+### Paso 3 · Probar conexión
+- Pulsa **Probar conexión**.
+- Verás mensajes claros si algo falla (sin detalles técnicos confusos).
+
+### Paso 4 · Guardar y finalizar
+- Pulsa **Guardar**.
+- Si todo está bien, ya puedes sincronizar.
+
+---
+
+## 3) Si aparece un error de Sync, qué hacer
+
+La app ya te indica la acción recomendada para casos comunes:
+- Archivo no encontrado.
+- Permiso denegado.
+- Credenciales inválidas.
+- Sin acceso a la hoja.
+- Límite temporal de Google.
+
+En todos los casos: corrige lo indicado y vuelve a usar **Probar conexión**.
