@@ -10,32 +10,16 @@ from app.application.auditoria_e2e.puertos import SistemaArchivosPuerto
 
 def evaluar_reglas_arquitectura(fs: SistemaArchivosPuerto, root: Path) -> CheckAuditoria:
     violations: list[str] = []
+    reglas = (_regla_ui_no_depende_infra, _regla_domain_no_depende_infra, _regla_domain_no_depende_ui)
     for archivo in fs.listar_python(root / "app"):
-        modulo = archivo.relative_to(root).with_suffix("").as_posix().replace("/", ".")
-        partes = modulo.split(".")
-        if len(partes) < 3:
-            continue
-        capa = partes[1]
-        if capa not in {"domain", "application", "infrastructure", "ui"}:
+        capa = _obtener_capa_modulo(archivo, root)
+        if capa is None:
             continue
 
         tree = ast.parse(fs.leer_texto(archivo))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                imports = [alias.name for alias in node.names]
-            elif isinstance(node, ast.ImportFrom):
-                imports = [node.module] if node.module else []
-            else:
-                continue
-
-            for imported in imports:
-                if not imported:
-                    continue
-                if capa == "ui" and imported.startswith("app.infrastructure"):
-                    violations.append(f"{archivo.relative_to(root)} -> {imported}")
-                if capa == "domain" and imported.startswith("app.infrastructure"):
-                    violations.append(f"{archivo.relative_to(root)} -> {imported}")
-                if capa == "domain" and imported.startswith("app.ui"):
+        for imported in _extraer_imports(tree):
+            for regla in reglas:
+                if regla(capa, imported):
                     violations.append(f"{archivo.relative_to(root)} -> {imported}")
 
     estado = EstadoCheck.PASS if not violations else EstadoCheck.FAIL
@@ -47,6 +31,70 @@ def evaluar_reglas_arquitectura(fs: SistemaArchivosPuerto, root: Path) -> CheckA
         evidencia=evidencia,
         recomendacion="Mantener dependencias dirigidas a puertos y casos de uso en application.",
     )
+
+
+def _obtener_capa_modulo(archivo: Path, root: Path) -> str | None:
+    """Devuelve la capa arquitectónica de un archivo Python o None si no aplica.
+
+    Un módulo válido debe vivir bajo `app.<capa>.*`, donde la capa es una de las
+    capas reconocidas por la auditoría.
+    """
+
+    modulo = archivo.relative_to(root).with_suffix("").as_posix().replace("/", ".")
+    partes = modulo.split(".")
+    if len(partes) < 3:
+        return None
+    capa = partes[1]
+    if capa not in {"domain", "application", "infrastructure", "ui"}:
+        return None
+    return capa
+
+
+def _extraer_imports(tree: ast.AST) -> list[str]:
+    """Extrae imports normalizados desde un AST.
+
+    - `import x.y` produce `x.y`.
+    - `from x.y import z` produce `x.y`.
+    - Imports relativos sin módulo explícito se ignoran.
+    """
+
+    imports: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.extend(alias.name for alias in node.names if alias.name)
+        if isinstance(node, ast.ImportFrom) and node.module:
+            imports.append(node.module)
+    return imports
+
+
+def _regla_ui_no_depende_infra(capa: str, imported: str) -> bool:
+    """Valida que la capa UI no importe infraestructura.
+
+    Esta regla evita acoplar vistas/controladores con detalles de acceso a datos,
+    para mantener UI enfocada en interacción.
+    """
+
+    return capa == "ui" and imported.startswith("app.infrastructure")
+
+
+def _regla_domain_no_depende_infra(capa: str, imported: str) -> bool:
+    """Valida que domain no importe infraestructura.
+
+    El dominio debe expresar reglas de negocio puras. Si depende de infraestructura,
+    pierde aislamiento y se vuelve difícil de testear.
+    """
+
+    return capa == "domain" and imported.startswith("app.infrastructure")
+
+
+def _regla_domain_no_depende_ui(capa: str, imported: str) -> bool:
+    """Valida que domain no importe UI.
+
+    El dominio no debe conocer pantallas ni controladores. Esta dirección de
+    dependencias rompe la arquitectura en capas.
+    """
+
+    return capa == "domain" and imported.startswith("app.ui")
 
 
 def evaluar_check_tests(fs: SistemaArchivosPuerto, root: Path) -> CheckAuditoria:
