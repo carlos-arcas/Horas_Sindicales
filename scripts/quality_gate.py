@@ -5,7 +5,9 @@ import importlib
 import importlib.util
 import json
 import logging
+import os
 import sys
+from argparse import ArgumentParser
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -65,7 +67,7 @@ def load_core_coverage_targets(config: dict[str, object]) -> list[str]:
     return raw_targets
 
 
-def preflight_pytest() -> None:
+def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
     if pytest.main(["--version"]) != 0:
         LOGGER.error(
             "Falta pytest en el entorno activo. Ejecuta: python -m pip install -r requirements-dev.txt"
@@ -73,6 +75,15 @@ def preflight_pytest() -> None:
         raise SystemExit(2)
 
     if importlib.util.find_spec("pytest_cov") is None:
+        if allow_missing_pytest_cov:
+            LOGGER.warning(
+                "pytest-cov no disponible; ejecutado en modo degradado por bandera/env explícito."
+            )
+            return {
+                "degraded_mode": True,
+                "degraded_reason": "pytest-cov no disponible; ejecutado en modo degradado",
+            }
+
         LOGGER.error(
             "Falta pytest-cov en el entorno activo. "
             "Instala dependencias dev con: python -m pip install -r requirements-dev.txt"
@@ -81,6 +92,8 @@ def preflight_pytest() -> None:
             "En CI, verifica que el job ejecute 'pip install -r requirements-dev.txt' antes del quality gate."
         )
         raise SystemExit(2)
+
+    return {"degraded_mode": False, "degraded_reason": None}
 
 
 def _timestamp() -> str:
@@ -205,6 +218,11 @@ def write_reports(payload: dict[str, Any], records: list[dict[str, str]]) -> Non
     )
 
     lines = ["# Quality Gate Unificado", "", "## Estado global", f"- **{payload['global_status']}**", ""]
+    lines.append("## Modo degradado")
+    lines.append(f"- activo: **{str(payload['degraded_mode']).lower()}**")
+    if payload.get("degraded_reason"):
+        lines.append(f"- razón: {payload['degraded_reason']}")
+    lines.append("")
     lines.append("## Eventos")
     lines.append("| timestamp | area | status | detalle |")
     lines.append("|---|---|---|---|")
@@ -217,7 +235,11 @@ def write_reports(payload: dict[str, Any], records: list[dict[str, str]]) -> Non
     QUALITY_REPORT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def build_report(pytest_runner: Callable[[list[str]], int] | None = None) -> dict[str, Any]:
+def build_report(
+    pytest_runner: Callable[[list[str]], int] | None = None,
+    degraded_mode: bool = False,
+    degraded_reason: str | None = None,
+) -> dict[str, Any]:
     config = load_config()
     threshold = load_coverage_threshold(config)
     coverage_targets = load_core_coverage_targets(config)
@@ -225,7 +247,13 @@ def build_report(pytest_runner: Callable[[list[str]], int] | None = None) -> dic
     records: list[dict[str, str]] = []
 
     results: dict[str, Any] = {}
-    results["coverage"] = run_pytest_coverage(threshold, coverage_targets, records, runner)
+    if degraded_mode:
+        detail = degraded_reason or "pytest-cov no disponible; ejecutado en modo degradado"
+        _record(records, "coverage", "SKIP", detail)
+        results["coverage"] = _make_result("SKIP", detail, value=None, threshold=threshold, exit_code=None)
+    else:
+        results["coverage"] = run_pytest_coverage(threshold, coverage_targets, records, runner)
+
     results["cc_budget"] = run_contractual_test(
         "cc_budget", "tests/test_quality_gate_metrics.py::test_quality_gate_size_and_complexity", records, runner
     )
@@ -240,8 +268,17 @@ def build_report(pytest_runner: Callable[[list[str]], int] | None = None) -> dic
         "release_contract", "tests/test_release_build_contract.py", records, runner
     )
 
-    statuses = [value["status"] for key, value in results.items() if key != "global_status"]
-    results["global_status"] = "PASS" if all(item == "PASS" for item in statuses) else "FAIL"
+    statuses = [
+        value["status"]
+        for key, value in results.items()
+        if key not in {"global_status", "degraded_mode", "degraded_reason"}
+    ]
+    has_coverage_skip = results["coverage"]["status"] == "SKIP"
+    results["degraded_mode"] = degraded_mode
+    results["degraded_reason"] = degraded_reason if degraded_mode else None
+    results["global_status"] = (
+        "PASS" if all(item == "PASS" for item in statuses) and not has_coverage_skip else "FAIL"
+    )
 
     write_reports(results, records)
     return results
@@ -252,14 +289,34 @@ def print_human_summary(results: dict[str, Any]) -> None:
     for area in ["coverage", "cc_budget", "architecture", "secrets", "naming", "release_contract"]:
         area_result = results[area]
         print(f"- {area}: {area_result['status']} | {area_result['detail']}")
+    if results.get("degraded_mode"):
+        print(f"- degraded_mode: true | razón: {results.get('degraded_reason')}")
     print(f"GLOBAL: {results['global_status']}")
     print(f"Reportes: {QUALITY_REPORT_MD.as_posix()} | {QUALITY_REPORT_JSON.as_posix()}")
 
 
-def main() -> int:
+def _parse_args(argv: list[str] | None = None) -> Any:
+    parser = ArgumentParser(description="Quality Gate Unificado")
+    parser.add_argument(
+        "--allow-missing-pytest-cov",
+        action="store_true",
+        help="Permite modo degradado si falta pytest-cov (coverage=SKIP, global=FAIL).",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
     configure_logging()
-    preflight_pytest()
-    results = build_report()
+    args = _parse_args(argv)
+    allow_missing_pytest_cov = args.allow_missing_pytest_cov or os.getenv(
+        "ALLOW_MISSING_PYTEST_COV", ""
+    ) in {"1", "true", "TRUE", "yes", "YES"}
+
+    preflight_info = preflight_pytest(allow_missing_pytest_cov=allow_missing_pytest_cov)
+    results = build_report(
+        degraded_mode=bool(preflight_info["degraded_mode"]),
+        degraded_reason=preflight_info["degraded_reason"],
+    )
     print_human_summary(results)
     return 0 if results["global_status"] == "PASS" else 1
 
