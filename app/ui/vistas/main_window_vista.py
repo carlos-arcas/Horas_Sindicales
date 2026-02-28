@@ -61,7 +61,6 @@ from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.application.use_cases.solicitudes.validaciones import (
-    clave_duplicado_solicitud,
     detectar_duplicados_en_pendientes,
 )
 from app.domain.services import BusinessRuleError, ValidacionError
@@ -131,11 +130,21 @@ try:
         log_estado_pendientes,
         show_sync_error_dialog_from_exception,
     )
+    from app.ui.vistas.solicitudes_presenter import (
+        ActionStateInput,
+        DuplicateSearchInput,
+        PreventiveValidationViewInput,
+        build_action_state,
+        build_preventive_validation_view_model,
+        find_pending_duplicate_row,
+    )
 except Exception:  # pragma: no cover - habilita import parcial sin dependencias de UI/Qt
     def _qt_unavailable(*args, **kwargs):
         raise RuntimeError("UI no disponible: falta instalación de Qt/PySide6")
 
     ConflictsDialog = GrupoConfigDialog = PdfConfigDialog = PersonaDialog = ToastManager = object
+    ActionStateInput = DuplicateSearchInput = PreventiveValidationViewInput = object
+    build_action_state = build_preventive_validation_view_model = find_pending_duplicate_row = _qt_unavailable
     PersonasController = SolicitudesController = SyncController = PdfController = object
     ConfirmationSummaryPayload = NotificationService = OperationFeedback = object
     SaldosCard = PushWorker = object
@@ -1214,26 +1223,22 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _render_preventive_validation(self) -> None:
         if not self._ui_ready:
             return
-        delegada_error = self._blocking_errors.get("delegada", "") if "delegada" in self._field_touched else ""
-        fecha_error = self._blocking_errors.get("fecha", "") if "fecha" in self._field_touched else ""
-        tramo_error = self._blocking_errors.get("tramo", "") if "tramo" in self._field_touched else ""
-
-        self.delegada_field_error.setVisible(bool(delegada_error))
-        self.delegada_field_error.setText(delegada_error)
-        self.fecha_field_error.setVisible(bool(fecha_error))
-        self.fecha_field_error.setText(fecha_error)
-        self.tramo_field_error.setVisible(bool(tramo_error))
-        self.tramo_field_error.setText(tramo_error)
-
-        summary_items = [
-            message for key, message in self._blocking_errors.items() if key not in {"delegada", "fecha", "tramo"} or key in self._field_touched
-        ]
-        if not summary_items:
-            summary_items = list(self._blocking_errors.values())
-
-        self.pending_errors_frame.setVisible(bool(summary_items))
-        self.pending_errors_summary.setText("\n".join(f"• {message}" for message in summary_items))
-        show_duplicate_cta = "duplicado" in self._blocking_errors and self._duplicate_target is not None
+        view_model = build_preventive_validation_view_model(
+            PreventiveValidationViewInput(
+                blocking_errors=self._blocking_errors,
+                field_touched=self._field_touched,
+                has_duplicate_target=self._duplicate_target is not None,
+            )
+        )
+        self.delegada_field_error.setVisible(bool(view_model.delegada_error))
+        self.delegada_field_error.setText(view_model.delegada_error)
+        self.fecha_field_error.setVisible(bool(view_model.fecha_error))
+        self.fecha_field_error.setText(view_model.fecha_error)
+        self.tramo_field_error.setVisible(bool(view_model.tramo_error))
+        self.tramo_field_error.setText(view_model.tramo_error)
+        self.pending_errors_frame.setVisible(view_model.show_pending_errors_frame)
+        self.pending_errors_summary.setText(view_model.summary_text)
+        show_duplicate_cta = view_model.show_duplicate_cta
         self.goto_existing_button.setVisible(show_duplicate_cta)
         logger.debug(
             "duplicate_banner_updated visible=%s has_duplicate_error=%s duplicate_target_id=%s",
@@ -1607,28 +1612,32 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         if hasattr(self, "_run_preventive_validation"):
             self._run_preventive_validation()
         persona_selected = self._current_persona() is not None
-        form_valid, form_message = self._validate_solicitud_form()
-        blocking_errors = getattr(self, "_blocking_errors", {})
-        has_blocking_errors = bool(blocking_errors)
-        editing_pending = self._selected_pending_for_editing()
-        self.agregar_button.setEnabled(persona_selected and form_valid and not has_blocking_errors)
-        self.agregar_button.setText("Actualizar pendiente" if editing_pending is not None else "Añadir pendiente")
-        has_pending = bool(self._pending_solicitudes)
-        can_confirm = has_pending and not self._pending_conflict_rows and not has_blocking_errors
-        self.insertar_sin_pdf_button.setEnabled(persona_selected and can_confirm)
-        pendientes_count = len(self._iterar_pendientes_en_tabla())
-        self.confirmar_button.setEnabled(debe_habilitar_confirmar_pdf(pendientes_count))
-        self.edit_persona_button.setEnabled(persona_selected)
-        self.delete_persona_button.setEnabled(persona_selected)
-        self.edit_grupo_button.setEnabled(True)
-        self.editar_pdf_button.setEnabled(True)
-        selected_historico = self._selected_historico_solicitudes()
-        self.eliminar_button.setEnabled(persona_selected and bool(selected_historico))
-        self.eliminar_pendiente_button.setEnabled(bool(self._pending_solicitudes))
-        self.generar_pdf_button.setEnabled(persona_selected and bool(selected_historico))
-        selected_count = len(selected_historico)
-        self.eliminar_button.setText(f"Eliminar ({selected_count})")
-        self.generar_pdf_button.setText(f"Exportar histórico PDF ({selected_count})")
+        form_valid, _ = self._validate_solicitud_form()
+        presenter_state = build_action_state(
+            ActionStateInput(
+                persona_selected=persona_selected,
+                form_valid=form_valid,
+                has_blocking_errors=bool(getattr(self, "_blocking_errors", {})),
+                is_editing_pending=self._selected_pending_for_editing() is not None,
+                has_pending=bool(self._pending_solicitudes),
+                has_pending_conflicts=bool(self._pending_conflict_rows),
+                pendientes_count=len(self._iterar_pendientes_en_tabla()),
+                selected_historico_count=len(self._selected_historico_solicitudes()),
+            )
+        )
+        self.agregar_button.setEnabled(presenter_state.agregar_enabled)
+        self.agregar_button.setText(presenter_state.agregar_text)
+        self.insertar_sin_pdf_button.setEnabled(presenter_state.insertar_sin_pdf_enabled)
+        self.confirmar_button.setEnabled(debe_habilitar_confirmar_pdf(presenter_state.pendientes_count))
+        self.edit_persona_button.setEnabled(presenter_state.edit_persona_enabled)
+        self.delete_persona_button.setEnabled(presenter_state.delete_persona_enabled)
+        self.edit_grupo_button.setEnabled(presenter_state.edit_grupo_enabled)
+        self.editar_pdf_button.setEnabled(presenter_state.editar_pdf_enabled)
+        self.eliminar_button.setEnabled(presenter_state.eliminar_enabled)
+        self.eliminar_pendiente_button.setEnabled(presenter_state.eliminar_pendiente_enabled)
+        self.generar_pdf_button.setEnabled(presenter_state.generar_pdf_enabled)
+        self.eliminar_button.setText(presenter_state.eliminar_text)
+        self.generar_pdf_button.setText(presenter_state.generar_pdf_text)
         self._sync_historico_select_all_visible_state()
 
         self._dump_estado_pendientes("after_update_action_state")
@@ -1905,46 +1914,22 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _find_pending_duplicate_row(self, solicitud: SolicitudDTO) -> int | None:
         editing = self._selected_pending_for_editing()
         editing_row = self._selected_pending_row_indexes()[0] if editing is not None else None
-        excluir_por_id = editing.id if editing is not None else None
-        excluir_por_indice = editing_row
-
-        try:
-            clave_objetivo = clave_duplicado_solicitud(solicitud)
-        except Exception:
-            return None
-
-        logger.info(
-            "UI_PREVENTIVE_DUPLICATE_CHECK clave=%s excluir_id=%s excluir_idx=%s",
-            list(clave_objetivo),
-            excluir_por_id,
-            excluir_por_indice,
+        row = find_pending_duplicate_row(
+            DuplicateSearchInput(
+                solicitud=solicitud,
+                pending_solicitudes=self._pending_solicitudes,
+                editing_pending_id=editing.id if editing is not None else None,
+                editing_row=editing_row,
+                duplicated_keys=detectar_duplicados_en_pendientes(self._pending_solicitudes),
+            )
         )
-
-        coincidencias: list[int] = []
-        for row, pending in enumerate(self._pending_solicitudes):
-            if excluir_por_id is not None and pending.id is not None and str(pending.id) == str(excluir_por_id):
-                continue
-            if pending.id is None and excluir_por_indice is not None and row == excluir_por_indice:
-                continue
-            try:
-                if clave_duplicado_solicitud(pending) == clave_objetivo:
-                    coincidencias.append(row)
-            except Exception:
-                continue
-
-        is_duplicate = bool(coincidencias)
         logger.info(
-            "UI_PREVENTIVE_DUPLICATE_RESULT is_duplicate=%s coincidencias=%s",
-            is_duplicate,
-            coincidencias,
+            "UI_PREVENTIVE_DUPLICATE_RESULT duplicate_row=%s editing_id=%s editing_row=%s",
+            row,
+            editing.id if editing is not None else None,
+            editing_row,
         )
-
-        claves_duplicadas = detectar_duplicados_en_pendientes(self._pending_solicitudes)
-        if not claves_duplicadas:
-            return None
-        if tuple(list(clave_objetivo) + ["COMPLETO" if solicitud.completo else "PARCIAL"]) not in claves_duplicadas:
-            return None
-        return coincidencias[0] if coincidencias else (0 if self._pending_solicitudes else None)
+        return row
 
     def _find_pending_row_by_id(self, solicitud_id: int | None) -> int | None:
         if solicitud_id is None:
