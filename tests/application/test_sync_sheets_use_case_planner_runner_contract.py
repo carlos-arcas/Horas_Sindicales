@@ -33,6 +33,7 @@ class _Connection:
 class _Config:
     spreadsheet_id = "s"
     credentials_path = "/tmp/c.json"
+    device_id = "device-test"
 
 
 class _ConfigStore:
@@ -181,3 +182,60 @@ def test_pull_skip_handler_ignores_missing_counter() -> None:
     stats = {"omitted_duplicates": 0}
     service._apply_pull_solicitud_plan((PullAction("SKIP", "noop", {}),), object(), [], 2, {}, "", None, stats)
     assert stats["omitted_duplicates"] == 0
+
+
+def test_use_case_parse_remote_row_calls_sync_snapshots(monkeypatch) -> None:
+    called = {"ok": False}
+
+    def _fake_parser(*args: Any, **kwargs: Any) -> Any:
+        called["ok"] = True
+        return uc.RemoteSolicitudRowDTO(row={"uuid": "u1"}, uuid_value="u1", remote_updated_at=None)
+
+    monkeypatch.setattr(uc, "parse_remote_solicitud_row", _fake_parser)
+    dto = SheetsSyncService.parse_remote_solicitud_row({"uuid": "u1"})
+
+    assert called["ok"] is True
+    assert dto.uuid_value == "u1"
+
+
+def test_use_case_build_pull_signals_calls_sync_snapshots(monkeypatch) -> None:
+    service = _service()
+    dto = uc.RemoteSolicitudRowDTO(row={"uuid": ""}, uuid_value="", remote_updated_at=None)
+    monkeypatch.setattr(service, "_find_solicitud_by_composite_key", lambda *_: None)
+    monkeypatch.setattr(service, "_skip_pull_duplicate", lambda *args, **kwargs: False)
+    called = {"ok": False}
+
+    def _fake_build(*args: Any, **kwargs: Any) -> Any:
+        called["ok"] = True
+        return uc.PullSignals(False, False, False, False, False, True, None)
+
+    monkeypatch.setattr(uc, "build_pull_signals_snapshot", _fake_build)
+    signals = service.build_pull_signals(dto, None, None, {})
+    assert called["ok"] is True
+    assert signals.backfill_enabled is True
+
+
+def test_use_case_pull_summary_tuple_order_contract() -> None:
+    service = _service()
+    stats = {"downloaded": 9, "conflicts": 8, "omitted_duplicates": 7, "omitted_by_delegada": 6, "errors": 5}
+    assert uc.pull_stats_tuple(stats) == (9, 8, 7, 6, 5)
+
+
+def test_use_case_skip_action_uses_reporting_counter(monkeypatch) -> None:
+    service = _service()
+    called = {"counter": ""}
+
+    def _fake_apply(stats: dict[str, Any], *, counter: str) -> dict[str, Any]:
+        called["counter"] = counter
+        updated = dict(stats)
+        updated[counter] = updated.get(counter, 0) + 1
+        return updated
+
+    monkeypatch.setattr(uc, "apply_stat_counter", _fake_apply)
+    stats = {"omitted_duplicates": 0}
+    service._apply_pull_solicitud_plan((PullAction("SKIP", "duplicate_without_uuid", {"counter": "omitted_duplicates"}),), object(), [], 2, {}, "", None, stats)
+    assert called["counter"] == "omitted_duplicates"
+
+
+def test_use_case_reason_code_text_contract_critical() -> None:
+    assert uc.reason_text("conflict_divergent") == "Conflicto detectado: ambos lados cambiaron tras el último sync."

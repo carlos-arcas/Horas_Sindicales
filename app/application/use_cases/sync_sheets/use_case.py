@@ -27,6 +27,26 @@ from app.application.use_cases.sync_sheets.pull_planner import PullAction, PullP
 from app.application.use_cases.sync_sheets.pull_runner import run_pull_actions, run_with_savepoint
 from app.application.use_cases.sync_sheets.push_builder import build_push_solicitudes_payloads
 from app.application.use_cases.sync_sheets.push_runner import run_push_values_update
+from app.application.use_cases.sync_sheets.sync_reporting_rules import (
+    accumulate_write_result,
+    apply_stat_counter,
+    combine_sync_summaries,
+    pull_stats_tuple,
+    reason_text,
+)
+from app.application.use_cases.sync_sheets.sync_snapshots import (
+    PullContext,
+    PullSignals,
+    RemoteSolicitudRowDTO,
+    build_local_solicitud_payload,
+    build_pdf_log_payload,
+    build_pull_signals_snapshot,
+    format_rango_fechas,
+    normalize_dia,
+    parse_remote_solicitud_row,
+    pdf_log_insert_values,
+    pdf_log_update_values,
+)
 from app.application.use_cases.sync_sheets.normalization_rules import normalize_remote_solicitud_row, normalize_remote_uuid
 from app.application.use_cases.sync_sheets.persona_resolution_rules import build_persona_resolution_plan
 from app.application.use_cases.sync_sheets.planner import build_plan
@@ -60,30 +80,6 @@ class _PullApplyContext:
     uuid_value: str
     local_row: Any | None
     stats: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class RemoteSolicitudRowDTO:
-    row: dict[str, Any]
-    uuid_value: str
-    remote_updated_at: datetime | None
-
-
-@dataclass(frozen=True)
-class PullSignals:
-    has_existing_for_empty_uuid: bool
-    has_local_uuid: bool
-    skip_duplicate: bool
-    conflict_detected: bool
-    remote_is_newer: bool
-    backfill_enabled: bool
-    existing_uuid: str | None
-
-
-@dataclass(frozen=True)
-class PullContext:
-    dto: RemoteSolicitudRowDTO
-    local_row: Any | None
 
 
 class SheetsSyncService:
@@ -130,16 +126,7 @@ class SheetsSyncService:
         self._connection.commit()
         push_summary = self._push_with_spreadsheet(spreadsheet)
         self._log_sync_stats("sync_bidirectional")
-        return SyncSummary(
-            inserted_local=pull_summary.inserted_local,
-            updated_local=pull_summary.updated_local,
-            inserted_remote=push_summary.inserted_remote,
-            updated_remote=push_summary.updated_remote,
-            duplicates_skipped=pull_summary.duplicates_skipped + push_summary.duplicates_skipped,
-            conflicts_detected=pull_summary.conflicts_detected + push_summary.conflicts_detected,
-            omitted_by_delegada=pull_summary.omitted_by_delegada + push_summary.omitted_by_delegada,
-            errors=pull_summary.errors + push_summary.errors,
-        )
+        return combine_sync_summaries(pull_summary, push_summary)
 
     def simulate_sync_plan(self) -> SyncExecutionPlan:
         spreadsheet = self._ensure_connection_ready()
@@ -186,7 +173,7 @@ class SheetsSyncService:
         if not row:
             return
         delegada_uuid = row["uuid"]
-        rango = self._format_rango_fechas(fechas)
+        rango = format_rango_fechas(fechas)
         now_iso = self._now_iso()
         cursor.execute(
             """
@@ -404,13 +391,7 @@ class SheetsSyncService:
             stats["omitted_by_delegada"],
             stats["errors"],
         )
-        return (
-            stats["downloaded"],
-            stats["conflicts"],
-            stats["omitted_duplicates"],
-            stats["omitted_by_delegada"],
-            stats["errors"],
-        )
+        return pull_stats_tuple(stats)
 
     def _pull_solicitudes_worksheet(
         self, worksheet_name: str, worksheet: Any, last_sync_at: str | None
@@ -476,9 +457,11 @@ class SheetsSyncService:
 
     @staticmethod
     def parse_remote_solicitud_row(row: dict[str, Any]) -> RemoteSolicitudRowDTO:
-        uuid_value = normalize_remote_uuid(row.get("uuid"))
-        remote_updated_at = sync_sheets_core.parse_iso(row.get("updated_at")) if uuid_value else None
-        return RemoteSolicitudRowDTO(row=row, uuid_value=uuid_value, remote_updated_at=remote_updated_at)
+        return parse_remote_solicitud_row(
+            row,
+            normalize_remote_uuid=normalize_remote_uuid,
+            parse_iso=sync_sheets_core.parse_iso,
+        )
 
     def build_pull_signals(
         self,
@@ -488,16 +471,16 @@ class SheetsSyncService:
         stats: dict[str, Any],
     ) -> PullSignals:
         existing = self._find_solicitud_by_composite_key(dto.row) if not dto.uuid_value else None
-        existing_uuid = str(existing["uuid"] or "").strip() if existing is not None else None
         skip_duplicate = bool(dto.uuid_value and local_row is None and self._skip_pull_duplicate(dto.uuid_value, dto.row, stats))
-        return PullSignals(
-            has_existing_for_empty_uuid=existing is not None,
-            has_local_uuid=local_row is not None,
+        return build_pull_signals_snapshot(
+            dto=dto,
+            local_row=local_row,
+            existing=existing,
             skip_duplicate=skip_duplicate,
-            conflict_detected=bool(local_row and sync_sheets_core.is_conflict(local_row["updated_at"], dto.remote_updated_at, last_sync_at)),
-            remote_is_newer=bool(local_row and sync_sheets_core.is_remote_newer(local_row["updated_at"], dto.remote_updated_at)),
-            backfill_enabled=self._enable_backfill,
-            existing_uuid=existing_uuid,
+            enable_backfill=self._enable_backfill,
+            is_conflict=sync_sheets_core.is_conflict,
+            is_remote_newer=sync_sheets_core.is_remote_newer,
+            last_sync_at=last_sync_at,
         )
 
     def build_pull_context(self, dto: RemoteSolicitudRowDTO) -> PullContext:
@@ -531,8 +514,9 @@ class SheetsSyncService:
     def _apply_skip_action(self, action: PullAction) -> None:
         context = self._pull_apply_context
         counter = str(action.payload.get("counter") or "")
+        logger.debug("Pull action SKIP: reason_code=%s detail=%s", action.reason_code, reason_text(action.reason_code))
         if context and counter:
-            context.stats[counter] = context.stats.get(counter, 0) + 1
+            context.stats.update(apply_stat_counter(context.stats, counter=counter))
 
     def _apply_backfill_action(self, action: PullAction) -> None:
         context = self._pull_apply_context
@@ -546,14 +530,14 @@ class SheetsSyncService:
             return
         uuid_payload = action.payload.get("uuid")
         target_uuid = context.uuid_value if uuid_payload == "from_row" else str(uuid_payload or self._generate_uuid())
-        self._accumulate_write_result(context.stats, self._insert_solicitud_from_remote(target_uuid, context.row), "inserted_ws")
+        context.stats.update(self._accumulate_write_result(context.stats, self._insert_solicitud_from_remote(target_uuid, context.row), "inserted_ws"))
         if not context.uuid_value:
             self._backfill_uuid(context.worksheet, context.headers, context.row_number, "uuid", target_uuid)
 
     def _apply_update_solicitud_action(self, _: PullAction) -> None:
         context = self._pull_apply_context
         if context and context.local_row is not None:
-            self._accumulate_write_result(context.stats, self._update_solicitud_from_remote(context.local_row["id"], context.row), "updated_ws")
+            context.stats.update(self._accumulate_write_result(context.stats, self._update_solicitud_from_remote(context.local_row["id"], context.row), "updated_ws"))
 
     def _apply_register_conflict_action(self, _: PullAction) -> None:
         context = self._pull_apply_context
@@ -574,12 +558,8 @@ class SheetsSyncService:
         return True
 
     @staticmethod
-    def _accumulate_write_result(stats: dict[str, Any], result: tuple[bool, int, int], operation_counter: str) -> None:
-        written, omitted_delegada, operation_errors = result
-        stats["downloaded"] += 1 if written else 0
-        stats[operation_counter] += 1 if written else 0
-        stats["omitted_by_delegada"] += omitted_delegada
-        stats["errors"] += operation_errors
+    def _accumulate_write_result(stats: dict[str, Any], result: tuple[bool, int, int], operation_counter: str) -> dict[str, Any]:
+        return accumulate_write_result(stats, result, operation_counter)
 
     @staticmethod
     def _solicitudes_header_aliases() -> dict[str, list[str]]:
@@ -651,7 +631,7 @@ class SheetsSyncService:
         return downloaded
 
     def _sync_pdf_log_row(self, cursor: Any, row: dict[str, Any]) -> int:
-        payload = self._build_pdf_log_payload(row)
+        payload = build_pdf_log_payload(row)
         if payload is None:
             return 0
         existing = self._fetch_pdf_log_updated_at(cursor, payload["pdf_id"])
@@ -661,7 +641,7 @@ class SheetsSyncService:
                 INSERT INTO pdf_log (pdf_id, delegada_uuid, rango_fechas, fecha_generacion, hash, updated_at, source_device)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                self._pdf_log_insert_values(payload),
+                pdf_log_insert_values(payload),
             )
             return 1
         if self._pdf_log_should_update(existing["updated_at"], payload["updated_at"]):
@@ -671,25 +651,10 @@ class SheetsSyncService:
                 SET delegada_uuid = ?, rango_fechas = ?, fecha_generacion = ?, hash = ?, updated_at = ?, source_device = ?
                 WHERE pdf_id = ?
                 """,
-                self._pdf_log_update_values(payload),
+                pdf_log_update_values(payload),
             )
             return 1
         return 0
-
-    @staticmethod
-    def _build_pdf_log_payload(row: dict[str, Any]) -> dict[str, Any] | None:
-        pdf_id = str(row.get("pdf_id", "")).strip()
-        if not pdf_id:
-            return None
-        return {
-            "pdf_id": pdf_id,
-            "delegada_uuid": row.get("delegada_uuid"),
-            "rango_fechas": row.get("rango_fechas"),
-            "fecha_generacion": row.get("fecha_generacion"),
-            "hash": row.get("hash"),
-            "updated_at": row.get("updated_at"),
-            "source_device": row.get("source_device"),
-        }
 
     @staticmethod
     def _fetch_pdf_log_updated_at(cursor: Any, pdf_id: str) -> Any | None:
@@ -700,30 +665,6 @@ class SheetsSyncService:
     def _pdf_log_should_update(local_updated_at: str | None, remote_updated_at_raw: Any) -> bool:
         remote_updated_at = sync_sheets_core.parse_iso(remote_updated_at_raw)
         return sync_sheets_core.is_remote_newer(local_updated_at, remote_updated_at)
-
-    @staticmethod
-    def _pdf_log_insert_values(payload: dict[str, Any]) -> tuple[Any, ...]:
-        return (
-            payload["pdf_id"],
-            payload["delegada_uuid"],
-            payload["rango_fechas"],
-            payload["fecha_generacion"],
-            payload["hash"],
-            payload["updated_at"],
-            payload["source_device"],
-        )
-
-    @staticmethod
-    def _pdf_log_update_values(payload: dict[str, Any]) -> tuple[Any, ...]:
-        return (
-            payload["delegada_uuid"],
-            payload["rango_fechas"],
-            payload["fecha_generacion"],
-            payload["hash"],
-            payload["updated_at"],
-            payload["source_device"],
-            payload["pdf_id"],
-        )
 
     def _pull_config(self, spreadsheet: Any) -> int:
         worksheet = self._get_worksheet(spreadsheet, "config")
@@ -930,24 +871,13 @@ class SheetsSyncService:
         return build_solicitudes_sync_plan(self, spreadsheet, HEADER_CANONICO_SOLICITUDES)
 
     def _local_solicitud_payload(self, row: Any) -> tuple[Any, ...]:
-        return (
-            row["uuid"],
-            row["delegada_uuid"] or "",
-            row["delegada_nombre"] or "",
-            sync_sheets_core.to_iso_date(row["fecha_pedida"]),
-            sync_sheets_core.split_minutes(row["desde_min"])[0],
-            sync_sheets_core.split_minutes(row["desde_min"])[1],
-            sync_sheets_core.split_minutes(row["hasta_min"])[0],
-            sync_sheets_core.split_minutes(row["hasta_min"])[1],
-            1 if row["completo"] else 0,
-            sync_sheets_core.int_or_zero(row["horas_solicitadas_min"]),
-            row["notas"] or "",
-            "",
-            sync_sheets_core.to_iso_date(row["created_at"]),
-            sync_sheets_core.to_iso_date(row["updated_at"]),
-            row["source_device"] or self._device_id(),
-            sync_sheets_core.int_or_zero(row["deleted"]),
-            row["pdf_hash"] or "",
+        fallback_device_id = row["source_device"] or self._device_id()
+        return build_local_solicitud_payload(
+            row,
+            device_id=fallback_device_id,
+            to_iso_date=sync_sheets_core.to_iso_date,
+            split_minutes=sync_sheets_core.split_minutes,
+            int_or_zero=sync_sheets_core.int_or_zero,
         )
 
     def _remote_solicitud_payload(self, remote_row: dict[str, Any]) -> tuple[Any, ...]:
@@ -1260,7 +1190,7 @@ class SheetsSyncService:
 
     def _apply_cuadrante_to_persona(self, row: dict[str, Any]) -> None:
         delegada_uuid = row.get("delegada_uuid")
-        dia = self._normalize_dia(str(row.get("dia_semana", "")))
+        dia = normalize_dia(str(row.get("dia_semana", "")))
         if not delegada_uuid or not dia:
             return
         persona_id = self._persona_id_from_uuid(delegada_uuid)
@@ -1392,26 +1322,6 @@ class SheetsSyncService:
         )
 
     @staticmethod
-    def _normalize_dia(dia: str) -> str | None:
-        value = dia.strip().lower()
-        mapping = {
-            "lunes": "lun",
-            "martes": "mar",
-            "miercoles": "mie",
-            "miércoles": "mie",
-            "jueves": "jue",
-            "viernes": "vie",
-            "sabado": "sab",
-            "sábado": "sab",
-            "domingo": "dom",
-        }
-        if value in mapping:
-            return mapping[value]
-        if value in {"lun", "mar", "mie", "jue", "vie", "sab", "dom"}:
-            return value
-        return None
-
-    @staticmethod
     def _solicitud_dedupe_key_from_remote_row(row: dict[str, Any]) -> tuple[object, ...] | None:
         return sync_sheets_core.solicitud_dedupe_key_from_remote_row(row)
 
@@ -1442,15 +1352,6 @@ class SheetsSyncService:
             """,
             (value or "",),
         )
-
-    @staticmethod
-    def _format_rango_fechas(fechas: list[str]) -> str:
-        fechas_filtradas = sorted({fecha for fecha in fechas if fecha})
-        if not fechas_filtradas:
-            return ""
-        if len(fechas_filtradas) == 1:
-            return fechas_filtradas[0]
-        return f"{fechas_filtradas[0]} - {fechas_filtradas[-1]}"
 
     @staticmethod
     def _generate_uuid() -> str:
