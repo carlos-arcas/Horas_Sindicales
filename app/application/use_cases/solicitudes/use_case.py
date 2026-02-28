@@ -31,6 +31,7 @@ from app.application.ports.sistema_archivos_puerto import SistemaArchivosPuerto
 from app.application.pending_conflicts import detect_pending_time_conflicts
 from app.application.ports.pdf_puerto import GeneradorPdfPuerto
 from app.core.errors import InfraError, PersistenceError
+from app.core.metrics import metrics_registry
 from app.core.observability import log_event
 from app.domain.models import Persona, Solicitud
 from app.domain.ports import GrupoConfigRepository, PersonaRepository, SolicitudRepository
@@ -265,6 +266,7 @@ class SolicitudUseCases:
         dto_normalizado, persona = self._validar_y_normalizar_dto(dto)
         self._validar_conflicto_y_duplicado(dto_normalizado, persona)
         creada, saldos = self._crear_solicitud_y_saldos(dto_normalizado, persona)
+        metrics_registry.incrementar("solicitudes_creadas")
         if debe_emitir_evento(correlation_id):
             log_event(
                 logger,
