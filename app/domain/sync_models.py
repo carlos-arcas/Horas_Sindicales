@@ -185,6 +185,7 @@ class HealthCheckItem:
 class HealthReport:
     generated_at: str
     checks: tuple[HealthCheckItem, ...]
+    metrics_snapshot: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

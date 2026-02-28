@@ -8,6 +8,7 @@ from app.application.dto import SolicitudDTO
 from app.application.use_cases.solicitudes.confirmacion_pdf_service import actualizar_pdf_en_repo
 from app.application.use_cases.solicitudes.pdf_confirmadas_builder import PdfConfirmadasPlan
 from app.core.errors import InfraError, PersistenceError
+from app.core.metrics import medir_tiempo, metrics_registry
 from app.core.observability import log_event
 from app.domain.ports import SolicitudRepository
 from app.domain.services import BusinessRuleError
@@ -19,6 +20,7 @@ MessageByReason = {
 }
 
 
+@medir_tiempo("latency.generar_pdf_ms")
 def run_pdf_confirmadas_plan(
     plan: PdfConfirmadasPlan,
     *,
@@ -53,6 +55,7 @@ def run_pdf_confirmadas_plan(
                     logo_path=action.logo_path,
                     include_hours_in_horario=action.include_hours_in_horario,
                 )
+                metrics_registry.incrementar("pdfs_generados")
                 continue
 
             if action.action_type == "HASH_FILE":

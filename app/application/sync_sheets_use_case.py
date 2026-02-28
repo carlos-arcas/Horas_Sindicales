@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.domain.ports import SheetsSyncPort
 from app.domain.sync_models import SyncExecutionPlan, SyncSummary
+from app.core.metrics import medir_tiempo, metrics_registry
 
 
 class SyncSheetsUseCase:
@@ -22,8 +23,13 @@ class SyncSheetsUseCase:
     def sync(self) -> SyncSummary:
         return self.sync_bidirectional()
 
+    @medir_tiempo("latency.sync_bidireccional_ms")
     def sync_bidirectional(self) -> SyncSummary:
-        return self._sync_port.sync_bidirectional()
+        metrics_registry.incrementar("syncs_ejecutados")
+        summary = self._sync_port.sync_bidirectional()
+        if summary.conflicts_detected > 0:
+            metrics_registry.incrementar("conflictos_detectados", summary.conflicts_detected)
+        return summary
 
     def simulate_sync_plan(self) -> SyncExecutionPlan:
         return self._sync_port.simulate_sync_plan()

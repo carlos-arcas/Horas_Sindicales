@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from app.core.metrics import metrics_registry
 from app.domain.ports import LocalDbProbe, SheetsConnectivityProbe, SheetsSchemaProbe
 from app.domain.sync_models import HealthCheckItem, HealthReport
 
@@ -54,7 +55,11 @@ class HealthCheckUseCase:
 
         local_checks = self._local_db_probe.check()
         checks.extend(self._build_checks("Integridad local", local_checks))
-        return HealthReport(generated_at=datetime.now().isoformat(), checks=tuple(checks))
+        return HealthReport(
+            generated_at=datetime.now().isoformat(),
+            checks=tuple(checks),
+            metrics_snapshot=metrics_registry.snapshot(),
+        )
 
     @staticmethod
     def _build_checks(category: str, checks: dict[str, tuple[bool, str, str]]) -> list[HealthCheckItem]:

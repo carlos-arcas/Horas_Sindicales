@@ -13,6 +13,7 @@ from app.application.operaciones.modelos import (
 )
 from app.application.ports.pdf_puerto import GeneradorPdfPuerto
 from app.application.ports.sistema_archivos_puerto import SistemaArchivosPuerto
+from app.core.metrics import medir_tiempo, metrics_registry
 
 
 @dataclass(frozen=True)
@@ -68,10 +69,13 @@ class ConfirmacionPdfOperacion(OperacionConPlan[RequestConfirmacionPdf]):
 
         return ConflictosOperacion(conflictos=conflictos, no_ejecutable=no_ejecutable)
 
+    @medir_tiempo("latency.confirmar_solicitudes_ms")
     def ejecutar(self, request: RequestConfirmacionPdf) -> ResultadoOperacion:
         plan = self.obtener_plan(request)
         rutas = self.obtener_rutas(plan)
         conflictos = self.validar_conflictos(plan)
+        if conflictos.conflictos:
+            metrics_registry.incrementar("conflictos_detectados", len(conflictos.conflictos))
 
         if conflictos.no_ejecutable:
             return ResultadoOperacion(
