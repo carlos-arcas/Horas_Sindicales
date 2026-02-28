@@ -132,19 +132,17 @@ try:
     )
     from app.ui.vistas.solicitudes_presenter import (
         ActionStateInput,
-        DuplicateSearchInput,
         PreventiveValidationViewInput,
         build_action_state,
         build_preventive_validation_view_model,
-        find_pending_duplicate_row,
     )
 except Exception:  # pragma: no cover - habilita import parcial sin dependencias de UI/Qt
     def _qt_unavailable(*args, **kwargs):
         raise RuntimeError("UI no disponible: falta instalación de Qt/PySide6")
 
     ConflictsDialog = GrupoConfigDialog = PdfConfigDialog = PersonaDialog = ToastManager = object
-    ActionStateInput = DuplicateSearchInput = PreventiveValidationViewInput = object
-    build_action_state = build_preventive_validation_view_model = find_pending_duplicate_row = _qt_unavailable
+    ActionStateInput = PreventiveValidationViewInput = object
+    build_action_state = build_preventive_validation_view_model = _qt_unavailable
     PersonasController = SolicitudesController = SyncController = PdfController = object
     ConfirmationSummaryPayload = NotificationService = OperationFeedback = object
     SaldosCard = PushWorker = object
@@ -167,6 +165,8 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     abrir_archivo_local = _qt_unavailable
     build_estado_pendientes_debug_payload = build_historico_filters_payload = _qt_unavailable
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
+
+from app.ui.vistas.pending_duplicate_presenter import PendingDuplicateEntrada, resolve_pending_duplicate_row
 
 from app.ui.vistas.personas_presenter import (
     PersonaOption,
@@ -1919,23 +1919,26 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
 
     def _find_pending_duplicate_row(self, solicitud: SolicitudDTO) -> int | None:
         editing = self._selected_pending_for_editing()
-        editing_row = self._selected_pending_row_indexes()[0] if editing is not None else None
-        row = find_pending_duplicate_row(
-            DuplicateSearchInput(
+        editing_id = getattr(editing, "id", None)
+        selected_rows = self._selected_pending_row_indexes()
+        editing_row = selected_rows[0] if selected_rows else None
+        decision = resolve_pending_duplicate_row(
+            PendingDuplicateEntrada(
                 solicitud=solicitud,
                 pending_solicitudes=self._pending_solicitudes,
-                editing_pending_id=editing.id if editing is not None else None,
+                editing_pending_id=editing_id,
                 editing_row=editing_row,
                 duplicated_keys=detectar_duplicados_en_pendientes(self._pending_solicitudes),
             )
         )
         logger.info(
-            "UI_PREVENTIVE_DUPLICATE_RESULT duplicate_row=%s editing_id=%s editing_row=%s",
-            row,
-            editing.id if editing is not None else None,
+            "UI_PREVENTIVE_DUPLICATE_RESULT duplicate_row=%s editing_id=%s editing_row=%s reason=%s",
+            decision.row_index,
+            editing_id,
             editing_row,
+            decision.reason_code,
         )
-        return row
+        return decision.row_index
 
     def _find_pending_row_by_id(self, solicitud_id: int | None) -> int | None:
         if solicitud_id is None:

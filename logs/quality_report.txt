@@ -1,7 +1,7 @@
 # Reporte de calidad
 
 ## Top 20 archivos por LOC
-01. app/ui/vistas/main_window_vista.py -> 2628 LOC
+01. app/ui/vistas/main_window_vista.py -> 2630 LOC
 02. app/application/use_cases/sync_sheets/use_case.py -> 1373 LOC
 03. app/application/use_cases/solicitudes/use_case.py -> 826 LOC
 04. app/ui/vistas/builders/main_window_builders.py -> 764 LOC
@@ -24,7 +24,7 @@
 
 ## Top 20 por complejidad
 - Nota: radon no disponible: se muestra fallback por LOC (aproximación simple de complejidad).
-01. app/ui/vistas/main_window_vista.py -> 2628
+01. app/ui/vistas/main_window_vista.py -> 2630
 02. app/application/use_cases/sync_sheets/use_case.py -> 1373
 03. app/application/use_cases/solicitudes/use_case.py -> 826
 04. app/ui/vistas/builders/main_window_builders.py -> 764
