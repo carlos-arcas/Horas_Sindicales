@@ -641,6 +641,26 @@ class SolicitudUseCases:
         return creada
 
     def _generar_pdf_confirmadas(self, creadas: list[SolicitudDTO], destino: Path, *, correlation_id: str | None) -> tuple[Path | None, list[SolicitudDTO]]:
+        """Orquesta builder/runner para confirmar PDF sin acoplar reglas de decisión a IO.
+
+        Entradas:
+        - ``creadas``: snapshot de solicitudes confirmadas previamente.
+        - ``destino``: ruta candidata del PDF ya validada en preflight.
+        - ``correlation_id``: id opcional de trazabilidad para observabilidad.
+
+        Salidas:
+        - ``(pdf_path, solicitudes_actualizadas)``.
+        - Si el plan no requiere PDF, mantiene ``creadas`` intacto como resultado observable.
+
+        Efectos secundarios (delegados al runner):
+        - Generación de PDF mediante el puerto configurado.
+        - Cálculo de hash del archivo.
+        - Actualización de estado/pdf_path/pdf_hash en repositorio.
+
+        Errores:
+        - Reglas de negocio (persona/generador) se propagan como ``BusinessRuleError``.
+        - Errores técnicos de infraestructura se encapsulan en ``ErrorAplicacionSolicitud``.
+        """
         pdf_options = self._config_repo.get() if self._config_repo else None
         entrada = PdfConfirmadasEntrada(
             creadas=tuple(creadas),

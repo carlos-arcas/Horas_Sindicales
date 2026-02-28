@@ -170,3 +170,20 @@ def test_payload_contractual_sin_io(intro: str | None, logo: str | None, include
     assert action.intro_text == intro
     assert action.logo_path == logo
     assert action.include_hours_in_horario == include_hours
+
+
+def test_actions_plan_ready_con_reason_code_estable() -> None:
+    plan = plan_pdf_confirmadas(
+        PdfConfirmadasEntrada(
+            creadas=(_solicitud(1), _solicitud(2), _solicitud(3)),
+            destino=Path("/tmp/out.pdf"),
+            persona=_persona(),
+            generador_configurado=True,
+            intro_text="Intro",
+            logo_path="logo.png",
+            include_hours_in_horario=True,
+        )
+    )
+
+    assert plan.reason_code == "PLAN_READY"
+    assert {action.reason_code for action in plan.actions} == {"PLAN_READY"}
