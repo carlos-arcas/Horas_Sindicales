@@ -59,3 +59,32 @@ Para release Windows, se pueden usar los scripts existentes en `scripts/release/
 - `99_release_all.bat`
 
 Validar que los artefactos generados (dist/instalador) correspondan a la versión etiquetada y se puedan instalar/ejecutar correctamente.
+
+
+## 6) Build reproducible en Windows desde GitHub Actions
+
+Existe un workflow dedicado en `.github/workflows/release_build_windows.yml` que genera un build de Windows con PyInstaller usando `packaging/HorasSindicales.spec`.
+
+Pasos principales del job `build_windows`:
+
+- Instala dependencias (`requirements.txt` y `requirements-dev.txt`).
+- Verifica sintaxis (`compileall`) y ejecuta smoke mínimo (`python -c "import app"`).
+- Ejecuta `pyinstaller packaging/HorasSindicales.spec --noconfirm` y guarda logs en:
+  - `logs/build_stdout.log`
+  - `logs/build_stderr.log`
+- Lee la versión desde `VERSION` y empaqueta `dist/HorasSindicales` en:
+  - `HorasSindicales-v{VERSION}-windows.zip`
+- Publica como artifact el ZIP y los logs.
+
+### Descargar artifact desde Actions
+
+1. Ir a la pestaña **Actions** del repositorio.
+2. Abrir el workflow **Release Build Windows**.
+3. Seleccionar una ejecución completada.
+4. En la sección **Artifacts**, descargar `HorasSindicales-vX.Y.Z-windows`.
+
+### Ejecutar en Windows
+
+1. Descomprimir `HorasSindicales-vX.Y.Z-windows.zip`.
+2. Entrar a la carpeta extraída.
+3. Ejecutar `HorasSindicales.exe`.
