@@ -1,7 +1,7 @@
 # Reporte de calidad
 
 ## Top 20 archivos por LOC
-01. app/ui/vistas/main_window_vista.py -> 2626 LOC
+01. app/ui/vistas/main_window_vista.py -> 2628 LOC
 02. app/application/use_cases/sync_sheets/use_case.py -> 1373 LOC
 03. app/application/use_cases/solicitudes/use_case.py -> 826 LOC
 04. app/ui/vistas/builders/main_window_builders.py -> 764 LOC
@@ -15,16 +15,16 @@
 12. app/infrastructure/sheets_client.py -> 271 LOC
 13. app/ui/person_dialog.py -> 258 LOC
 14. app/pdf/pdf_builder.py -> 254 LOC
-15. app/ui/historico_view.py -> 253 LOC
-16. app/ui/notification_service.py -> 245 LOC
-17. app/application/use_cases/sync_sheets/helpers.py -> 243 LOC
-18. app/infrastructure/migrations.py -> 237 LOC
-19. app/ui/vistas/main_window_helpers.py -> 236 LOC
-20. app/application/auditoria_e2e/caso_uso.py -> 234 LOC
+15. app/ui/notification_service.py -> 245 LOC
+16. app/application/use_cases/sync_sheets/helpers.py -> 243 LOC
+17. app/infrastructure/migrations.py -> 237 LOC
+18. app/ui/vistas/main_window_helpers.py -> 236 LOC
+19. app/application/auditoria_e2e/caso_uso.py -> 234 LOC
+20. app/ui/dialog_opciones.py -> 233 LOC
 
 ## Top 20 por complejidad
 - Nota: radon no disponible: se muestra fallback por LOC (aproximación simple de complejidad).
-01. app/ui/vistas/main_window_vista.py -> 2626
+01. app/ui/vistas/main_window_vista.py -> 2628
 02. app/application/use_cases/sync_sheets/use_case.py -> 1373
 03. app/application/use_cases/solicitudes/use_case.py -> 826
 04. app/ui/vistas/builders/main_window_builders.py -> 764
@@ -38,12 +38,12 @@
 12. app/infrastructure/sheets_client.py -> 271
 13. app/ui/person_dialog.py -> 258
 14. app/pdf/pdf_builder.py -> 254
-15. app/ui/historico_view.py -> 253
-16. app/ui/notification_service.py -> 245
-17. app/application/use_cases/sync_sheets/helpers.py -> 243
-18. app/infrastructure/migrations.py -> 237
-19. app/ui/vistas/main_window_helpers.py -> 236
-20. app/application/auditoria_e2e/caso_uso.py -> 234
+15. app/ui/notification_service.py -> 245
+16. app/application/use_cases/sync_sheets/helpers.py -> 243
+17. app/infrastructure/migrations.py -> 237
+18. app/ui/vistas/main_window_helpers.py -> 236
+19. app/application/auditoria_e2e/caso_uso.py -> 234
+20. app/ui/dialog_opciones.py -> 233
 
 ## Coverage por paquete
 - Nota: coverage.py no disponible o sin datos (.coverage).
