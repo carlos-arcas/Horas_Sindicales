@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core.observability import get_correlation_id, get_result_id
+from app.core.redactor_secretos import LoggingSecretsFilter, redactar_texto
 
 DEFAULT_LOG_MAX_BYTES = 1_048_576
 DEFAULT_LOG_BACKUP_COUNT = 10
@@ -29,7 +30,7 @@ class JsonLinesFormatter(logging.Formatter):
             "level": record.levelname,
             "modulo": record.module,
             "funcion": record.funcName,
-            "mensaje": record.getMessage(),
+            "mensaje": redactar_texto(record.getMessage()),
             "correlation_id": self._resolve_correlation_id(record),
         }
 
@@ -41,8 +42,10 @@ class JsonLinesFormatter(logging.Formatter):
         if isinstance(payload_extra, dict) and payload_extra:
             event["extra"] = payload_extra
 
+        event = _redact_event_payload(event)
+
         if record.exc_info:
-            event["exc_info"] = self.formatException(record.exc_info)
+            event["exc_info"] = redactar_texto(self.formatException(record.exc_info))
 
         return json.dumps(event, ensure_ascii=False)
 
@@ -54,6 +57,20 @@ class JsonLinesFormatter(logging.Formatter):
         return get_correlation_id()
 
 
+
+def _redact_event_payload(event: dict[str, Any]) -> dict[str, Any]:
+    redacted_event: dict[str, Any] = {}
+    for key, value in event.items():
+        if isinstance(value, str):
+            redacted_event[key] = redactar_texto(value)
+        elif isinstance(value, dict):
+            redacted_event[key] = {
+                inner_key: redactar_texto(inner_value) if isinstance(inner_value, str) else inner_value
+                for inner_key, inner_value in value.items()
+            }
+        else:
+            redacted_event[key] = value
+    return redacted_event
 
 
 class CrashOnlyFilter(logging.Filter):
@@ -86,6 +103,7 @@ def _build_rotating_handler(
     )
     handler.setLevel(level)
     handler.setFormatter(JsonLinesFormatter())
+    handler.addFilter(LoggingSecretsFilter())
     if only_crashes:
         handler.addFilter(CrashOnlyFilter())
     if exact_level is not None:
@@ -101,8 +119,11 @@ def log_operational_error(
     extra: dict[str, Any] | None = None,
 ) -> None:
     exc_info = exc if exc is not None else False
-    payload = {"extra": extra} if extra else None
-    logger.error(message, exc_info=exc_info, extra=payload)
+    safe_extra = None
+    if extra:
+        safe_extra = {key: redactar_texto(str(value)) if isinstance(value, str) else value for key, value in extra.items()}
+    payload = {"extra": safe_extra} if safe_extra else None
+    logger.error(redactar_texto(message), exc_info=exc_info, extra=payload)
 
 
 def _safe_int_env(name: str, default: int) -> int:
@@ -128,6 +149,7 @@ def configure_logging(
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
     root_logger.setLevel(level)
+    root_logger.addFilter(LoggingSecretsFilter())
 
     main_handler = _build_rotating_handler(
         log_dir / MAIN_LOG_NAME,
