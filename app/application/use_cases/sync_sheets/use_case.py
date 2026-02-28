@@ -100,6 +100,7 @@ class SheetsSyncService:
         self._pending_append_rows: dict[str, list[list[Any]]] = {}
         self._pending_batch_updates: dict[str, list[dict[str, Any]]] = {}
         self._pending_values_batch_updates: dict[str, list[dict[str, Any]]] = {}
+        self._worksheet_next_append_row: dict[str, int] = {}
         self._enable_backfill = enable_backfill
         self._defer_local_commits = False
         self._pull_apply_context: _PullApplyContext | None = None
@@ -1240,6 +1241,7 @@ class SheetsSyncService:
             except SheetsRateLimitError:
                 logger.warning("Rate limit al leer worksheet=%s; reintentando una vez.", cache_name)
                 values = self._client.read_all_values(cache_name)
+            self._worksheet_next_append_row[cache_name] = len(values) + 1
         else:
             values = worksheet.get_all_values()
         return rows_with_index(values, worksheet_name=cache_name or worksheet.title, aliases=aliases)
@@ -1274,6 +1276,31 @@ class SheetsSyncService:
         self._pending_append_rows = {}
         self._pending_batch_updates = {}
         self._pending_values_batch_updates = {}
+        self._worksheet_next_append_row = {}
+
+    @staticmethod
+    def _a1_sheet_range(title: str, start_row: int, col_count: int, rows_count: int = 1) -> str:
+        safe_title = title.replace("'", "''")
+        end_row = start_row + max(rows_count, 1) - 1
+        end_col = rowcol_to_a1(1, col_count).rstrip("1")
+        return f"'{safe_title}'!A{start_row}:{end_col}{end_row}"
+
+    def _build_append_batch_entries(self, worksheet: Any, rows: list[list[Any]]) -> list[dict[str, Any]]:
+        if not rows:
+            return []
+        title = worksheet.title
+        start_row = self._worksheet_next_append_row.get(title)
+        if start_row is None:
+            start_row = len(self._client.read_all_values(title)) + 1
+        col_count = len(rows[0]) if rows[0] else 1
+        range_name = self._a1_sheet_range(title, start_row, col_count, len(rows))
+        self._worksheet_next_append_row[title] = start_row + len(rows)
+        return [{"range": range_name, "values": rows}]
+
+    @staticmethod
+    def _compose_values_batch_body(*parts: list[dict[str, Any]]) -> dict[str, Any]:
+        data = [entry for batch in parts for entry in batch]
+        return {"valueInputOption": "USER_ENTERED", "data": data}
 
     def _queue_values_batch_update(self, worksheet: Any, row_number: int, col_idx: int, value: Any) -> None:
         a1_cell = rowcol_to_a1(row_number, col_idx)
@@ -1286,36 +1313,33 @@ class SheetsSyncService:
         appended_rows = self._pending_append_rows.pop(worksheet_title, [])
         updated_rows = self._pending_batch_updates.pop(worksheet_title, [])
         backfills = self._pending_values_batch_updates.pop(worksheet_title, [])
+        append_batch = self._build_append_batch_entries(worksheet, appended_rows)
+        body = self._compose_values_batch_body(append_batch, updated_rows, backfills)
 
-        if appended_rows:
-            if hasattr(self._client, "append_rows"):
-                self._client.append_rows(worksheet_title, appended_rows)
-            else:
-                worksheet.append_rows(appended_rows, value_input_option="USER_ENTERED")
-            logger.info("Write batch (%s): %s rows appended", worksheet_title, len(appended_rows))
-
-        if updated_rows:
-            if hasattr(self._client, "batch_update"):
-                self._client.batch_update(worksheet_title, updated_rows)
-            else:
-                worksheet.batch_update(updated_rows, value_input_option="USER_ENTERED")
-            logger.info("Write batch (%s): %s rows updated", worksheet_title, len(updated_rows))
-
-        if backfills:
-            body = {"valueInputOption": "USER_ENTERED", "data": backfills}
+        if body["data"]:
             if hasattr(self._client, "values_batch_update"):
                 self._client.values_batch_update(body)
             else:
                 spreadsheet.values_batch_update(body)
-            logger.info("Write batch: %s rows updated", len(backfills))
+        if appended_rows or updated_rows or backfills:
+            logger.info(
+                "Write batch (%s): appended=%s updated=%s backfills=%s total_ranges=%s",
+                worksheet_title,
+                len(appended_rows),
+                len(updated_rows),
+                len(backfills),
+                len(body["data"]),
+            )
 
     def _log_sync_stats(self, operation: str) -> None:
         read_count = self._client.get_read_calls_count() if hasattr(self._client, "get_read_calls_count") else "n/a"
         write_count = self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else "n/a"
         avoided = self._client.get_avoided_requests_count() if hasattr(self._client, "get_avoided_requests_count") else "n/a"
+        api_calls = self._client.get_sheets_api_calls_count() if hasattr(self._client, "get_sheets_api_calls_count") else "n/a"
         logger.info(
-            "Sync stats (%s): read_count=%s write_count=%s avoided_requests=%s",
+            "Sync stats (%s): api_calls=%s read_count=%s write_count=%s avoided_requests=%s",
             operation,
+            api_calls,
             read_count,
             write_count,
             avoided,

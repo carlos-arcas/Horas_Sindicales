@@ -179,6 +179,9 @@ class SheetsClientPort(Protocol):
     def get_write_calls_count(self) -> int:
         ...
 
+    def get_sheets_api_calls_count(self) -> int:
+        ...
+
     def append_rows(self, worksheet_name: str, rows: list[list[Any]]) -> None:
         ...
 

@@ -10,6 +10,7 @@ import gspread
 from google.auth.exceptions import DefaultCredentialsError
 
 from app.bootstrap.logging import log_operational_error
+from app.core.metrics import metrics_registry
 from app.core.observability import get_correlation_id
 from app.domain.ports import SheetsClientPort
 from app.domain.sheets_errors import SheetsPermissionError, SheetsRateLimitError
@@ -42,6 +43,7 @@ class SheetsClient(SheetsClientPort):
         self._read_calls_count = 0
         self._avoided_requests_count = 0
         self._write_calls_count = 0
+        self._sheets_api_calls_count = 0
 
     def open_spreadsheet(self, credentials_path: Path, spreadsheet_id: str) -> gspread.Spreadsheet:
         logger.info("Conectando a Google Sheets con credenciales: %s", "credentials.json")
@@ -60,6 +62,7 @@ class SheetsClient(SheetsClientPort):
             self._read_calls_count = 0
             self._avoided_requests_count = 0
             self._write_calls_count = 0
+            self._sheets_api_calls_count = 0
             return spreadsheet
         except (
             gspread.exceptions.GSpreadException,
@@ -98,6 +101,11 @@ class SheetsClient(SheetsClientPort):
         if name in self._worksheet_cache:
             self._avoided_requests_count += 1
             return self._worksheet_cache[name]
+        if self._worksheets_by_title_cache is not None and name in self._worksheets_by_title_cache:
+            self._avoided_requests_count += 1
+            worksheet = self._worksheets_by_title_cache[name]
+            self._worksheet_cache[name] = worksheet
+            return worksheet
         if self._spreadsheet is None:
             raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
         worksheet = self._with_rate_limit_retry(
@@ -105,6 +113,8 @@ class SheetsClient(SheetsClientPort):
             lambda: self._spreadsheet.worksheet(name),
         )
         self._worksheet_cache[name] = worksheet
+        if self._worksheets_by_title_cache is not None:
+            self._worksheets_by_title_cache[name] = worksheet
         return worksheet
 
     def get_worksheets_by_title(self) -> dict[str, gspread.Worksheet]:
@@ -156,6 +166,9 @@ class SheetsClient(SheetsClientPort):
     def get_write_calls_count(self) -> int:
         return self._write_calls_count
 
+    def get_sheets_api_calls_count(self) -> int:
+        return self._sheets_api_calls_count
+
     def append_rows(self, worksheet_name: str, rows: list[list[Any]]) -> None:
         if not rows:
             return
@@ -190,6 +203,7 @@ class SheetsClient(SheetsClientPort):
     def _with_rate_limit_retry(self, operation_name: str, operation: Callable[[], T], *, spreadsheet_id: str | None = None) -> T:
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
+                self._record_api_call(operation_name)
                 return operation()
             except gspread.exceptions.APIError as exc:
                 mapped_error = map_gspread_exception(exc)
@@ -224,6 +238,7 @@ class SheetsClient(SheetsClientPort):
     def _with_write_retry(self, operation_name: str, operation: Callable[[], T], *, spreadsheet_id: str | None = None) -> T:
         for attempt in range(1, _WRITE_MAX_RETRIES + 1):
             try:
+                self._record_api_call(operation_name)
                 return operation()
             except gspread.exceptions.APIError as exc:
                 mapped_error = map_gspread_exception(exc)
@@ -279,6 +294,11 @@ class SheetsClient(SheetsClientPort):
             return None
 
         return getattr(current_spreadsheet, "id", None)
+
+    def _record_api_call(self, operation_name: str) -> None:
+        self._sheets_api_calls_count += 1
+        metrics_registry.incrementar("sheets_api_calls")
+        logger.debug("Sheets API call #%s operation=%s", self._sheets_api_calls_count, operation_name)
 
     @staticmethod
     def _log_permission_error(
