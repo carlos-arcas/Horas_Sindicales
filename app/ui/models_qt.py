@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor, QFont
 
 from app.application.dto import PersonaDTO, SolicitudDTO
 from app.domain.time_utils import minutes_to_hhmm
-from app.ui.patterns import status_badge
+from app.ui.models.solicitudes_table_presenter import SolicitudDisplayEntrada, build_display
 
 
 SOLICITUD_FECHA_ROLE = Qt.UserRole + 1
@@ -125,31 +125,21 @@ class SolicitudesTableModel(QAbstractTableModel):
 
     def _data_display(self, index: QModelIndex):
         solicitud = self._solicitudes[index.row()]
-        column = index.column()
-        if column == 0:
-            return solicitud.fecha_pedida
-        if column == 1:
-            return solicitud.desde or "-"
-        if column == 2:
-            return solicitud.hasta or "-"
-        if column == 3:
-            return "Sí" if solicitud.completo else "No"
-        if column == 4:
-            return _format_minutes(int(round(solicitud.horas * 60)))
-        if column == 5:
-            return solicitud.notas or ""
-
-        dynamic_column = 6
-        if self._show_estado and column == dynamic_column:
-            if solicitud.generated:
-                return status_badge("CONFIRMED")
-            return status_badge("PENDING")
-        if self._show_estado:
-            dynamic_column += 1
-
-        if self._show_delegada and column == dynamic_column:
-            return self._persona_nombres.get(solicitud.persona_id, "(sin delegada)")
-        return None
+        entrada = SolicitudDisplayEntrada(
+            column=index.column(),
+            fecha_pedida=solicitud.fecha_pedida,
+            desde=solicitud.desde,
+            hasta=solicitud.hasta,
+            completo=solicitud.completo,
+            horas=solicitud.horas,
+            notas=solicitud.notas,
+            generated=solicitud.generated,
+            show_estado=self._show_estado,
+            show_delegada=self._show_delegada,
+            persona_nombre=self._persona_nombres.get(solicitud.persona_id),
+            is_deleted=bool(getattr(solicitud, "deleted", False) or getattr(solicitud, "soft_deleted", False)),
+        )
+        return build_display(entrada).texto_display
 
     def _data_tooltip(self, index: QModelIndex):
         column = index.column()

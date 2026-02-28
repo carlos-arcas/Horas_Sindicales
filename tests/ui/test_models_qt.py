@@ -84,13 +84,9 @@ def _install_qt_stubs() -> None:
     qtgui.QColor = _FakeQColor
     qtgui.QFont = _FakeQFont
 
-    patterns = ModuleType("app.ui.patterns")
-    patterns.status_badge = lambda status: f"badge:{status}"
-
     sys.modules["PySide6"] = pyside
     sys.modules["PySide6.QtCore"] = qtcore
     sys.modules["PySide6.QtGui"] = qtgui
-    sys.modules["app.ui.patterns"] = patterns
 
 
 def _load_models_qt():
@@ -189,7 +185,7 @@ def test_solicitudes_table_model_display_and_dynamic_columns() -> None:
     assert model.data(model.index(0, 3), Qt.DisplayRole) == "No"
     assert model.data(model.index(0, 4), Qt.DisplayRole) == "01:30"
     assert model.data(model.index(0, 5), Qt.DisplayRole) == "nota"
-    assert model.data(model.index(0, 6), Qt.DisplayRole) == "badge:CONFIRMED"
+    assert model.data(model.index(0, 6), Qt.DisplayRole) == "✅ Confirmada"
 
     role_value = model.data(model.index(0, 0), models_qt.SOLICITUD_FECHA_ROLE)
     assert str(role_value) == "2026-01-10"
