@@ -142,7 +142,7 @@ from app.ui.vistas.personas_presenter import PersonaOption, PersonasLoadInput, b
 from app.core.observability import OperationContext
 from app.bootstrap.logging import log_operational_error
 
-from .dialogos import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
+from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 logger = logging.getLogger(__name__)
 TAB_HISTORICO = 1
 
