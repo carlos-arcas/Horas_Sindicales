@@ -15,6 +15,8 @@
     "app/ui/vistas/confirmacion_actions.py:iterar_pendientes_en_tabla": 12,
     "app/ui/vistas/pendientes_iter_presenter.py:plan_iter_pendientes": 8,
     "app/application/use_cases/solicitudes/use_case.py:SolicitudUseCases.confirmar_sin_pdf": 10,
-    "app/application/use_cases/solicitudes/confirmar_sin_pdf_planner.py:plan_confirmar_sin_pdf": 8
+    "app/application/use_cases/solicitudes/confirmar_sin_pdf_planner.py:plan_confirmar_sin_pdf": 8,
+    "app/application/use_cases/solicitudes/use_case.py:SolicitudUseCases._generar_pdf_confirmadas": 10,
+    "app/application/use_cases/solicitudes/pdf_confirmadas_builder.py:plan_pdf_confirmadas": 8
   }
 }

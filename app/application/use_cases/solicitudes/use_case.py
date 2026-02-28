@@ -62,7 +62,6 @@ from app.application.use_cases.solicitudes.helpers_puros_2 import (
 )
 from app.application.use_cases.solicitudes.confirmacion_pdf_service import (
     PathFileSystem,
-    actualizar_pdf_en_repo as _actualizar_pdf_en_repo,
     generar_incident_id as _generar_incident_id,
     hash_file as _hash_file,
     pdf_intro_text as _pdf_intro_text,
@@ -71,6 +70,11 @@ from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import (
     ConfirmarSinPdfAction,
     plan_confirmar_sin_pdf,
 )
+from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
+    PdfConfirmadasEntrada,
+    plan_pdf_confirmadas,
+)
+from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
 from app.application.use_cases.solicitudes.validacion_service import (
     build_periodo_filtro as _build_periodo_filtro,
     calcular_minutos as _calcular_minutos,
@@ -637,39 +641,33 @@ class SolicitudUseCases:
         return creada
 
     def _generar_pdf_confirmadas(self, creadas: list[SolicitudDTO], destino: Path, *, correlation_id: str | None) -> tuple[Path | None, list[SolicitudDTO]]:
-        if not creadas:
-            return None, creadas
-        try:
-            persona = self._persona_repo.get_by_id(creadas[0].persona_id)
-            if persona is None:
-                raise BusinessRuleError("Persona no encontrada.")
-            pdf_options = self._config_repo.get() if self._config_repo else None
-            if self._generador_pdf is None:
-                raise BusinessRuleError("No hay generador PDF configurado.")
-            pdf_path = self._generador_pdf.generar_pdf_solicitudes(
-                creadas,
-                persona,
-                destino,
-                intro_text=_pdf_intro_text(pdf_options),
-                logo_path=pdf_options.pdf_logo_path if pdf_options else None,
-                include_hours_in_horario=(
-                    pdf_options.pdf_include_hours_in_horario if pdf_options else None
-                ),
-            )
-            pdf_hash = _hash_file(pdf_path)
-            actualizadas = [_actualizar_pdf_en_repo(self._repo, solicitud, pdf_path, pdf_hash) for solicitud in creadas]
-            return pdf_path, actualizadas
-        except PersistenceError:
-            raise
-        except InfraError:  # pragma: no cover - fallback
-            incident_id = _generar_incident_id()
-            logger.exception("Error técnico generando PDF")
-            if correlation_id:
-                log_event(logger, "confirmar_lote_pdf_failed", {"error": "generar_pdf", "incident_id": incident_id}, correlation_id)
-            raise ErrorAplicacionSolicitud(
+        pdf_options = self._config_repo.get() if self._config_repo else None
+        entrada = PdfConfirmadasEntrada(
+            creadas=tuple(creadas),
+            destino=destino,
+            persona=self._persona_repo.get_by_id(creadas[0].persona_id) if creadas else None,
+            generador_configurado=self._generador_pdf is not None,
+            intro_text=_pdf_intro_text(pdf_options),
+            logo_path=pdf_options.pdf_logo_path if pdf_options else None,
+            include_hours_in_horario=(pdf_options.pdf_include_hours_in_horario if pdf_options else None),
+        )
+        plan = plan_pdf_confirmadas(entrada)
+        pdf_path, actualizadas = run_pdf_confirmadas_plan(
+            plan,
+            generador_pdf=self._generador_pdf,
+            repo=self._repo,
+            correlation_id=correlation_id,
+            logger=logger,
+            hash_file=_hash_file,
+            incident_id_factory=_generar_incident_id,
+            app_error_factory=lambda incident_id: ErrorAplicacionSolicitud(
                 "No se pudo generar el PDF por un error técnico",
                 incident_id=incident_id,
-            )
+            ),
+        )
+        if pdf_path is None:
+            return None, creadas
+        return pdf_path, actualizadas
 
     def confirmar_sin_pdf(
         self,
