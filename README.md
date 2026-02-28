@@ -1,127 +1,29 @@
-[![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
-
 # Horas Sindicales
 
-Aplicación de escritorio (PySide6) para gestionar horas sindicales, solicitudes y sincronización con Google Sheets, con arquitectura en capas y quality gate reproducible.
+Aplicación de escritorio (PySide6) para gestionar solicitudes de horas sindicales, generar PDFs y sincronizar datos con Google Sheets.
 
-## Qué problema resuelve
-
-En muchos equipos sindicales, el seguimiento de horas, solicitudes y justificantes PDF se hace con hojas dispersas y procesos manuales. Este proyecto centraliza el flujo para:
-
-- Registrar personas y solicitudes de horas.
-- Generar PDF de solicitudes con trazabilidad.
-- Persistir datos localmente en SQLite.
-- Sincronizar con Google Sheets con manejo de conflictos.
-
-## Arquitectura
-
-Regla principal de dependencias:
-
-```text
-UI -> Casos de uso -> Puertos -> Infraestructura
-```
-
-Diagrama ASCII simplificado:
-
-```text
-app/ui (PySide6)
-    |
-    v
-app/application (casos de uso)
-    |
-    v
-app/domain (reglas y contratos)
-    |
-    v
-app/infrastructure (sqlite, sheets, adapters)
-```
-
-Principios aplicados:
-
-- Sin lógica de negocio en UI.
-- Casos de uso en `app/application`.
-- Reglas de negocio en `app/domain`.
-- Implementaciones técnicas en `app/infrastructure`.
-
-## Cómo ejecutar
-
-### Windows (doble clic)
-
-Scripts oficiales del repositorio:
-
-```bat
-lanzar_app.bat
-launcher.bat
-```
-
-### CLI
-
-```bash
-python main.py
-# o
-python -m app
-```
-
-## Testing y calidad
-
-### Windows (doble clic)
-
-```bat
-ejecutar_tests.bat
-menu_validacion.bat
-quality_gate.bat
-```
-
-### CLI
+## Ejecutar en local (3 comandos)
 
 ```bash
 python -m pip install -r requirements-dev.txt
-python scripts/quality_gate.py
+python -m app
+python -m app.entrypoints.cli_auditoria --help
 ```
 
-El gate CORE toma el umbral desde `.config/quality_gate.json`.
-
-- Umbral actual (fase 1): **80%**.
-- Objetivo contractual final: **85%**.
-- Roadmap de escalado: **80% → 83% → 85%**.
-
-Referencia de contrato de cobertura: `docs/coverage_policy.md`.
-
-## Calidad reproducible
-
-Comandos mínimos del contrato técnico local/CI:
+## Ejecutar tests
 
 ```bash
-pip install -r requirements-dev.txt
-pytest -m "not ui"
-python scripts/report_quality.py --target app/ui/vistas/confirmacion_actions.py:iterar_pendientes_en_tabla
-python scripts/report_quality.py --target app/ui/vistas/pendientes_iter_presenter.py:plan_iter_pendientes
+pytest -q -m "not ui"
 ```
 
-Notas operativas:
+## Configuración de sincronización
 
-- Los presupuestos de complejidad ciclomática (CC) se centralizan en `.config/quality_gate.json` bajo `cc_targets`.
-- `scripts/report_quality.py --target ...` valida el presupuesto del target y devuelve exit code `1` si el símbolo supera su límite configurado.
-- En local, puede fallar `pip install` por restricciones de red/permisos del entorno.
-- La **fuente de verdad** para validación de `radon`/CC es CI (workflow `core`), que instala dependencias dev y publica `logs/quality_report.txt` como evidencia.
+Consulta la sección de sincronización en la guía técnica:
 
-## Observabilidad
+- [`docs/README_tecnico.md`](docs/README_tecnico.md#sincronización-con-google-sheets)
 
-El proyecto registra eventos con `correlation_id` para seguir operaciones end-to-end en logs.
+## Documentación pública
 
-- `correlation_id`: disponible y operativo.
-- `incident_id`: **pendiente (roadmap)**; se incorporará en la capa de observabilidad (`app/core/observability.py`) y en el manejo global de excepciones (`app/bootstrap/exception_handler.py`).
-
-Búsqueda útil en logs:
-
-```bash
-rg 'correlation_id' -n logs app
-```
-
-## Roadmap (corto)
-
-1. Cobertura CORE 80% (setup y contrato).
-2. Subir a 83% con nuevos tests de dominio/aplicación.
-3. Alcanzar 85% contractual en CORE.
-4. Añadir `incident_id` en trazas de error y correlación con reportes de soporte.
-5. Endurecer smoke UI y auditoría E2E en CI.
+- Guía técnica: [`docs/README_tecnico.md`](docs/README_tecnico.md)
+- Decisiones técnicas: [`docs/DECISIONES_TECNICAS.md`](docs/DECISIONES_TECNICAS.md)
+- Soporte y runbook: [`docs/SOPORTE.md`](docs/SOPORTE.md)

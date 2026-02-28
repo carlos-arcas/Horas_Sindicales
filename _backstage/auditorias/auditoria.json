@@ -1,0 +1,7 @@
+{
+  "stub": true,
+  "mensaje": "Archivo deprecado: la auditoría real se genera únicamente con Auditor E2E en evidencias.",
+  "comando_generacion": "python -m app.entrypoints.cli_auditoria --write --id-auditoria <ID>",
+  "ruta_salida": "logs/evidencias/<ID>/auditoria.json",
+  "manual": false
+}
