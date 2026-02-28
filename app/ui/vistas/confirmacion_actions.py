@@ -306,47 +306,50 @@ def on_confirmar(window: Any) -> None:
         logger.info("CLICK confirmar_pdf handler=_on_confirmar")
         window._dump_estado_pendientes("click_confirmar_pdf")
         pendientes_en_tabla = iterar_pendientes_en_tabla(window)
-        logger.debug("DEBUG_PENDIENTES_COUNT %s", len(pendientes_en_tabla))
-        for pendiente in pendientes_en_tabla:
-            logger.debug("DEBUG_PENDIENTE %s", pendiente)
-
-        selected = [
-            window.pendientes_model.solicitud_at(item["row"])
-            for item in pendientes_en_tabla
-            if window.pendientes_model is not None
-        ]
-        selected = [sol for sol in selected if sol is not None]
-        selected_ids = [sol.id for sol in selected]
-        editing = window._selected_pending_for_editing()
+        selected = _build_selected_solicitudes(window, pendientes_en_tabla)
         persona = window._current_persona()
-        log_extra = {
-            "selected_count": len(selected),
-            "selected_ids": selected_ids,
-            "editing_id": editing.id if editing is not None else None,
-            "persona_id": persona.id if persona is not None else None,
-            "fecha": window.fecha_input.date().toString("yyyy-MM-dd"),
-            "desde": window.desde_input.time().toString("HH:mm"),
-            "hasta": window.hasta_input.time().toString("HH:mm"),
-        }
+        log_extra = _build_confirmar_log_extra(window, selected, persona)
         logger.info("UI_CLICK_CONFIRMAR_PDF", extra=log_extra)
-        logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", window._selected_pending_row_indexes(), selected_ids)
-        _run_confirmacion_plan(window, selected, selected_ids, persona, log_extra)
+        logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", window._selected_pending_row_indexes(), [sol.id for sol in selected])
+        _run_confirmacion_plan(window, selected, persona, log_extra)
     except Exception:
         logger.exception("UI_CONFIRMAR_PDF_EXCEPTION")
         raise
 
 
+def _build_selected_solicitudes(window: Any, pendientes_en_tabla: list[dict[str, object]]) -> list[SolicitudDTO]:
+    logger.debug("DEBUG_PENDIENTES_COUNT %s", len(pendientes_en_tabla))
+    for pendiente in pendientes_en_tabla:
+        logger.debug("DEBUG_PENDIENTE %s", pendiente)
+    if window.pendientes_model is None:
+        return []
+    selected = [window.pendientes_model.solicitud_at(item["row"]) for item in pendientes_en_tabla]
+    return [sol for sol in selected if sol is not None]
+
+
+def _build_confirmar_log_extra(window: Any, selected: list[SolicitudDTO], persona: PersonaDTO | None) -> dict[str, Any]:
+    editing = window._selected_pending_for_editing()
+    return {
+        "selected_count": len(selected),
+        "selected_ids": [sol.id for sol in selected],
+        "editing_id": editing.id if editing is not None else None,
+        "persona_id": persona.id if persona is not None else None,
+        "fecha": window.fecha_input.date().toString("yyyy-MM-dd"),
+        "desde": window.desde_input.time().toString("HH:mm"),
+        "hasta": window.hasta_input.time().toString("HH:mm"),
+    }
+
+
 def _run_confirmacion_plan(
     window: Any,
     selected: list[SolicitudDTO],
-    selected_ids: list[int | None],
     persona: PersonaDTO | None,
     log_extra: dict[str, Any],
 ) -> None:
     preconfirm_ok = window._run_preconfirm_checks()
     state: dict[str, Any] = {
         "selected": selected,
-        "selected_ids": tuple(selected_ids),
+        "selected_ids": tuple(sol.id for sol in selected),
         "persona": persona,
         "preconfirm_ok": preconfirm_ok,
         "pdf_prompted": False,
@@ -377,39 +380,44 @@ def _run_confirmacion_plan(
 
         progressed = False
         for action in actions:
-            if action.action_type == "SHOW_ERROR":
-                _apply_show_error(window, action)
-                continue
-            if action.action_type == "LOG_EARLY_RETURN":
-                logger.info("_on_confirmar early_return motivo=%s", action.reason_code)
-                _return_early(action.reason_code or "unknown")
+            status = _apply_confirm_action(window, action, state, _return_early)
+            if status == "stop":
                 return
-            if action.action_type == "PROMPT_PDF":
-                pdf_path = _apply_prompt_pdf(window, state["selected"])
-                state["pdf_prompted"] = True
-                state["pdf_path"] = pdf_path
-                if pdf_path is not None:
-                    logger.debug("_on_confirmar paso=pdf_path_seleccionado path=%s", pdf_path)
+            if status == "progressed":
                 progressed = True
                 break
-            if action.action_type == "PREPARE_PAYLOAD":
-                logger.debug("_on_confirmar paso=llamar_execute_confirmar_with_pdf")
-                continue
-            if action.action_type == "CONFIRM":
-                state["execute_attempted"] = True
-                outcome = _apply_confirm(window, state["persona"], state["selected"], state["pdf_path"])
-                state["outcome"] = outcome
-                state["execute_succeeded"] = outcome is not None
-                progressed = True
-                break
-            if action.action_type == "FINALIZE_CONFIRMATION":
-                _apply_finalize(window, state["persona"], state["outcome"])
-                continue
-            if action.action_type in {"RESET_FORM", "REFRESH_TABLE", "SHOW_TOAST"}:
-                continue
 
         if not progressed:
             return
+
+
+def _apply_confirm_action(window: Any, action: ConfirmAction, state: dict[str, Any], on_early_return: Any) -> str:
+    if action.action_type == "SHOW_ERROR":
+        _apply_show_error(window, action)
+        return "continue"
+    if action.action_type == "LOG_EARLY_RETURN":
+        logger.info("_on_confirmar early_return motivo=%s", action.reason_code)
+        on_early_return(action.reason_code or "unknown")
+        return "stop"
+    if action.action_type == "PROMPT_PDF":
+        pdf_path = _apply_prompt_pdf(window, state["selected"])
+        state["pdf_prompted"] = True
+        state["pdf_path"] = pdf_path
+        if pdf_path is not None:
+            logger.debug("_on_confirmar paso=pdf_path_seleccionado path=%s", pdf_path)
+        return "progressed"
+    if action.action_type == "PREPARE_PAYLOAD":
+        logger.debug("_on_confirmar paso=llamar_execute_confirmar_with_pdf")
+        return "continue"
+    if action.action_type == "CONFIRM":
+        state["execute_attempted"] = True
+        outcome = _apply_confirm(window, state["persona"], state["selected"], state["pdf_path"])
+        state["outcome"] = outcome
+        state["execute_succeeded"] = outcome is not None
+        return "progressed"
+    if action.action_type == "FINALIZE_CONFIRMATION":
+        _apply_finalize(window, state["persona"], state["outcome"])
+    return "continue"
 
 
 def _apply_show_error(window: Any, action: ConfirmAction) -> None:

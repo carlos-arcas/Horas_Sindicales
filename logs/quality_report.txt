@@ -8,7 +8,7 @@
 05. app/infrastructure/repos_sqlite.py -> 617 LOC
 06. app/ui/sync_reporting.py -> 444 LOC
 07. app/ui/widgets/toast.py -> 436 LOC
-08. app/ui/vistas/confirmacion_actions.py -> 427 LOC
+08. app/ui/vistas/confirmacion_actions.py -> 430 LOC
 09. app/infrastructure/repos_conflicts_sqlite.py -> 343 LOC
 10. app/ui/conflicts_dialog.py -> 331 LOC
 11. app/application/use_cases/sync_sheets_core.py -> 271 LOC
@@ -31,7 +31,7 @@
 05. app/infrastructure/repos_sqlite.py -> 617
 06. app/ui/sync_reporting.py -> 444
 07. app/ui/widgets/toast.py -> 436
-08. app/ui/vistas/confirmacion_actions.py -> 427
+08. app/ui/vistas/confirmacion_actions.py -> 430
 09. app/infrastructure/repos_conflicts_sqlite.py -> 343
 10. app/ui/conflicts_dialog.py -> 331
 11. app/application/use_cases/sync_sheets_core.py -> 271
@@ -44,6 +44,10 @@
 18. app/ui/vistas/main_window_helpers.py -> 236
 19. app/application/auditoria_e2e/caso_uso.py -> 234
 20. app/ui/dialog_opciones.py -> 233
+
+## Complejidad del objetivo
+- Nota: radon no disponible
+- CI radon must show CC <= 12 for app/ui/vistas/confirmacion_actions.py:on_confirmar
 
 ## Coverage por paquete
 - Nota: coverage.py no disponible o sin datos (.coverage).

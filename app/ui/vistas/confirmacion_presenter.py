@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Callable, Literal
 
 ReasonCode = Literal[
     "ui_not_ready",
@@ -19,14 +19,7 @@ ReasonCode = Literal[
 
 @dataclass(frozen=True)
 class ConfirmacionEntrada:
-    """Estado mínimo de UI para planificar la confirmación sin depender de Qt/IO.
-
-    Reglas implícitas extraídas del flujo legacy:
-    1) El orden de precedencia de bloqueos es estricto.
-    2) Si aún no se pidió ruta de PDF, el siguiente paso es abrir diálogo.
-    3) Si ya se pidió PDF y se canceló, se termina sin confirmar.
-    4) Tras ejecutar confirmación, solo se finaliza cuando hay outcome válido.
-    """
+    """Estado mínimo de UI para planificar la confirmación sin depender de Qt/IO."""
 
     ui_ready: bool
     selected_ids: tuple[int | None, ...]
@@ -66,37 +59,58 @@ class ConfirmacionPlan:
     actions: tuple[ConfirmAction, ...]
 
 
-def aplicar_reglas_confirmacion(entrada: ConfirmacionEntrada) -> ConfirmacionDecision:
-    if not entrada.ui_ready:
-        return ConfirmacionDecision(False, "ui_not_ready", "info", None, ("LOG_EARLY_RETURN",))
-    if not entrada.selected_ids:
-        return ConfirmacionDecision(
-            False,
-            "no_pending_rows",
-            "warning",
-            entrada.no_pending_message,
-            ("SHOW_ERROR", "LOG_EARLY_RETURN"),
-        )
-    if not entrada.preconfirm_checks_ok:
-        return ConfirmacionDecision(False, "preconfirm_checks", "warning", None, ("LOG_EARLY_RETURN",))
-    if not entrada.persona_selected:
-        return ConfirmacionDecision(False, "no_persona", "warning", None, ("LOG_EARLY_RETURN",))
-    if entrada.has_pending_conflicts:
-        return ConfirmacionDecision(
-            False,
-            "conflictos_pendientes",
-            "warning",
-            entrada.conflict_message,
-            ("SHOW_ERROR", "LOG_EARLY_RETURN"),
-        )
-    if not entrada.pdf_prompted:
-        return ConfirmacionDecision(True, "ready_for_prompt", "info", None, ("PROMPT_PDF",))
-    if entrada.pdf_path is None:
-        return ConfirmacionDecision(False, "pdf_path_cancelado", "info", None, ("LOG_EARLY_RETURN",))
-    if not entrada.execute_attempted:
-        return ConfirmacionDecision(True, "ready_for_confirm", "info", None, ("PREPARE_PAYLOAD", "CONFIRM"))
-    if not entrada.execute_succeeded:
-        return ConfirmacionDecision(False, "execute_confirm_none", "error", None, ("LOG_EARLY_RETURN",))
+RuleBuilder = Callable[[ConfirmacionEntrada], ConfirmacionDecision]
+
+
+def _decision_ui_not_ready(_: ConfirmacionEntrada) -> ConfirmacionDecision:
+    return ConfirmacionDecision(False, "ui_not_ready", "info", None, ("LOG_EARLY_RETURN",))
+
+
+def _decision_no_pending(entrada: ConfirmacionEntrada) -> ConfirmacionDecision:
+    return ConfirmacionDecision(
+        False,
+        "no_pending_rows",
+        "warning",
+        entrada.no_pending_message,
+        ("SHOW_ERROR", "LOG_EARLY_RETURN"),
+    )
+
+
+def _decision_preconfirm(_: ConfirmacionEntrada) -> ConfirmacionDecision:
+    return ConfirmacionDecision(False, "preconfirm_checks", "warning", None, ("LOG_EARLY_RETURN",))
+
+
+def _decision_no_persona(_: ConfirmacionEntrada) -> ConfirmacionDecision:
+    return ConfirmacionDecision(False, "no_persona", "warning", None, ("LOG_EARLY_RETURN",))
+
+
+def _decision_conflictos(entrada: ConfirmacionEntrada) -> ConfirmacionDecision:
+    return ConfirmacionDecision(
+        False,
+        "conflictos_pendientes",
+        "warning",
+        entrada.conflict_message,
+        ("SHOW_ERROR", "LOG_EARLY_RETURN"),
+    )
+
+
+def _decision_prompt(_: ConfirmacionEntrada) -> ConfirmacionDecision:
+    return ConfirmacionDecision(True, "ready_for_prompt", "info", None, ("PROMPT_PDF",))
+
+
+def _decision_pdf_cancelado(_: ConfirmacionEntrada) -> ConfirmacionDecision:
+    return ConfirmacionDecision(False, "pdf_path_cancelado", "info", None, ("LOG_EARLY_RETURN",))
+
+
+def _decision_ready_confirm(_: ConfirmacionEntrada) -> ConfirmacionDecision:
+    return ConfirmacionDecision(True, "ready_for_confirm", "info", None, ("PREPARE_PAYLOAD", "CONFIRM"))
+
+
+def _decision_execute_none(_: ConfirmacionEntrada) -> ConfirmacionDecision:
+    return ConfirmacionDecision(False, "execute_confirm_none", "error", None, ("LOG_EARLY_RETURN",))
+
+
+def _decision_confirmed(_: ConfirmacionEntrada) -> ConfirmacionDecision:
     return ConfirmacionDecision(
         True,
         "confirmed",
@@ -106,22 +120,39 @@ def aplicar_reglas_confirmacion(entrada: ConfirmacionEntrada) -> ConfirmacionDec
     )
 
 
+RULES: tuple[tuple[Callable[[ConfirmacionEntrada], bool], RuleBuilder], ...] = (
+    (lambda e: not e.ui_ready, _decision_ui_not_ready),
+    (lambda e: not e.selected_ids, _decision_no_pending),
+    (lambda e: not e.preconfirm_checks_ok, _decision_preconfirm),
+    (lambda e: not e.persona_selected, _decision_no_persona),
+    (lambda e: e.has_pending_conflicts, _decision_conflictos),
+    (lambda e: not e.pdf_prompted, _decision_prompt),
+    (lambda e: e.pdf_path is None, _decision_pdf_cancelado),
+    (lambda e: not e.execute_attempted, _decision_ready_confirm),
+    (lambda e: not e.execute_succeeded, _decision_execute_none),
+    (lambda _e: True, _decision_confirmed),
+)
+
+
+def aplicar_reglas_confirmacion(entrada: ConfirmacionEntrada) -> ConfirmacionDecision:
+    for predicate, decision_builder in RULES:
+        if predicate(entrada):
+            return decision_builder(entrada)
+    return _decision_confirmed(entrada)
+
+
 def _actions_from_decision(decision: ConfirmacionDecision, entrada: ConfirmacionEntrada) -> tuple[ConfirmAction, ...]:
     actions: list[ConfirmAction] = []
     for action_name in decision.acciones_ui:
         if action_name == "SHOW_ERROR":
             if decision.reason_code == "no_pending_rows":
-                actions.append(
-                    ConfirmAction("SHOW_ERROR", reason_code=decision.reason_code, message=entrada.no_pending_message, title=entrada.no_pending_title)
-                )
+                actions.append(ConfirmAction("SHOW_ERROR", reason_code=decision.reason_code, message=entrada.no_pending_message, title=entrada.no_pending_title))
             elif decision.reason_code == "conflictos_pendientes":
-                actions.append(
-                    ConfirmAction("SHOW_ERROR", reason_code=decision.reason_code, message=entrada.conflict_message, title=entrada.conflict_title)
-                )
+                actions.append(ConfirmAction("SHOW_ERROR", reason_code=decision.reason_code, message=entrada.conflict_message, title=entrada.conflict_title))
             else:
                 actions.append(ConfirmAction("SHOW_ERROR", reason_code=decision.reason_code, message=decision.mensaje_usuario))
-        else:
-            actions.append(ConfirmAction(action_name, reason_code=decision.reason_code, message=decision.mensaje_usuario))
+            continue
+        actions.append(ConfirmAction(action_name, reason_code=decision.reason_code, message=decision.mensaje_usuario))
     return tuple(actions)
 
 
