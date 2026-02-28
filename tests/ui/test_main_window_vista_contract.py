@@ -1,12 +1,9 @@
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 import pytest
-
-from tests.ui.conftest import require_qt
-
-QApplication = require_qt()
 
 
 class _NoOpService:
@@ -19,8 +16,22 @@ class _FakeSyncService(_NoOpService):
         return True
 
 
+def _require_qt_in_test() -> object:
+    if importlib.util.find_spec("PySide6") is None:
+        pytest.skip("PySide6 no disponible correctamente en entorno CI")
+
+    try:
+        from PySide6.QtWidgets import QApplication
+    except Exception as exc:  # pragma: no cover - depende del entorno
+        pytest.skip(f"PySide6 no disponible correctamente en entorno CI: {exc}")
+
+    return QApplication
+
+
 @pytest.mark.ui
 def test_main_window_contract_public_attributes(monkeypatch: pytest.MonkeyPatch) -> None:
+    QApplication = _require_qt_in_test()
+
     from app.ui.main_window import MainWindow
     from app.ui.vistas import main_window_vista
 
