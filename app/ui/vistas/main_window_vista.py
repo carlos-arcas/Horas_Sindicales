@@ -168,6 +168,13 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     build_estado_pendientes_debug_payload = build_historico_filters_payload = _qt_unavailable
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
 
+from app.ui.vistas.personas_presenter import (
+    PersonaOption,
+    PersonasLoadInput,
+    build_personas_load_output,
+    resolve_active_delegada_id as resolve_active_delegada_id_presenter,
+)
+
 from app.core.observability import OperationContext
 from app.bootstrap.logging import log_operational_error
 
@@ -187,13 +194,7 @@ TAB_HISTORICO = 1
 
 def resolve_active_delegada_id(delegada_ids: list[int], preferred_id: object) -> int | None:
     """Devuelve la delegada activa válida a partir del id preferido y la lista cargada."""
-    if not delegada_ids:
-        return None
-    preferred_as_text = str(preferred_id)
-    for delegada_id in delegada_ids:
-        if str(delegada_id) == preferred_as_text:
-            return delegada_id
-    return delegada_ids[0]
+    return resolve_active_delegada_id_presenter(delegada_ids, preferred_id)
 
 
 class OptionalConfirmDialog(QDialog):
@@ -898,42 +899,47 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.solicitudes_splitter.setSizes([left_size, right_size])
 
     def _load_personas(self, select_id: int | None = None) -> None:
+        self._personas = list(self._persona_use_cases.listar())
+        presenter_output = build_personas_load_output(
+            PersonasLoadInput(
+                personas=tuple(PersonaOption(id=persona.id, nombre=persona.nombre) for persona in self._personas),
+                select_id=select_id,
+                saved_delegada_id=self._settings.value("contexto/delegada_seleccionada_id", None),
+            )
+        )
+
         self.persona_combo.blockSignals(True)
         self.persona_combo.clear()
-        self._personas = list(self._persona_use_cases.listar())
-        for persona in self._personas:
+        for persona in presenter_output.persona_items:
             self.persona_combo.addItem(persona.nombre, persona.id)
-        self.persona_combo.blockSignals(False)
-
-        if select_id is not None:
+        if presenter_output.selected_persona_id is not None:
             for index in range(self.persona_combo.count()):
-                if self.persona_combo.itemData(index) == select_id:
+                if self.persona_combo.itemData(index) == presenter_output.selected_persona_id:
                     self.persona_combo.setCurrentIndex(index)
                     break
+        self.persona_combo.blockSignals(False)
+
         self._last_persona_id = self.persona_combo.currentData()
-        persona_nombres = {int(persona.id): persona.nombre for persona in self._personas if persona.id is not None}
+        persona_nombres = presenter_output.persona_nombres
         self.pendientes_model.set_persona_nombres(persona_nombres)
         self.huerfanas_model.set_persona_nombres(persona_nombres)
         self.historico_model.set_persona_nombres(persona_nombres)
+
         self.historico_delegada_combo.blockSignals(True)
         self.historico_delegada_combo.clear()
-        self.historico_delegada_combo.addItem("Todas", None)
-        for persona_id, nombre in sorted(persona_nombres.items(), key=lambda item: item[1].lower()):
+        for nombre, persona_id in presenter_output.historico_items:
             self.historico_delegada_combo.addItem(nombre, persona_id)
         self.historico_delegada_combo.blockSignals(False)
+
         self.config_delegada_combo.blockSignals(True)
         self.config_delegada_combo.clear()
-        sorted_personas = sorted(persona_nombres.items(), key=lambda item: item[1].lower())
-        for persona_id, nombre in sorted_personas:
+        for nombre, persona_id in presenter_output.config_items:
             # Nunca usar el texto visible para identificar registros: puede repetirse.
             # Usamos siempre persona_id (delegada_id real) en userData.
             self.config_delegada_combo.addItem(nombre, persona_id)
-        delegada_ids = [persona_id for persona_id, _nombre in sorted_personas]
-        preferred_id = select_id if select_id is not None else self._settings.value("contexto/delegada_seleccionada_id", None)
-        active_id = resolve_active_delegada_id(delegada_ids, preferred_id)
-        if active_id is not None:
+        if presenter_output.active_config_id is not None:
             for index in range(self.config_delegada_combo.count()):
-                if self.config_delegada_combo.itemData(index) == active_id:
+                if self.config_delegada_combo.itemData(index) == presenter_output.active_config_id:
                     self.config_delegada_combo.setCurrentIndex(index)
                     break
         self.config_delegada_combo.blockSignals(False)
