@@ -36,3 +36,9 @@ Objetivos:
 - Beneficio técnico: se habilitan tests headless de reglas de planificación sin DB/UI.
 - Riesgo controlado: se conservaron mensajes de error y excepciones de persistencia.
 - Criterio de éxito: `pytest -q -m "not ui"` en verde y flujo de confirmación intacto.
+
+- Contrato planner (estable): cada acción expone `action_type`, `reason_code` y `payload` mínimo para runner.
+- `reason_code` vigente:
+  - `HAS_ID_RESOLVE_EXISTING` cuando `id is not None` (precedencia máxima, incluso para `id=0`).
+  - `MISSING_ID_CREATE_NEW` cuando `id is None`.
+- Orden del plan estable: misma secuencia de entrada en lote.
