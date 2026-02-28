@@ -44,7 +44,7 @@ class SheetsClient(SheetsClientPort):
         self._write_calls_count = 0
 
     def open_spreadsheet(self, credentials_path: Path, spreadsheet_id: str) -> gspread.Spreadsheet:
-        logger.info("Conectando a Google Sheets con credenciales: %s", credentials_path)
+        logger.info("Conectando a Google Sheets con credenciales: %s", "credentials.json")
         try:
             client = gspread.service_account(filename=str(credentials_path))
             self._client = client
