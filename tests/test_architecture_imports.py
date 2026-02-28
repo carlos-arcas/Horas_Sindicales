@@ -17,6 +17,8 @@ TECHNICAL_LIBRARIES_BLOCKED_IN_APPLICATION = {
     "sqlite3",
     "gspread",
     "googleapiclient",
+    "google.auth",
+    "google_auth_oauthlib",
 }
 
 LAYER_ALIASES = {
@@ -133,7 +135,7 @@ def _violation_for(record: ImportRecord) -> tuple[str, str] | None:
 
         if top_level_module in TECHNICAL_LIBRARIES_BLOCKED_IN_APPLICATION:
             return (
-                "Application no debe importar librerías técnicas específicas (sqlite3/gspread/googleapiclient).",
+                "Application no debe importar librerías técnicas específicas (sqlite3/gspread/google-api/google-auth).",
                 "Mueve el acceso técnico a infrastructure y consume un puerto/servicio abstracto en application.",
             )
 
