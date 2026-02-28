@@ -176,6 +176,7 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
 
 from app.ui.vistas.pending_duplicate_presenter import PendingDuplicateEntrada, resolve_pending_duplicate_row
+from app.ui.vistas.main_window import data_refresh, form_handlers, layout_builder, state_controller, wiring
 
 from app.ui.vistas.personas_presenter import (
     PersonaOption,
@@ -572,26 +573,22 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         button.setChecked(expandido_por_defecto)
 
     def _build_ui(self) -> None:
-        self._create_widgets()
-        self._build_layout()
-        self._wire_signals()
-        self._apply_initial_state()
-        self._ui_ready = True
+        wiring.build_ui(self)
 
     def _build_layout(self) -> None:
-        """Mantiene la fase explícita de layout sin alterar el comportamiento actual."""
+        layout_builder.build_layout_phase(self)
 
     def _wire_signals(self) -> None:
-        """Mantiene la fase explícita de señales sin alterar el comportamiento actual."""
+        wiring.wire_signals_phase(self)
 
     def _apply_initial_state(self) -> None:
-        """Mantiene la fase explícita de estado inicial sin alterar el comportamiento actual."""
+        layout_builder.apply_initial_state_phase(self)
 
     def _create_widgets(self) -> None:
-        build_main_window_widgets(self)
+        layout_builder.create_widgets(self)
 
     def _build_shell_layout(self) -> None:
-        build_shell_layout(self)
+        layout_builder.build_shell(self)
 
 
     def _switch_sidebar_page(self, index: int) -> None:
@@ -602,7 +599,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.main_tabs.setCurrentIndex(index)
 
     def _build_status_bar(self) -> None:
-        build_status_bar(self)
+        layout_builder.build_status(self)
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
         model = table.model()
@@ -670,21 +667,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             return False
 
     def _limpiar_formulario(self) -> None:
-        self.fecha_input.setDate(QDate.currentDate())
-        self.desde_input.setTime(QTime(9, 0))
-        self.hasta_input.setTime(QTime(17, 0))
-        self.completo_check.setChecked(False)
-        self.notas_input.clear()
-        self._field_touched.clear()
-        self._blocking_errors.clear()
-        self._warnings.clear()
-        self.solicitud_inline_error.setVisible(False)
-        self.delegada_field_error.setVisible(False)
-        self.fecha_field_error.setVisible(False)
-        self.tramo_field_error.setVisible(False)
-        self._update_solicitud_preview()
-        self._update_action_state()
-        logger.info("formulario_limpiado")
+        form_handlers.limpiar_formulario(self)
 
     def _is_form_dirty(self) -> bool:
         return bool(self.notas_input.toPlainText().strip()) or self.fecha_input.date() != QDate.currentDate() or self.desde_input.time() != QTime(9, 0) or self.hasta_input.time() != QTime(17, 0) or self.completo_check.isChecked()
@@ -727,66 +710,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return
 
     def _clear_form(self) -> None:
-        """Alias legado: mantener compatibilidad con conexiones antiguas.
-
-        Este método sólo debe tocar estado UI; no ejecuta lógica de negocio.
-        Incluye guard clauses para que sea seguro en escenarios de tests donde
-        parte de la vista aún no esté completamente inicializada.
-        """
-        limpiar_formulario = getattr(self, "_limpiar_formulario", None)
-        if callable(limpiar_formulario):
-            try:
-                limpiar_formulario()
-            except AttributeError:
-                # Fallback defensivo para entornos de inicialización parcial.
-                pass
-
-        persona_combo = getattr(self, "persona_combo", None)
-        if isinstance(persona_combo, QComboBox):
-            persona_combo.setCurrentIndex(-1)
-
-        fecha_input = getattr(self, "fecha_input", None)
-        if isinstance(fecha_input, QDateEdit):
-            fecha_input.setDate(QDate.currentDate())
-
-        desde_input = getattr(self, "desde_input", None)
-        if isinstance(desde_input, QTimeEdit):
-            desde_input.setTime(QTime(9, 0))
-
-        hasta_input = getattr(self, "hasta_input", None)
-        if isinstance(hasta_input, QTimeEdit):
-            hasta_input.setTime(QTime(17, 0))
-
-        completo_check = getattr(self, "completo_check", None)
-        if isinstance(completo_check, QCheckBox):
-            completo_check.setChecked(False)
-
-        notas_input = getattr(self, "notas_input", None)
-        if isinstance(notas_input, QPlainTextEdit):
-            notas_input.clear()
-
-        for attr_name in ("_field_touched", "_blocking_errors", "_warnings"):
-            state = getattr(self, attr_name, None)
-            if hasattr(state, "clear"):
-                state.clear()
-
-        for label_name in (
-            "solicitud_inline_error",
-            "delegada_field_error",
-            "fecha_field_error",
-            "tramo_field_error",
-        ):
-            label = getattr(self, label_name, None)
-            if isinstance(label, QLabel):
-                label.setVisible(False)
-
-        update_preview = getattr(self, "_update_solicitud_preview", None)
-        if callable(update_preview):
-            update_preview()
-
-        update_actions = getattr(self, "_update_action_state", None)
-        if callable(update_actions):
-            update_actions()
+        form_handlers.clear_form(self)
 
     def _sincronizar_con_confirmacion(self) -> None:
         result = QMessageBox.question(
@@ -1607,29 +1531,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return 0
 
     def _build_preview_solicitud(self) -> SolicitudDTO | None:
-        persona = self._current_persona()
-        if persona is None:
-            return None
-        completo = self.completo_check.isChecked()
-        fecha_pedida = self.fecha_input.date().toString("yyyy-MM-dd")
-        desde = None if completo else self.desde_input.time().toString("HH:mm")
-        hasta = None if completo else self.hasta_input.time().toString("HH:mm")
-        manual_minutes = self._manual_hours_minutes()
-        editing_pending = self._selected_pending_for_editing()
-        return SolicitudDTO(
-            id=editing_pending.id if editing_pending is not None else None,
-            persona_id=persona.id or 0,
-            fecha_solicitud=datetime.now().strftime("%Y-%m-%d"),
-            fecha_pedida=fecha_pedida,
-            desde=desde,
-            hasta=hasta,
-            completo=completo,
-            horas=manual_minutes / 60 if manual_minutes > 0 else 0,
-            observaciones=None,
-            pdf_path=None,
-            pdf_hash=None,
-            notas=None,
-        )
+        return form_handlers.build_preview_solicitud(self)
 
     def _calculate_preview_minutes(self) -> tuple[int | None, bool]:
         solicitud = self._build_preview_solicitud()
@@ -1693,39 +1595,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             target.setFocus()
 
     def _update_action_state(self) -> None:
-        if hasattr(self, "_run_preventive_validation"):
-            self._run_preventive_validation()
-        persona_selected = self._current_persona() is not None
-        form_valid, _ = self._validate_solicitud_form()
-        presenter_state = build_action_state(
-            ActionStateInput(
-                persona_selected=persona_selected,
-                form_valid=form_valid,
-                has_blocking_errors=bool(getattr(self, "_blocking_errors", {})),
-                is_editing_pending=self._selected_pending_for_editing() is not None,
-                has_pending=bool(self._pending_solicitudes),
-                has_pending_conflicts=bool(self._pending_conflict_rows),
-                pendientes_count=len(self._iterar_pendientes_en_tabla()),
-                selected_historico_count=len(self._selected_historico_solicitudes()),
-            )
-        )
-        self.agregar_button.setEnabled(presenter_state.agregar_enabled)
-        self.agregar_button.setText(presenter_state.agregar_text)
-        self.insertar_sin_pdf_button.setEnabled(presenter_state.insertar_sin_pdf_enabled)
-        self.confirmar_button.setEnabled(debe_habilitar_confirmar_pdf(presenter_state.pendientes_count))
-        self.edit_persona_button.setEnabled(presenter_state.edit_persona_enabled)
-        self.delete_persona_button.setEnabled(presenter_state.delete_persona_enabled)
-        self.edit_grupo_button.setEnabled(presenter_state.edit_grupo_enabled)
-        self.editar_pdf_button.setEnabled(presenter_state.editar_pdf_enabled)
-        self.eliminar_button.setEnabled(presenter_state.eliminar_enabled)
-        self.eliminar_pendiente_button.setEnabled(presenter_state.eliminar_pendiente_enabled)
-        self.generar_pdf_button.setEnabled(presenter_state.generar_pdf_enabled)
-        self.eliminar_button.setText(presenter_state.eliminar_text)
-        self.generar_pdf_button.setText(presenter_state.generar_pdf_text)
-        self._sync_historico_select_all_visible_state()
-        self._update_solicitudes_status_panel()
-
-        self._dump_estado_pendientes("after_update_action_state")
+        state_controller.update_action_state(self)
 
     def _selected_pending_solicitudes(self) -> list[SolicitudDTO]:
         selected_rows = self._selected_pending_row_indexes()
@@ -2566,14 +2436,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.statusBar().clearMessage()
 
     def _set_processing_state(self, in_progress: bool) -> None:
-        self.agregar_button.setEnabled(not in_progress)
-        self.confirmar_button.setEnabled(not in_progress)
-        self.eliminar_button.setEnabled(not in_progress)
-        self.eliminar_pendiente_button.setEnabled(not in_progress)
-        if in_progress:
-            self.statusBar().showMessage("Procesando…")
-        elif not self._sync_in_progress:
-            self.statusBar().clearMessage()
+        state_controller.set_processing_state(self, in_progress)
 
     def _show_critical_error(self, error: Exception | str) -> None:
         if isinstance(error, str):
@@ -2769,84 +2632,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         )
 
     def _refresh_historico(self, *, force: bool = False) -> None:
-        if self.historico_table is None or self.historico_model is None:
-            logger.info("UI_HISTORICO_REFRESH_SKIPPED_NO_WIDGETS")
-            return
-        persona = self._current_persona()
-        # Para juniors: snapshot de filtros se mueve a helper para simplificar lectura de refresh.
-        historico_filters = build_historico_filters_payload(
-            delegada_id=self.historico_delegada_combo.currentData(),
-            estado=self.historico_estado_combo.currentData(),
-            desde=self.historico_desde_date.date().toString("yyyy-MM-dd"),
-            hasta=self.historico_hasta_date.date().toString("yyyy-MM-dd"),
-            search=self.historico_search_input.text().strip(),
-            force=force,
-            tab_index=self.main_tabs.currentIndex() if self.main_tabs is not None else None,
-        )
-        logger.info(
-            "UI_HISTORICO_REFRESH_START persona_id=%s filtros=%s",
-            persona.id if persona is not None else None,
-            historico_filters,
-        )
-        solicitudes = self._solicitudes_controller.refresh_historico()
-        solicitud_ids = [sol.id for sol in solicitudes if sol.id is not None]
-        logger.info(
-            "UI_HISTORICO_QUERY_RESULT count=%s ids_first_5=%s",
-            len(solicitudes),
-            solicitud_ids[:5],
-        )
-
-        table = self.historico_table
-        model = self.historico_model
-        proxy_model = self.historico_proxy_model
-
-        previous_sorting_enabled = table.isSortingEnabled()
-        table.setUpdatesEnabled(False)
-        table.setSortingEnabled(False)
-        try:
-            if proxy_model.sourceModel() is not model:
-                proxy_model.setSourceModel(model)
-            model.set_solicitudes(solicitudes)
-            self._apply_historico_filters()
-            proxy_model.invalidateFilter()
-            proxy_model.invalidate()
-        finally:
-            table.setSortingEnabled(previous_sorting_enabled)
-            table.setUpdatesEnabled(True)
-
-        QTimer.singleShot(0, lambda: table.sortByColumn(0, Qt.DescendingOrder))
-        self._update_action_state()
-        row_count = proxy_model.rowCount()
-        logger.info("UI_HISTORICO_TABLE_RENDER row_count=%s", row_count)
-
-        # Para juniors: recuperación de mismatch extraída a helper (menos LOC + más fácil de probar).
-        row_count = handle_historico_render_mismatch(
-            solicitudes=solicitudes,
-            row_count=row_count,
-            table=table,
-            model=model,
-            proxy_model=proxy_model,
-            apply_historico_filters=self._apply_historico_filters,
-            toast_error_callback=lambda message: toast_error(self.toast, message),
-        )
-
-        if row_count == 0:
-            logger.info("UI_HISTORICO_REFRESH_EMPTY")
+        data_refresh.refresh_historico(self, force=force)
 
     def _refresh_saldos(self) -> None:
-        filtro = self._current_saldo_filtro()
-        self._update_periodo_label()
-        persona = self._current_persona()
-        if persona is None:
-            self._set_saldos_labels(None)
-            return
-        try:
-            resumen = self._solicitud_use_cases.calcular_resumen_saldos(persona.id or 0, filtro)
-        except BusinessRuleError as exc:
-            self.toast.warning(str(exc), title="Validación")
-            self._set_saldos_labels(None)
-            return
-        self._set_saldos_labels(resumen)
+        data_refresh.refresh_saldos(self)
 
     def _update_periodo_label(self) -> None:
         self.saldos_card.update_periodo_label("Mensual")
@@ -2907,52 +2696,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._reload_pending_views()
 
     def _reload_pending_views(self) -> None:
-        persona = self._current_persona()
-        self._pending_all_solicitudes = list(self._solicitud_use_cases.listar_pendientes_all())
-        if self._pending_view_all:
-            self._pending_solicitudes = list(self._pending_all_solicitudes)
-        elif persona is None:
-            self._pending_solicitudes = []
-        else:
-            self._pending_solicitudes = list(self._solicitud_use_cases.listar_pendientes_por_persona(persona.id or 0))
-
-        pending_visible_ids = {solicitud.id for solicitud in self._pending_solicitudes if solicitud.id is not None}
-        self._hidden_pendientes = [
-            solicitud
-            for solicitud in self._pending_all_solicitudes
-            if solicitud.id is not None and solicitud.id not in pending_visible_ids
-        ]
-        hidden_count = len(self._hidden_pendientes)
-        should_warn_hidden = hidden_count > 0 and not self._pending_view_all
-        self.pending_filter_warning.setVisible(should_warn_hidden)
-        self.revisar_ocultas_button.setVisible(should_warn_hidden)
-        if should_warn_hidden:
-            self.pending_filter_warning.setText(f"Hay pendientes en otras delegadas: {hidden_count}")
-            self.revisar_ocultas_button.setText(f"Revisar pendientes ocultas ({hidden_count})")
-            logger.warning(
-                "Pendientes no visibles por filtro actual delegada_id=%s hidden=%s",
-                persona.id if persona is not None else None,
-                hidden_count,
-            )
-        else:
-            self.pending_filter_warning.setText("")
-
-        self._orphan_pendientes = list(self._solicitud_use_cases.listar_pendientes_huerfanas())
-        self.huerfanas_model.set_solicitudes(self._orphan_pendientes)
-        has_orphans = bool(self._orphan_pendientes)
-        self.huerfanas_label.setVisible(has_orphans)
-        self.huerfanas_table.setVisible(has_orphans)
-        self.eliminar_huerfana_button.setVisible(has_orphans)
-
-        if persona is not None:
-            logger.info(
-                "Cambio delegada id=%s pendientes_delegada=%s pendientes_totales=%s",
-                persona.id,
-                len(list(self._solicitud_use_cases.listar_pendientes_por_persona(persona.id or 0))),
-                len(list(self._solicitud_use_cases.listar_pendientes_all())),
-            )
-
-        self._refresh_pending_ui_state()
+        data_refresh.reload_pending_views(self)
 
     def _on_review_hidden_pendientes(self) -> None:
         if not self._hidden_pendientes:
