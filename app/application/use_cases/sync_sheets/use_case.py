@@ -23,7 +23,10 @@ from app.application.use_cases.sync_sheets.helpers import (
     sync_local_cuadrantes_from_personas,
 )
 from app.application.use_cases.sync_sheets import payloads_puros
-from app.application.use_cases.sync_sheets.action_planning import PullAction, plan_pull_solicitud_action
+from app.application.use_cases.sync_sheets.pull_planner import PullAction, PullPlannerSignals, plan_pull_actions
+from app.application.use_cases.sync_sheets.pull_runner import run_pull_actions, run_with_savepoint
+from app.application.use_cases.sync_sheets.push_builder import build_push_solicitudes_payloads
+from app.application.use_cases.sync_sheets.push_runner import run_push_values_update
 from app.application.use_cases.sync_sheets.normalization_rules import normalize_remote_solicitud_row, normalize_remote_uuid
 from app.application.use_cases.sync_sheets.persona_resolution_rules import build_persona_resolution_plan
 from app.application.use_cases.sync_sheets.planner import build_plan
@@ -429,21 +432,17 @@ class SheetsSyncService:
             "sample_fecha_after": None,
         }
         logger.info("Pull solicitudes: worksheet=%s filas_leidas=%s", worksheet_name, len(rows))
-        cursor = self._connection.cursor()
-        cursor.execute("SAVEPOINT pull_solicitudes_worksheet")
         self._defer_local_commits = True
         try:
-            for row_number, raw_row in rows:
-                self._set_pull_solicitud_samples(stats, raw_row)
-                row = normalize_remote_solicitud_row(raw_row, worksheet_name)
-                if stats["sample_fecha_after"] is None:
-                    stats["sample_fecha_after"] = str(row.get("fecha") or "")
-                self._process_pull_solicitud_row(worksheet, headers, row_number, row, last_sync_at, stats)
-            cursor.execute("RELEASE SAVEPOINT pull_solicitudes_worksheet")
-        except Exception:
-            cursor.execute("ROLLBACK TO SAVEPOINT pull_solicitudes_worksheet")
-            cursor.execute("RELEASE SAVEPOINT pull_solicitudes_worksheet")
-            raise
+            def _run_rows() -> None:
+                for row_number, raw_row in rows:
+                    self._set_pull_solicitud_samples(stats, raw_row)
+                    row = normalize_remote_solicitud_row(raw_row, worksheet_name)
+                    if stats["sample_fecha_after"] is None:
+                        stats["sample_fecha_after"] = str(row.get("fecha") or "")
+                    self._process_pull_solicitud_row(worksheet, headers, row_number, row, last_sync_at, stats)
+
+            run_with_savepoint(self._connection, "pull_solicitudes_worksheet", _run_rows)
         finally:
             self._defer_local_commits = False
         return stats
@@ -461,16 +460,18 @@ class SheetsSyncService:
         self._apply_pull_solicitud_plan(plan, worksheet, headers, row_number, dto.row, dto.uuid_value, context.local_row, stats)
 
     @staticmethod
-    def _build_pull_solicitud_plan(dto: RemoteSolicitudRowDTO, signals: PullSignals) -> list[PullAction]:
-        return plan_pull_solicitud_action(
-            has_uuid=bool(dto.uuid_value),
-            has_existing_for_empty_uuid=signals.has_existing_for_empty_uuid,
-            has_local_uuid=signals.has_local_uuid,
-            skip_duplicate=signals.skip_duplicate,
-            conflict_detected=signals.conflict_detected,
-            remote_is_newer=signals.remote_is_newer,
-            backfill_enabled=signals.backfill_enabled,
-            existing_uuid=signals.existing_uuid,
+    def _build_pull_solicitud_plan(dto: RemoteSolicitudRowDTO, signals: PullSignals) -> tuple[PullAction, ...]:
+        return plan_pull_actions(
+            PullPlannerSignals(
+                has_uuid=bool(dto.uuid_value),
+                has_existing_for_empty_uuid=signals.has_existing_for_empty_uuid,
+                has_local_uuid=signals.has_local_uuid,
+                skip_duplicate=signals.skip_duplicate,
+                conflict_detected=signals.conflict_detected,
+                remote_is_newer=signals.remote_is_newer,
+                backfill_enabled=signals.backfill_enabled,
+                existing_uuid=signals.existing_uuid,
+            )
         )
 
     @staticmethod
@@ -505,7 +506,7 @@ class SheetsSyncService:
 
     def _apply_pull_solicitud_plan(
         self,
-        plan: list[PullAction],
+        plan: tuple[PullAction, ...],
         worksheet: Any,
         headers: list[str],
         row_number: int,
@@ -516,22 +517,16 @@ class SheetsSyncService:
     ) -> None:
         self._pull_apply_context = _PullApplyContext(worksheet, headers, row_number, row, uuid_value, local_row, stats)
         try:
-            for action in plan:
-                self._apply_action(action)
+            run_pull_actions(
+                plan,
+                on_skip=self._apply_skip_action,
+                on_backfill_uuid=self._apply_backfill_action,
+                on_insert_solicitud=self._apply_insert_solicitud_action,
+                on_update_solicitud=self._apply_update_solicitud_action,
+                on_register_conflict=self._apply_register_conflict_action,
+            )
         finally:
             self._pull_apply_context = None
-
-    def _apply_action(self, action: PullAction) -> None:
-        handlers = {
-            "SKIP": self._apply_skip_action,
-            "BACKFILL_UUID": self._apply_backfill_action,
-            "INSERT_SOLICITUD": self._apply_insert_solicitud_action,
-            "UPDATE_SOLICITUD": self._apply_update_solicitud_action,
-            "REGISTER_CONFLICT": self._apply_register_conflict_action,
-        }
-        handler = handlers.get(action.command)
-        if handler:
-            handler(action)
 
     def _apply_skip_action(self, action: PullAction) -> None:
         context = self._pull_apply_context
@@ -911,62 +906,25 @@ class SheetsSyncService:
             WHERE s.updated_at IS NOT NULL
             """
         )
-        uploaded = 0
-        conflicts = 0
-        omitted_duplicates = 0
-        values: list[list[Any]] = [HEADER_CANONICO_SOLICITUDES]
-        local_uuids: set[str] = set()
-        for row in cursor.fetchall():
-            should_upload, row_conflict = self._push_solicitud_local_row(
-                row,
-                remote_index,
-                last_sync_at,
-                values,
-                local_uuids,
-            )
-            uploaded += 1 if should_upload else 0
-            conflicts += 1 if row_conflict else 0
-
-        for _, remote_row in rows:
-            if self._append_push_solicitud_remote_only_row(remote_row, local_uuids, values):
-                omitted_duplicates += 1
+        result = build_push_solicitudes_payloads(
+            header=tuple(HEADER_CANONICO_SOLICITUDES),
+            local_rows=cursor.fetchall(),
+            remote_rows=rows,
+            remote_index=remote_index,
+            last_sync_at=last_sync_at,
+            local_payload_builder=self._local_solicitud_payload,
+            remote_payload_builder=self._remote_solicitud_payload,
+        )
+        for conflict in result.conflicts:
+            self._store_conflict("solicitudes", conflict.uuid_value, conflict.local_row, conflict.remote_row)
 
         if headers != HEADER_CANONICO_SOLICITUDES:
             logger.info("Reescribiendo encabezado canónico de 'solicitudes' (sin columnas extras o vacías).")
             self._normalize_solicitudes_header(worksheet)
 
-        worksheet.update("A1", values)
-        logger.info("PUSH Sheets: %s filas enviadas", max(len(values) - 1, 0))
-        return uploaded, conflicts, omitted_duplicates
-
-    def _push_solicitud_local_row(
-        self,
-        row: Any,
-        remote_index: dict[str, dict[str, Any]],
-        last_sync_at: str | None,
-        values: list[list[Any]],
-        local_uuids: set[str],
-    ) -> tuple[bool, bool]:
-        if last_sync_at and not sync_sheets_core.is_after_last_sync(row["updated_at"], last_sync_at):
-            return False, False
-        uuid_value = row["uuid"]
-        local_uuids.add(uuid_value)
-        remote_row = remote_index.get(uuid_value)
-        remote_updated_at = sync_sheets_core.parse_iso(remote_row.get("updated_at") if remote_row else None)
-        if sync_sheets_core.is_conflict(row["updated_at"], remote_updated_at, last_sync_at):
-            self._store_conflict("solicitudes", uuid_value, dict(row), remote_row or {})
-            return False, True
-        values.append(list(self._local_solicitud_payload(row)))
-        return True, False
-
-    def _append_push_solicitud_remote_only_row(
-        self, remote_row: dict[str, Any], local_uuids: set[str], values: list[list[Any]]
-    ) -> bool:
-        remote_uuid = str(remote_row.get("uuid", "")).strip()
-        if not remote_uuid or remote_uuid in local_uuids:
-            return False
-        values.append(list(self._remote_solicitud_payload(remote_row)))
-        return True
+        run_push_values_update(worksheet, result.values, retries=2)
+        logger.info("PUSH Sheets: %s filas enviadas", max(len(result.values) - 1, 0))
+        return result.uploaded, len(result.conflicts), result.omitted_duplicates
 
     def _build_solicitudes_sync_plan(self, spreadsheet: Any) -> SyncExecutionPlan:
         return build_solicitudes_sync_plan(self, spreadsheet, HEADER_CANONICO_SOLICITUDES)

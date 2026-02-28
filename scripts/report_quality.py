@@ -42,6 +42,23 @@ def _top_loc(files: list[Path], top_n: int) -> list[tuple[str, int]]:
     return rows[:top_n]
 
 
+
+
+def _sync_hotspot_loc() -> list[tuple[str, int]]:
+    targets = [
+        ROOT / "app" / "application" / "use_cases" / "sync_sheets" / "use_case.py",
+        ROOT / "app" / "application" / "use_cases" / "sync_sheets" / "pull_planner.py",
+        ROOT / "app" / "application" / "use_cases" / "sync_sheets" / "pull_runner.py",
+        ROOT / "app" / "application" / "use_cases" / "sync_sheets" / "push_builder.py",
+        ROOT / "app" / "application" / "use_cases" / "sync_sheets" / "push_runner.py",
+    ]
+    rows: list[tuple[str, int]] = []
+    for path in targets:
+        if not path.exists():
+            continue
+        loc = sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+        rows.append((path.relative_to(ROOT).as_posix(), loc))
+    return rows
 def _top_complexity(files: list[Path], top_n: int) -> tuple[str, list[tuple[str, int]]]:
     try:
         from radon.complexity import cc_visit
@@ -264,6 +281,7 @@ def _format_report(
     coverage_rows: dict[str, float],
     target_result: tuple[str, str, int] | None,
     budget_status: tuple[str, int, int, bool] | None,
+    sync_hotspot_rows: list[tuple[str, int]],
 ) -> str:
     lines: list[str] = []
     lines.append("# Reporte de calidad")
@@ -279,6 +297,10 @@ def _format_report(
         lines.append(f"{idx:02d}. {identifier} -> {complexity}")
 
     lines.append("")
+    lines.append("## Sync hotspot LOC")
+    for file_path, loc in sync_hotspot_rows:
+        lines.append(f"- {file_path} -> {loc} LOC")
+
     lines.append("## Coverage por paquete")
     lines.append(f"- Nota: {coverage_note}")
     for package in ["domain", "application", "infrastructure", "ui"]:
@@ -332,7 +354,8 @@ def main() -> int:
             budget_status = (target_identifier, target_cc, target_limit, target_ok)
             budget_failed = not target_ok
 
-    report = _format_report(loc_rows, cc_note, cc_rows, coverage_note, coverage_rows, target_result, budget_status)
+    sync_hotspot_rows = _sync_hotspot_loc()
+    report = _format_report(loc_rows, cc_note, cc_rows, coverage_note, coverage_rows, target_result, budget_status, sync_hotspot_rows)
     out_path = ROOT / args.out
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(report, encoding="utf-8")
