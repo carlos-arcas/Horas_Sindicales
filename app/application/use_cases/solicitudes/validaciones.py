@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 
 from app.application.dto import SolicitudDTO
+from app.application.use_cases.solicitudes.detector_duplicados import (
+    ResultadoDuplicado,
+    detectar_duplicado,
+    detectar_duplicados_en_pendientes as _detectar_duplicados_en_pendientes,
+)
+from app.application.use_cases.solicitudes.normalizacion_solicitud import normalizar_solicitud
+from app.application.use_cases.solicitudes.validar_datos_basicos import (
+    ResultadoValidacionBasica,
+    validar_datos_basicos,
+)
 from app.domain.services import ValidacionError
-from app.domain.time_range import TimeRangeValidationError
-from app.application.use_cases.solicitudes.validacion_service import normalize_date
-from app.domain.time_utils import minutes_to_hhmm, parse_hhmm
 
 
 @dataclass(frozen=True)
@@ -24,142 +30,62 @@ REGLAS_OBLIGATORIAS: tuple[ReglaValidacionSolicitud, ...] = (
 
 
 def validar_solicitud_dto_declarativo(dto: SolicitudDTO) -> None:
-    """Orquesta validaciones puras para mantener capa de aplicación simple y testeable.
-
-    Mantener este método como coordinador reduce acoplamiento: las reglas de negocio
-    se prueban en funciones pequeñas, sin IO, y la capa de aplicación solo agrega
-    mensajes y decide si levanta la excepción.
-    """
-
-    errores: list[str] = []
-    errores.extend(validar_campos_obligatorios(dto))
-    errores.extend(validar_formato_fechas(dto))
-    errores.extend(validar_regla_jornada(dto))
-    errores.extend(validar_limite_horas(dto.horas))
-
-    if errores:
-        raise ValidacionError("; ".join(errores))
+    resultado = validar_datos_basicos(dto)
+    if resultado.errores:
+        raise ValidacionError("; ".join(resultado.errores))
 
 
 def validar_campos_obligatorios(dto: SolicitudDTO) -> list[str]:
-    """Valida presencia de datos base.
-
-    Esta función es pura y aislada; así no depende de infraestructura y se puede
-    testear en milisegundos.
-    """
-
-    errores: list[str] = []
-    if dto.persona_id <= 0:
-        errores.append(REGLAS_OBLIGATORIAS[0].mensaje)
-    if not str(dto.fecha_solicitud).strip():
-        errores.append(REGLAS_OBLIGATORIAS[1].mensaje)
-    if not str(dto.fecha_pedida).strip():
-        errores.append(REGLAS_OBLIGATORIAS[2].mensaje)
-    return errores
+    return _filtrar_errores(resultado=validar_datos_basicos(dto), prefijos=tuple(r.mensaje for r in REGLAS_OBLIGATORIAS))
 
 
 def validar_formato_fechas(dto: SolicitudDTO) -> list[str]:
-    """Valida formato YYYY-MM-DD solo cuando el campo existe."""
-
-    errores: list[str] = []
-    for campo_fecha in ("fecha_solicitud", "fecha_pedida"):
-        valor = getattr(dto, campo_fecha)
-        if not valor:
-            continue
-        try:
-            datetime.strptime(valor, "%Y-%m-%d")
-        except ValueError:
-            errores.append(f"{campo_fecha} debe tener formato YYYY-MM-DD.")
-    return errores
+    return _filtrar_errores(resultado=validar_datos_basicos(dto), prefijos=("fecha_solicitud", "fecha_pedida"))
 
 
 def validar_regla_jornada(dto: SolicitudDTO) -> list[str]:
-    """Separa reglas de petición completa/parcial para reducir complejidad ciclomática."""
-
-    if dto.completo:
-        return validar_jornada_completa(dto.horas)
-    return validar_jornada_parcial(dto.desde, dto.hasta)
+    prefijos = (
+        "Desde y hasta son obligatorios",
+        "Desde/Hasta deben tener formato",
+        "El campo hasta",
+        "Las horas no pueden ser negativas.",
+    )
+    return _filtrar_errores(resultado=validar_datos_basicos(dto), prefijos=prefijos)
 
 
 def validar_jornada_completa(horas: float) -> list[str]:
-    """Regla de negocio específica de jornadas completas."""
-
-    if horas < 0:
-        return ["Las horas no pueden ser negativas."]
-    return []
+    dto = _dto_dummy_para_jornada(completo=True, horas=horas)
+    return validar_regla_jornada(dto)
 
 
 def validar_jornada_parcial(desde: str | None, hasta: str | None) -> list[str]:
-    """Reglas de rango horario para jornadas parciales."""
-
-    if not desde or not hasta:
-        return ["Desde y hasta son obligatorios para peticiones parciales."]
-
-    try:
-        desde_min = parse_hhmm(desde)
-        hasta_min = parse_hhmm(hasta)
-    except ValueError:
-        return ["Desde/Hasta deben tener formato HH:MM válido."]
-
-    if hasta_min <= desde_min:
-        return ["El campo hasta debe ser mayor que desde."]
-    return []
+    dto = _dto_dummy_para_jornada(completo=False, horas=0.0, desde=desde, hasta=hasta)
+    return validar_regla_jornada(dto)
 
 
 def validar_limite_horas(horas: float) -> list[str]:
-    """Límite transversal independiente del tipo de jornada."""
-
-    if horas > 24:
-        return ["Las horas no pueden superar 24 en una sola petición."]
-    return []
+    resultado = validar_datos_basicos(_dto_dummy_para_jornada(completo=True, horas=horas))
+    return [error for error in resultado.errores if error.startswith("Las horas no pueden superar")]
 
 
 def clave_duplicado(dto: SolicitudDTO) -> tuple[int, str, str, str]:
-    """Devuelve la clave lógica usada para detectar solicitudes duplicadas."""
-
-    fecha = normalize_date(dto.fecha_pedida)
-    if dto.completo:
-        return dto.persona_id, fecha, "COMPLETO", "COMPLETO"
-
-    desde = minutes_to_hhmm(parse_hhmm(str(dto.desde or "")))
-    hasta = minutes_to_hhmm(parse_hhmm(str(dto.hasta or "")))
-    return dto.persona_id, fecha, desde, hasta
+    normalizada = normalizar_solicitud(dto)
+    return normalizada.persona_id, normalizada.fecha, normalizada.desde, normalizada.hasta
 
 
 def clave_duplicado_solicitud(dto: SolicitudDTO) -> tuple[int, str, str, str]:
-    """Alias de compatibilidad para consumidores existentes."""
-
     return clave_duplicado(dto)
 
 
 def normalizar_clave_pendiente(dto: SolicitudDTO) -> tuple[int, str, str, str, str]:
-    """Normaliza la clave de negocio usada para detectar duplicados en pendientes."""
-
-    persona_id = int(dto.persona_id)
-    fecha = normalize_date(dto.fecha_pedida)
-    tipo = "COMPLETO" if dto.completo else "PARCIAL"
-    if dto.completo:
-        return persona_id, fecha, "COMPLETO", "COMPLETO", tipo
-
-    desde = minutes_to_hhmm(parse_hhmm(str(dto.desde or "")))
-    hasta = minutes_to_hhmm(parse_hhmm(str(dto.hasta or "")))
-    return persona_id, fecha, desde, hasta, tipo
+    normalizada = normalizar_solicitud(dto)
+    return normalizada.persona_id, normalizada.fecha, normalizada.desde, normalizada.hasta, normalizada.tipo
 
 
 def detectar_duplicados_en_pendientes(
     pendientes: list[SolicitudDTO],
 ) -> set[tuple[int, str, str, str, str]]:
-    """Devuelve las claves de negocio repetidas (2+ veces) dentro de pendientes."""
-
-    conteo: dict[tuple[int, str, str, str, str], int] = {}
-    for pendiente in pendientes:
-        try:
-            clave = normalizar_clave_pendiente(pendiente)
-        except (TimeRangeValidationError, ValueError):
-            continue
-        conteo[clave] = conteo.get(clave, 0) + 1
-
-    return {clave for clave, repeticiones in conteo.items() if repeticiones >= 2}
+    return _detectar_duplicados_en_pendientes(pendientes)
 
 
 def hay_duplicado_distinto(
@@ -169,30 +95,42 @@ def hay_duplicado_distinto(
     excluir_por_id: str | int | None = None,
     excluir_por_indice: int | None = None,
 ) -> bool:
-    """Comprueba choque de duplicado evitando contar la propia fila en edición."""
-
-    try:
-        clave_objetivo = clave_duplicado(solicitud)
-    except (TimeRangeValidationError, ValueError):
-        return False
-
-    for idx, existente in enumerate(existentes):
-        if excluir_por_id is not None and existente.id is not None and str(existente.id) == str(excluir_por_id):
-            continue
-        if existente.id is None and excluir_por_indice is not None and idx == excluir_por_indice:
-            continue
-
-        try:
-            clave_existente = clave_duplicado(existente)
-        except (TimeRangeValidationError, ValueError):
-            continue
-        if clave_existente == clave_objetivo:
-            return True
-    return False
+    resultado: ResultadoDuplicado = detectar_duplicado(
+        solicitud,
+        existentes,
+        excluir_por_id=excluir_por_id,
+        excluir_por_indice=excluir_por_indice,
+    )
+    return resultado.hay_duplicado
 
 
 def validar_seleccion_confirmacion(cantidad_seleccionadas: int) -> str | None:
-    """Devuelve mensaje de aviso cuando se intenta confirmar sin filas seleccionadas."""
     if cantidad_seleccionadas > 0:
         return None
     return "Selecciona al menos una solicitud pendiente para confirmar y generar el PDF."
+
+
+def _dto_dummy_para_jornada(
+    *,
+    completo: bool,
+    horas: float,
+    desde: str | None = "09:00",
+    hasta: str | None = "10:00",
+) -> SolicitudDTO:
+    return SolicitudDTO(
+        id=None,
+        persona_id=1,
+        fecha_solicitud="2025-01-01",
+        fecha_pedida="2025-01-01",
+        desde=desde,
+        hasta=hasta,
+        completo=completo,
+        horas=horas,
+        observaciones=None,
+        pdf_path=None,
+        pdf_hash=None,
+    )
+
+
+def _filtrar_errores(resultado: ResultadoValidacionBasica, prefijos: tuple[str, ...]) -> list[str]:
+    return [error for error in resultado.errores if error.startswith(prefijos)]
