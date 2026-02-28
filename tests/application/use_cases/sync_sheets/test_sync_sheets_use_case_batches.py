@@ -42,8 +42,6 @@ class _FakeClient:
         self.get_worksheets_by_title = Mock(return_value=self.worksheets)
         self.get_worksheet = Mock(side_effect=lambda name: self.worksheets[name])
         self.read_all_values = Mock(side_effect=self._read_all_values)
-        self.append_rows = Mock()
-        self.batch_update = Mock()
         self.values_batch_update = Mock()
         self.clear = Mock()
         self.get_rows = Mock(return_value=[])
@@ -78,8 +76,6 @@ def test_flush_write_batches_ignores_empty_pending_buffers(connection) -> None:
 
     service._flush_write_batches(spreadsheet, worksheet)
 
-    client.append_rows.assert_not_called()
-    client.batch_update.assert_not_called()
     client.values_batch_update.assert_not_called()
 
 
@@ -95,10 +91,15 @@ def test_flush_write_batches_executes_small_batches_once(connection) -> None:
 
     service._flush_write_batches(spreadsheet, worksheet)
 
-    client.append_rows.assert_called_once_with("solicitudes", [["uuid-1", "A"]])
-    client.batch_update.assert_called_once_with("solicitudes", [{"range": "A2:B2", "values": [["uuid-1", "B"]]}])
     client.values_batch_update.assert_called_once_with(
-        {"valueInputOption": "USER_ENTERED", "data": [{"range": "'solicitudes'!C2", "values": [["ok"]]}]}
+        {
+            "valueInputOption": "USER_ENTERED",
+            "data": [
+                {"range": "'solicitudes'!A2:B2", "values": [["uuid-1", "A"]]},
+                {"range": "A2:B2", "values": [["uuid-1", "B"]]},
+                {"range": "'solicitudes'!C2", "values": [["ok"]]},
+            ],
+        }
     )
 
 
@@ -117,7 +118,7 @@ def test_push_delegadas_single_batch_permission_error_propagates(connection, per
     client = _FakeClient()
     spreadsheet = _FakeSpreadsheet()
     service = _build_service(connection, client=client)
-    client.append_rows.side_effect = SheetsPermissionError("Permiso denegado")
+    client.values_batch_update.side_effect = SheetsPermissionError("Permiso denegado")
 
     cursor = connection.cursor()
     cursor.execute(
@@ -129,4 +130,4 @@ def test_push_delegadas_single_batch_permission_error_propagates(connection, per
     with pytest.raises(SheetsPermissionError, match="Permiso"):
         service._push_delegadas(spreadsheet, last_sync_at="2025-01-01T00:00:00Z")
 
-    client.append_rows.assert_called_once()
+    client.values_batch_update.assert_called_once()
