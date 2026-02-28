@@ -87,6 +87,24 @@ El gate CORE toma el umbral desde `.config/quality_gate.json`.
 
 Referencia de contrato de cobertura: `docs/coverage_policy.md`.
 
+## Calidad reproducible
+
+Comandos mínimos del contrato técnico local/CI:
+
+```bash
+pip install -r requirements-dev.txt
+pytest -m "not ui"
+python scripts/report_quality.py --target app/ui/vistas/confirmacion_actions.py:iterar_pendientes_en_tabla
+python scripts/report_quality.py --target app/ui/vistas/pendientes_iter_presenter.py:plan_iter_pendientes
+```
+
+Notas operativas:
+
+- Los presupuestos de complejidad ciclomática (CC) se centralizan en `.config/quality_gate.json` bajo `cc_targets`.
+- `scripts/report_quality.py --target ...` valida el presupuesto del target y devuelve exit code `1` si el símbolo supera su límite configurado.
+- En local, puede fallar `pip install` por restricciones de red/permisos del entorno.
+- La **fuente de verdad** para validación de `radon`/CC es CI (workflow `core`), que instala dependencias dev y publica `logs/quality_report.txt` como evidencia.
+
 ## Observabilidad
 
 El proyecto registra eventos con `correlation_id` para seguir operaciones end-to-end en logs.

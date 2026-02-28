@@ -10,5 +10,9 @@
     "app/core",
     "app/entrypoints",
     "app/pdf"
-  ]
+  ],
+  "cc_targets": {
+    "app/ui/vistas/confirmacion_actions.py:iterar_pendientes_en_tabla": 12,
+    "app/ui/vistas/pendientes_iter_presenter.py:plan_iter_pendientes": 8
+  }
 }

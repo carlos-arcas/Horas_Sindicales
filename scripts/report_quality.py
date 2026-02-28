@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+CONFIG_PATH = ROOT / ".config" / "quality_gate.json"
 
 
 def parse_args() -> argparse.Namespace:
@@ -188,6 +189,30 @@ def _load_coverage_json() -> tuple[str, dict[str, Any] | None]:
     return ("coverage.py disponible", json.loads(coverage_json.read_text(encoding="utf-8")))
 
 
+def _load_cc_targets() -> dict[str, int]:
+    if not CONFIG_PATH.exists():
+        return {}
+
+    try:
+        raw_config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"No se pudo parsear {CONFIG_PATH.relative_to(ROOT)}: {exc}") from exc
+
+    raw_targets = raw_config.get("cc_targets", {})
+    if not isinstance(raw_targets, dict):
+        raise ValueError("El campo cc_targets en .config/quality_gate.json debe ser un objeto JSON")
+
+    parsed_targets: dict[str, int] = {}
+    for key, value in raw_targets.items():
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError("Cada clave de cc_targets debe ser un target no vacío con formato ruta.py:simbolo")
+        if not isinstance(value, int) or value < 1:
+            raise ValueError(f"cc_targets[{key!r}] debe ser un entero positivo")
+        parsed_targets[key] = value
+
+    return parsed_targets
+
+
 def _package_name(file_path: str) -> str | None:
     normalized = file_path.replace("\\", "/")
     if not normalized.startswith("app/"):
@@ -238,6 +263,7 @@ def _format_report(
     coverage_note: str,
     coverage_rows: dict[str, float],
     target_result: tuple[str, str, int] | None,
+    budget_status: tuple[str, int, int, bool] | None,
 ) -> str:
     lines: list[str] = []
     lines.append("# Reporte de calidad")
@@ -265,6 +291,15 @@ def _format_report(
         lines.append(f"- Nota: {target_note}")
         lines.append(f"- {target_identifier} -> {target_cc}")
 
+    if budget_status is not None:
+        target_identifier, target_cc, target_limit, target_ok = budget_status
+        lines.append("")
+        lines.append("## Presupuesto CC target")
+        lines.append(f"- Fuente: .config/quality_gate.json > cc_targets[{target_identifier!r}]")
+        lines.append(f"- Límite: {target_limit}")
+        lines.append(f"- Medido: {target_cc}")
+        lines.append(f"- Resultado: {'PASS' if target_ok else 'FAIL'}")
+
     return "\n".join(lines) + "\n"
 
 
@@ -276,16 +311,34 @@ def main() -> int:
     coverage_note, coverage_data = _load_coverage_json()
     coverage_rows = _coverage_by_package(coverage_data)
     try:
+        cc_targets = _load_cc_targets()
+    except ValueError as exc:
+        print(f"ERROR: {exc}")
+        return 2
+
+    try:
         target_result = _target_complexity(args.target) if args.target else None
     except ValueError as exc:
         print(f"ERROR: {exc}")
         return 2
 
-    report = _format_report(loc_rows, cc_note, cc_rows, coverage_note, coverage_rows, target_result)
+    budget_status: tuple[str, int, int, bool] | None = None
+    budget_failed = False
+    if target_result is not None:
+        _, target_identifier, target_cc = target_result
+        if target_identifier in cc_targets:
+            target_limit = cc_targets[target_identifier]
+            target_ok = target_cc <= target_limit
+            budget_status = (target_identifier, target_cc, target_limit, target_ok)
+            budget_failed = not target_ok
+
+    report = _format_report(loc_rows, cc_note, cc_rows, coverage_note, coverage_rows, target_result, budget_status)
     out_path = ROOT / args.out
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(report, encoding="utf-8")
     print(report)
+    if budget_failed:
+        return 1
     return 0
 
 
