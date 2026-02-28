@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
 from app.ui.historico_view import ESTADOS_HISTORICO, HistoricalViewModel
 from app.ui.models_qt import SolicitudesTableModel
 from app.ui.components.saldos_card import SaldosCard
+from app.ui.copy_catalog import copy_text
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow
@@ -109,7 +110,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     pending_errors_layout = QVBoxLayout(window.pending_errors_frame)
     pending_errors_layout.setContentsMargins(10, 8, 10, 8)
     pending_errors_layout.setSpacing(6)
-    window.pending_errors_title = QLabel("Errores pendientes")
+    window.pending_errors_title = QLabel(copy_text("solicitudes.pending_errors_title"))
     window.pending_errors_title.setProperty("role", "sectionTitle")
     pending_errors_layout.addWidget(window.pending_errors_title)
     window.pending_errors_summary = QLabel("")
@@ -122,13 +123,13 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     pending_errors_layout.addWidget(window.goto_existing_button)
     window.pending_errors_frame.setVisible(False)
 
-    datos_basicos_label = QLabel("Datos de la reserva")
+    datos_basicos_label = QLabel(copy_text("solicitudes.form_section_title"))
     datos_basicos_label.setProperty("role", "sectionTitle")
     solicitud_layout.addWidget(datos_basicos_label)
 
     persona_row = QHBoxLayout()
     persona_row.setSpacing(10)
-    persona_label = QLabel("Delegada")
+    persona_label = QLabel(copy_text("solicitudes.label_delegada"))
     persona_label.setProperty("role", "sectionTitle")
     persona_row.addWidget(persona_label)
     window.persona_combo.currentIndexChanged.connect(window._on_persona_changed)
@@ -137,7 +138,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
 
     solicitud_row = QHBoxLayout()
     solicitud_row.setSpacing(10)
-    solicitud_row.addWidget(QLabel("Fecha"))
+    solicitud_row.addWidget(QLabel(copy_text("solicitudes.label_fecha")))
     window.fecha_input = QDateEdit(QDate.currentDate())
     window.fecha_input.setCalendarPopup(True)
     window.fecha_input.dateChanged.connect(window._on_fecha_changed)
@@ -150,7 +151,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     desde_layout = QHBoxLayout(window.desde_container)
     desde_layout.setContentsMargins(0, 0, 0, 0)
     desde_layout.setSpacing(6)
-    desde_layout.addWidget(QLabel("Desde"))
+    desde_layout.addWidget(QLabel(copy_text("solicitudes.label_desde")))
     desde_layout.addWidget(window.desde_input)
     solicitud_row.addWidget(window.desde_container)
 
@@ -165,7 +166,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     hasta_layout = QHBoxLayout(window.hasta_container)
     hasta_layout.setContentsMargins(0, 0, 0, 0)
     hasta_layout.setSpacing(6)
-    hasta_layout.addWidget(QLabel("Hasta"))
+    hasta_layout.addWidget(QLabel(copy_text("solicitudes.label_hasta")))
     hasta_layout.addWidget(window.hasta_input)
     solicitud_row.addWidget(window.hasta_container)
 
@@ -192,7 +193,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.cuadrante_warning_label.setVisible(False)
     solicitud_row.addWidget(window.cuadrante_warning_label)
 
-    window.agregar_button = QPushButton("Añadir pendiente")
+    window.agregar_button = QPushButton(copy_text("solicitudes.button_add_pending"))
     window.agregar_button.setProperty("variant", "secondary")
     window.agregar_button.clicked.connect(
         window._on_add_pendiente,
@@ -204,9 +205,9 @@ def build_main_window_widgets(window: "MainWindow") -> None:
 
     notas_row = QHBoxLayout()
     notas_row.setSpacing(8)
-    notas_row.addWidget(QLabel("Notas"))
+    notas_row.addWidget(QLabel(copy_text("solicitudes.label_notas")))
     window.notas_input = QPlainTextEdit()
-    window.notas_input.setPlaceholderText("Notas para la solicitud")
+    window.notas_input.setPlaceholderText(copy_text("solicitudes.placeholder_notas"))
     lineas_visibles_notas = 3
     altura_linea_notas = window.notas_input.fontMetrics().lineSpacing()
     margen_documento_notas = int(window.notas_input.document().documentMargin() * 2)
@@ -222,6 +223,39 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.notas_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
     notas_row.addWidget(window.notas_input, 1)
     solicitud_layout.addLayout(notas_row)
+
+    tips_row = QHBoxLayout()
+    tips_row.setSpacing(8)
+    window.solicitudes_tip_1 = QLabel(copy_text("solicitudes.tip_enter"))
+    window.solicitudes_tip_1.setProperty("role", "secondary")
+    window.solicitudes_tip_2 = QLabel(copy_text("solicitudes.tip_minutes"))
+    window.solicitudes_tip_2.setProperty("role", "secondary")
+    window.solicitudes_tip_3 = QLabel(copy_text("solicitudes.tip_full_day"))
+    window.solicitudes_tip_3.setProperty("role", "secondary")
+    tips_row.addWidget(window.solicitudes_tip_1)
+    tips_row.addWidget(window.solicitudes_tip_2)
+    tips_row.addWidget(window.solicitudes_tip_3)
+    tips_row.addStretch(1)
+    solicitud_layout.addLayout(tips_row)
+
+    status_row = QHBoxLayout()
+    status_row.setSpacing(8)
+    window.solicitudes_status_title = QLabel("Estado")
+    window.solicitudes_status_title.setProperty("role", "sectionTitle")
+    status_row.addWidget(window.solicitudes_status_title)
+    window.solicitudes_status_label = QLabel(copy_text("solicitudes.status_ready"))
+    window.solicitudes_status_label.setProperty("role", "secondary")
+    status_row.addWidget(window.solicitudes_status_label)
+    status_row.addSpacing(8)
+    window.solicitudes_status_hint = QLabel("")
+    window.solicitudes_status_hint.setProperty("role", "secondary")
+    window.solicitudes_status_hint.setWordWrap(True)
+    status_row.addWidget(window.solicitudes_status_hint, 1)
+    solicitud_layout.addLayout(status_row)
+
+    window.show_help_toggle = QCheckBox(copy_text("solicitudes.help_toggle"))
+    window.show_help_toggle.setChecked(True)
+    solicitud_layout.addWidget(window.show_help_toggle)
 
     window.solicitud_inline_error = QLabel("")
     window.solicitud_inline_error.setProperty("role", "error")
@@ -324,7 +358,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.eliminar_huerfana_button.setVisible(False)
     left_actions.addWidget(window.eliminar_huerfana_button)
 
-    window.insertar_sin_pdf_button = QPushButton("Confirmar sin PDF")
+    window.insertar_sin_pdf_button = QPushButton(copy_text("solicitudes.button_confirm_without_pdf"))
     window.insertar_sin_pdf_button.setProperty("variant", "success")
     window.insertar_sin_pdf_button.clicked.connect(window._on_insertar_sin_pdf)
     left_actions.addWidget(window.insertar_sin_pdf_button)
@@ -342,7 +376,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.abrir_pdf_check.setChecked(True)
     right_actions.addWidget(window.abrir_pdf_check)
 
-    window.confirmar_button = QPushButton("Confirmar y generar PDF")
+    window.confirmar_button = QPushButton(copy_text("solicitudes.button_confirm_with_pdf"))
     window.confirmar_button.setProperty("variant", "success")
     confirmar_handler = getattr(window, "_on_confirmar", None)
     if callable(confirmar_handler):
