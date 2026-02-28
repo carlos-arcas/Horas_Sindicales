@@ -73,4 +73,4 @@ def test_main_window_vista_imports_without_cycles() -> None:
 
 def test_main_window_vista_loc_guardrail() -> None:
     loc = len(Path("app/ui/vistas/main_window_vista.py").read_text(encoding="utf-8").splitlines())
-    assert loc <= 2800, f"Guardrail temporal excedido: {loc} LOC"
+    assert loc <= 450, f"Guardrail excedido: {loc} LOC"
