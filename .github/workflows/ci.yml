@@ -21,15 +21,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install dependencies (core + dev)
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      - name: Verificar pytest-cov
+      - name: Verificar dependencias de calidad
         run: |
           python -c "import pytest_cov" || (echo "ERROR: Falta pytest-cov. Instala requirements-dev.txt" && exit 1)
+          python -c "import radon" || (echo "ERROR: Falta radon. Instala requirements-dev.txt" && exit 1)
 
       - name: Lint
         run: ruff check .
@@ -43,6 +44,13 @@ jobs:
       - name: Reporte de calidad (LOC/CC/Coverage por paquete)
         run: |
           python scripts/report_quality.py --out logs/quality_report.txt
+
+      - name: Enforce CC target budgets
+        run: |
+          python scripts/report_quality.py --target app/ui/vistas/confirmacion_actions.py:iterar_pendientes_en_tabla --out logs/quality_report.txt
+          python scripts/report_quality.py --target app/ui/vistas/pendientes_iter_presenter.py:plan_iter_pendientes --out logs/quality_report_target_2.txt
+          cat logs/quality_report.txt logs/quality_report_target_2.txt > logs/quality_report_ci.txt
+          mv logs/quality_report_ci.txt logs/quality_report.txt
 
       - name: Subir artefacto de calidad
         uses: actions/upload-artifact@v4
