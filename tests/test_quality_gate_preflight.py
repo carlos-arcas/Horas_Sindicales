@@ -25,12 +25,7 @@ def test_preflight_falla_si_no_esta_pytest(monkeypatch, caplog) -> None:
 def test_preflight_falla_si_no_esta_pytest_cov(monkeypatch, caplog) -> None:
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: _Completed(0))
     monkeypatch.setattr(quality_gate.importlib.util, "find_spec", lambda _name: None)
-
-    with pytest.raises(SystemExit) as exc:
-        quality_gate.preflight_pytest()
-
-    assert exc.value.code == 2
-    assert "Falta pytest-cov" in caplog.text
+    assert quality_gate.pytest_cov_disponible() is False
 
 
 def test_preflight_ok_con_pytest_y_pytest_cov(monkeypatch) -> None:
@@ -38,3 +33,20 @@ def test_preflight_ok_con_pytest_y_pytest_cov(monkeypatch) -> None:
     monkeypatch.setattr(quality_gate.importlib.util, "find_spec", lambda _name: object())
 
     quality_gate.preflight_pytest()
+
+
+def test_construir_comando_pytest_sin_pytest_cov(monkeypatch, caplog) -> None:
+    monkeypatch.setattr(quality_gate, "pytest_cov_disponible", lambda: False)
+    command = quality_gate.construir_comando_pytest(80, ["app/domain"])
+
+    assert command == [quality_gate.sys.executable, "-m", "pytest", "-q", "-m", "not ui"]
+    assert "pytest-cov no disponible" in caplog.text
+
+
+def test_construir_comando_pytest_con_pytest_cov(monkeypatch) -> None:
+    monkeypatch.setattr(quality_gate, "pytest_cov_disponible", lambda: True)
+    command = quality_gate.construir_comando_pytest(80, ["app/domain", "app/application"])
+
+    assert "--cov-fail-under=80" in command
+    assert "--cov=app/domain" in command
+    assert "--cov=app/application" in command
