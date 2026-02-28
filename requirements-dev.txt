@@ -4,3 +4,4 @@ pytest-cov==6.3.0
 ruff==0.14.11
 pip-tools==7.4.1
 radon==6.0.1
+pyinstaller==6.16.0
