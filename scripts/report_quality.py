@@ -15,6 +15,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Genera reporte de señales de calidad")
     parser.add_argument("--out", default="logs/quality_report.txt", help="Ruta de salida del reporte TXT")
     parser.add_argument("--top", type=int, default=20, help="Cantidad de entradas en rankings")
+    parser.add_argument(
+        "--target",
+        default="app/ui/vistas/confirmacion_actions.py:on_confirmar",
+        help="Objetivo file.py:function_name para reportar CC puntual",
+    )
     return parser.parse_args()
 
 
@@ -60,6 +65,27 @@ def _top_complexity(files: list[Path], top_n: int) -> tuple[str, list[tuple[str,
 
     rows.sort(key=lambda item: item[1], reverse=True)
     return ("radon disponible", rows[:top_n])
+
+
+def _target_complexity(target: str) -> tuple[str, str]:
+    file_part, _, function_name = target.partition(":")
+    if not file_part or not function_name:
+        return ("target inválido", f"No se pudo parsear target={target!r}")
+
+    path = ROOT / file_part
+    if not path.exists():
+        return ("target no encontrado", f"No existe archivo {file_part}")
+
+    try:
+        from radon.complexity import cc_visit
+    except Exception:
+        return ("radon no disponible", f"CI radon must show CC <= 12 for {target}")
+
+    source = path.read_text(encoding="utf-8")
+    for block in cc_visit(source):
+        if block.name == function_name:
+            return ("target encontrado", f"{target} -> CC {int(block.complexity)} (lineas {block.lineno}-{block.endline})")
+    return ("target no encontrado", f"No se encontró {function_name} en {file_part}")
 
 
 def _load_coverage_json() -> tuple[str, dict[str, Any] | None]:
@@ -130,6 +156,8 @@ def _format_report(
     loc_rows: list[tuple[str, int]],
     cc_note: str,
     cc_rows: list[tuple[str, int]],
+    target_note: str,
+    target_value: str,
     coverage_note: str,
     coverage_rows: dict[str, float],
 ) -> str:
@@ -147,6 +175,11 @@ def _format_report(
         lines.append(f"{idx:02d}. {identifier} -> {complexity}")
 
     lines.append("")
+    lines.append("## Complejidad del objetivo")
+    lines.append(f"- Nota: {target_note}")
+    lines.append(f"- {target_value}")
+
+    lines.append("")
     lines.append("## Coverage por paquete")
     lines.append(f"- Nota: {coverage_note}")
     for package in ["domain", "application", "infrastructure", "ui"]:
@@ -160,10 +193,11 @@ def main() -> int:
     files = _python_files()
     loc_rows = _top_loc(files, top_n=args.top)
     cc_note, cc_rows = _top_complexity(files, top_n=args.top)
+    target_note, target_value = _target_complexity(args.target)
     coverage_note, coverage_data = _load_coverage_json()
     coverage_rows = _coverage_by_package(coverage_data)
 
-    report = _format_report(loc_rows, cc_note, cc_rows, coverage_note, coverage_rows)
+    report = _format_report(loc_rows, cc_note, cc_rows, target_note, target_value, coverage_note, coverage_rows)
     out_path = ROOT / args.out
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(report, encoding="utf-8")
