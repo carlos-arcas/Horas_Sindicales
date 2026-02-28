@@ -15,6 +15,7 @@ from app.bootstrap.logging import log_operational_error
 from app.ui.notification_service import ConfirmationSummaryPayload
 from app.ui.toast_helpers import toast_success
 from app.ui.vistas.confirmacion_presenter import ConfirmAction, ConfirmacionEntrada, plan_confirmacion
+from app.ui.vistas.pendientes_iter_presenter import IterAction, IterPendientesEntrada, PendienteRowSnapshot, plan_iter_pendientes
 from app.ui.vistas.ui_helpers import abrir_archivo_local, abrir_carpeta_contenedora
 
 if TYPE_CHECKING:
@@ -440,37 +441,52 @@ def _apply_finalize(
 
 
 def iterar_pendientes_en_tabla(window: Any) -> list[dict[str, object]]:
-    if window.pendientes_table is None:
-        return []
-    model = window.pendientes_table.model()
+    model = window.pendientes_table.model() if window.pendientes_table is not None else None
     if model is None:
         return []
 
+    snapshots = _build_pendientes_snapshots(window, model)
+    plan = plan_iter_pendientes(IterPendientesEntrada(ui_ready=True, rows=tuple(snapshots)))
+    return _apply_iter_pendientes_actions(plan.actions)
+
+
+def _build_pendientes_snapshots(window: Any, model: Any) -> list[PendienteRowSnapshot]:
     total_rows = model.rowCount()
     total_cols = model.columnCount()
-    delegada_col: int | None = None
+    delegada_col = _find_delegada_col(model, total_cols)
+    snapshots: list[PendienteRowSnapshot] = []
+    for row in range(total_rows):
+        solicitud = window.pendientes_model.solicitud_at(row) if window.pendientes_model is not None else None
+        snapshots.append(
+            PendienteRowSnapshot(
+                row=row,
+                solicitud_id=solicitud.id if solicitud is not None else None,
+                persona_id=solicitud.persona_id if solicitud is not None else None,
+                fecha_raw=model.index(row, 0).data() if total_cols > 0 else "",
+                desde_raw=model.index(row, 1).data() if total_cols > 1 else "",
+                hasta_raw=model.index(row, 2).data() if total_cols > 2 else "",
+                delegada_raw=model.index(row, delegada_col).data() if delegada_col is not None else None,
+            )
+        )
+    return snapshots
+
+
+def _find_delegada_col(model: Any, total_cols: int) -> int | None:
     for col in range(total_cols):
         header = model.headerData(col, Qt.Horizontal, Qt.DisplayRole)
         if str(header).strip().lower() == "delegada":
-            delegada_col = col
-            break
+            return col
+    return None
 
+
+def _apply_iter_pendientes_actions(actions: tuple[IterAction, ...]) -> list[dict[str, object]]:
     pendientes: list[dict[str, object]] = []
-    for row in range(total_rows):
-        solicitud = window.pendientes_model.solicitud_at(row) if window.pendientes_model is not None else None
-        fecha = model.index(row, 0).data() if total_cols > 0 else ""
-        desde = model.index(row, 1).data() if total_cols > 1 else ""
-        hasta = model.index(row, 2).data() if total_cols > 2 else ""
-        delegada = model.index(row, delegada_col).data() if delegada_col is not None else None
-        pendientes.append(
-            {
-                "row": row,
-                "id": solicitud.id if solicitud is not None else None,
-                "fecha": fecha if fecha not in (None, "-") else "",
-                "desde": desde if desde not in (None, "-") else "",
-                "hasta": hasta if hasta not in (None, "-") else "",
-                "persona_id": solicitud.persona_id if solicitud is not None else None,
-                "delegada": delegada if delegada not in (None, "-") else None,
-            }
-        )
+    for action in actions:
+        if action.action_type != "APPEND_PENDING":
+            continue
+        pendientes.append(_apply_append_pending(action))
     return pendientes
+
+
+def _apply_append_pending(action: IterAction) -> dict[str, object]:
+    return dict(action.payload)
