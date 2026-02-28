@@ -3,7 +3,7 @@
 ## Top 20 archivos por LOC
 01. app/ui/vistas/main_window_vista.py -> 2713 LOC
 02. app/application/use_cases/sync_sheets/use_case.py -> 1246 LOC
-03. app/application/use_cases/solicitudes/use_case.py -> 845 LOC
+03. app/application/use_cases/solicitudes/use_case.py -> 843 LOC
 04. app/ui/vistas/builders/main_window_builders.py -> 795 LOC
 05. app/infrastructure/repos_sqlite.py -> 617 LOC
 06. app/ui/sync_reporting.py -> 444 LOC
@@ -26,7 +26,7 @@
 - Nota: radon no disponible: se muestra fallback por LOC (aproximación simple de complejidad).
 01. app/ui/vistas/main_window_vista.py -> 2713
 02. app/application/use_cases/sync_sheets/use_case.py -> 1246
-03. app/application/use_cases/solicitudes/use_case.py -> 845
+03. app/application/use_cases/solicitudes/use_case.py -> 843
 04. app/ui/vistas/builders/main_window_builders.py -> 795
 05. app/infrastructure/repos_sqlite.py -> 617
 06. app/ui/sync_reporting.py -> 444
@@ -60,23 +60,23 @@
 
 ## Complejidad target
 - Nota: radon no disponible: se usa CC aproximada por AST (conteo de nodos condicionales).
-- app/application/use_cases/solicitudes/use_case.py:SolicitudUseCases.confirmar_sin_pdf -> 9
+- app/application/use_cases/solicitudes/use_case.py:SolicitudUseCases._generar_pdf_confirmadas -> 6
 
 ## Presupuesto CC target
-- Fuente: .config/quality_gate.json > cc_targets['app/application/use_cases/solicitudes/use_case.py:SolicitudUseCases.confirmar_sin_pdf']
+- Fuente: .config/quality_gate.json > cc_targets['app/application/use_cases/solicitudes/use_case.py:SolicitudUseCases._generar_pdf_confirmadas']
 - Límite: 10
-- Medido: 9
+- Medido: 6
 - Resultado: PASS
 
 
----
+# Target adicional
 
 # Reporte de calidad
 
 ## Top 20 archivos por LOC
 01. app/ui/vistas/main_window_vista.py -> 2713 LOC
 02. app/application/use_cases/sync_sheets/use_case.py -> 1246 LOC
-03. app/application/use_cases/solicitudes/use_case.py -> 845 LOC
+03. app/application/use_cases/solicitudes/use_case.py -> 843 LOC
 04. app/ui/vistas/builders/main_window_builders.py -> 795 LOC
 05. app/infrastructure/repos_sqlite.py -> 617 LOC
 06. app/ui/sync_reporting.py -> 444 LOC
@@ -99,7 +99,7 @@
 - Nota: radon no disponible: se muestra fallback por LOC (aproximación simple de complejidad).
 01. app/ui/vistas/main_window_vista.py -> 2713
 02. app/application/use_cases/sync_sheets/use_case.py -> 1246
-03. app/application/use_cases/solicitudes/use_case.py -> 845
+03. app/application/use_cases/solicitudes/use_case.py -> 843
 04. app/ui/vistas/builders/main_window_builders.py -> 795
 05. app/infrastructure/repos_sqlite.py -> 617
 06. app/ui/sync_reporting.py -> 444
@@ -133,10 +133,10 @@
 
 ## Complejidad target
 - Nota: radon no disponible: se usa CC aproximada por AST (conteo de nodos condicionales).
-- app/application/use_cases/solicitudes/confirmar_sin_pdf_planner.py:plan_confirmar_sin_pdf -> 5
+- app/application/use_cases/solicitudes/pdf_confirmadas_builder.py:plan_pdf_confirmadas -> 5
 
 ## Presupuesto CC target
-- Fuente: .config/quality_gate.json > cc_targets['app/application/use_cases/solicitudes/confirmar_sin_pdf_planner.py:plan_confirmar_sin_pdf']
+- Fuente: .config/quality_gate.json > cc_targets['app/application/use_cases/solicitudes/pdf_confirmadas_builder.py:plan_pdf_confirmadas']
 - Límite: 8
 - Medido: 5
 - Resultado: PASS
