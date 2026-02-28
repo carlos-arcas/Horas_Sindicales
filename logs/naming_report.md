@@ -1,0 +1,305 @@
+# Reporte de naming debt
+
+- Estado: **FAIL**
+- Umbral configurado: `0`
+- Total offenders detectados: `272`
+
+## Archivos en app/ con naming en inglés
+- `app/application/auditoria_e2e/__init__.py`
+- `app/application/auditoria_e2e/caso_uso.py`
+- `app/application/auditoria_e2e/dto.py`
+- `app/application/auditoria_e2e/puertos.py`
+- `app/application/auditoria_e2e/reglas.py`
+- `app/application/base_cuadrantes_service.py`
+- `app/application/conflicts_service.py`
+- `app/application/delegada_resolution.py`
+- `app/application/dto.py`
+- `app/application/dtos/__init__.py`
+- `app/application/dtos/contexto_operacion.py`
+- `app/application/operaciones/__init__.py`
+- `app/application/operaciones/auditoria_e2e_operacion.py`
+- `app/application/operaciones/confirmacion_pdf_operacion.py`
+- `app/application/operaciones/contratos.py`
+- `app/application/operaciones/exportacion_pdf_historico_operacion.py`
+- `app/application/operaciones/modelos.py`
+- `app/application/pending_conflicts.py`
+- `app/application/ports/conflicts_repository.py`
+- `app/application/ports/db_lock_error_classifier.py`
+- `app/application/ports/pdf_puerto.py`
+- `app/application/ports/sistema_archivos_puerto.py`
+- `app/application/sheets_service.py`
+- `app/application/sync.py`
+- `app/application/sync_diagnostics.py`
+- `app/application/sync_normalization.py`
+- `app/application/sync_sheets_use_case.py`
+- `app/application/use_cases/__init__.py`
+- `app/application/use_cases/alert_engine.py`
+- `app/application/use_cases/conflict_resolution_policy.py`
+- `app/application/use_cases/grupos_config/__init__.py`
+- `app/application/use_cases/grupos_config/use_case.py`
+- `app/application/use_cases/health_check.py`
+- `app/application/use_cases/personas/__init__.py`
+- `app/application/use_cases/personas/use_case.py`
+- `app/application/use_cases/retry_sync_use_case.py`
+- `app/application/use_cases/solicitudes/__init__.py`
+- `app/application/use_cases/solicitudes/confirmacion_pdf_service.py`
+- `app/application/use_cases/solicitudes/confirmar_sin_pdf_planner.py`
+- `app/application/use_cases/solicitudes/detector_duplicados.py`
+- `app/application/use_cases/solicitudes/ensamblador_resultado.py`
+- `app/application/use_cases/solicitudes/helpers_puros.py`
+- `app/application/use_cases/solicitudes/helpers_puros_2.py`
+- `app/application/use_cases/solicitudes/mapping_service.py`
+- `app/application/use_cases/solicitudes/normalizacion_solicitud.py`
+- `app/application/use_cases/solicitudes/pdf_confirmadas_builder.py`
+- `app/application/use_cases/solicitudes/pdf_confirmadas_runner.py`
+- `app/application/use_cases/solicitudes/use_case.py`
+- `app/application/use_cases/solicitudes/validacion_service.py`
+- `app/application/use_cases/solicitudes/validaciones.py`
+- `app/application/use_cases/solicitudes/validar_datos_basicos.py`
+- `app/application/use_cases/sync_sheets/__init__.py`
+- `app/application/use_cases/sync_sheets/action_planning.py`
+- `app/application/use_cases/sync_sheets/conflict_policy.py`
+- `app/application/use_cases/sync_sheets/conflicts.py`
+- `app/application/use_cases/sync_sheets/executor.py`
+- `app/application/use_cases/sync_sheets/helpers.py`
+- `app/application/use_cases/sync_sheets/normalization_rules.py`
+- `app/application/use_cases/sync_sheets/payloads_puros.py`
+- `app/application/use_cases/sync_sheets/persistence_ops.py`
+- `app/application/use_cases/sync_sheets/persona_resolution_rules.py`
+- `app/application/use_cases/sync_sheets/planner.py`
+- `app/application/use_cases/sync_sheets/pull_planner.py`
+- `app/application/use_cases/sync_sheets/pull_runner.py`
+- `app/application/use_cases/sync_sheets/push_builder.py`
+- `app/application/use_cases/sync_sheets/push_runner.py`
+- `app/application/use_cases/sync_sheets/reporting.py`
+- `app/application/use_cases/sync_sheets/sync_reporting_rules.py`
+- `app/application/use_cases/sync_sheets/sync_sheets_helpers.py`
+- `app/application/use_cases/sync_sheets/sync_snapshots.py`
+- `app/application/use_cases/sync_sheets/types.py`
+- `app/application/use_cases/sync_sheets/use_case.py`
+- `app/application/use_cases/sync_sheets.py`
+- `app/application/use_cases/sync_sheets_core.py`
+- `app/application/use_cases/validacion_preventiva_lock_use_case.py`
+- `app/bootstrap/exception_handler.py`
+- `app/core/errors.py`
+- `app/core/metrics.py`
+- `app/core/observability.py`
+- `app/core/redactor_secretos.py`
+- `app/domain/base_cuadrantes.py`
+- `app/domain/models.py`
+- `app/domain/ports.py`
+- `app/domain/request_time.py`
+- `app/domain/services.py`
+- `app/domain/sheets_errors.py`
+- `app/domain/sync_models.py`
+- `app/domain/time_range.py`
+- `app/domain/time_utils.py`
+- `app/entrypoints/__init__.py`
+- `app/entrypoints/cli_auditoria.py`
+- `app/entrypoints/main.py`
+- `app/entrypoints/ui_main.py`
+- `app/infrastructure/auditoria_e2e/__init__.py`
+- `app/infrastructure/auditoria_e2e/adaptadores.py`
+- `app/infrastructure/conflicts_payloads.py`
+- `app/infrastructure/db.py`
+- `app/infrastructure/health_probes.py`
+- `app/infrastructure/local_config.py`
+- `app/infrastructure/local_config_store.py`
+- `app/infrastructure/migrations.py`
+- `app/infrastructure/migrations_cli.py`
+- `app/infrastructure/pdf/generador_pdf_reportlab.py`
+- `app/infrastructure/repos_conflicts_sqlite.py`
+- `app/infrastructure/repos_sqlite.py`
+- `app/infrastructure/repos_sqlite_builders.py`
+- `app/infrastructure/seed.py`
+- `app/infrastructure/sheets_client.py`
+- `app/infrastructure/sheets_client_puros.py`
+- `app/infrastructure/sheets_errors.py`
+- `app/infrastructure/sheets_gateway_gspread.py`
+- `app/infrastructure/sheets_gateway_puros.py`
+- `app/infrastructure/sheets_repository.py`
+- `app/infrastructure/sheets_sync_service.py`
+- `app/infrastructure/sistema_archivos/__init__.py`
+- `app/infrastructure/sistema_archivos/local.py`
+- `app/infrastructure/sqlite_lock_error_classifier.py`
+- `app/infrastructure/sqlite_uow.py`
+- `app/infrastructure/sync_sheets_adapter.py`
+- `app/infrastructure/sync_sheets_adapter_puros.py`
+- `app/pdf/pdf_builder.py`
+- `app/pdf/service.py`
+- `app/ui/componentes/badge_estado.py`
+- `app/ui/componentes/botones.py`
+- `app/ui/componentes/dialogos.py`
+- `app/ui/componentes/tarjeta.py`
+- `app/ui/components/__init__.py`
+- `app/ui/components/card_widget.py`
+- `app/ui/components/contexto_trabajo_widget.py`
+- `app/ui/components/empty_state.py`
+- `app/ui/components/primary_button.py`
+- `app/ui/components/saldos_card.py`
+- `app/ui/components/secondary_button.py`
+- `app/ui/components/status_badge.py`
+- `app/ui/conflict_guidance.py`
+- `app/ui/conflicts_dialog.py`
+- `app/ui/controladores/controlador_navegacion.py`
+- `app/ui/controladores/controlador_sincronizacion.py`
+- `app/ui/controladores/controlador_solicitudes.py`
+- `app/ui/controladores/main_window_controlador.py`
+- `app/ui/controllers/pdf_controller.py`
+- `app/ui/controllers/personas_controller.py`
+- `app/ui/controllers/solicitudes_controller.py`
+- `app/ui/controllers/sync_button_state_rules.py`
+- `app/ui/controllers/sync_controller.py`
+- `app/ui/copy_catalog.py`
+- `app/ui/dialog_opciones.py`
+- `app/ui/error_mapping.py`
+- `app/ui/estado/estado_main_window.py`
+- `app/ui/estilos/apply_theme.py`
+- `app/ui/estilos/tokens.py`
+- `app/ui/group_dialog.py`
+- `app/ui/historico_view.py`
+- `app/ui/main_window.py`
+- `app/ui/models/solicitudes_table_presenter.py`
+- `app/ui/models_qt.py`
+- `app/ui/notification_service.py`
+- `app/ui/patterns.py`
+- `app/ui/person_dialog.py`
+- `app/ui/style.py`
+- `app/ui/sync_reporting.py`
+- `app/ui/theme/__init__.py`
+- `app/ui/theme/cgt_theme.py`
+- `app/ui/toast_compat.py`
+- `app/ui/toast_helpers.py`
+- `app/ui/vistas/builders/main_window_builders.py`
+- `app/ui/vistas/confirmacion_actions.py`
+- `app/ui/vistas/confirmacion_presenter.py`
+- `app/ui/vistas/confirmar_pdf_state.py`
+- `app/ui/vistas/historico_actions.py`
+- `app/ui/vistas/historico_filter_rules.py`
+- `app/ui/vistas/historico_refresh_logic.py`
+- `app/ui/vistas/init_refresh.py`
+- `app/ui/vistas/main_window_health_mixin.py`
+- `app/ui/vistas/main_window_helpers.py`
+- `app/ui/vistas/main_window_vista.py`
+- `app/ui/vistas/paginas/pagina_configuracion.py`
+- `app/ui/vistas/paginas/pagina_historico.py`
+- `app/ui/vistas/paginas/pagina_personas.py`
+- `app/ui/vistas/paginas/pagina_sincronizacion.py`
+- `app/ui/vistas/paginas/pagina_solicitudes.py`
+- `app/ui/vistas/pendientes_iter_presenter.py`
+- `app/ui/vistas/pending_duplicate_presenter.py`
+- `app/ui/vistas/personas_presenter.py`
+- `app/ui/vistas/solicitudes_presenter.py`
+- `app/ui/vistas/solicitudes_ux_rules.py`
+- `app/ui/vistas/ui_helpers.py`
+- `app/ui/widgets/buttons.py`
+- `app/ui/widgets/time_edit.py`
+- `app/ui/widgets/toast.py`
+- `app/ui/workers/sincronizacion_workers.py`
+
+## Símbolos públicos en inglés
+- `app/application/auditoria_e2e/reglas.py` :: `evaluar_check_tests` (tests)
+- `app/application/base_cuadrantes_service.py` :: `BaseCuadrantesService` (service)
+- `app/application/conflicts_service.py` :: `ConflictsService` (service)
+- `app/application/dto.py` :: `PersonaDTO` (dto)
+- `app/application/dto.py` :: `SolicitudDTO` (dto)
+- `app/application/dto.py` :: `ConflictoDiaDTO` (dto)
+- `app/application/dto.py` :: `GrupoConfigDTO` (dto)
+- `app/application/dto.py` :: `SaldosDTO` (dto)
+- `app/application/dto.py` :: `TotalesGlobalesDTO` (dto)
+- `app/application/dto.py` :: `ResumenIndividualDTO` (dto)
+- `app/application/dto.py` :: `ResumenGlobalAnualDTO` (dto)
+- `app/application/dto.py` :: `ResumenGrupoAnualDTO` (dto)
+- `app/application/dto.py` :: `ResumenSaldosDTO` (dto)
+- `app/application/dto.py` :: `ResultadoCrearSolicitudDTO` (dto)
+- `app/application/ports/conflicts_repository.py` :: `ConflictsRepository` (repository)
+- `app/application/sheets_service.py` :: `SheetsService` (service)
+- `app/application/sheets_service.py` :: `test_connection` (test)
+- `app/application/sync_sheets_use_case.py` :: `SyncSheetsUseCase` (case, use)
+- `app/application/use_cases/grupos_config/use_case.py` :: `GrupoConfigUseCases` (use)
+- `app/application/use_cases/health_check.py` :: `HealthCheckUseCase` (case, use)
+- `app/application/use_cases/personas/use_case.py` :: `PersonaUseCases` (use)
+- `app/application/use_cases/retry_sync_use_case.py` :: `RetrySyncUseCase` (case, use)
+- `app/application/use_cases/solicitudes/helpers_puros.py` :: `normalizar_dto_para_creacion` (dto)
+- `app/application/use_cases/solicitudes/helpers_puros_2.py` :: `solicitud_desde_dto` (dto)
+- `app/application/use_cases/solicitudes/mapping_service.py` :: `solicitud_to_dto` (dto)
+- `app/application/use_cases/solicitudes/mapping_service.py` :: `dto_to_solicitud` (dto)
+- `app/application/use_cases/solicitudes/use_case.py` :: `SolicitudUseCases` (use)
+- `app/application/use_cases/solicitudes/validaciones.py` :: `validar_solicitud_dto_declarativo` (dto)
+- `app/application/use_cases/sync_sheets/sync_snapshots.py` :: `RemoteSolicitudRowDTO` (dto)
+- `app/application/use_cases/sync_sheets/use_case.py` :: `SheetsSyncService` (service)
+- `app/application/use_cases/validacion_preventiva_lock_use_case.py` :: `ValidacionPreventivaLockUseCase` (case, use)
+- `app/core/errors.py` :: `ExternalServiceError` (service)
+- `app/domain/ports.py` :: `PersonaRepository` (repository)
+- `app/domain/ports.py` :: `CuadranteRepository` (repository)
+- `app/domain/ports.py` :: `SolicitudRepository` (repository)
+- `app/domain/ports.py` :: `GrupoConfigRepository` (repository)
+- `app/domain/ports.py` :: `SqlCursorPort` (port)
+- `app/domain/ports.py` :: `SqlConnectionPort` (port)
+- `app/domain/ports.py` :: `SheetsConfigStorePort` (port)
+- `app/domain/ports.py` :: `SheetsGatewayPort` (port)
+- `app/domain/ports.py` :: `test_connection` (test)
+- `app/domain/ports.py` :: `SheetsClientPort` (port)
+- `app/domain/ports.py` :: `SheetsRepositoryPort` (port, repository)
+- `app/domain/ports.py` :: `SheetsSyncPort` (port)
+- `app/entrypoints/ui_main.py` :: `construir_mensaje_error_ui` (ui)
+- `app/entrypoints/ui_main.py` :: `manejar_excepcion_ui` (ui)
+- `app/entrypoints/ui_main.py` :: `run_ui` (ui)
+- `app/infrastructure/repos_conflicts_sqlite.py` :: `SQLiteConflictsRepository` (repository)
+- `app/infrastructure/repos_sqlite.py` :: `PersonaRepositorySQLite` (repository)
+- `app/infrastructure/repos_sqlite.py` :: `CuadranteRepositorySQLite` (repository)
+- `app/infrastructure/repos_sqlite.py` :: `SolicitudRepositorySQLite` (repository)
+- `app/infrastructure/repos_sqlite.py` :: `GrupoConfigRepositorySQLite` (repository)
+- `app/infrastructure/sheets_gateway_gspread.py` :: `test_connection` (test)
+- `app/infrastructure/sheets_repository.py` :: `SheetsRepository` (repository)
+- `app/infrastructure/sync_sheets_adapter.py` :: `SyncSheetsAdapter` (adapter)
+- `app/infrastructure/sync_sheets_adapter_puros.py` :: `build_service_operation` (service)
+- `app/ui/components/card_widget.py` :: `CardWidget` (widget)
+- `app/ui/components/contexto_trabajo_widget.py` :: `ContextoTrabajoWidget` (widget)
+- `app/ui/components/empty_state.py` :: `EmptyStateWidget` (widget)
+- `app/ui/conflicts_dialog.py` :: `ConflictsTableModel` (model)
+- `app/ui/controllers/pdf_controller.py` :: `PdfController` (controller)
+- `app/ui/controllers/personas_controller.py` :: `PersonasController` (controller)
+- `app/ui/controllers/solicitudes_controller.py` :: `SolicitudesController` (controller)
+- `app/ui/controllers/sync_controller.py` :: `SyncController` (controller)
+- `app/ui/error_mapping.py` :: `UiErrorMessage` (ui)
+- `app/ui/error_mapping.py` :: `map_error_to_ui_message` (ui)
+- `app/ui/historico_view.py` :: `HistoricoFilterProxyModel` (model)
+- `app/ui/historico_view.py` :: `HistoricalViewModel` (model, view)
+- `app/ui/models_qt.py` :: `PersonasTableModel` (model)
+- `app/ui/models_qt.py` :: `SolicitudesTableModel` (model)
+- `app/ui/notification_service.py` :: `NotificationService` (service)
+- `app/ui/patterns.py` :: `UiStatusPattern` (ui)
+- `app/ui/toast_compat.py` :: `ui_toast_success` (ui)
+- `app/ui/toast_compat.py` :: `ui_toast_error` (ui)
+- `app/ui/vistas/builders/main_window_builders.py` :: `build_saldos_widget` (widget)
+- `app/ui/vistas/solicitudes_presenter.py` :: `PreventiveValidationViewInput` (view)
+- `app/ui/vistas/solicitudes_presenter.py` :: `PreventiveValidationViewOutput` (view)
+- `app/ui/vistas/solicitudes_presenter.py` :: `build_preventive_validation_view_model` (model, view)
+- `app/ui/widgets/toast.py` :: `ToastWidget` (widget)
+- `app/ui/workers/sincronizacion_workers.py` :: `SyncWorker` (worker)
+- `app/ui/workers/sincronizacion_workers.py` :: `PushWorker` (worker)
+
+## Top 20 offenders por archivo
+| Archivo | Tokens inglés | Ruta | Código |
+|---|---:|---:|---:|
+| app/ui/vistas/main_window_vista.py | 585 | 1 | 584 |
+| app/application/use_cases/solicitudes/use_case.py | 262 | 3 | 259 |
+| app/ui/vistas/builders/main_window_builders.py | 237 | 2 | 235 |
+| app/application/use_cases/sync_sheets/use_case.py | 137 | 3 | 134 |
+| app/bootstrap/container.py | 137 | 0 | 137 |
+| app/application/use_cases/personas/use_case.py | 112 | 3 | 109 |
+| app/ui/vistas/confirmacion_actions.py | 77 | 1 | 76 |
+| app/ui/conflicts_dialog.py | 75 | 1 | 74 |
+| app/ui/group_dialog.py | 70 | 1 | 69 |
+| app/ui/historico_view.py | 61 | 2 | 59 |
+| app/ui/models_qt.py | 52 | 2 | 50 |
+| app/ui/dialog_opciones.py | 51 | 1 | 50 |
+| app/application/use_cases/solicitudes/validaciones.py | 48 | 2 | 46 |
+| app/ui/person_dialog.py | 48 | 1 | 47 |
+| app/ui/vistas/main_window_helpers.py | 46 | 2 | 44 |
+| app/ui/controllers/sync_controller.py | 44 | 3 | 41 |
+| app/application/use_cases/solicitudes/validacion_service.py | 42 | 3 | 39 |
+| app/ui/controllers/solicitudes_controller.py | 42 | 3 | 39 |
+| app/application/auditoria_e2e/reglas.py | 41 | 1 | 40 |
+| app/infrastructure/sync_sheets_adapter.py | 40 | 2 | 38 |

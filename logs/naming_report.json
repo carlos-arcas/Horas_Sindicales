@@ -1,0 +1,896 @@
+{
+  "estado": "FAIL",
+  "umbral_offenders": 0,
+  "total_offenders": 272,
+  "archivos_con_naming_ingles": [
+    "app/application/auditoria_e2e/__init__.py",
+    "app/application/auditoria_e2e/caso_uso.py",
+    "app/application/auditoria_e2e/dto.py",
+    "app/application/auditoria_e2e/puertos.py",
+    "app/application/auditoria_e2e/reglas.py",
+    "app/application/base_cuadrantes_service.py",
+    "app/application/conflicts_service.py",
+    "app/application/delegada_resolution.py",
+    "app/application/dto.py",
+    "app/application/dtos/__init__.py",
+    "app/application/dtos/contexto_operacion.py",
+    "app/application/operaciones/__init__.py",
+    "app/application/operaciones/auditoria_e2e_operacion.py",
+    "app/application/operaciones/confirmacion_pdf_operacion.py",
+    "app/application/operaciones/contratos.py",
+    "app/application/operaciones/exportacion_pdf_historico_operacion.py",
+    "app/application/operaciones/modelos.py",
+    "app/application/pending_conflicts.py",
+    "app/application/ports/conflicts_repository.py",
+    "app/application/ports/db_lock_error_classifier.py",
+    "app/application/ports/pdf_puerto.py",
+    "app/application/ports/sistema_archivos_puerto.py",
+    "app/application/sheets_service.py",
+    "app/application/sync.py",
+    "app/application/sync_diagnostics.py",
+    "app/application/sync_normalization.py",
+    "app/application/sync_sheets_use_case.py",
+    "app/application/use_cases/__init__.py",
+    "app/application/use_cases/alert_engine.py",
+    "app/application/use_cases/conflict_resolution_policy.py",
+    "app/application/use_cases/grupos_config/__init__.py",
+    "app/application/use_cases/grupos_config/use_case.py",
+    "app/application/use_cases/health_check.py",
+    "app/application/use_cases/personas/__init__.py",
+    "app/application/use_cases/personas/use_case.py",
+    "app/application/use_cases/retry_sync_use_case.py",
+    "app/application/use_cases/solicitudes/__init__.py",
+    "app/application/use_cases/solicitudes/confirmacion_pdf_service.py",
+    "app/application/use_cases/solicitudes/confirmar_sin_pdf_planner.py",
+    "app/application/use_cases/solicitudes/detector_duplicados.py",
+    "app/application/use_cases/solicitudes/ensamblador_resultado.py",
+    "app/application/use_cases/solicitudes/helpers_puros.py",
+    "app/application/use_cases/solicitudes/helpers_puros_2.py",
+    "app/application/use_cases/solicitudes/mapping_service.py",
+    "app/application/use_cases/solicitudes/normalizacion_solicitud.py",
+    "app/application/use_cases/solicitudes/pdf_confirmadas_builder.py",
+    "app/application/use_cases/solicitudes/pdf_confirmadas_runner.py",
+    "app/application/use_cases/solicitudes/use_case.py",
+    "app/application/use_cases/solicitudes/validacion_service.py",
+    "app/application/use_cases/solicitudes/validaciones.py",
+    "app/application/use_cases/solicitudes/validar_datos_basicos.py",
+    "app/application/use_cases/sync_sheets/__init__.py",
+    "app/application/use_cases/sync_sheets/action_planning.py",
+    "app/application/use_cases/sync_sheets/conflict_policy.py",
+    "app/application/use_cases/sync_sheets/conflicts.py",
+    "app/application/use_cases/sync_sheets/executor.py",
+    "app/application/use_cases/sync_sheets/helpers.py",
+    "app/application/use_cases/sync_sheets/normalization_rules.py",
+    "app/application/use_cases/sync_sheets/payloads_puros.py",
+    "app/application/use_cases/sync_sheets/persistence_ops.py",
+    "app/application/use_cases/sync_sheets/persona_resolution_rules.py",
+    "app/application/use_cases/sync_sheets/planner.py",
+    "app/application/use_cases/sync_sheets/pull_planner.py",
+    "app/application/use_cases/sync_sheets/pull_runner.py",
+    "app/application/use_cases/sync_sheets/push_builder.py",
+    "app/application/use_cases/sync_sheets/push_runner.py",
+    "app/application/use_cases/sync_sheets/reporting.py",
+    "app/application/use_cases/sync_sheets/sync_reporting_rules.py",
+    "app/application/use_cases/sync_sheets/sync_sheets_helpers.py",
+    "app/application/use_cases/sync_sheets/sync_snapshots.py",
+    "app/application/use_cases/sync_sheets/types.py",
+    "app/application/use_cases/sync_sheets/use_case.py",
+    "app/application/use_cases/sync_sheets.py",
+    "app/application/use_cases/sync_sheets_core.py",
+    "app/application/use_cases/validacion_preventiva_lock_use_case.py",
+    "app/bootstrap/exception_handler.py",
+    "app/core/errors.py",
+    "app/core/metrics.py",
+    "app/core/observability.py",
+    "app/core/redactor_secretos.py",
+    "app/domain/base_cuadrantes.py",
+    "app/domain/models.py",
+    "app/domain/ports.py",
+    "app/domain/request_time.py",
+    "app/domain/services.py",
+    "app/domain/sheets_errors.py",
+    "app/domain/sync_models.py",
+    "app/domain/time_range.py",
+    "app/domain/time_utils.py",
+    "app/entrypoints/__init__.py",
+    "app/entrypoints/cli_auditoria.py",
+    "app/entrypoints/main.py",
+    "app/entrypoints/ui_main.py",
+    "app/infrastructure/auditoria_e2e/__init__.py",
+    "app/infrastructure/auditoria_e2e/adaptadores.py",
+    "app/infrastructure/conflicts_payloads.py",
+    "app/infrastructure/db.py",
+    "app/infrastructure/health_probes.py",
+    "app/infrastructure/local_config.py",
+    "app/infrastructure/local_config_store.py",
+    "app/infrastructure/migrations.py",
+    "app/infrastructure/migrations_cli.py",
+    "app/infrastructure/pdf/generador_pdf_reportlab.py",
+    "app/infrastructure/repos_conflicts_sqlite.py",
+    "app/infrastructure/repos_sqlite.py",
+    "app/infrastructure/repos_sqlite_builders.py",
+    "app/infrastructure/seed.py",
+    "app/infrastructure/sheets_client.py",
+    "app/infrastructure/sheets_client_puros.py",
+    "app/infrastructure/sheets_errors.py",
+    "app/infrastructure/sheets_gateway_gspread.py",
+    "app/infrastructure/sheets_gateway_puros.py",
+    "app/infrastructure/sheets_repository.py",
+    "app/infrastructure/sheets_sync_service.py",
+    "app/infrastructure/sistema_archivos/__init__.py",
+    "app/infrastructure/sistema_archivos/local.py",
+    "app/infrastructure/sqlite_lock_error_classifier.py",
+    "app/infrastructure/sqlite_uow.py",
+    "app/infrastructure/sync_sheets_adapter.py",
+    "app/infrastructure/sync_sheets_adapter_puros.py",
+    "app/pdf/pdf_builder.py",
+    "app/pdf/service.py",
+    "app/ui/componentes/badge_estado.py",
+    "app/ui/componentes/botones.py",
+    "app/ui/componentes/dialogos.py",
+    "app/ui/componentes/tarjeta.py",
+    "app/ui/components/__init__.py",
+    "app/ui/components/card_widget.py",
+    "app/ui/components/contexto_trabajo_widget.py",
+    "app/ui/components/empty_state.py",
+    "app/ui/components/primary_button.py",
+    "app/ui/components/saldos_card.py",
+    "app/ui/components/secondary_button.py",
+    "app/ui/components/status_badge.py",
+    "app/ui/conflict_guidance.py",
+    "app/ui/conflicts_dialog.py",
+    "app/ui/controladores/controlador_navegacion.py",
+    "app/ui/controladores/controlador_sincronizacion.py",
+    "app/ui/controladores/controlador_solicitudes.py",
+    "app/ui/controladores/main_window_controlador.py",
+    "app/ui/controllers/pdf_controller.py",
+    "app/ui/controllers/personas_controller.py",
+    "app/ui/controllers/solicitudes_controller.py",
+    "app/ui/controllers/sync_button_state_rules.py",
+    "app/ui/controllers/sync_controller.py",
+    "app/ui/copy_catalog.py",
+    "app/ui/dialog_opciones.py",
+    "app/ui/error_mapping.py",
+    "app/ui/estado/estado_main_window.py",
+    "app/ui/estilos/apply_theme.py",
+    "app/ui/estilos/tokens.py",
+    "app/ui/group_dialog.py",
+    "app/ui/historico_view.py",
+    "app/ui/main_window.py",
+    "app/ui/models/solicitudes_table_presenter.py",
+    "app/ui/models_qt.py",
+    "app/ui/notification_service.py",
+    "app/ui/patterns.py",
+    "app/ui/person_dialog.py",
+    "app/ui/style.py",
+    "app/ui/sync_reporting.py",
+    "app/ui/theme/__init__.py",
+    "app/ui/theme/cgt_theme.py",
+    "app/ui/toast_compat.py",
+    "app/ui/toast_helpers.py",
+    "app/ui/vistas/builders/main_window_builders.py",
+    "app/ui/vistas/confirmacion_actions.py",
+    "app/ui/vistas/confirmacion_presenter.py",
+    "app/ui/vistas/confirmar_pdf_state.py",
+    "app/ui/vistas/historico_actions.py",
+    "app/ui/vistas/historico_filter_rules.py",
+    "app/ui/vistas/historico_refresh_logic.py",
+    "app/ui/vistas/init_refresh.py",
+    "app/ui/vistas/main_window_health_mixin.py",
+    "app/ui/vistas/main_window_helpers.py",
+    "app/ui/vistas/main_window_vista.py",
+    "app/ui/vistas/paginas/pagina_configuracion.py",
+    "app/ui/vistas/paginas/pagina_historico.py",
+    "app/ui/vistas/paginas/pagina_personas.py",
+    "app/ui/vistas/paginas/pagina_sincronizacion.py",
+    "app/ui/vistas/paginas/pagina_solicitudes.py",
+    "app/ui/vistas/pendientes_iter_presenter.py",
+    "app/ui/vistas/pending_duplicate_presenter.py",
+    "app/ui/vistas/personas_presenter.py",
+    "app/ui/vistas/solicitudes_presenter.py",
+    "app/ui/vistas/solicitudes_ux_rules.py",
+    "app/ui/vistas/ui_helpers.py",
+    "app/ui/widgets/buttons.py",
+    "app/ui/widgets/time_edit.py",
+    "app/ui/widgets/toast.py",
+    "app/ui/workers/sincronizacion_workers.py"
+  ],
+  "simbolos_publicos_en_ingles": [
+    {
+      "archivo": "app/application/auditoria_e2e/reglas.py",
+      "simbolo": "evaluar_check_tests",
+      "tokens_ingles": [
+        "tests"
+      ]
+    },
+    {
+      "archivo": "app/application/base_cuadrantes_service.py",
+      "simbolo": "BaseCuadrantesService",
+      "tokens_ingles": [
+        "service"
+      ]
+    },
+    {
+      "archivo": "app/application/conflicts_service.py",
+      "simbolo": "ConflictsService",
+      "tokens_ingles": [
+        "service"
+      ]
+    },
+    {
+      "archivo": "app/application/dto.py",
+      "simbolo": "PersonaDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/dto.py",
+      "simbolo": "SolicitudDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/dto.py",
+      "simbolo": "ConflictoDiaDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/dto.py",
+      "simbolo": "GrupoConfigDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/dto.py",
+      "simbolo": "SaldosDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/dto.py",
+      "simbolo": "TotalesGlobalesDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/dto.py",
+      "simbolo": "ResumenIndividualDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/dto.py",
+      "simbolo": "ResumenGlobalAnualDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/dto.py",
+      "simbolo": "ResumenGrupoAnualDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/dto.py",
+      "simbolo": "ResumenSaldosDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/dto.py",
+      "simbolo": "ResultadoCrearSolicitudDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/ports/conflicts_repository.py",
+      "simbolo": "ConflictsRepository",
+      "tokens_ingles": [
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/application/sheets_service.py",
+      "simbolo": "SheetsService",
+      "tokens_ingles": [
+        "service"
+      ]
+    },
+    {
+      "archivo": "app/application/sheets_service.py",
+      "simbolo": "test_connection",
+      "tokens_ingles": [
+        "test"
+      ]
+    },
+    {
+      "archivo": "app/application/sync_sheets_use_case.py",
+      "simbolo": "SyncSheetsUseCase",
+      "tokens_ingles": [
+        "case",
+        "use"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/grupos_config/use_case.py",
+      "simbolo": "GrupoConfigUseCases",
+      "tokens_ingles": [
+        "use"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/health_check.py",
+      "simbolo": "HealthCheckUseCase",
+      "tokens_ingles": [
+        "case",
+        "use"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/personas/use_case.py",
+      "simbolo": "PersonaUseCases",
+      "tokens_ingles": [
+        "use"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/retry_sync_use_case.py",
+      "simbolo": "RetrySyncUseCase",
+      "tokens_ingles": [
+        "case",
+        "use"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/solicitudes/helpers_puros.py",
+      "simbolo": "normalizar_dto_para_creacion",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/solicitudes/helpers_puros_2.py",
+      "simbolo": "solicitud_desde_dto",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/solicitudes/mapping_service.py",
+      "simbolo": "solicitud_to_dto",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/solicitudes/mapping_service.py",
+      "simbolo": "dto_to_solicitud",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/solicitudes/use_case.py",
+      "simbolo": "SolicitudUseCases",
+      "tokens_ingles": [
+        "use"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/solicitudes/validaciones.py",
+      "simbolo": "validar_solicitud_dto_declarativo",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/sync_sheets/sync_snapshots.py",
+      "simbolo": "RemoteSolicitudRowDTO",
+      "tokens_ingles": [
+        "dto"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/sync_sheets/use_case.py",
+      "simbolo": "SheetsSyncService",
+      "tokens_ingles": [
+        "service"
+      ]
+    },
+    {
+      "archivo": "app/application/use_cases/validacion_preventiva_lock_use_case.py",
+      "simbolo": "ValidacionPreventivaLockUseCase",
+      "tokens_ingles": [
+        "case",
+        "use"
+      ]
+    },
+    {
+      "archivo": "app/core/errors.py",
+      "simbolo": "ExternalServiceError",
+      "tokens_ingles": [
+        "service"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "PersonaRepository",
+      "tokens_ingles": [
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "CuadranteRepository",
+      "tokens_ingles": [
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "SolicitudRepository",
+      "tokens_ingles": [
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "GrupoConfigRepository",
+      "tokens_ingles": [
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "SqlCursorPort",
+      "tokens_ingles": [
+        "port"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "SqlConnectionPort",
+      "tokens_ingles": [
+        "port"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "SheetsConfigStorePort",
+      "tokens_ingles": [
+        "port"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "SheetsGatewayPort",
+      "tokens_ingles": [
+        "port"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "test_connection",
+      "tokens_ingles": [
+        "test"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "SheetsClientPort",
+      "tokens_ingles": [
+        "port"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "SheetsRepositoryPort",
+      "tokens_ingles": [
+        "port",
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/domain/ports.py",
+      "simbolo": "SheetsSyncPort",
+      "tokens_ingles": [
+        "port"
+      ]
+    },
+    {
+      "archivo": "app/entrypoints/ui_main.py",
+      "simbolo": "construir_mensaje_error_ui",
+      "tokens_ingles": [
+        "ui"
+      ]
+    },
+    {
+      "archivo": "app/entrypoints/ui_main.py",
+      "simbolo": "manejar_excepcion_ui",
+      "tokens_ingles": [
+        "ui"
+      ]
+    },
+    {
+      "archivo": "app/entrypoints/ui_main.py",
+      "simbolo": "run_ui",
+      "tokens_ingles": [
+        "ui"
+      ]
+    },
+    {
+      "archivo": "app/infrastructure/repos_conflicts_sqlite.py",
+      "simbolo": "SQLiteConflictsRepository",
+      "tokens_ingles": [
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/infrastructure/repos_sqlite.py",
+      "simbolo": "PersonaRepositorySQLite",
+      "tokens_ingles": [
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/infrastructure/repos_sqlite.py",
+      "simbolo": "CuadranteRepositorySQLite",
+      "tokens_ingles": [
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/infrastructure/repos_sqlite.py",
+      "simbolo": "SolicitudRepositorySQLite",
+      "tokens_ingles": [
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/infrastructure/repos_sqlite.py",
+      "simbolo": "GrupoConfigRepositorySQLite",
+      "tokens_ingles": [
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/infrastructure/sheets_gateway_gspread.py",
+      "simbolo": "test_connection",
+      "tokens_ingles": [
+        "test"
+      ]
+    },
+    {
+      "archivo": "app/infrastructure/sheets_repository.py",
+      "simbolo": "SheetsRepository",
+      "tokens_ingles": [
+        "repository"
+      ]
+    },
+    {
+      "archivo": "app/infrastructure/sync_sheets_adapter.py",
+      "simbolo": "SyncSheetsAdapter",
+      "tokens_ingles": [
+        "adapter"
+      ]
+    },
+    {
+      "archivo": "app/infrastructure/sync_sheets_adapter_puros.py",
+      "simbolo": "build_service_operation",
+      "tokens_ingles": [
+        "service"
+      ]
+    },
+    {
+      "archivo": "app/ui/components/card_widget.py",
+      "simbolo": "CardWidget",
+      "tokens_ingles": [
+        "widget"
+      ]
+    },
+    {
+      "archivo": "app/ui/components/contexto_trabajo_widget.py",
+      "simbolo": "ContextoTrabajoWidget",
+      "tokens_ingles": [
+        "widget"
+      ]
+    },
+    {
+      "archivo": "app/ui/components/empty_state.py",
+      "simbolo": "EmptyStateWidget",
+      "tokens_ingles": [
+        "widget"
+      ]
+    },
+    {
+      "archivo": "app/ui/conflicts_dialog.py",
+      "simbolo": "ConflictsTableModel",
+      "tokens_ingles": [
+        "model"
+      ]
+    },
+    {
+      "archivo": "app/ui/controllers/pdf_controller.py",
+      "simbolo": "PdfController",
+      "tokens_ingles": [
+        "controller"
+      ]
+    },
+    {
+      "archivo": "app/ui/controllers/personas_controller.py",
+      "simbolo": "PersonasController",
+      "tokens_ingles": [
+        "controller"
+      ]
+    },
+    {
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "simbolo": "SolicitudesController",
+      "tokens_ingles": [
+        "controller"
+      ]
+    },
+    {
+      "archivo": "app/ui/controllers/sync_controller.py",
+      "simbolo": "SyncController",
+      "tokens_ingles": [
+        "controller"
+      ]
+    },
+    {
+      "archivo": "app/ui/error_mapping.py",
+      "simbolo": "UiErrorMessage",
+      "tokens_ingles": [
+        "ui"
+      ]
+    },
+    {
+      "archivo": "app/ui/error_mapping.py",
+      "simbolo": "map_error_to_ui_message",
+      "tokens_ingles": [
+        "ui"
+      ]
+    },
+    {
+      "archivo": "app/ui/historico_view.py",
+      "simbolo": "HistoricoFilterProxyModel",
+      "tokens_ingles": [
+        "model"
+      ]
+    },
+    {
+      "archivo": "app/ui/historico_view.py",
+      "simbolo": "HistoricalViewModel",
+      "tokens_ingles": [
+        "model",
+        "view"
+      ]
+    },
+    {
+      "archivo": "app/ui/models_qt.py",
+      "simbolo": "PersonasTableModel",
+      "tokens_ingles": [
+        "model"
+      ]
+    },
+    {
+      "archivo": "app/ui/models_qt.py",
+      "simbolo": "SolicitudesTableModel",
+      "tokens_ingles": [
+        "model"
+      ]
+    },
+    {
+      "archivo": "app/ui/notification_service.py",
+      "simbolo": "NotificationService",
+      "tokens_ingles": [
+        "service"
+      ]
+    },
+    {
+      "archivo": "app/ui/patterns.py",
+      "simbolo": "UiStatusPattern",
+      "tokens_ingles": [
+        "ui"
+      ]
+    },
+    {
+      "archivo": "app/ui/toast_compat.py",
+      "simbolo": "ui_toast_success",
+      "tokens_ingles": [
+        "ui"
+      ]
+    },
+    {
+      "archivo": "app/ui/toast_compat.py",
+      "simbolo": "ui_toast_error",
+      "tokens_ingles": [
+        "ui"
+      ]
+    },
+    {
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "simbolo": "build_saldos_widget",
+      "tokens_ingles": [
+        "widget"
+      ]
+    },
+    {
+      "archivo": "app/ui/vistas/solicitudes_presenter.py",
+      "simbolo": "PreventiveValidationViewInput",
+      "tokens_ingles": [
+        "view"
+      ]
+    },
+    {
+      "archivo": "app/ui/vistas/solicitudes_presenter.py",
+      "simbolo": "PreventiveValidationViewOutput",
+      "tokens_ingles": [
+        "view"
+      ]
+    },
+    {
+      "archivo": "app/ui/vistas/solicitudes_presenter.py",
+      "simbolo": "build_preventive_validation_view_model",
+      "tokens_ingles": [
+        "model",
+        "view"
+      ]
+    },
+    {
+      "archivo": "app/ui/widgets/toast.py",
+      "simbolo": "ToastWidget",
+      "tokens_ingles": [
+        "widget"
+      ]
+    },
+    {
+      "archivo": "app/ui/workers/sincronizacion_workers.py",
+      "simbolo": "SyncWorker",
+      "tokens_ingles": [
+        "worker"
+      ]
+    },
+    {
+      "archivo": "app/ui/workers/sincronizacion_workers.py",
+      "simbolo": "PushWorker",
+      "tokens_ingles": [
+        "worker"
+      ]
+    }
+  ],
+  "top_20_offenders": [
+    {
+      "archivo": "app/ui/vistas/main_window_vista.py",
+      "tokens_ingles": 585,
+      "tokens_en_ruta": 1,
+      "tokens_en_codigo": 584
+    },
+    {
+      "archivo": "app/application/use_cases/solicitudes/use_case.py",
+      "tokens_ingles": 262,
+      "tokens_en_ruta": 3,
+      "tokens_en_codigo": 259
+    },
+    {
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "tokens_ingles": 237,
+      "tokens_en_ruta": 2,
+      "tokens_en_codigo": 235
+    },
+    {
+      "archivo": "app/application/use_cases/sync_sheets/use_case.py",
+      "tokens_ingles": 137,
+      "tokens_en_ruta": 3,
+      "tokens_en_codigo": 134
+    },
+    {
+      "archivo": "app/bootstrap/container.py",
+      "tokens_ingles": 137,
+      "tokens_en_ruta": 0,
+      "tokens_en_codigo": 137
+    },
+    {
+      "archivo": "app/application/use_cases/personas/use_case.py",
+      "tokens_ingles": 112,
+      "tokens_en_ruta": 3,
+      "tokens_en_codigo": 109
+    },
+    {
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "tokens_ingles": 77,
+      "tokens_en_ruta": 1,
+      "tokens_en_codigo": 76
+    },
+    {
+      "archivo": "app/ui/conflicts_dialog.py",
+      "tokens_ingles": 75,
+      "tokens_en_ruta": 1,
+      "tokens_en_codigo": 74
+    },
+    {
+      "archivo": "app/ui/group_dialog.py",
+      "tokens_ingles": 70,
+      "tokens_en_ruta": 1,
+      "tokens_en_codigo": 69
+    },
+    {
+      "archivo": "app/ui/historico_view.py",
+      "tokens_ingles": 61,
+      "tokens_en_ruta": 2,
+      "tokens_en_codigo": 59
+    },
+    {
+      "archivo": "app/ui/models_qt.py",
+      "tokens_ingles": 52,
+      "tokens_en_ruta": 2,
+      "tokens_en_codigo": 50
+    },
+    {
+      "archivo": "app/ui/dialog_opciones.py",
+      "tokens_ingles": 51,
+      "tokens_en_ruta": 1,
+      "tokens_en_codigo": 50
+    },
+    {
+      "archivo": "app/application/use_cases/solicitudes/validaciones.py",
+      "tokens_ingles": 48,
+      "tokens_en_ruta": 2,
+      "tokens_en_codigo": 46
+    },
+    {
+      "archivo": "app/ui/person_dialog.py",
+      "tokens_ingles": 48,
+      "tokens_en_ruta": 1,
+      "tokens_en_codigo": 47
+    },
+    {
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "tokens_ingles": 46,
+      "tokens_en_ruta": 2,
+      "tokens_en_codigo": 44
+    },
+    {
+      "archivo": "app/ui/controllers/sync_controller.py",
+      "tokens_ingles": 44,
+      "tokens_en_ruta": 3,
+      "tokens_en_codigo": 41
+    },
+    {
+      "archivo": "app/application/use_cases/solicitudes/validacion_service.py",
+      "tokens_ingles": 42,
+      "tokens_en_ruta": 3,
+      "tokens_en_codigo": 39
+    },
+    {
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "tokens_ingles": 42,
+      "tokens_en_ruta": 3,
+      "tokens_en_codigo": 39
+    },
+    {
+      "archivo": "app/application/auditoria_e2e/reglas.py",
+      "tokens_ingles": 41,
+      "tokens_en_ruta": 1,
+      "tokens_en_codigo": 40
+    },
+    {
+      "archivo": "app/infrastructure/sync_sheets_adapter.py",
+      "tokens_ingles": 40,
+      "tokens_en_ruta": 2,
+      "tokens_en_codigo": 38
+    }
+  ]
+}
