@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.application.dto import SolicitudDTO
-from app.application.use_cases.solicitudes.validaciones import (
-    clave_duplicado_solicitud,
+from app.ui.vistas.pending_duplicate_presenter import (
+    PendingDuplicateEntrada,
+    resolve_pending_duplicate_row,
 )
 
 
@@ -115,28 +116,13 @@ def build_action_state(data: ActionStateInput) -> ActionStateOutput:
 
 
 def find_pending_duplicate_row(data: DuplicateSearchInput) -> int | None:
-    try:
-        target_key = clave_duplicado_solicitud(data.solicitud)
-    except Exception:
-        return None
-
-    matches: list[int] = []
-    for row, pending in enumerate(data.pending_solicitudes):
-        if data.editing_pending_id is not None and pending.id is not None and str(pending.id) == str(data.editing_pending_id):
-            continue
-        if pending.id is None and data.editing_row is not None and row == data.editing_row:
-            continue
-        try:
-            if clave_duplicado_solicitud(pending) == target_key:
-                matches.append(row)
-        except Exception:
-            continue
-
-    duplicate_key = tuple(list(target_key) + ["COMPLETO" if data.solicitud.completo else "PARCIAL"])
-    if duplicate_key not in data.duplicated_keys:
-        return None
-    if matches:
-        return matches[0]
-    if data.pending_solicitudes:
-        return 0
-    return None
+    decision = resolve_pending_duplicate_row(
+        PendingDuplicateEntrada(
+            solicitud=data.solicitud,
+            pending_solicitudes=data.pending_solicitudes,
+            editing_pending_id=data.editing_pending_id,
+            editing_row=data.editing_row,
+            duplicated_keys=data.duplicated_keys,
+        )
+    )
+    return decision.row_index
