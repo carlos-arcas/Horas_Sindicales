@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import Any
 
+from app.application.use_cases.sync_sheets import conflict_policy
 from app.application.sync_normalization import normalize_hhmm
 
 
@@ -206,13 +207,7 @@ def is_after_last_sync(updated_at: str | None, last_sync_at: str | None) -> bool
 
 
 def is_conflict(local_updated_at: str | None, remote_updated_at: datetime | None, last_sync_at: str | None) -> bool:
-    if not local_updated_at or not remote_updated_at or not last_sync_at:
-        return False
-    parsed_local = parse_iso(local_updated_at)
-    parsed_last = parse_iso(last_sync_at)
-    if not parsed_local or not parsed_last:
-        return False
-    return parsed_local > parsed_last and remote_updated_at > parsed_last
+    return conflict_policy.is_conflict(local_updated_at, remote_updated_at, last_sync_at)
 
 
 def is_remote_newer(local_updated_at: str | None, remote_updated_at: datetime | None) -> bool:
