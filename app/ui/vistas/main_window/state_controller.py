@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -137,7 +136,7 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     build_estado_pendientes_debug_payload = build_historico_filters_payload = _qt_unavailable
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
 from app.ui.vistas.pending_duplicate_presenter import PendingDuplicateEntrada, resolve_pending_duplicate_row
-from . import data_refresh, form_handlers, layout_builder, wiring
+from . import acciones_sincronizacion, data_refresh, form_handlers, layout_builder, wiring
 from app.ui.vistas.personas_presenter import PersonaOption, PersonasLoadInput, build_personas_load_output, resolve_active_delegada_id as resolve_active_delegada_id_presenter
 from app.core.observability import OperationContext
 from app.bootstrap.logging import log_operational_error
@@ -560,61 +559,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         form_handlers.clear_form(self)
 
     def _sincronizar_con_confirmacion(self) -> None:
-        result = QMessageBox.question(
-            self,
-            "Confirmar sincronización",
-            "¿Deseas iniciar la sincronización con Google Sheets ahora?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if result != QMessageBox.StandardButton.Yes:
-            return
-
-        sync_handler = getattr(self, "_on_sync", None)
-        if callable(sync_handler):
-            sync_handler()
-            return
-
-        logger.error("sync_handler_missing", extra={"handler": "_on_sync"})
-        QMessageBox.information(
-            self,
-            "Sincronización",
-            "La sincronización aún no está disponible en esta pantalla.",
-        )
+        return acciones_sincronizacion.sincronizar_con_confirmacion(self)
 
     def _on_sync_with_confirmation(self) -> None:
-        """Confirma sincronización y delega al controlador/UI workflow existente."""
-        result = QMessageBox.question(
-            self,
-            "Confirmar sincronización",
-            "¿Deseas iniciar la sincronización con Google Sheets ahora?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if result != QMessageBox.StandardButton.Yes:
-            return
-
-        try:
-            if hasattr(self, "_sync_controller") and callable(getattr(self._sync_controller, "on_sync", None)):
-                self._sync_controller.on_sync()
-                return
-            if callable(getattr(self, "_on_sync", None)):
-                self._on_sync()
-                return
-            logger.warning("sync_workflow_not_available")
-            QMessageBox.information(
-                self,
-                "Sincronización",
-                "Función no disponible",
-            )
-        except Exception as exc:  # pragma: no cover - fallback defensivo UI
-            log_operational_error(
-                logger,
-                "Sync failed: no se pudo iniciar desde UI",
-                exc=exc,
-                extra={"operation": "sync_workflow_start"},
-            )
-            QMessageBox.critical(self, "Sincronización", f"No se pudo iniciar la sincronización.\n\n{exc}")
+        return acciones_sincronizacion.on_sync_with_confirmation(self)
 
     def _on_export_historico_pdf(self) -> None:
         """Alias estable para acciones de shell/header refactorizadas."""
@@ -1126,238 +1074,49 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self._refresh_saldos()
 
     def _on_sync(self) -> None:
-        if not self._ui_ready:
-            return
-        if hasattr(self._sync_service, "is_configured") and not self._sync_service.is_configured():
-            self.toast.warning(
-                "Falta configurar Google Sheets o compartir la hoja con la cuenta de servicio.",
-                title="Sync no disponible",
-            )
-            return
-        self._pending_sync_plan = None
-        self._active_sync_id = None
-        self._attempt_history = ()
-        self._sync_attempts = []
-        self.confirm_sync_button.setEnabled(False)
-        self._sync_controller.on_sync()
+        return acciones_sincronizacion.on_sync(self)
 
     def _on_simulate_sync(self) -> None:
-        self._sync_controller.on_simulate_sync()
+        return acciones_sincronizacion.on_simulate_sync(self)
 
     def _on_confirm_sync(self) -> None:
-        if self._pending_sync_plan is not None and self._pending_sync_plan.conflicts:
-            self.toast.warning("Conflictos pendientes de decisión", title="Sincronización bloqueada")
-            return
-        self._sync_controller.on_confirm_sync()
+        return acciones_sincronizacion.on_confirm_sync(self)
 
     def _on_retry_failed(self) -> None:
-        if self._pending_sync_plan is None or self._last_sync_report is None:
-            self.notifications.notify_operation(
-                OperationFeedback(
-                    title="Reintento no disponible",
-                    happened="No hay un plan fallido que se pueda reintentar.",
-                    affected_count=0,
-                    incidents="No hay incidencias nuevas.",
-                    next_step="Ejecuta una sincronización y revisa conflictos si aparecen.",
-                    status="error",
-                )
-            )
-            return
-        item_status = {
-            item.uuid: ("CONFLICT" if item in self._pending_sync_plan.conflicts else "ERROR")
-            for item in [*self._pending_sync_plan.to_create, *self._pending_sync_plan.to_update, *self._pending_sync_plan.conflicts]
-        }
-        retry_result = self._retry_sync_use_case.build_retry_plan(self._pending_sync_plan, item_status=item_status)
-        self._pending_sync_plan = retry_result.plan
-        self.notifications.notify_operation(
-            OperationFeedback(
-                title="Reintento preparado",
-                happened="Se reconstruyó el plan con los elementos en conflicto o error.",
-                affected_count=len(item_status),
-                incidents="Pendiente de ejecución.",
-                next_step="Pulsa sincronizar para completar el reintento.",
-            )
-        )
-        self._sync_controller.on_confirm_sync()
+        return acciones_sincronizacion.on_retry_failed(self)
 
     def _on_show_sync_details(self) -> None:
-        if self._last_sync_report is None:
-            self.toast.info("Todavía no hay informes de sincronización.", title="Sincronización")
-            return
-        self._show_sync_details_dialog()
+        return acciones_sincronizacion.on_show_sync_details(self)
 
     def _on_copy_sync_report(self) -> None:
-        if self._last_sync_report is None:
-            return
-        QApplication.clipboard().setText(to_markdown(self._last_sync_report))
-        toast_success(self.toast, "Informe copiado al portapapeles.", title="Sincronización")
+        return acciones_sincronizacion.on_copy_sync_report(self)
 
     def _on_open_sync_logs(self) -> None:
-        self._logs_dir.mkdir(parents=True, exist_ok=True)
-        abrir_archivo_local(self._logs_dir)
+        return acciones_sincronizacion.on_open_sync_logs(self)
 
     def _on_sync_finished(self, summary: SyncSummary) -> None:
-        self._pending_sync_plan = None
-        self._solicitudes_runtime_error = False
-        self.confirm_sync_button.setEnabled(False)
-        self._set_sync_in_progress(False)
-        self._solicitudes_runtime_error = True
-        self._update_sync_button_state()
-        self._update_solicitudes_status_panel()
-        self._refresh_last_sync_label()
-        next_attempt_history = tuple(
-            [
-                *self._attempt_history,
-                SyncAttemptReport(
-                    attempt_number=len(self._attempt_history) + 1,
-                    status=self._status_from_summary(summary),
-                    created=summary.inserted_local + summary.inserted_remote,
-                    updated=summary.updated_local + summary.updated_remote,
-                    conflicts=summary.conflicts_detected,
-                    errors=summary.errors,
-                ),
-            ]
-        )
-        report = build_sync_report(
-            summary,
-            status=self._status_from_summary(summary),
-            source=self._sync_source_text(),
-            scope=self._sync_scope_text(),
-            actor=self._sync_actor_text(),
-            started_at=self._sync_started_at,
-            sync_id=self._active_sync_id,
-            attempt_history=next_attempt_history,
-        )
-        self._active_sync_id = report.sync_id
-        self._attempt_history = next_attempt_history
-        self._apply_sync_report(report)
-        self._refresh_after_sync(summary)
-        status = self._status_from_summary(summary)
-        feedback_status = "success"
-        incidents = "Sin incidencias."
-        if status == "OK_WARN":
-            feedback_status = "partial"
-            incidents = f"{summary.conflicts_detected} conflictos y {summary.errors} errores."
-        elif status == "ERROR":
-            feedback_status = "error"
-            incidents = "La sincronización no se pudo completar."
-        self.notifications.notify_operation(
-            OperationFeedback(
-                title=f"Resultado de sincronización: {self._status_to_label(status)}",
-                happened="Se actualizó el estado del panel con el resumen persistente.",
-                affected_count=summary.inserted_local + summary.inserted_remote + summary.updated_local + summary.updated_remote,
-                incidents=incidents,
-                next_step="Revisa conflictos o continúa operando según el estado mostrado.",
-                status=feedback_status,
-            )
-        )
-        self._show_sync_summary_dialog(f"Resultado: {self._status_to_label(status)}", summary)
+        return acciones_sincronizacion.on_sync_finished(self, summary)
 
     def _on_sync_simulation_finished(self, plan: SyncExecutionPlan) -> None:
-        self._set_sync_in_progress(False)
-        self._pending_sync_plan = plan
-        self._update_sync_button_state()
-        report = build_simulation_report(
-            plan,
-            source=self._sync_source_text(),
-            scope=self._sync_scope_text(),
-            actor=self._sync_actor_text(),
-            sync_id=self._active_sync_id,
-            attempt_history=self._attempt_history,
-        )
-        self._apply_sync_report(report)
-        has_changes = plan.has_changes
-        self.confirm_sync_button.setEnabled(has_changes and not bool(plan.conflicts))
-        self.retry_failed_button.setEnabled(bool(plan.conflicts or plan.potential_errors))
-        if has_changes:
-            self.toast.info(
-                f"Se crearán: {len(plan.to_create)} · Se actualizarán: {len(plan.to_update)} · Sin cambios: {len(plan.unchanged)} · Conflictos detectados: {len(plan.conflicts)}",
-                title="Simulación completada",
-                duration_ms=7000,
-            )
-        else:
-            self.toast.info("No hay cambios que aplicar", title="Simulación completada")
+        return acciones_sincronizacion.on_sync_simulation_finished(self, plan)
 
     def _refresh_after_sync(self, summary: SyncSummary) -> None:
-        self._refresh_historico()
-        self._refresh_saldos()
-        self._refresh_pending_ui_state()
-        if summary.inserted_local <= 0:
-            return
-        persona = self._current_persona()
-        if persona is None or self.historico_proxy_model.rowCount() > 0:
-            return
-        if persona.id is None:
-            return
-        solicitudes_persona = self._solicitud_use_cases.listar_solicitudes_por_persona(persona.id)
-        if any(True for _ in solicitudes_persona):
-            self.toast.info(
-                "Datos importados, pero no visibles por los filtros actuales de histórico.",
-                title="Sincronización",
-            )
+        return acciones_sincronizacion.refresh_after_sync(self, summary)
 
     def _on_sync_failed(self, payload: object) -> None:
-        self._set_sync_in_progress(False)
-        self._solicitudes_runtime_error = True
-        self._update_sync_button_state()
-        self._update_solicitudes_status_panel()
-        error, details = self._normalize_sync_error(payload)
-        if details:
-            log_operational_error(
-                logger,
-                "Sync failed",
-                exc=error,
-                extra={
-                    "operation": "sync_ui",
-                    "correlation_id": getattr(self._sync_operation_context, "correlation_id", None),
-                    "sync_id": self._active_sync_id,
-                },
-            )
-        user_error = map_error_to_ui_message(error)
-        user_message = user_error.as_text()
-        report = build_failed_report(
-            user_message,
-            source=self._sync_source_text(),
-            scope=self._sync_scope_text(),
-            actor=self._sync_actor_text(),
-            details=details,
-            started_at=self._sync_started_at,
-            sync_id=self._active_sync_id,
-            attempt_history=self._attempt_history,
-        )
-        self._apply_sync_report(report)
-        self.notifications.notify_operation(
-            OperationFeedback(
-                title="Sincronización con fallo",
-                happened="No se pudo completar la sincronización.",
-                affected_count=0,
-                incidents="Se detectó un error durante el proceso.",
-                next_step="Revisa el detalle y vuelve a intentar.",
-                status="error",
-            )
-        )
-        self._show_sync_error_dialog(error, details)
+        return acciones_sincronizacion.on_sync_failed(self, payload)
 
     def _on_review_conflicts(self) -> None:
-        dialog = ConflictsDialog(self._conflicts_service, self)
-        dialog.exec()
-        self._update_sync_button_state()
-        self._update_conflicts_reminder()
+        return acciones_sincronizacion.on_review_conflicts(self)
 
     def _on_open_opciones(self) -> None:
-        self._sync_controller.on_open_opciones()
+        return acciones_sincronizacion.on_open_opciones(self)
 
     def _open_google_sheets_config(self) -> None:
-        self._on_open_opciones()
+        return acciones_sincronizacion.open_google_sheets_config(self)
 
     def _set_config_incomplete_state(self) -> None:
-        report = build_config_incomplete_report(
-            source=self._sync_source_text(),
-            scope=self._sync_scope_text(),
-            actor=self._sync_actor_text(),
-        )
-        self._apply_sync_report(report)
-        self.go_to_sync_config_button.setVisible(True)
+        return acciones_sincronizacion.set_config_incomplete_state(self)
 
     def _on_edit_pdf(self) -> None:
         dialog = PdfConfigDialog(self._grupo_use_cases, self._sync_service, self)
@@ -1958,251 +1717,54 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _ask_push_after_pdf(self) -> None:
         ask_push_after_pdf(self)
     def _on_push_now(self) -> None:
-        if not self._sync_service.is_configured():
-            self.toast.warning("No hay configuración de Google Sheets. Abre Opciones para configurarlo.", title="Sin configuración")
-            return
-        self._set_sync_in_progress(True)
-        self._sync_thread = QThread()
-        self._sync_worker = PushWorker(self._sync_service)
-        self._sync_worker.moveToThread(self._sync_thread)
-        self._sync_thread.started.connect(self._sync_worker.run)
-        self._sync_worker.finished.connect(self._on_push_finished)
-        self._sync_worker.failed.connect(self._on_push_failed)
-        self._sync_worker.finished.connect(self._sync_thread.quit)
-        self._sync_worker.finished.connect(self._sync_worker.deleteLater)
-        self._sync_thread.finished.connect(self._sync_thread.deleteLater)
-        self._sync_thread.start()
+        return acciones_sincronizacion.on_push_now(self)
 
     def _on_push_finished(self, summary: SyncSummary) -> None:
-        self._set_sync_in_progress(False)
-        self._solicitudes_runtime_error = True
-        self._update_sync_button_state()
-        self._update_solicitudes_status_panel()
-        if summary.conflicts > 0:
-            dialog = ConflictsDialog(self._conflicts_service, self)
-            dialog.exec()
-        self._refresh_last_sync_label()
-        self._show_sync_summary_dialog("Sincronización completada", summary)
+        return acciones_sincronizacion.on_push_finished(self, summary)
 
     def _on_push_failed(self, payload: object) -> None:
-        self._set_sync_in_progress(False)
-        self._solicitudes_runtime_error = True
-        self._update_sync_button_state()
-        self._update_solicitudes_status_panel()
-        error, details = self._normalize_sync_error(payload)
-        self._show_sync_error_dialog(error, details)
+        return acciones_sincronizacion.on_push_failed(self, payload)
 
     def _update_sync_button_state(self) -> None:
-        self._sync_controller.update_sync_button_state()
+        return acciones_sincronizacion.update_sync_button_state(self)
 
     def _update_conflicts_reminder(self) -> None:
-        total = self._conflicts_service.count_conflicts()
-        self.conflicts_reminder_label.setVisible(total > 0)
-        if total > 0:
-            self.conflicts_reminder_label.setText(f"Hay {total} conflictos pendientes. Revisa antes de sincronizar.")
+        return acciones_sincronizacion.update_conflicts_reminder(self)
 
     def _show_sync_error_dialog(self, error: Exception, details: str | None) -> None:
         # Para juniors: extraemos mapeo de errores para reducir LOC y volverlo testeable como función aislada.
-        show_sync_error_dialog_from_exception(
-            error=error,
-            details=details,
-            service_account_email=self._service_account_email(),
-            show_message_with_details=self._show_message_with_details,
-            open_options_callback=self._on_open_opciones,
-            retry_callback=self._sync_controller.on_sync,
-            open_google_sheets_config_callback=self._open_google_sheets_config,
-            toast_warning=lambda message, title, duration_ms: self.toast.warning(
-                message,
-                title=title,
-                duration_ms=duration_ms,
-            ),
-        )
+        return acciones_sincronizacion.show_sync_error_dialog(self, error, details)
 
     def _apply_sync_report(self, report) -> None:
-        self._last_sync_report = report
-        self._sync_attempts.append({"status": report.status, "counts": report.counts})
-        counts = report.counts
-        self._set_sync_status_badge(report.status)
-        self.sync_source_label.setText(f"Fuente: {report.source}")
-        self.sync_scope_label.setText(f"Rango: {report.scope}")
-        self.sync_idempotency_label.setText(f"Evita duplicados: {report.idempotency_criteria}")
-        self.sync_counts_label.setText(
-            "Resumen: "
-            f"Filas creadas: {counts.get('created', 0)} · "
-            f"Filas actualizadas: {counts.get('updated', 0)} · "
-            f"Filas omitidas: {counts.get('skipped', 0)} · "
-            f"Conflictos: {counts.get('conflicts', 0)} · "
-            f"Errores: {counts.get('errors', 0)}"
-        )
-        self.sync_panel_status.setText(
-            f"Estado: intento #{len(self._sync_attempts)} · actual {self._status_to_label(report.status)} · final {self._status_to_label(report.final_status)}"
-        )
-        self.last_sync_metrics_label.setText(
-            f"Duración: {report.duration_ms} ms · Cambios: {counts.get('created', 0) + counts.get('updated', 0)} · "
-            f"Conflictos: {report.conflicts_count} · Errores: {report.error_count}"
-        )
-        self._refresh_sync_trend_label()
-        self.go_to_sync_config_button.setVisible(report.status == "CONFIG_INCOMPLETE")
-        self.sync_details_button.setEnabled(True)
-        self.copy_sync_report_button.setEnabled(True)
-        self.retry_failed_button.setEnabled(bool(report.errors or report.conflicts))
-        self.review_conflicts_button.setText("Revisar conflictos" if report.conflicts_count > 0 else "Revisar conflictos (sin pendientes)")
-        self._update_conflicts_reminder()
-        persist_report(report, Path.cwd())
-        self._refresh_health_and_alerts()
+        return acciones_sincronizacion.apply_sync_report(self, report)
 
     def _on_show_sync_history(self) -> None:
-        history = list_sync_history(Path.cwd())
-        if not history:
-            self.toast.info("No hay sincronizaciones históricas disponibles.", title="Histórico")
-            return
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Histórico de sincronizaciones")
-        dialog.resize(800, 420)
-        layout = QVBoxLayout(dialog)
-        table = QTreeWidget(dialog)
-        table.setColumnCount(4)
-        table.setHeaderLabels(["Archivo", "Sync ID", "Estado", "Intentos"])
-        for path in history:
-            report = load_sync_report(path)
-            item = QTreeWidgetItem([path.name, report.sync_id, report.final_status, str(report.attempts)])
-            item.setData(0, Qt.UserRole, str(path))
-            table.addTopLevelItem(item)
-        layout.addWidget(table)
-
-        def _open_selected() -> None:
-            selected = table.selectedItems()
-            if not selected:
-                return
-            report_path = Path(selected[0].data(0, Qt.UserRole))
-            self._last_sync_report = load_sync_report(report_path)
-            self._show_sync_details_dialog()
-
-        actions = QHBoxLayout()
-        open_btn = QPushButton("Abrir detalle")
-        open_btn.clicked.connect(_open_selected)
-        copy_btn = QPushButton("Copiar informe")
-        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(to_markdown(load_sync_report(Path(table.selectedItems()[0].data(0, Qt.UserRole))))) if table.selectedItems() else None)
-        actions.addWidget(open_btn)
-        actions.addWidget(copy_btn)
-        layout.addLayout(actions)
-        dialog.exec()
+        return acciones_sincronizacion.on_show_sync_history(self)
 
     def _show_sync_details_dialog(self) -> None:
-        report = self._last_sync_report
-        if report is None:
-            return
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Detalles de sincronización")
-        dialog.resize(940, 480)
-        apply_modal_behavior(dialog)
-        layout = QVBoxLayout(dialog)
-        table = QTreeWidget(dialog)
-        table.setColumnCount(6)
-        table.setHeaderLabels(["Timestamp", "Sev", "Entidad", "Mensaje", "Acción sugerida", "Sección"])
-        for entry in report.entries:
-            item = QTreeWidgetItem(
-                [entry.timestamp, entry.severity, entry.entity, entry.message, entry.suggested_action, entry.section]
-            )
-            table.addTopLevelItem(item)
-        table.header().setStretchLastSection(True)
-        layout.addWidget(table, 1)
-
-        actions = QHBoxLayout()
-        open_affected = QPushButton("Abrir solicitud afectada")
-        open_affected.setProperty("variant", "secondary")
-        open_affected.setEnabled(bool(report.conflicts))
-        open_affected.clicked.connect(self._on_review_conflicts)
-        actions.addWidget(open_affected)
-
-        mark_review = QPushButton("Marcar para revisión")
-        mark_review.setProperty("variant", "secondary")
-        mark_review.setEnabled(bool(report.conflicts))
-        mark_review.clicked.connect(lambda: self.toast.info("Registro marcado para revisión manual."))
-        actions.addWidget(mark_review)
-
-        retry_failed = QPushButton("Reintentar solo fallidos")
-        retry_failed.setProperty("variant", "secondary")
-        retry_failed.setEnabled(bool(report.errors or report.conflicts))
-        retry_failed.clicked.connect(self._on_retry_failed)
-        actions.addWidget(retry_failed)
-
-        export_detail = QPushButton("Exportar detalle")
-        export_detail.setProperty("variant", "secondary")
-        export_detail.clicked.connect(lambda: self._on_copy_sync_report())
-        actions.addWidget(export_detail)
-
-        close_button = QPushButton("Cerrar")
-        close_button.setProperty("variant", "ghost")
-        close_button.clicked.connect(dialog.accept)
-        actions.addWidget(close_button)
-        layout.addLayout(actions)
-        dialog.exec()
+        return acciones_sincronizacion.show_sync_details_dialog(self)
 
     def _set_sync_status_badge(self, status: str) -> None:
-        self.sync_status_badge.setText(self._status_to_label(status))
-        tone_map = {"OK": STATUS_PATTERNS["CONFIRMED"].tone, "RUNNING": STATUS_PATTERNS["PENDING"].tone, "OK_WARN": STATUS_PATTERNS["WARNING"].tone, "ERROR": STATUS_PATTERNS["ERROR"].tone}
-        self.sync_status_badge.setProperty("tone", tone_map.get(status, "pending"))
-        self.sync_status_badge.setProperty("syncStatus", status)
-        style = self.sync_status_badge.style()
-        if style is not None:
-            style.unpolish(self.sync_status_badge)
-            style.polish(self.sync_status_badge)
-        self.sync_status_badge.update()
-        self._update_global_context()
+        return acciones_sincronizacion.set_sync_status_badge(self, status)
 
     def _status_from_summary(self, summary: SyncSummary) -> str:
-        if summary.errors > 0:
-            return "ERROR"
-        if summary.conflicts_detected > 0 or summary.duplicates_skipped > 0 or summary.omitted_by_delegada > 0:
-            return "OK_WARN"
-        return "OK"
+        return acciones_sincronizacion.status_from_summary(summary)
 
     @staticmethod
     def _status_to_label(status: str) -> str:
-        return {
-            "IDLE": "⏸ En espera",
-            "RUNNING": "🕒 Pendiente · Sincronizando",
-            "OK": status_badge("CONFIRMED"),
-            "OK_WARN": status_badge("WARNING"),
-            "ERROR": status_badge("ERROR"),
-            "CONFIG_INCOMPLETE": "⛔ Error · Configuración incompleta",
-        }.get(status, status)
+        return acciones_sincronizacion.status_to_label(status)
 
     def _sync_source_text(self) -> str:
-        config = self._sheets_service.get_config()
-        if not config:
-            return "Error: configura credenciales de Google Sheets"
-        credentials_name = Path(config.credentials_path).name if config.credentials_path else "sin archivo"
-        sheet_short = f"…{config.spreadsheet_id[-6:]}" if config.spreadsheet_id else "sin-id"
-        return f"Spreadsheet {sheet_short} · credencial {credentials_name}"
+        return acciones_sincronizacion.sync_source_text(self)
 
     def _sync_scope_text(self) -> str:
-        return "Sincronización completa de delegadas y solicitudes."
+        return acciones_sincronizacion.sync_scope_text()
 
     def _sync_actor_text(self) -> str:
-        persona = self._current_persona()
-        return persona.nombre if persona is not None else "Delegada no seleccionada"
+        return acciones_sincronizacion.sync_actor_text(self)
 
     def _show_sync_summary_dialog(self, title: str, summary: SyncSummary) -> None:
-        last_sync = self._sync_service.get_last_sync_at()
-        last_sync_text = self._format_timestamp(last_sync) if last_sync else "Nunca"
-        message = (
-            f"Insertadas en local: {summary.inserted_local}\n"
-            f"Actualizadas en local: {summary.updated_local}\n"
-            f"Insertadas en Sheets: {summary.inserted_remote}\n"
-            f"Actualizadas en Sheets: {summary.updated_remote}\n"
-            f"Duplicados omitidos: {summary.duplicates_skipped}\n"
-            f"Omitidas por delegada: {summary.omitted_by_delegada}\n"
-            f"Conflictos: {summary.conflicts_detected}\n"
-            f"Errores: {summary.errors}\n"
-            f"Última sincronización: {last_sync_text}"
-        )
-        if summary.conflicts_detected > 0 or summary.errors > 0:
-            self.toast.warning(message, title=title, duration_ms=7000)
-            self._show_details_dialog(title, message)
-        else:
-            toast_success(self.toast, message, title=title)
+        return acciones_sincronizacion.show_sync_summary_dialog(self, title, summary)
 
     def _show_message_with_details(
         self,
@@ -2212,74 +1774,16 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         icon: QMessageBox.Icon,
         action_buttons: tuple[tuple[str, object], ...] = (),
     ) -> None:
-        dialog = QMessageBox(self)
-        dialog.setWindowTitle(title)
-        dialog.setIcon(icon)
-        dialog.setText(message)
-        action_mapping: dict[object, object] = {}
-        for label, callback in action_buttons:
-            button = dialog.addButton(label, QMessageBox.ActionRole)
-            action_mapping[button] = callback
-        details_button = None
-        if details:
-            details_button = dialog.addButton("Ver detalles", QMessageBox.ActionRole)
-        dialog.addButton("Cerrar", QMessageBox.AcceptRole)
-        dialog.exec()
-        clicked_button = dialog.clickedButton()
-        if clicked_button in action_mapping:
-            action_mapping[clicked_button]()
-            return
-        if details_button and dialog.clickedButton() == details_button:
-            self._show_details_dialog(title, details)
+        return acciones_sincronizacion.show_message_with_details(self, title, message, details, icon, action_buttons)
 
     def _show_details_dialog(self, title: str, details: str) -> None:
-        dialog = QDialog(self)
-        dialog.setWindowTitle(title)
-        apply_modal_behavior(dialog)
-        layout = QVBoxLayout(dialog)
-        details_text = QPlainTextEdit()
-        details_text.setReadOnly(True)
-        details_text.setPlainText(details)
-        layout.addWidget(details_text)
-        close_button = QPushButton("Cerrar")
-        close_button.setProperty("variant", "ghost")
-        close_button.clicked.connect(dialog.accept)
-        layout.addWidget(close_button, alignment=Qt.AlignRight)
-        dialog.resize(520, 360)
-        dialog.exec()
+        return acciones_sincronizacion.show_details_dialog(self, title, details)
 
     def _normalize_sync_error(self, payload: object) -> tuple[Exception, str | None]:
-        if isinstance(payload, dict):
-            error = payload.get("error")
-            details = payload.get("details")
-            if isinstance(error, Exception):
-                return error, details
-            return Exception(str(error)), details
-        if isinstance(payload, Exception):
-            return payload, None
-        return Exception(str(payload)), None
+        return acciones_sincronizacion.normalize_sync_error(payload)
 
     def _set_sync_in_progress(self, in_progress: bool) -> None:
-        self._sync_in_progress = in_progress
-        self.sync_status_label.setVisible(in_progress)
-        self.sync_progress.setVisible(in_progress)
-        if self.status_sync_label is not None:
-            self.status_sync_label.setVisible(in_progress)
-        if self.status_sync_progress is not None:
-            self.status_sync_progress.setVisible(in_progress)
-        if in_progress:
-            self._sync_started_at = datetime.now().isoformat()
-            self.statusBar().showMessage("Sincronizando con Google Sheets…")
-            self.sync_button.setEnabled(False)
-            self.simulate_sync_button.setEnabled(False)
-            self.confirm_sync_button.setEnabled(False)
-            self.sync_details_button.setEnabled(False)
-            self.copy_sync_report_button.setEnabled(False)
-            self.review_conflicts_button.setEnabled(False)
-            self._set_sync_status_badge("RUNNING")
-            self.sync_panel_status.setText("Estado: Pendiente · Sincronizando")
-        else:
-            self.statusBar().clearMessage()
+        return acciones_sincronizacion.set_sync_in_progress(self, in_progress)
 
     def _set_processing_state(self, in_progress: bool) -> None:
         set_processing_state(self, in_progress)
@@ -2379,14 +1883,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.statusBar().showMessage(f"Pendiente: {formatted}", 4000)
 
     def _service_account_email(self) -> str | None:
-        config = self._sheets_service.get_config()
-        if not config or not config.credentials_path:
-            return None
-        try:
-            payload = json.loads(Path(config.credentials_path).read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return None
-        return str(payload.get("client_email", "")).strip() or None
+        return acciones_sincronizacion.service_account_email(self)
 
     def _on_generar_pdf_historico(self) -> None:
         on_generar_pdf_historico(self)
