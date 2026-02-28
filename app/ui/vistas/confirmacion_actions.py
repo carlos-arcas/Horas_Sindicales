@@ -14,6 +14,7 @@ from app.domain.services import BusinessRuleError, ValidacionError
 from app.bootstrap.logging import log_operational_error
 from app.ui.notification_service import ConfirmationSummaryPayload
 from app.ui.toast_helpers import toast_success
+from app.ui.vistas.confirmacion_presenter import ConfirmAction, ConfirmacionEntrada, plan_confirmacion
 from app.ui.vistas.ui_helpers import abrir_archivo_local, abrir_carpeta_contenedora
 
 if TYPE_CHECKING:
@@ -328,58 +329,114 @@ def on_confirmar(window: Any) -> None:
             "hasta": window.hasta_input.time().toString("HH:mm"),
         }
         logger.info("UI_CLICK_CONFIRMAR_PDF", extra=log_extra)
-
-        def _return_early(reason: str) -> None:
-            logger.warning("UI_CONFIRMAR_PDF_RETURN_EARLY", extra={**log_extra, "reason": reason})
-
-        if not window._ui_ready:
-            logger.info("_on_confirmar early_return motivo=ui_not_ready")
-            _return_early("ui_not_ready")
-            return
-        logger.debug("_on_confirmar paso=validar_preconfirm_checks")
-        if not selected:
-            window.toast.warning("No hay pendientes", title="Sin pendientes")
-            logger.info("_on_confirmar early_return motivo=no_pending_rows")
-            _return_early("no_pending_rows")
-            return
-        if not window._run_preconfirm_checks():
-            logger.info("_on_confirmar early_return motivo=preconfirm_checks")
-            _return_early("preconfirm_checks")
-            return
         logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", window._selected_pending_row_indexes(), selected_ids)
-        if persona is None:
-            logger.info("_on_confirmar early_return motivo=no_persona")
-            _return_early("no_persona")
-            return
-        if window._pending_conflict_rows:
-            logger.info("_on_confirmar early_return motivo=conflictos_pendientes")
-            window.toast.warning(
-                "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
-                title="Conflictos detectados",
-            )
-            _return_early("conflictos_pendientes")
-            return
-
-        pdf_path = window._prompt_confirm_pdf_path(selected)
-        if pdf_path is None:
-            logger.info("_on_confirmar early_return motivo=pdf_path_cancelado")
-            _return_early("pdf_path_cancelado")
-            return
-        logger.debug("_on_confirmar paso=pdf_path_seleccionado path=%s", pdf_path)
-
-        logger.debug("_on_confirmar paso=llamar_execute_confirmar_with_pdf")
-        outcome = window._execute_confirmar_with_pdf(persona, selected, pdf_path)
-        if outcome is None:
-            logger.info("_on_confirmar early_return motivo=execute_confirmar_none")
-            _return_early("execute_confirmar_none")
-            return
-        correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes = outcome
-        logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(generado) if generado else None)
-
-        window._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes)
+        _run_confirmacion_plan(window, selected, selected_ids, persona, log_extra)
     except Exception:
         logger.exception("UI_CONFIRMAR_PDF_EXCEPTION")
         raise
+
+
+def _run_confirmacion_plan(
+    window: Any,
+    selected: list[SolicitudDTO],
+    selected_ids: list[int | None],
+    persona: PersonaDTO | None,
+    log_extra: dict[str, Any],
+) -> None:
+    preconfirm_ok = window._run_preconfirm_checks()
+    state: dict[str, Any] = {
+        "selected": selected,
+        "selected_ids": tuple(selected_ids),
+        "persona": persona,
+        "preconfirm_ok": preconfirm_ok,
+        "pdf_prompted": False,
+        "pdf_path": None,
+        "execute_attempted": False,
+        "execute_succeeded": None,
+        "outcome": None,
+    }
+
+    def _return_early(reason: str) -> None:
+        logger.warning("UI_CONFIRMAR_PDF_RETURN_EARLY", extra={**log_extra, "reason": reason})
+
+    while True:
+        entrada = ConfirmacionEntrada(
+            ui_ready=window._ui_ready,
+            selected_ids=state["selected_ids"],
+            preconfirm_checks_ok=bool(state["preconfirm_ok"]),
+            persona_selected=state["persona"] is not None,
+            has_pending_conflicts=bool(window._pending_conflict_rows),
+            pdf_prompted=bool(state["pdf_prompted"]),
+            pdf_path=state["pdf_path"],
+            execute_attempted=bool(state["execute_attempted"]),
+            execute_succeeded=state["execute_succeeded"],
+        )
+        actions = plan_confirmacion(entrada)
+        if not actions:
+            return
+
+        progressed = False
+        for action in actions:
+            if action.action_type == "SHOW_ERROR":
+                _apply_show_error(window, action)
+                continue
+            if action.action_type == "LOG_EARLY_RETURN":
+                logger.info("_on_confirmar early_return motivo=%s", action.reason_code)
+                _return_early(action.reason_code or "unknown")
+                return
+            if action.action_type == "PROMPT_PDF":
+                pdf_path = _apply_prompt_pdf(window, state["selected"])
+                state["pdf_prompted"] = True
+                state["pdf_path"] = pdf_path
+                if pdf_path is not None:
+                    logger.debug("_on_confirmar paso=pdf_path_seleccionado path=%s", pdf_path)
+                progressed = True
+                break
+            if action.action_type == "PREPARE_PAYLOAD":
+                logger.debug("_on_confirmar paso=llamar_execute_confirmar_with_pdf")
+                continue
+            if action.action_type == "CONFIRM":
+                state["execute_attempted"] = True
+                outcome = _apply_confirm(window, state["persona"], state["selected"], state["pdf_path"])
+                state["outcome"] = outcome
+                state["execute_succeeded"] = outcome is not None
+                progressed = True
+                break
+            if action.action_type == "FINALIZE_CONFIRMATION":
+                _apply_finalize(window, state["persona"], state["outcome"])
+                continue
+            if action.action_type in {"RESET_FORM", "REFRESH_TABLE", "SHOW_TOAST"}:
+                continue
+
+        if not progressed:
+            return
+
+
+def _apply_show_error(window: Any, action: ConfirmAction) -> None:
+    if action.message:
+        window.toast.warning(action.message, title=action.title or "Validación")
+
+
+def _apply_prompt_pdf(window: Any, selected: list[SolicitudDTO]) -> str | None:
+    return window._prompt_confirm_pdf_path(selected)
+
+
+def _apply_confirm(window: Any, persona: PersonaDTO | None, selected: list[SolicitudDTO], pdf_path: str | None) -> tuple[str | None, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None] | None:
+    if persona is None or pdf_path is None:
+        return None
+    return window._execute_confirmar_with_pdf(persona, selected, pdf_path)
+
+
+def _apply_finalize(
+    window: Any,
+    persona: PersonaDTO | None,
+    outcome: tuple[str | None, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None] | None,
+) -> None:
+    if persona is None or outcome is None:
+        return
+    correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes = outcome
+    logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(generado) if generado else None)
+    window._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes)
 
 
 def iterar_pendientes_en_tabla(window: Any) -> list[dict[str, object]]:
