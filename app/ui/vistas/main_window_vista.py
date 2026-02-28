@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sqlite3
 from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -59,6 +58,7 @@ from app.application.use_cases.conflict_resolution_policy import ConflictResolut
 from app.application.use_cases.retry_sync_use_case import RetrySyncUseCase
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
+from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.application.use_cases.solicitudes.validaciones import (
     detectar_duplicados_en_pendientes,
@@ -343,6 +343,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         conflicts_service: ConflictsService,
         health_check_use_case: HealthCheckUseCase | None = None,
         alert_engine: AlertEngine | None = None,
+        validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase | None = None,
     ) -> None:
         super().__init__()
         self._persona_use_cases = persona_use_cases
@@ -353,6 +354,9 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._conflicts_service = conflicts_service
         self._health_check_use_case = health_check_use_case
         self._alert_engine = alert_engine or AlertEngine()
+        self._validacion_preventiva_lock_use_case = (
+            validacion_preventiva_lock_use_case or ValidacionPreventivaLockUseCase()
+        )
         self._alert_snooze: dict[str, str] = {}
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._personas: list[PersonaDTO] = []
@@ -1249,21 +1253,20 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             return blocking, warnings
 
         try:
-            self._collect_preventive_business_rules(solicitud, warnings, blocking)
-        except sqlite3.OperationalError as exc:
-            if "locked" in str(exc).lower():
+            db_locked_error = self._validacion_preventiva_lock_use_case.ejecutar(
+                lambda: self._collect_preventive_business_rules(solicitud, warnings, blocking)
+            )
+            if db_locked_error is not None:
                 log_operational_error(
                     logger,
                     "DB locked during preventive validation",
-                    exc=exc,
+                    exc=db_locked_error,
                     extra={
                         "operation": "preventive_validation",
                         "persona_id": solicitud.persona_id,
                     },
                 )
                 warnings["db"] = "Validación parcial temporal: base de datos ocupada. Vuelve a intentar en unos segundos."
-            else:
-                raise
         except (ValidacionError, BusinessRuleError) as exc:
             blocking.setdefault("tramo", f"{copy_text('solicitudes.validation_tramo_prefix')} {str(exc)}")
 
