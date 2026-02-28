@@ -23,6 +23,7 @@ from app.infrastructure.repos_sqlite_builders import (
     row_to_persona,
     solicitud_insert_params,
 )
+from app.infrastructure.sqlite_uow import transaccion
 
 
 logger = logging.getLogger(__name__)
@@ -62,6 +63,19 @@ def _run_with_locked_retry(operation: Callable[[], _T], *, context: str) -> _T:
             time.sleep(delay_seconds)
 
     return operation()
+
+
+def _run_in_transaction_with_retry(
+    connection: sqlite3.Connection,
+    operation: Callable[[], _T],
+    *,
+    context: str,
+) -> _T:
+    def _operation_in_transaction() -> _T:
+        with transaccion(connection):
+            return operation()
+
+    return _run_with_locked_retry(_operation_in_transaction, context=context)
 
 
 def _now_iso() -> str:
@@ -117,22 +131,25 @@ class PersonaRepositorySQLite(PersonaRepository):
         cursor = self._connection.cursor()
         persona_uuid = str(uuid.uuid4())
         updated_at = _now_iso()
-        _execute_with_validation(
-            cursor,
-            """
-            INSERT INTO personas (
-                uuid, nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min, is_active,
-                cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
-                cuad_mie_man_min, cuad_mie_tar_min, cuad_jue_man_min, cuad_jue_tar_min,
-                cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
-                cuad_dom_man_min, cuad_dom_tar_min, cuadrante_uniforme, trabaja_finde,
-                updated_at, deleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            persona_insert_params(persona, persona_uuid, updated_at),
-            "personas.insert",
-        )
-        self._connection.commit()
+
+        def _operation() -> None:
+            _execute_with_validation(
+                cursor,
+                """
+                INSERT INTO personas (
+                    uuid, nombre, genero, horas_mes_min, horas_ano_min, horas_jornada_defecto_min, is_active,
+                    cuad_lun_man_min, cuad_lun_tar_min, cuad_mar_man_min, cuad_mar_tar_min,
+                    cuad_mie_man_min, cuad_mie_tar_min, cuad_jue_man_min, cuad_jue_tar_min,
+                    cuad_vie_man_min, cuad_vie_tar_min, cuad_sab_man_min, cuad_sab_tar_min,
+                    cuad_dom_man_min, cuad_dom_tar_min, cuadrante_uniforme, trabaja_finde,
+                    updated_at, deleted
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                persona_insert_params(persona, persona_uuid, updated_at),
+                "personas.insert",
+            )
+
+        _run_in_transaction_with_retry(self._connection, _operation, context="personas.create")
         return Persona(
             id=cursor.lastrowid,
             nombre=persona.nombre,
@@ -161,23 +178,26 @@ class PersonaRepositorySQLite(PersonaRepository):
     def update(self, persona: Persona) -> Persona:
         cursor = self._connection.cursor()
         updated_at = _now_iso()
-        _execute_with_validation(
-            cursor,
-            """
-            UPDATE personas
-            SET nombre = ?, genero = ?, horas_mes_min = ?, horas_ano_min = ?, horas_jornada_defecto_min = ?,
-                is_active = ?,
-                cuad_lun_man_min = ?, cuad_lun_tar_min = ?, cuad_mar_man_min = ?, cuad_mar_tar_min = ?,
-                cuad_mie_man_min = ?, cuad_mie_tar_min = ?, cuad_jue_man_min = ?, cuad_jue_tar_min = ?,
-                cuad_vie_man_min = ?, cuad_vie_tar_min = ?, cuad_sab_man_min = ?, cuad_sab_tar_min = ?,
-                cuad_dom_man_min = ?, cuad_dom_tar_min = ?, cuadrante_uniforme = ?, trabaja_finde = ?,
-                updated_at = ?
-            WHERE id = ?
-            """,
-            persona_update_params(persona, updated_at),
-            "personas.update",
-        )
-        self._connection.commit()
+
+        def _operation() -> None:
+            _execute_with_validation(
+                cursor,
+                """
+                UPDATE personas
+                SET nombre = ?, genero = ?, horas_mes_min = ?, horas_ano_min = ?, horas_jornada_defecto_min = ?,
+                    is_active = ?,
+                    cuad_lun_man_min = ?, cuad_lun_tar_min = ?, cuad_mar_man_min = ?, cuad_mar_tar_min = ?,
+                    cuad_mie_man_min = ?, cuad_mie_tar_min = ?, cuad_jue_man_min = ?, cuad_jue_tar_min = ?,
+                    cuad_vie_man_min = ?, cuad_vie_tar_min = ?, cuad_sab_man_min = ?, cuad_sab_tar_min = ?,
+                    cuad_dom_man_min = ?, cuad_dom_tar_min = ?, cuadrante_uniforme = ?, trabaja_finde = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                persona_update_params(persona, updated_at),
+                "personas.update",
+            )
+
+        _run_in_transaction_with_retry(self._connection, _operation, context="personas.update")
         return persona
 
     def get_by_uuid(self, persona_uuid: str) -> Persona | None:
@@ -202,21 +222,23 @@ class PersonaRepositorySQLite(PersonaRepository):
         updated_at = _now_iso()
         cursor.execute("PRAGMA table_info(personas)")
         columns = {col[1] for col in cursor.fetchall()}
-        if "updated_at" in columns:
-            _execute_with_validation(
-                cursor,
-                "UPDATE personas SET uuid = ?, updated_at = ? WHERE id = ?",
-                (persona_uuid, updated_at, persona_id),
-                "personas.ensure_uuid",
-            )
-        else:
+        def _operation() -> None:
+            if "updated_at" in columns:
+                _execute_with_validation(
+                    cursor,
+                    "UPDATE personas SET uuid = ?, updated_at = ? WHERE id = ?",
+                    (persona_uuid, updated_at, persona_id),
+                    "personas.ensure_uuid",
+                )
+                return
             _execute_with_validation(
                 cursor,
                 "UPDATE personas SET uuid = ? WHERE id = ?",
                 (persona_uuid, persona_id),
                 "personas.ensure_uuid_no_updated_at",
             )
-        self._connection.commit()
+
+        _run_in_transaction_with_retry(self._connection, _operation, context="personas.get_or_create_uuid")
         return persona_uuid
 
 
@@ -242,16 +264,19 @@ class CuadranteRepositorySQLite(CuadranteRepository):
 
     def create(self, delegada_uuid: str, dia_semana: str, man_min: int, tar_min: int) -> None:
         cursor = self._connection.cursor()
-        _execute_with_validation(
-            cursor,
-            """
-            INSERT INTO cuadrantes (uuid, delegada_uuid, dia_semana, man_min, tar_min, updated_at, deleted)
-            VALUES (?, ?, ?, ?, ?, ?, 0)
-            """,
-            (str(uuid.uuid4()), delegada_uuid, dia_semana, man_min, tar_min, _now_iso()),
-            "cuadrantes.insert",
-        )
-        self._connection.commit()
+
+        def _operation() -> None:
+            _execute_with_validation(
+                cursor,
+                """
+                INSERT INTO cuadrantes (uuid, delegada_uuid, dia_semana, man_min, tar_min, updated_at, deleted)
+                VALUES (?, ?, ?, ?, ?, ?, 0)
+                """,
+                (str(uuid.uuid4()), delegada_uuid, dia_semana, man_min, tar_min, _now_iso()),
+                "cuadrantes.insert",
+            )
+
+        _run_in_transaction_with_retry(self._connection, _operation, context="cuadrantes.create")
 
 
 class SolicitudRepositorySQLite(SolicitudRepository):
@@ -528,18 +553,21 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor = self._connection.cursor()
         solicitud_uuid = str(uuid.uuid4())
         created_at = _now_iso()
-        _execute_with_validation(
-            cursor,
-            """
-            INSERT INTO solicitudes (
-                uuid, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
-                horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated, created_at, updated_at, deleted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            solicitud_insert_params(solicitud, solicitud_uuid, created_at),
-            "solicitudes.insert",
-        )
-        self._connection.commit()
+
+        def _operation() -> None:
+            _execute_with_validation(
+                cursor,
+                """
+                INSERT INTO solicitudes (
+                    uuid, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                    horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated, created_at, updated_at, deleted
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                solicitud_insert_params(solicitud, solicitud_uuid, created_at),
+                "solicitudes.insert",
+            )
+
+        _run_in_transaction_with_retry(self._connection, _operation, context="solicitudes.create")
         return Solicitud(
             id=cursor.lastrowid,
             persona_id=solicitud.persona_id,
@@ -559,17 +587,20 @@ class SolicitudRepositorySQLite(SolicitudRepository):
     def delete(self, solicitud_id: int) -> None:
         cursor = self._connection.cursor()
         updated_at = _now_iso()
-        _execute_with_validation(
-            cursor,
-            """
-            UPDATE solicitudes
-            SET deleted = 1, updated_at = ?
-            WHERE id = ?
-            """,
-            (updated_at, solicitud_id),
-            "solicitudes.delete",
-        )
-        self._connection.commit()
+
+        def _operation() -> None:
+            _execute_with_validation(
+                cursor,
+                """
+                UPDATE solicitudes
+                SET deleted = 1, updated_at = ?
+                WHERE id = ?
+                """,
+                (updated_at, solicitud_id),
+                "solicitudes.delete",
+            )
+
+        _run_in_transaction_with_retry(self._connection, _operation, context="solicitudes.delete")
 
     def delete_by_ids(self, solicitud_ids: Iterable[int]) -> None:
         ids = list(solicitud_ids)
@@ -577,38 +608,47 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             return
         cursor = self._connection.cursor()
         sql, delete_params = build_soft_delete_many_sql(ids)
-        _execute_with_validation(cursor, sql, [_now_iso(), *delete_params], "solicitudes.delete_by_ids")
-        self._connection.commit()
+
+        def _operation() -> None:
+            _execute_with_validation(cursor, sql, [_now_iso(), *delete_params], "solicitudes.delete_by_ids")
+
+        _run_in_transaction_with_retry(self._connection, _operation, context="solicitudes.delete_by_ids")
 
     def update_pdf_info(self, solicitud_id: int, pdf_path: str, pdf_hash: str | None) -> None:
         cursor = self._connection.cursor()
         updated_at = _now_iso()
-        _execute_with_validation(
-            cursor,
-            """
-            UPDATE solicitudes
-            SET pdf_path = ?, pdf_hash = ?, generated = 1, updated_at = ?
-            WHERE id = ?
-            """,
-            (pdf_path, pdf_hash, updated_at, solicitud_id),
-            "solicitudes.update_pdf_info",
-        )
-        self._connection.commit()
+
+        def _operation() -> None:
+            _execute_with_validation(
+                cursor,
+                """
+                UPDATE solicitudes
+                SET pdf_path = ?, pdf_hash = ?, generated = 1, updated_at = ?
+                WHERE id = ?
+                """,
+                (pdf_path, pdf_hash, updated_at, solicitud_id),
+                "solicitudes.update_pdf_info",
+            )
+
+        _run_in_transaction_with_retry(self._connection, _operation, context="solicitudes.update_pdf_info")
 
     def mark_generated(self, solicitud_id: int, generated: bool = True) -> None:
         cursor = self._connection.cursor()
         updated_at = _now_iso()
-        _execute_with_validation(
-            cursor,
-            """
-            UPDATE solicitudes
-            SET generated = ?, updated_at = ?
-            WHERE id = ?
-            """,
-            (int(generated), updated_at, solicitud_id),
-            "solicitudes.mark_generated",
-        )
-        self._connection.commit()
+
+        def _operation() -> None:
+            _execute_with_validation(
+                cursor,
+                """
+                UPDATE solicitudes
+                SET generated = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (int(generated), updated_at, solicitud_id),
+                "solicitudes.mark_generated",
+            )
+
+        _run_in_transaction_with_retry(self._connection, _operation, context="solicitudes.mark_generated")
 
 
 class GrupoConfigRepositorySQLite(GrupoConfigRepository):
@@ -640,30 +680,33 @@ class GrupoConfigRepositorySQLite(GrupoConfigRepository):
 
     def upsert(self, config: GrupoConfig) -> GrupoConfig:
         cursor = self._connection.cursor()
-        cursor.execute(
-            """
-            INSERT INTO grupo_config (
-                id, nombre_grupo, bolsa_anual_grupo_min, pdf_logo_path,
-                pdf_intro_text, pdf_include_hours_in_horario
-            ) VALUES (1, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                nombre_grupo = excluded.nombre_grupo,
-                bolsa_anual_grupo_min = excluded.bolsa_anual_grupo_min,
-                pdf_logo_path = excluded.pdf_logo_path,
-                pdf_intro_text = excluded.pdf_intro_text,
-                pdf_include_hours_in_horario = excluded.pdf_include_hours_in_horario
-            """,
-            (
-                config.nombre_grupo,
-                config.bolsa_anual_grupo_min,
-                config.pdf_logo_path,
-                config.pdf_intro_text,
-                None
-                if config.pdf_include_hours_in_horario is None
-                else int(config.pdf_include_hours_in_horario),
-            ),
-        )
-        self._connection.commit()
+
+        def _operation() -> None:
+            cursor.execute(
+                """
+                INSERT INTO grupo_config (
+                    id, nombre_grupo, bolsa_anual_grupo_min, pdf_logo_path,
+                    pdf_intro_text, pdf_include_hours_in_horario
+                ) VALUES (1, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    nombre_grupo = excluded.nombre_grupo,
+                    bolsa_anual_grupo_min = excluded.bolsa_anual_grupo_min,
+                    pdf_logo_path = excluded.pdf_logo_path,
+                    pdf_intro_text = excluded.pdf_intro_text,
+                    pdf_include_hours_in_horario = excluded.pdf_include_hours_in_horario
+                """,
+                (
+                    config.nombre_grupo,
+                    config.bolsa_anual_grupo_min,
+                    config.pdf_logo_path,
+                    config.pdf_intro_text,
+                    None
+                    if config.pdf_include_hours_in_horario is None
+                    else int(config.pdf_include_hours_in_horario),
+                ),
+            )
+
+        _run_in_transaction_with_retry(self._connection, _operation, context="grupo_config.upsert")
         return GrupoConfig(
             id=1,
             nombre_grupo=config.nombre_grupo,
