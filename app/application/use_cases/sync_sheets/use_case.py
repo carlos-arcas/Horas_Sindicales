@@ -59,6 +59,30 @@ class _PullApplyContext:
     stats: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class RemoteSolicitudRowDTO:
+    row: dict[str, Any]
+    uuid_value: str
+    remote_updated_at: datetime | None
+
+
+@dataclass(frozen=True)
+class PullSignals:
+    has_existing_for_empty_uuid: bool
+    has_local_uuid: bool
+    skip_duplicate: bool
+    conflict_detected: bool
+    remote_is_newer: bool
+    backfill_enabled: bool
+    existing_uuid: str | None
+
+
+@dataclass(frozen=True)
+class PullContext:
+    dto: RemoteSolicitudRowDTO
+    local_row: Any | None
+
+
 class SheetsSyncService:
     def __init__(
         self,
@@ -429,32 +453,55 @@ class SheetsSyncService:
         if stats["sample_fecha_before"] is None:
             stats["sample_fecha_before"] = str(raw_row.get("fecha") or raw_row.get("fecha_pedida") or "")
 
-    def _process_pull_solicitud_row(
+    def _process_pull_solicitud_row(self, worksheet: Any, headers: list[str], row_number: int, row: dict[str, Any], last_sync_at: str | None, stats: dict[str, Any]) -> None:
+        dto = self.parse_remote_solicitud_row(row)
+        context = self.build_pull_context(dto)
+        signals = self.build_pull_signals(dto, context.local_row, last_sync_at, stats)
+        plan = self._build_pull_solicitud_plan(dto, signals)
+        self._apply_pull_solicitud_plan(plan, worksheet, headers, row_number, dto.row, dto.uuid_value, context.local_row, stats)
+
+    @staticmethod
+    def _build_pull_solicitud_plan(dto: RemoteSolicitudRowDTO, signals: PullSignals) -> list[PullAction]:
+        return plan_pull_solicitud_action(
+            has_uuid=bool(dto.uuid_value),
+            has_existing_for_empty_uuid=signals.has_existing_for_empty_uuid,
+            has_local_uuid=signals.has_local_uuid,
+            skip_duplicate=signals.skip_duplicate,
+            conflict_detected=signals.conflict_detected,
+            remote_is_newer=signals.remote_is_newer,
+            backfill_enabled=signals.backfill_enabled,
+            existing_uuid=signals.existing_uuid,
+        )
+
+    @staticmethod
+    def parse_remote_solicitud_row(row: dict[str, Any]) -> RemoteSolicitudRowDTO:
+        uuid_value = normalize_remote_uuid(row.get("uuid"))
+        remote_updated_at = sync_sheets_core.parse_iso(row.get("updated_at")) if uuid_value else None
+        return RemoteSolicitudRowDTO(row=row, uuid_value=uuid_value, remote_updated_at=remote_updated_at)
+
+    def build_pull_signals(
         self,
-        worksheet: Any,
-        headers: list[str],
-        row_number: int,
-        row: dict[str, Any],
+        dto: RemoteSolicitudRowDTO,
+        local_row: Any | None,
         last_sync_at: str | None,
         stats: dict[str, Any],
-    ) -> None:
-        uuid_value = normalize_remote_uuid(row.get("uuid"))
-        existing = self._find_solicitud_by_composite_key(row) if not uuid_value else None
+    ) -> PullSignals:
+        existing = self._find_solicitud_by_composite_key(dto.row) if not dto.uuid_value else None
         existing_uuid = str(existing["uuid"] or "").strip() if existing is not None else None
-        local_row = self._fetch_solicitud(uuid_value) if uuid_value else None
-        remote_updated_at = sync_sheets_core.parse_iso(row.get("updated_at")) if uuid_value else None
-        skip_duplicate = bool(uuid_value and local_row is None and self._skip_pull_duplicate(uuid_value, row, stats))
-        plan = plan_pull_solicitud_action(
-            has_uuid=bool(uuid_value),
+        skip_duplicate = bool(dto.uuid_value and local_row is None and self._skip_pull_duplicate(dto.uuid_value, dto.row, stats))
+        return PullSignals(
             has_existing_for_empty_uuid=existing is not None,
             has_local_uuid=local_row is not None,
             skip_duplicate=skip_duplicate,
-            conflict_detected=bool(local_row and sync_sheets_core.is_conflict(local_row["updated_at"], remote_updated_at, last_sync_at)),
-            remote_is_newer=bool(local_row and sync_sheets_core.is_remote_newer(local_row["updated_at"], remote_updated_at)),
+            conflict_detected=bool(local_row and sync_sheets_core.is_conflict(local_row["updated_at"], dto.remote_updated_at, last_sync_at)),
+            remote_is_newer=bool(local_row and sync_sheets_core.is_remote_newer(local_row["updated_at"], dto.remote_updated_at)),
             backfill_enabled=self._enable_backfill,
             existing_uuid=existing_uuid,
         )
-        self._apply_pull_solicitud_plan(plan, worksheet, headers, row_number, row, uuid_value, local_row, stats)
+
+    def build_pull_context(self, dto: RemoteSolicitudRowDTO) -> PullContext:
+        local_row = self._fetch_solicitud(dto.uuid_value) if dto.uuid_value else None
+        return PullContext(dto=dto, local_row=local_row)
 
     def _apply_pull_solicitud_plan(
         self,
@@ -600,55 +647,88 @@ class SheetsSyncService:
     def _pull_pdf_log(self, spreadsheet: Any) -> int:
         worksheet = self._get_worksheet(spreadsheet, "pdf_log")
         _, rows = self._rows_with_index(worksheet)
-        downloaded = 0
         cursor = self._connection.cursor()
+        downloaded = 0
         for _, row in rows:
-            pdf_id = str(row.get("pdf_id", "")).strip()
-            if not pdf_id:
-                continue
-            cursor.execute(
-                "SELECT updated_at FROM pdf_log WHERE pdf_id = ?",
-                (pdf_id,),
-            )
-            existing = cursor.fetchone()
-            if existing is None:
-                cursor.execute(
-                    """
-                    INSERT INTO pdf_log (pdf_id, delegada_uuid, rango_fechas, fecha_generacion, hash, updated_at, source_device)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        pdf_id,
-                        row.get("delegada_uuid"),
-                        row.get("rango_fechas"),
-                        row.get("fecha_generacion"),
-                        row.get("hash"),
-                        row.get("updated_at"),
-                        row.get("source_device"),
-                    ),
-                )
-                downloaded += 1
-            elif sync_sheets_core.is_remote_newer(existing["updated_at"], sync_sheets_core.parse_iso(row.get("updated_at"))):
-                cursor.execute(
-                    """
-                    UPDATE pdf_log
-                    SET delegada_uuid = ?, rango_fechas = ?, fecha_generacion = ?, hash = ?, updated_at = ?, source_device = ?
-                    WHERE pdf_id = ?
-                    """,
-                    (
-                        row.get("delegada_uuid"),
-                        row.get("rango_fechas"),
-                        row.get("fecha_generacion"),
-                        row.get("hash"),
-                        row.get("updated_at"),
-                        row.get("source_device"),
-                        pdf_id,
-                    ),
-                )
-                downloaded += 1
+            downloaded += self._sync_pdf_log_row(cursor, row)
         if not self._defer_local_commits:
             self._connection.commit()
         return downloaded
+
+    def _sync_pdf_log_row(self, cursor: Any, row: dict[str, Any]) -> int:
+        payload = self._build_pdf_log_payload(row)
+        if payload is None:
+            return 0
+        existing = self._fetch_pdf_log_updated_at(cursor, payload["pdf_id"])
+        if existing is None:
+            cursor.execute(
+                """
+                INSERT INTO pdf_log (pdf_id, delegada_uuid, rango_fechas, fecha_generacion, hash, updated_at, source_device)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                self._pdf_log_insert_values(payload),
+            )
+            return 1
+        if self._pdf_log_should_update(existing["updated_at"], payload["updated_at"]):
+            cursor.execute(
+                """
+                UPDATE pdf_log
+                SET delegada_uuid = ?, rango_fechas = ?, fecha_generacion = ?, hash = ?, updated_at = ?, source_device = ?
+                WHERE pdf_id = ?
+                """,
+                self._pdf_log_update_values(payload),
+            )
+            return 1
+        return 0
+
+    @staticmethod
+    def _build_pdf_log_payload(row: dict[str, Any]) -> dict[str, Any] | None:
+        pdf_id = str(row.get("pdf_id", "")).strip()
+        if not pdf_id:
+            return None
+        return {
+            "pdf_id": pdf_id,
+            "delegada_uuid": row.get("delegada_uuid"),
+            "rango_fechas": row.get("rango_fechas"),
+            "fecha_generacion": row.get("fecha_generacion"),
+            "hash": row.get("hash"),
+            "updated_at": row.get("updated_at"),
+            "source_device": row.get("source_device"),
+        }
+
+    @staticmethod
+    def _fetch_pdf_log_updated_at(cursor: Any, pdf_id: str) -> Any | None:
+        cursor.execute("SELECT updated_at FROM pdf_log WHERE pdf_id = ?", (pdf_id,))
+        return cursor.fetchone()
+
+    @staticmethod
+    def _pdf_log_should_update(local_updated_at: str | None, remote_updated_at_raw: Any) -> bool:
+        remote_updated_at = sync_sheets_core.parse_iso(remote_updated_at_raw)
+        return sync_sheets_core.is_remote_newer(local_updated_at, remote_updated_at)
+
+    @staticmethod
+    def _pdf_log_insert_values(payload: dict[str, Any]) -> tuple[Any, ...]:
+        return (
+            payload["pdf_id"],
+            payload["delegada_uuid"],
+            payload["rango_fechas"],
+            payload["fecha_generacion"],
+            payload["hash"],
+            payload["updated_at"],
+            payload["source_device"],
+        )
+
+    @staticmethod
+    def _pdf_log_update_values(payload: dict[str, Any]) -> tuple[Any, ...]:
+        return (
+            payload["delegada_uuid"],
+            payload["rango_fechas"],
+            payload["fecha_generacion"],
+            payload["hash"],
+            payload["updated_at"],
+            payload["source_device"],
+            payload["pdf_id"],
+        )
 
     def _pull_config(self, spreadsheet: Any) -> int:
         worksheet = self._get_worksheet(spreadsheet, "config")
@@ -1041,11 +1121,8 @@ class SheetsSyncService:
         return None, was_inserted, None
 
     def _assign_uuid_to_persona(self, persona_id: int, persona_uuid: str, row: dict[str, Any]) -> None:
-        cursor = self._connection.cursor()
-        cursor.execute(
-            "UPDATE personas SET uuid = ?, updated_at = ? WHERE id = ?",
-            (persona_uuid, row.get("updated_at") or self._now_iso(), persona_id),
-        )
+        fixed_now = row.get("updated_at") or self._now_iso()
+        persistence_ops.backfill_uuid(self._connection, "personas", persona_id, persona_uuid, lambda: fixed_now)
         self._connection.commit()
 
     def _find_solicitud_by_composite_key(self, row: dict[str, Any]) -> Any | None:

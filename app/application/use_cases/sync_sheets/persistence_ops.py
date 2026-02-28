@@ -93,6 +93,16 @@ def execute_update_solicitud(connection: Any, payload: tuple[Any, ...]) -> None:
     )
 
 
+def backfill_uuid(connection: Any, table_name: str, record_id: int, uuid_value: str, now_iso: Callable[[], str]) -> None:
+    allowed_tables = {"personas", "solicitudes", "cuadrantes"}
+    if table_name not in allowed_tables:
+        raise ValueError(f"table_name no soportada para backfill_uuid: {table_name}")
+    connection.cursor().execute(
+        f"UPDATE {table_name} SET uuid = ?, updated_at = ? WHERE id = ?",
+        (uuid_value, now_iso(), record_id),
+    )
+
+
 def store_conflict(connection: Any, uuid_value: str, entity_type: str, local_snapshot: dict[str, Any], remote_snapshot: dict[str, Any], now_iso: Callable[[], str]) -> None:
     connection.cursor().execute(
         """
