@@ -67,6 +67,10 @@ from app.application.use_cases.solicitudes.confirmacion_pdf_service import (
     hash_file as _hash_file,
     pdf_intro_text as _pdf_intro_text,
 )
+from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import (
+    ConfirmarSinPdfAction,
+    plan_confirmar_sin_pdf,
+)
 from app.application.use_cases.solicitudes.validacion_service import (
     build_periodo_filtro as _build_periodo_filtro,
     calcular_minutos as _calcular_minutos,
@@ -675,26 +679,19 @@ class SolicitudUseCases:
         solicitudes_list = list(solicitudes)
         if correlation_id:
             log_event(logger, "confirmar_sin_pdf_started", {"count": len(solicitudes_list)}, correlation_id)
+
+        plan = plan_confirmar_sin_pdf(solicitudes_list)
         creadas_confirmadas: list[SolicitudDTO] = []
         pendientes_restantes: list[SolicitudDTO] = []
         errores: list[str] = []
-        for solicitud in solicitudes_list:
-            try:
-                if solicitud.id is not None:
-                    existente = self._repo.get_by_id(solicitud.id)
-                    if existente is None:
-                        raise BusinessRuleError("La solicitud pendiente ya no existe.")
-                    creada = _solicitud_to_dto(existente)
-                else:
-                    creada, _ = self.agregar_solicitud(solicitud, correlation_id=correlation_id)
 
-                if creada.id is None:
-                    raise BusinessRuleError("No se pudo confirmar la solicitud sin id.")
-                self._repo.mark_generated(creada.id, True)
-                creadas_confirmadas.append(replace(creada, generated=True))
+        for action in plan:
+            try:
+                creada = self._run_confirmar_sin_pdf_action(action, correlation_id=correlation_id)
+                creadas_confirmadas.append(creada)
             except (ValidacionError, BusinessRuleError) as exc:
                 errores.append(str(exc))
-                pendientes_restantes.append(solicitud)
+                pendientes_restantes.append(action.solicitud)
             except PersistenceError:
                 raise
             except InfraError as exc:  # pragma: no cover - fallback
@@ -702,7 +699,7 @@ class SolicitudUseCases:
                 if correlation_id:
                     log_event(logger, "confirmar_sin_pdf_failed", {"error": str(exc)}, correlation_id)
                 errores.append("Se produjo un error técnico al confirmar la solicitud.")
-                pendientes_restantes.append(solicitud)
+                pendientes_restantes.append(action.solicitud)
 
         if correlation_id:
             log_event(
@@ -712,6 +709,28 @@ class SolicitudUseCases:
                 correlation_id,
             )
         return creadas_confirmadas, pendientes_restantes, errores
+
+    def _run_confirmar_sin_pdf_action(
+        self,
+        action: ConfirmarSinPdfAction,
+        *,
+        correlation_id: str | None,
+    ) -> SolicitudDTO:
+        if action.command == "RESOLVE_EXISTING":
+            solicitud_id = action.solicitud.id
+            if solicitud_id is None:
+                raise BusinessRuleError("La solicitud pendiente ya no existe.")
+            existente = self._repo.get_by_id(solicitud_id)
+            if existente is None:
+                raise BusinessRuleError("La solicitud pendiente ya no existe.")
+            creada = _solicitud_to_dto(existente)
+        else:
+            creada, _ = self.agregar_solicitud(action.solicitud, correlation_id=correlation_id)
+
+        if creada.id is None:
+            raise BusinessRuleError("No se pudo confirmar la solicitud sin id.")
+        self._repo.mark_generated(creada.id, True)
+        return replace(creada, generated=True)
 
     def confirmar_y_generar_pdf(
         self,

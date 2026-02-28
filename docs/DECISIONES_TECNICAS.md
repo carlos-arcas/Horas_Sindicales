@@ -26,3 +26,13 @@ Objetivos:
 - Arquitectura: [`arquitectura.md`](arquitectura.md)
 - Decisiones históricas/extendidas: [`decisiones_tecnicas.md`](decisiones_tecnicas.md), [`decisiones.md`](decisiones.md)
 - Política de calidad: [`quality_gate.md`](quality_gate.md)
+
+## 2026-02 ROI: Solicitudes confirmar sin PDF (Planner/Runner)
+- Hotspot abordado: `SolicitudUseCases.confirmar_sin_pdf` por mezcla de reglas + orquestación.
+- Decisión: extraer planificación pura a `confirmar_sin_pdf_planner.py`.
+- `plan_confirmar_sin_pdf` clasifica cada solicitud en `RESOLVE_EXISTING` o `CREATE_NEW`.
+- La use case mantiene el runner fino (`_run_confirmar_sin_pdf_action`) sin cambiar contratos públicos.
+- Beneficio ROI: misma conducta observable, menor señal de “lógica mezclada”.
+- Beneficio técnico: se habilitan tests headless de reglas de planificación sin DB/UI.
+- Riesgo controlado: se conservaron mensajes de error y excepciones de persistencia.
+- Criterio de éxito: `pytest -q -m "not ui"` en verde y flujo de confirmación intacto.
