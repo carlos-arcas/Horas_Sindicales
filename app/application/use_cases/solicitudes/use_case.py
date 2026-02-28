@@ -716,8 +716,8 @@ class SolicitudUseCases:
         *,
         correlation_id: str | None,
     ) -> SolicitudDTO:
-        if action.command == "RESOLVE_EXISTING":
-            solicitud_id = action.solicitud.id
+        if action.action_type == "RESOLVE_EXISTING":
+            solicitud_id = action.payload.solicitud_id
             if solicitud_id is None:
                 raise BusinessRuleError("La solicitud pendiente ya no existe.")
             existente = self._repo.get_by_id(solicitud_id)
@@ -725,7 +725,10 @@ class SolicitudUseCases:
                 raise BusinessRuleError("La solicitud pendiente ya no existe.")
             creada = _solicitud_to_dto(existente)
         else:
-            creada, _ = self.agregar_solicitud(action.solicitud, correlation_id=correlation_id)
+            solicitud = action.payload.solicitud
+            if solicitud is None:
+                raise BusinessRuleError("No se pudo confirmar la solicitud sin id.")
+            creada, _ = self.agregar_solicitud(solicitud, correlation_id=correlation_id)
 
         if creada.id is None:
             raise BusinessRuleError("No se pudo confirmar la solicitud sin id.")
