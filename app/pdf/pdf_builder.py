@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import re
 from typing import Iterable
+import unicodedata
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -65,6 +67,7 @@ def construir_pdf_solicitudes(
         raise ValueError("No hay solicitudes para generar el PDF.")
 
     destino = _ensure_pdf_extension(destino)
+    _validate_destino(destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
 
     header_height = 3.0 * cm
@@ -270,16 +273,42 @@ def _format_fecha_archivo(fecha: datetime) -> str:
 
 
 def _sanitize_filename(nombre: str) -> str:
-    reemplazos = {"/": "-", "\\": "-", " ": "_"}
-    for origen, destino in reemplazos.items():
-        nombre = nombre.replace(origen, destino)
-    return nombre
+    normalized = unicodedata.normalize("NFKC", nombre or "")
+    without_controls = "".join(
+        char
+        for char in normalized
+        if unicodedata.category(char) not in {"Cc", "Cf"}
+    )
+    without_separators = without_controls.replace("/", "-").replace("\\", "-")
+    cleaned = re.sub(r'[<>:"|?*]', "", without_separators)
+    cleaned = cleaned.strip().rstrip(" .")
+    cleaned = re.sub(r"\s+", "_", cleaned)
+    cleaned = re.sub(r"_+", "_", cleaned)
+    cleaned = re.sub(r"\.{2,}", ".", cleaned)
+    cleaned = cleaned.strip("._-")
+    if not cleaned or not any(char.isalnum() for char in cleaned):
+        return "SIN_NOMBRE"
+    return cleaned[:80]
+
+
+def _validate_destino(destino: Path) -> None:
+    destination_text = destino.as_posix()
+    if any(part == ".." for part in destino.parts):
+        raise ValueError("La ruta de destino no puede contener '..'.")
+    if _contains_path_separators(destino.name) or ".." in destino.name:
+        raise ValueError("El destino debe ser un nombre de archivo PDF válido.")
+    if destino.name != destination_text.split("/")[-1]:
+        raise ValueError("El destino debe ser un nombre de archivo puro, sin rutas.")
 
 
 def _ensure_pdf_extension(path: Path) -> Path:
     if path.suffix.lower() != ".pdf":
         return path.with_suffix(".pdf")
     return path
+
+
+def _contains_path_separators(value: str) -> bool:
+    return "/" in value or "\\" in value
 
 
 def _draw_header(canvas, doc, header_height: float, logo_path: str | None) -> None:
