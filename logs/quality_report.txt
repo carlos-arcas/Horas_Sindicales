@@ -2,16 +2,16 @@
 
 ## Top 20 archivos por LOC
 01. app/ui/vistas/main_window_vista.py -> 2633 LOC
-02. app/application/use_cases/sync_sheets/use_case.py -> 1502 LOC
-03. app/infrastructure/repos_sqlite.py -> 855 LOC
-04. app/application/use_cases/solicitudes/use_case.py -> 826 LOC
-05. app/ui/vistas/builders/main_window_builders.py -> 764 LOC
+02. app/application/use_cases/sync_sheets/use_case.py -> 1373 LOC
+03. app/application/use_cases/solicitudes/use_case.py -> 826 LOC
+04. app/ui/vistas/builders/main_window_builders.py -> 764 LOC
+05. app/infrastructure/repos_sqlite.py -> 617 LOC
 06. app/ui/sync_reporting.py -> 444 LOC
 07. app/ui/widgets/toast.py -> 436 LOC
 08. app/ui/vistas/confirmacion_actions.py -> 379 LOC
 09. app/infrastructure/repos_conflicts_sqlite.py -> 343 LOC
 10. app/ui/conflicts_dialog.py -> 331 LOC
-11. app/application/use_cases/sync_sheets_core.py -> 276 LOC
+11. app/application/use_cases/sync_sheets_core.py -> 271 LOC
 12. app/infrastructure/sheets_client.py -> 271 LOC
 13. app/ui/person_dialog.py -> 258 LOC
 14. app/pdf/pdf_builder.py -> 254 LOC
@@ -25,16 +25,16 @@
 ## Top 20 por complejidad
 - Nota: radon no disponible: se muestra fallback por LOC (aproximación simple de complejidad).
 01. app/ui/vistas/main_window_vista.py -> 2633
-02. app/application/use_cases/sync_sheets/use_case.py -> 1502
-03. app/infrastructure/repos_sqlite.py -> 855
-04. app/application/use_cases/solicitudes/use_case.py -> 826
-05. app/ui/vistas/builders/main_window_builders.py -> 764
+02. app/application/use_cases/sync_sheets/use_case.py -> 1373
+03. app/application/use_cases/solicitudes/use_case.py -> 826
+04. app/ui/vistas/builders/main_window_builders.py -> 764
+05. app/infrastructure/repos_sqlite.py -> 617
 06. app/ui/sync_reporting.py -> 444
 07. app/ui/widgets/toast.py -> 436
 08. app/ui/vistas/confirmacion_actions.py -> 379
 09. app/infrastructure/repos_conflicts_sqlite.py -> 343
 10. app/ui/conflicts_dialog.py -> 331
-11. app/application/use_cases/sync_sheets_core.py -> 276
+11. app/application/use_cases/sync_sheets_core.py -> 271
 12. app/infrastructure/sheets_client.py -> 271
 13. app/ui/person_dialog.py -> 258
 14. app/pdf/pdf_builder.py -> 254

@@ -7,6 +7,7 @@ from PySide6.QtCore import QObject, QThread, Signal, Slot
 
 from app.bootstrap.logging import log_operational_error
 from app.core.observability import OperationContext, log_event
+from app.ui.controllers.sync_button_state_rules import EstadoBotonSyncEntrada, decidir_estado_botones_sync
 
 
 logger = logging.getLogger(__name__)
@@ -100,29 +101,37 @@ class SyncController:
 
     def update_sync_button_state(self) -> None:
         w = self.window
-        configured = w._sync_service.is_configured()
-        enabled = configured and not w._sync_in_progress
-        w.sync_button.setEnabled(enabled)
+        pending_plan = getattr(w, "_pending_sync_plan", None)
+        report = getattr(w, "_last_sync_report", None)
+        entrada = EstadoBotonSyncEntrada(
+            sync_configurado=w._sync_service.is_configured(),
+            sync_en_progreso=w._sync_in_progress,
+            hay_plan_pendiente=pending_plan is not None,
+            plan_tiene_cambios=bool(pending_plan is not None and pending_plan.has_changes),
+            plan_tiene_conflictos=bool(pending_plan is not None and pending_plan.conflicts),
+            ultimo_reporte_presente=report is not None,
+            ultimo_reporte_tiene_fallos=bool(report and (report.errors or report.conflicts)),
+            conflictos_pendientes_total=w._conflicts_service.count_conflicts(),
+            texto_sync_actual=_leer_texto_boton(getattr(w, "sync_button", None)),
+            tooltip_sync_actual=_leer_tooltip_boton(getattr(w, "sync_button", None)),
+        )
+        decision = decidir_estado_botones_sync(entrada)
+
+        _aplicar_decision_boton(w.sync_button, decision.sync)
+        _aplicar_decision_boton(w.review_conflicts_button, decision.review_conflicts)
+
         if hasattr(w, "simulate_sync_button"):
-            w.simulate_sync_button.setEnabled(enabled)
+            _aplicar_decision_boton(w.simulate_sync_button, decision.simulate_sync)
         if hasattr(w, "confirm_sync_button"):
-            pending_plan = getattr(w, "_pending_sync_plan", None)
-            has_plan_changes = bool(pending_plan is not None and pending_plan.has_changes)
-            has_unresolved_conflicts = bool(pending_plan is not None and pending_plan.conflicts)
-            w.confirm_sync_button.setEnabled(enabled and has_plan_changes and not has_unresolved_conflicts)
+            _aplicar_decision_boton(w.confirm_sync_button, decision.confirm_sync)
         if hasattr(w, "retry_failed_button"):
-            report = getattr(w, "_last_sync_report", None)
-            has_failures = bool(report and (report.errors or report.conflicts))
-            w.retry_failed_button.setEnabled(not w._sync_in_progress and has_failures)
-        conflicts_total = w._conflicts_service.count_conflicts()
-        w.review_conflicts_button.setText("Revisar conflictos" if conflicts_total > 0 else "Revisar conflictos (sin pendientes)")
-        w.review_conflicts_button.setEnabled(not w._sync_in_progress and conflicts_total > 0)
+            _aplicar_decision_boton(w.retry_failed_button, decision.retry_failed)
         if hasattr(w, "_update_conflicts_reminder"):
             w._update_conflicts_reminder()
         if hasattr(w, "sync_details_button"):
-            w.sync_details_button.setEnabled(not w._sync_in_progress and w._last_sync_report is not None)
+            _aplicar_decision_boton(w.sync_details_button, decision.sync_details)
         if hasattr(w, "copy_sync_report_button"):
-            w.copy_sync_report_button.setEnabled(not w._sync_in_progress and w._last_sync_report is not None)
+            _aplicar_decision_boton(w.copy_sync_report_button, decision.copy_sync_report)
 
     def on_open_opciones(self) -> None:
         w = self.window
@@ -135,3 +144,36 @@ class SyncController:
             w._set_sync_status_badge("IDLE")
             w.sync_panel_status.setText("Estado: Pendiente")
         self.update_sync_button_state()
+
+
+def _aplicar_decision_boton(widget, decision) -> None:
+    """Aplica una decisión de estado a un botón Qt sin acoplar reglas al controlador."""
+
+    if widget is None:
+        return
+    if hasattr(widget, "setEnabled"):
+        widget.setEnabled(decision.enabled)
+    if decision.text and hasattr(widget, "setText"):
+        widget.setText(decision.text)
+    if decision.tooltip is not None and hasattr(widget, "setToolTip"):
+        widget.setToolTip(decision.tooltip)
+
+
+def _leer_texto_boton(widget) -> str:
+    if widget is None or not hasattr(widget, "text"):
+        return ""
+    try:
+        texto = widget.text()
+    except TypeError:
+        return ""
+    return str(texto)
+
+
+def _leer_tooltip_boton(widget) -> str:
+    if widget is None or not hasattr(widget, "toolTip"):
+        return ""
+    try:
+        tooltip = widget.toolTip()
+    except TypeError:
+        return ""
+    return str(tooltip)
