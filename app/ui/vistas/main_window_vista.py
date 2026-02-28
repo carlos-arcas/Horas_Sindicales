@@ -1202,7 +1202,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             completo,
         )
         if tramo_errors:
-            blocking["tramo"] = f"{copy_text("solicitudes.validation_tramo_prefix")} {next(iter(tramo_errors.values()))}"
+            blocking["tramo"] = f"{copy_text('solicitudes.validation_tramo_prefix')} {next(iter(tramo_errors.values()))}"
         return blocking
 
     def _collect_preventive_business_rules(
@@ -1265,7 +1265,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             else:
                 raise
         except (ValidacionError, BusinessRuleError) as exc:
-            blocking.setdefault("tramo", f"{copy_text("solicitudes.validation_tramo_prefix")} {str(exc)}")
+            blocking.setdefault("tramo", f"{copy_text('solicitudes.validation_tramo_prefix')} {str(exc)}")
 
         self._dump_estado_pendientes("after_collect_preventive_validation")
         return blocking, warnings
@@ -1289,7 +1289,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.pending_errors_frame.setVisible(view_model.show_pending_errors_frame)
         summary_text = view_model.summary_text
         if summary_text:
-            summary_text = f"{copy_text("solicitudes.pending_errors_intro")}\n{summary_text}"
+            summary_text = f"{copy_text('solicitudes.pending_errors_intro')}\n{summary_text}"
         self.pending_errors_summary.setText(summary_text)
         show_duplicate_cta = view_model.show_duplicate_cta
         self.goto_existing_button.setVisible(show_duplicate_cta)
