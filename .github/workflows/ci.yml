@@ -55,11 +55,18 @@ jobs:
           cat logs/quality_report.txt logs/quality_report_target_2.txt > logs/quality_report_ci.txt
           mv logs/quality_report_ci.txt logs/quality_report.txt
 
+      - name: Quality Gate unificado (reportes MD/JSON)
+        run: |
+          python scripts/quality_gate.py
+          python scripts/quality_summary.py
+
       - name: Subir artefacto de calidad
         uses: actions/upload-artifact@v4
         with:
-          name: quality-report-py${{ matrix.python-version }}
+          name: quality-gate-report-py${{ matrix.python-version }}
           path: |
+            logs/quality_report.md
+            logs/quality_report.json
             logs/quality_report.txt
             logs/coverage.json
 
