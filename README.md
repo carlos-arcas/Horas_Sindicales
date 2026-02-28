@@ -75,6 +75,7 @@ quality_gate.bat
 ### CLI
 
 ```bash
+python -m pip install -r requirements-dev.txt
 python scripts/quality_gate.py
 ```
 

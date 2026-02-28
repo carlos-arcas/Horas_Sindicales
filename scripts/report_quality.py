@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import subprocess
 import sys
@@ -15,6 +16,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Genera reporte de señales de calidad")
     parser.add_argument("--out", default="logs/quality_report.txt", help="Ruta de salida del reporte TXT")
     parser.add_argument("--top", type=int, default=20, help="Cantidad de entradas en rankings")
+    parser.add_argument(
+        "--target",
+        default=None,
+        help="Objetivo puntual con formato archivo.py:funcion_o_metodo (ej: app/x.py:f o app/x.py:Clase.m)",
+    )
     return parser.parse_args()
 
 
@@ -60,6 +66,105 @@ def _top_complexity(files: list[Path], top_n: int) -> tuple[str, list[tuple[str,
 
     rows.sort(key=lambda item: item[1], reverse=True)
     return ("radon disponible", rows[:top_n])
+
+
+def _parse_target(raw_target: str) -> tuple[Path, list[str], str]:
+    if ":" not in raw_target:
+        raise ValueError("--target debe seguir el formato archivo.py:funcion_o_metodo")
+
+    raw_file, raw_identifier = raw_target.split(":", maxsplit=1)
+    if not raw_file.endswith(".py"):
+        raise ValueError("--target debe apuntar a un archivo .py")
+    if not raw_identifier.strip():
+        raise ValueError("--target requiere un nombre de función o método")
+
+    target_file = ROOT / raw_file
+    if not target_file.exists():
+        raise ValueError(f"No existe el archivo de --target: {raw_file}")
+
+    identifier_parts = [part for part in raw_identifier.split(".") if part]
+    if not identifier_parts:
+        raise ValueError("--target requiere un identificador válido")
+
+    relative = target_file.relative_to(ROOT).as_posix()
+    return target_file, identifier_parts, f"{relative}:{'.'.join(identifier_parts)}"
+
+
+class _ComplexityNodeVisitor(ast.NodeVisitor):
+    BRANCH_NODES = (
+        ast.If,
+        ast.IfExp,
+        ast.For,
+        ast.AsyncFor,
+        ast.While,
+        ast.Try,
+        ast.ExceptHandler,
+        ast.With,
+        ast.AsyncWith,
+        ast.Match,
+        ast.BoolOp,
+        ast.comprehension,
+    )
+
+    def __init__(self) -> None:
+        self.count = 1
+
+    def generic_visit(self, node: ast.AST) -> None:
+        if isinstance(node, self.BRANCH_NODES):
+            self.count += 1
+        super().generic_visit(node)
+
+
+def _find_ast_node(module: ast.Module, parts: list[str]) -> ast.AST | None:
+    current: ast.AST = module
+    for index, part in enumerate(parts):
+        body: list[ast.stmt] = getattr(current, "body", [])
+        node = next(
+            (
+                item
+                for item in body
+                if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and item.name == part
+            ),
+            None,
+        )
+        if node is None:
+            return None
+        if index < len(parts) - 1 and not isinstance(node, ast.ClassDef):
+            return None
+        current = node
+    if isinstance(current, ast.ClassDef):
+        return None
+    return current
+
+
+def _target_complexity(raw_target: str) -> tuple[str, str, int]:
+    target_file, identifier_parts, printable_identifier = _parse_target(raw_target)
+    source = target_file.read_text(encoding="utf-8")
+
+    try:
+        from radon.complexity import cc_visit
+    except Exception:
+        module = ast.parse(source)
+        node = _find_ast_node(module, identifier_parts)
+        if node is None:
+            raise ValueError(f"No se encontró el símbolo indicado en --target: {printable_identifier}")
+        visitor = _ComplexityNodeVisitor()
+        visitor.visit(node)
+        return (
+            "radon no disponible: se usa CC aproximada por AST (conteo de nodos condicionales).",
+            printable_identifier,
+            visitor.count,
+        )
+
+    for block in cc_visit(source):
+        if block.letter not in {"F", "M"}:
+            continue
+        candidate_parts = [block.classname, block.name] if block.classname else [block.name]
+        normalized_candidate = [part for part in candidate_parts if part]
+        if normalized_candidate == identifier_parts:
+            return ("radon disponible", printable_identifier, int(block.complexity))
+
+    raise ValueError(f"No se encontró el símbolo indicado en --target: {printable_identifier}")
 
 
 def _load_coverage_json() -> tuple[str, dict[str, Any] | None]:
@@ -132,6 +237,7 @@ def _format_report(
     cc_rows: list[tuple[str, int]],
     coverage_note: str,
     coverage_rows: dict[str, float],
+    target_result: tuple[str, str, int] | None,
 ) -> str:
     lines: list[str] = []
     lines.append("# Reporte de calidad")
@@ -152,6 +258,13 @@ def _format_report(
     for package in ["domain", "application", "infrastructure", "ui"]:
         lines.append(f"- {package}: {coverage_rows[package]:.2f}%")
 
+    if target_result is not None:
+        target_note, target_identifier, target_cc = target_result
+        lines.append("")
+        lines.append("## Complejidad target")
+        lines.append(f"- Nota: {target_note}")
+        lines.append(f"- {target_identifier} -> {target_cc}")
+
     return "\n".join(lines) + "\n"
 
 
@@ -162,8 +275,13 @@ def main() -> int:
     cc_note, cc_rows = _top_complexity(files, top_n=args.top)
     coverage_note, coverage_data = _load_coverage_json()
     coverage_rows = _coverage_by_package(coverage_data)
+    try:
+        target_result = _target_complexity(args.target) if args.target else None
+    except ValueError as exc:
+        print(f"ERROR: {exc}")
+        return 2
 
-    report = _format_report(loc_rows, cc_note, cc_rows, coverage_note, coverage_rows)
+    report = _format_report(loc_rows, cc_note, cc_rows, coverage_note, coverage_rows, target_result)
     out_path = ROOT / args.out
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(report, encoding="utf-8")
