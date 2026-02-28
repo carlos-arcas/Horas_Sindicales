@@ -10,10 +10,12 @@ from app.application.sync_sheets_use_case import SyncSheetsUseCase
 from app.application.use_cases.grupos_config import GrupoConfigUseCases
 from app.application.use_cases.personas import PersonaUseCases
 from app.application.use_cases.solicitudes import SolicitudUseCases
+from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.infrastructure.db import get_connection
 from app.infrastructure.health_probes import DefaultConnectivityProbe, SheetsConfigProbe, SQLiteLocalDbProbe
+from app.infrastructure.sqlite_lock_error_classifier import SQLiteLockErrorClassifier
 from app.infrastructure.local_config_store import LocalConfigStore
 from app.infrastructure.pdf.generador_pdf_reportlab import GeneradorPdfReportlab
 from app.infrastructure.migrations import run_migrations
@@ -41,6 +43,7 @@ class AppContainer:
     conflicts_service: ConflictsService
     health_check_use_case: HealthCheckUseCase
     alert_engine: AlertEngine
+    validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase
 
 
 ConnectionFactory = Callable[[], object]
@@ -78,6 +81,7 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
         SQLiteLocalDbProbe(connection_factory),
     )
     alert_engine = AlertEngine()
+    validacion_preventiva_lock_use_case = ValidacionPreventivaLockUseCase(SQLiteLockErrorClassifier())
 
     conflicts_repository = SQLiteConflictsRepository(connection)
     conflicts_service = ConflictsService(
@@ -94,4 +98,5 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
         conflicts_service=conflicts_service,
         health_check_use_case=health_check_use_case,
         alert_engine=alert_engine,
+        validacion_preventiva_lock_use_case=validacion_preventiva_lock_use_case,
     )

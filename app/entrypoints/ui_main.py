@@ -54,6 +54,7 @@ def run_ui(container: AppContainer | None = None) -> int:
             resolved_container.conflicts_service,
             resolved_container.health_check_use_case,
             resolved_container.alert_engine,
+            resolved_container.validacion_preventiva_lock_use_case,
         )
         window.show()
         return app.exec()

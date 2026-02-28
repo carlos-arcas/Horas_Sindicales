@@ -22,3 +22,4 @@ def test_build_container_smoke(tmp_path: Path) -> None:
     assert container.conflicts_service is not None
     assert container.health_check_use_case is not None
     assert container.alert_engine is not None
+    assert container.validacion_preventiva_lock_use_case is not None
