@@ -44,6 +44,10 @@ CATALOGO: dict[str, dict[str, str]] = {
         "menu_cargar_demo_error_sin_detalles": "No hay detalles adicionales.",
         "dialogo_accion_confirmar": "Confirmar",
         "dialogo_accion_cancelar": "Cancelar",
+        "startup_error_dialog_message": "No se pudo completar el arranque de la aplicación.",
+        "startup_error_incident_label": "ID de incidente: {incident_id}",
+        "startup_error_copy_id": "Copiar ID",
+        "startup_error_open_logs": "Abrir carpeta de logs",
     },
     "en": {
         "splash_titulo": "Starting Horas Sindicales…",
@@ -85,6 +89,10 @@ CATALOGO: dict[str, dict[str, str]] = {
         "menu_cargar_demo_error_sin_detalles": "No additional details.",
         "dialogo_accion_confirmar": "Confirm",
         "dialogo_accion_cancelar": "Cancel",
+        "startup_error_dialog_message": "The application startup could not be completed.",
+        "startup_error_incident_label": "Incident ID: {incident_id}",
+        "startup_error_copy_id": "Copy ID",
+        "startup_error_open_logs": "Open logs folder",
     },
 }
 

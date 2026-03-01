@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import logging
 import sys
+import traceback
 import uuid
 from types import TracebackType
+from typing import Callable
 
 from aplicacion.casos_de_uso.documentos import ObtenerRutaGuiaSync
 from aplicacion.casos_de_uso.idioma import GuardarIdiomaUI, ObtenerIdiomaUI
@@ -38,6 +40,63 @@ def manejar_excepcion_ui(
         QMessageBox.critical(None, "Error inesperado", construir_mensaje_error_ui(incident_id))
     except Exception:
         pass
+    return incident_id
+
+
+def _resolver_incident_id(exc: Exception | None, trace_info) -> str:
+    if trace_info is not None and all(trace_info):
+        return manejar_excepcion_ui(trace_info[0], trace_info[1], trace_info[2])
+    incident_id = f"INC-UI-{uuid.uuid4().hex[:12].upper()}"
+    log_operational_error(
+        LOGGER,
+        "Fallo de arranque sin traceback tipado",
+        exc=exc,
+        extra={"incident_id": incident_id},
+    )
+    return incident_id
+
+
+def _manejar_fallo_arranque(
+    *,
+    exc: Exception | None,
+    trace_info,
+    i18n,
+    splash,
+    startup_thread,
+    app,
+    dialogo_factory: Callable[..., object] | None = None,
+) -> str:
+    incident_id = _resolver_incident_id(exc, trace_info)
+    detalles = ""
+    if trace_info is not None and all(trace_info):
+        detalles = "".join(traceback.format_exception(trace_info[0], trace_info[1], trace_info[2]))
+    elif exc is not None:
+        detalles = repr(exc)
+
+    log_operational_error(
+        LOGGER,
+        i18n.t("splash_error_mensaje", incident_id=incident_id),
+        exc=exc,
+        extra={"incident_id": incident_id},
+    )
+    startup_thread.quit()
+    splash.close()
+
+    if dialogo_factory is None:
+        from app.ui.dialogos.dialogo_error_arranque import DialogoErrorArranque
+
+        dialogo_factory = DialogoErrorArranque
+
+    dialogo = dialogo_factory(
+        i18n,
+        titulo=i18n.t("splash_error_titulo"),
+        mensaje_usuario=i18n.t("startup_error_dialog_message"),
+        incident_id=incident_id,
+        detalles=detalles,
+    )
+    if hasattr(dialogo, "exec"):
+        dialogo.exec()
+    app.exit(2)
     return incident_id
 
 
@@ -137,7 +196,7 @@ def run_ui(container=None) -> int:
     from presentacion.orquestador_arranque import OrquestadorArranqueUI
 
     from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal, Slot
-    from PySide6.QtWidgets import QApplication, QMessageBox
+    from PySide6.QtWidgets import QApplication
 
     class _StartupWorker(QObject):
         finished = Signal(object)
@@ -171,21 +230,6 @@ def run_ui(container=None) -> int:
     startup_worker = _StartupWorker(container)
     startup_worker.moveToThread(startup_thread)
     splash.registrar_arranque(startup_thread, startup_worker)
-
-    def _finalizar_con_error(exc: Exception | None, trace_info) -> None:
-        if trace_info is not None and all(trace_info):
-            incident_id = manejar_excepcion_ui(trace_info[0], trace_info[1], trace_info[2])
-        else:
-            incident_id = "unknown"
-        log_operational_error(
-            LOGGER,
-            i18n.t("splash_error_mensaje", incident_id=incident_id),
-            exc=exc,
-            extra={"incident_id": incident_id},
-        )
-        QMessageBox.critical(None, i18n.t("splash_error_titulo"), i18n.t("splash_error_mensaje", incident_id=incident_id))
-        splash.close()
-        app.exit(2)
 
     def _abrir_ventana_principal(startup_payload) -> None:
         try:
@@ -225,7 +269,14 @@ def run_ui(container=None) -> int:
             splash.close()
         except Exception as exc:  # noqa: BLE001
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            _finalizar_con_error(exc, (exc_type, exc_value, exc_traceback))
+            _manejar_fallo_arranque(
+                exc=exc,
+                trace_info=(exc_type, exc_value, exc_traceback),
+                i18n=i18n,
+                splash=splash,
+                startup_thread=startup_thread,
+                app=app,
+            )
 
     @Slot(object)
     def _on_startup_finished(startup_payload) -> None:
@@ -233,7 +284,14 @@ def run_ui(container=None) -> int:
 
     @Slot(object, object)
     def _on_startup_failed(exc, trace_info) -> None:
-        _finalizar_con_error(exc, trace_info)
+        _manejar_fallo_arranque(
+            exc=exc,
+            trace_info=trace_info,
+            i18n=i18n,
+            splash=splash,
+            startup_thread=startup_thread,
+            app=app,
+        )
 
     startup_worker.finished.connect(startup_thread.quit)
     startup_worker.finished.connect(_on_startup_finished, Qt.ConnectionType.QueuedConnection)
@@ -252,14 +310,12 @@ def run_ui(container=None) -> int:
         return app.exec()
     except Exception as exc:  # noqa: BLE001
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        if exc_type is not None and exc_value is not None and exc_traceback is not None:
-            incident_id = manejar_excepcion_ui(exc_type, exc_value, exc_traceback)
-            log_operational_error(
-                LOGGER,
-                i18n.t("splash_error_mensaje", incident_id=incident_id),
-                exc=exc,
-                extra={"incident_id": incident_id},
-            )
-            QMessageBox.critical(None, i18n.t("splash_error_titulo"), i18n.t("splash_error_mensaje", incident_id=incident_id))
-        splash.close()
+        _manejar_fallo_arranque(
+            exc=exc,
+            trace_info=(exc_type, exc_value, exc_traceback),
+            i18n=i18n,
+            splash=splash,
+            startup_thread=startup_thread,
+            app=app,
+        )
         return 2
