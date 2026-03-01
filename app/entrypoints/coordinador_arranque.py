@@ -5,6 +5,7 @@ import sys
 from typing import Callable
 
 from aplicacion.casos_de_uso.onboarding import ReiniciarOnboarding
+from app.application.dto import FalloArranqueDatos
 
 from PySide6.QtCore import QObject, Slot
 
@@ -65,7 +66,9 @@ class CoordinadorArranque(QObject):
     def _detalles_con_etapa(self, detalles: str) -> str:
         if not self.ultima_etapa:
             return detalles
-        etiqueta = self.i18n.t("startup_last_stage", etapa=self.i18n.t(self.ultima_etapa))
+        etiqueta = self.i18n.t(
+            "startup_last_stage", etapa=self.i18n.t(self.ultima_etapa)
+        )
         if not detalles:
             return etiqueta
         return f"{etiqueta}\n{detalles}"
@@ -207,4 +210,12 @@ class CoordinadorArranque(QObject):
             incident_id=incident_id,
             detalles=self._detalles_con_etapa(detalles),
             watchdog_timer=self.watchdog_timer,
+        )
+
+    @Slot(object)
+    def on_error_ocurrido(self, error_dto: FalloArranqueDatos) -> None:
+        self.on_failed(
+            error_dto.incident_id,
+            error_dto.mensaje_usuario,
+            error_dto.traceback_error,
         )

@@ -186,3 +186,13 @@ class TotalesReportePdf:
 class ReportePdf:
     filas: list[FilaReportePdf]
     totales: TotalesReportePdf
+
+
+@dataclass(frozen=True)
+class FalloArranqueDatos:
+    incident_id: str
+    tipo_error: str
+    mensaje_error: str
+    traceback_error: str
+    mensaje_usuario: str
+    etapa: str

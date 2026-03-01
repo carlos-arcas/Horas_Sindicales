@@ -3,12 +3,17 @@ from __future__ import annotations
 import logging
 import traceback
 import uuid
+from pathlib import Path
 from types import TracebackType
 from typing import Callable
 
 from aplicacion.casos_de_uso.documentos import ObtenerRutaGuiaSync
 from aplicacion.casos_de_uso.idioma import GuardarIdiomaUI, ObtenerIdiomaUI
-from aplicacion.casos_de_uso.onboarding import MarcarOnboardingCompletado, ObtenerEstadoOnboarding, ReiniciarOnboarding
+from aplicacion.casos_de_uso.onboarding import (
+    MarcarOnboardingCompletado,
+    ObtenerEstadoOnboarding,
+    ReiniciarOnboarding,
+)
 from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
     GuardarPreferenciaPantallaCompleta,
     ObtenerPreferenciaPantallaCompleta,
@@ -16,7 +21,8 @@ from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
 from app.application.use_cases.cargar_datos_demo_caso_uso import CargarDatosDemoCasoUso
 from app.bootstrap.boot_diagnostics import marcar_stage
 from app.bootstrap.exception_handler import manejar_excepcion_global
-from app.bootstrap.logging import log_operational_error
+from app.bootstrap.logging import log_operational_error, write_crash_log
+from app.bootstrap.settings import resolve_log_dir
 from app.ui.qt_message_handler import instalar_qt_message_handler
 from app.ui.qt_safe import is_qt_valid, safe_call
 
@@ -88,7 +94,9 @@ class _CoordinadorArranqueConCierreDeterminista:
             self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
             resolved_container, deps_arranque, idioma = startup_payload
-            deps_arranque = _actualizar_preferencias_en_hilo_ui(resolved_container, deps_arranque)
+            deps_arranque = _actualizar_preferencias_en_hilo_ui(
+                resolved_container, deps_arranque
+            )
             idioma = deps_arranque.obtener_idioma_ui.ejecutar()
             self.i18n.set_idioma(idioma)
             orquestador = self.orquestador_factory(deps_arranque, self.i18n)
@@ -126,7 +134,6 @@ class _CoordinadorArranqueConCierreDeterminista:
             )
 
 
-
 def _resolver_startup_timeout_ms() -> int:
     import os
 
@@ -153,7 +160,9 @@ def manejar_excepcion_ui(
     if app is None:
         return incident_id
     try:
-        QMessageBox.critical(None, "Error inesperado", construir_mensaje_error_ui(incident_id))
+        QMessageBox.critical(
+            None, "Error inesperado", construir_mensaje_error_ui(incident_id)
+        )
     except Exception:
         pass
     return incident_id
@@ -172,6 +181,18 @@ def _resolver_incident_id(exc: Exception | None, trace_info) -> str:
     return incident_id
 
 
+def _escribir_boot_trace_arranque(*, incident_id: str, detalles: str) -> None:
+    LOGGER.error(
+        "STARTUP_UI_FAILURE_TRACE",
+        extra={"extra": {"incident_id": incident_id, "boot_trace": detalles}},
+    )
+
+
+def _escribir_crash_log_arranque(*, tipo_error: str, mensaje_error: str) -> Path:
+    exc = RuntimeError(f"{tipo_error}: {mensaje_error}".strip())
+    return write_crash_log(type(exc), exc, None, resolve_log_dir())
+
+
 def _manejar_fallo_arranque(
     *,
     exc: Exception | None,
@@ -185,6 +206,8 @@ def _manejar_fallo_arranque(
     incident_id: str | None = None,
     detalles: str | None = None,
     watchdog_timer=None,
+    boot_trace_writer: Callable[..., None] = _escribir_boot_trace_arranque,
+    crash_log_writer: Callable[..., Path] = _escribir_crash_log_arranque,
 ) -> str:
     from PySide6.QtCore import QThread, QTimer, Qt
     from PySide6.QtWidgets import QApplication
@@ -200,9 +223,36 @@ def _manejar_fallo_arranque(
     resolved_detalles = detalles or ""
     if not resolved_detalles:
         if trace_info is not None and all(trace_info):
-            resolved_detalles = "".join(traceback.format_exception(trace_info[0], trace_info[1], trace_info[2]))
+            resolved_detalles = "".join(
+                traceback.format_exception(trace_info[0], trace_info[1], trace_info[2])
+            )
         elif exc is not None:
             resolved_detalles = repr(exc)
+
+    error_tipo = type(exc).__name__ if exc is not None else "StartupWorkerError"
+    error_mensaje = (
+        str(exc)
+        if exc is not None
+        else (resolved_detalles or "Error de arranque sin detalle")
+    )
+    try:
+        boot_trace_writer(incident_id=resolved_incident_id, detalles=resolved_detalles)
+    except Exception as writer_exc:  # noqa: BLE001
+        log_operational_error(
+            LOGGER,
+            "No se pudo escribir boot_trace de fallo de arranque.",
+            exc=writer_exc,
+            extra={"incident_id": resolved_incident_id},
+        )
+    try:
+        crash_log_writer(tipo_error=error_tipo, mensaje_error=error_mensaje)
+    except Exception as writer_exc:  # noqa: BLE001
+        log_operational_error(
+            LOGGER,
+            "No se pudo escribir crash log de fallo de arranque.",
+            exc=writer_exc,
+            extra={"incident_id": resolved_incident_id},
+        )
 
     log_operational_error(
         LOGGER,
@@ -288,8 +338,12 @@ def _construir_dependencias_arranque(container):
     return DependenciasArranque(
         obtener_estado_onboarding=ObtenerEstadoOnboarding(repo_pref),
         marcar_onboarding_completado=MarcarOnboardingCompletado(repo_pref),
-        guardar_preferencia_pantalla_completa=GuardarPreferenciaPantallaCompleta(repo_pref),
-        obtener_preferencia_pantalla_completa=ObtenerPreferenciaPantallaCompleta(repo_pref),
+        guardar_preferencia_pantalla_completa=GuardarPreferenciaPantallaCompleta(
+            repo_pref
+        ),
+        obtener_preferencia_pantalla_completa=ObtenerPreferenciaPantallaCompleta(
+            repo_pref
+        ),
         obtener_idioma_ui=ObtenerIdiomaUI(repo_pref),
         guardar_idioma_ui=GuardarIdiomaUI(repo_pref),
         obtener_ruta_guia_sync=ObtenerRutaGuiaSync(proveedor_documentos),
@@ -299,7 +353,9 @@ def _construir_dependencias_arranque(container):
 def _actualizar_preferencias_en_hilo_ui(resolved_container, deps_arranque):
     """Reemplaza preferencias headless por QSettings desde el hilo de UI."""
     try:
-        from infraestructura.repositorio_preferencias_qsettings import RepositorioPreferenciasQSettings
+        from infraestructura.repositorio_preferencias_qsettings import (
+            RepositorioPreferenciasQSettings,
+        )
     except Exception:
         return deps_arranque
 
@@ -339,7 +395,9 @@ def _instalar_menu_ayuda(
         if respuesta != QMessageBox.Yes:
             return
         reiniciar_onboarding.ejecutar()
-        QMessageBox.information(main_window, i18n.t("menu_ayuda"), i18n.t("menu_reiniciar_ok"))
+        QMessageBox.information(
+            main_window, i18n.t("menu_ayuda"), i18n.t("menu_reiniciar_ok")
+        )
 
     def _cargar_demo() -> None:
         confirmacion = QMessageBox.question(
@@ -419,7 +477,9 @@ def run_ui(container=None) -> int:
     watchdog_timer.setSingleShot(True)
     watchdog_timer.setInterval(startup_timeout_ms)
 
-    class CoordinadorArranquePrincipal(_CoordinadorArranqueConCierreDeterminista, CoordinadorArranque):
+    class CoordinadorArranquePrincipal(
+        _CoordinadorArranqueConCierreDeterminista, CoordinadorArranque
+    ):
         pass
 
     controlador = CoordinadorArranquePrincipal(
@@ -450,10 +510,21 @@ def run_ui(container=None) -> int:
 
     splash.registrar_watchdog(watchdog_timer)
 
-    watchdog_timer.timeout.connect(controlador.on_timeout, Qt.ConnectionType.QueuedConnection)
-    startup_worker.progreso.connect(controlador.on_progreso, Qt.ConnectionType.QueuedConnection)
-    startup_worker.finished.connect(controlador.on_finished, Qt.ConnectionType.QueuedConnection)
-    startup_worker.failed.connect(controlador.on_failed, Qt.ConnectionType.QueuedConnection)
+    watchdog_timer.timeout.connect(
+        controlador.on_timeout, Qt.ConnectionType.QueuedConnection
+    )
+    startup_worker.progreso.connect(
+        controlador.on_progreso, Qt.ConnectionType.QueuedConnection
+    )
+    startup_worker.finished.connect(
+        controlador.on_finished, Qt.ConnectionType.QueuedConnection
+    )
+    startup_worker.failed.connect(
+        controlador.on_failed, Qt.ConnectionType.QueuedConnection
+    )
+    startup_worker.error_ocurrido.connect(
+        controlador.on_error_ocurrido, Qt.ConnectionType.QueuedConnection
+    )
     startup_thread.finished.connect(startup_worker.deleteLater)
     startup_thread.finished.connect(startup_thread.deleteLater)
     startup_thread.started.connect(startup_worker.run)
