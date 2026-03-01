@@ -205,6 +205,17 @@ class SheetsClient(SheetsClientPort):
         )
         self._write_calls_count += 1
 
+
+    def check_write_access(self, worksheet_name: str | None = None) -> None:
+        if self._spreadsheet is None:
+            raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
+        operation = "spreadsheet.batch_update(preflight_write_access)"
+        self._with_write_retry(
+            operation,
+            lambda: self._spreadsheet.batch_update({"requests": []}),
+            spreadsheet_id=getattr(self._spreadsheet, "id", None),
+        )
+
     def _with_rate_limit_retry(self, operation_name: str, operation: Callable[[], T], *, spreadsheet_id: str | None = None) -> T:
         for attempt in range(1, _MAX_RETRIES + 1):
             try:

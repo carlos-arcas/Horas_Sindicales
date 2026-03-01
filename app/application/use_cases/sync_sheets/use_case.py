@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -63,7 +64,8 @@ from app.domain.ports import (
     SheetsRepositoryPort,
     SqlConnectionPort,
 )
-from app.domain.sheets_errors import SheetsConfigError, SheetsRateLimitError
+from app.application.dtos.sync_preflight_result import SyncPreflightResult
+from app.domain.sheets_errors import SheetsConfigError, SheetsPermissionError, SheetsRateLimitError
 from app.domain.sync_models import SyncExecutionPlan, SyncSummary
 
 logger = logging.getLogger(__name__)
@@ -115,6 +117,9 @@ class SheetsSyncService:
 
     def push(self) -> SyncSummary:
         spreadsheet = self._ensure_connection_ready()
+        preflight = self.preflight_permisos_escritura(spreadsheet)
+        if not preflight.ok:
+            return self._resolver_preflight_denegado(preflight)
         summary = self._push_with_spreadsheet(spreadsheet)
         self._log_sync_stats("push")
         return summary
@@ -127,6 +132,13 @@ class SheetsSyncService:
         pull_summary = self._pull_with_spreadsheet(spreadsheet)
         # Garantiza persistencia local del pull antes de cualquier push/refresh de UI.
         self._connection.commit()
+        preflight = self.preflight_permisos_escritura(spreadsheet)
+        if not preflight.ok:
+            if self._strict_sync_exceptions_enabled():
+                raise self._build_permission_error(preflight)
+            self._registrar_issue_preflight(preflight)
+            self._log_sync_stats("sync_bidirectional")
+            return combine_sync_summaries(pull_summary, SyncSummary(errors=1))
         push_summary = self._push_with_spreadsheet(spreadsheet)
         self._log_sync_stats("sync_bidirectional")
         return combine_sync_summaries(pull_summary, push_summary)
@@ -148,6 +160,53 @@ class SheetsSyncService:
 
     def ensure_connection(self) -> None:
         self._ensure_connection_ready()
+
+    def preflight_permisos_escritura(self, spreadsheet: Any | None = None) -> SyncPreflightResult:
+        if not hasattr(self._client, "check_write_access"):
+            return SyncPreflightResult.ok_result()
+        try:
+            self._client.check_write_access("solicitudes")
+            return SyncPreflightResult.ok_result()
+        except SheetsPermissionError as error:
+            enriched = self._enrich_permission_error(error, spreadsheet)
+            return SyncPreflightResult.permission_denied(
+                mensaje=str(enriched),
+                accion_sugerida="Comparte la hoja con la service account con permisos de editor.",
+                metadata=enriched.to_safe_payload(),
+            )
+
+    def _resolver_preflight_denegado(self, preflight: SyncPreflightResult) -> SyncSummary:
+        if self._strict_sync_exceptions_enabled():
+            raise self._build_permission_error(preflight)
+        self._registrar_issue_preflight(preflight)
+        self._log_sync_stats("push")
+        return SyncSummary(errors=1)
+
+    @staticmethod
+    def _strict_sync_exceptions_enabled() -> bool:
+        return os.getenv("SYNC_STRICT_EXCEPTIONS", "").strip().lower() == "true"
+
+    def _build_permission_error(self, preflight: SyncPreflightResult) -> SheetsPermissionError:
+        issue = preflight.issues[0]
+        return SheetsPermissionError(
+            issue.mensaje,
+            spreadsheet_id=issue.metadata.get("spreadsheet_id"),
+            worksheet=issue.metadata.get("worksheet"),
+            service_account_email=issue.metadata.get("service_account_email"),
+        )
+
+    def _registrar_issue_preflight(self, preflight: SyncPreflightResult) -> None:
+        issue = preflight.issues[0]
+        logger.warning(
+            "Preflight de sync bloqueó escritura: tipo=%s accion=%s metadata=%s",
+            issue.tipo,
+            issue.accion_sugerida,
+            issue.metadata,
+        )
+
+    def _enrich_permission_error(self, error: SheetsPermissionError, spreadsheet: Any | None = None) -> SheetsPermissionError:
+        spreadsheet_id = getattr(spreadsheet, "id", None)
+        return error.with_context(spreadsheet_id=spreadsheet_id, worksheet="solicitudes")
 
     def store_sync_config_value(self, key: str, value: str) -> None:
         if not self.is_configured():
