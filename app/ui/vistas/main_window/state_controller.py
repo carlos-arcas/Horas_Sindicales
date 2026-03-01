@@ -326,6 +326,12 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _update_solicitud_preview(self) -> None:
         self._update_action_state()
+        if hasattr(self, "_schedule_preventive_validation"):
+            self._schedule_preventive_validation()
+
+    def _on_completo_changed(self, checked: bool) -> None:
+        _ = checked
+        self._update_solicitud_preview()
 
     def _validate_required_widgets(self) -> None:
         required_widgets = (
@@ -498,6 +504,15 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _on_historico_select_all_visible_toggled(self, checked: bool) -> None:
         return state_historico.alternar_seleccion_visible_historico(self, checked)
 
+    def _on_historico_selection_changed(self) -> None:
+        self._update_action_state()
+
+    def _on_open_historico_detalle(self) -> None:
+        return historico_actions.on_open_historico_detalle(self)
+
+    def _on_generar_pdf_historico(self) -> None:
+        return historico_actions.on_generar_pdf_historico(self)
+
     def _sync_historico_select_all_visible_state(self) -> None:
         return state_historico.sincronizar_estado_seleccion_visible_historico(self)
 
@@ -537,6 +552,19 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _on_go_to_existing_duplicate(self) -> None:
         return validacion_preventiva._on_go_to_existing_duplicate(self)
 
+    def _on_pending_selection_changed(self) -> None:
+        self._update_action_state()
+
+    def _on_toggle_ver_todas_pendientes(self, checked: bool) -> None:
+        self._pending_view_all = checked
+        self._refresh_pending_ui_state()
+
+    def _on_remove_pendiente(self) -> None:
+        return acciones_pendientes.on_remove_pendiente(self)
+
+    def _on_insertar_sin_pdf(self) -> None:
+        return on_insertar_sin_pdf(self)
+
     def _render_preventive_validation(self) -> None:
         return validacion_preventiva._render_preventive_validation(self)
 
@@ -551,6 +579,36 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _on_confirm_sync(self) -> None:
         return acciones_sincronizacion.on_confirm_sync(self)
+
+    def _on_retry_failed(self) -> None:
+        return acciones_sincronizacion.on_retry_failed(self)
+
+    def _on_show_sync_details(self) -> None:
+        return acciones_sincronizacion.on_show_sync_details(self)
+
+    def _on_copy_sync_report(self) -> None:
+        return acciones_sincronizacion.on_copy_sync_report(self)
+
+    def _on_open_sync_logs(self) -> None:
+        return acciones_sincronizacion.on_open_sync_logs(self)
+
+    def _on_show_sync_history(self) -> None:
+        return acciones_sincronizacion.on_show_sync_history(self)
+
+    def _on_review_conflicts(self) -> None:
+        return acciones_sincronizacion.on_review_conflicts(self)
+
+    def _on_open_opciones(self) -> None:
+        return acciones_sincronizacion.on_open_opciones(self)
+
+    def _on_edit_grupo(self) -> None:
+        return self._on_open_opciones()
+
+    def _on_edit_pdf(self) -> None:
+        return self._on_open_opciones()
+
+    def _on_snooze_alerts_today(self) -> None:
+        return MainWindowHealthMixin._on_snooze_alerts_today(self)
 
     def _on_sync_finished(self, summary) -> None:
         return acciones_sincronizacion.on_sync_finished(self, summary)

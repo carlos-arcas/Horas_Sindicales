@@ -42,6 +42,12 @@ class OrquestadorArranqueUI:
             pantalla_completa_inicial=self._deps.obtener_preferencia_pantalla_completa.ejecutar(),
             parent=parent,
         )
+        if hasattr(wizard, "setModal"):
+            wizard.setModal(True)
+        if hasattr(wizard, "raise_"):
+            wizard.raise_()
+        if hasattr(wizard, "activateWindow"):
+            wizard.activateWindow()
         if wizard.exec() != WizardBienvenida.Accepted:
             return False
 
