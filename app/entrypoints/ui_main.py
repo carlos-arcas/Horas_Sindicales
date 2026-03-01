@@ -78,6 +78,14 @@ def _instalar_menu_ayuda(main_window, i18n, reiniciar_onboarding: ReiniciarOnboa
     accion_reiniciar.triggered.connect(_reiniciar_asistente)
 
 
+def mostrar_main_window(main_window, iniciar_maximizada: bool) -> None:
+    """Muestra la ventana principal según la preferencia persistida."""
+    if iniciar_maximizada:
+        main_window.showMaximized()
+        return
+    main_window.show()
+
+
 def run_ui(container=None) -> int:
     from app.ui.estilos.apply_theme import aplicar_tema
     from app.ui.main_window import MainWindow
@@ -160,10 +168,7 @@ def run_ui(container=None) -> int:
         )
         app.setProperty("_main_window_ref", window)
         _instalar_menu_ayuda(window, i18n, ReiniciarOnboarding(resolved_container.repositorio_preferencias))
-        if orquestador.debe_iniciar_maximizada():
-            window.showMaximized()
-        else:
-            window.show()
+        mostrar_main_window(window, orquestador.debe_iniciar_maximizada())
         splash.close()
 
     @Slot(object, object, object)
