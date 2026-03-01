@@ -12,6 +12,15 @@ class PaginaTexto(QWidget):
         self._key_titulo = key_titulo
         self._key_texto = key_texto
 
+        self._ui_construida = False
+        self._construir_ui()
+        
+        self.actualizar_textos()
+
+    def _construir_ui(self) -> None:
+        if self._ui_construida:
+            return
+
         self._titulo = QLabel()
         self._titulo.setProperty("role", "h3")
         self._texto = QLabel()
@@ -22,7 +31,7 @@ class PaginaTexto(QWidget):
         layout.addWidget(self._texto)
         layout.addStretch(1)
 
-        self.actualizar_textos()
+        self._ui_construida = True
 
     def actualizar_textos(self) -> None:
         self._titulo.setText(self._i18n.t(self._key_titulo))
