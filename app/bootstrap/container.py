@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib
+import logging
 from dataclasses import dataclass
 from typing import Callable
 
@@ -31,7 +33,10 @@ from app.infrastructure.sheets_client import SheetsClient
 from app.infrastructure.sheets_gateway_gspread import SheetsGatewayGspread
 from app.infrastructure.sheets_repository import SheetsRepository
 from app.infrastructure.sync_sheets_adapter import SyncSheetsAdapter
-from infraestructura.repositorio_preferencias_qsettings import RepositorioPreferenciasQSettings
+from aplicacion.puertos.repositorio_preferencias import IRepositorioPreferencias
+from app.infrastructure.repositorio_preferencias_ini import RepositorioPreferenciasIni
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -45,7 +50,7 @@ class AppContainer:
     health_check_use_case: HealthCheckUseCase
     alert_engine: AlertEngine
     validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase
-    repositorio_preferencias: RepositorioPreferenciasQSettings
+    repositorio_preferencias: IRepositorioPreferencias
 
 
 ConnectionFactory = Callable[[], object]
@@ -85,7 +90,7 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
     alert_engine = AlertEngine()
     validacion_preventiva_lock_use_case = ValidacionPreventivaLockUseCase(SQLiteLockErrorClassifier())
 
-    repositorio_preferencias = RepositorioPreferenciasQSettings()
+    repositorio_preferencias = _build_repositorio_preferencias()
 
     conflicts_repository = SQLiteConflictsRepository(connection)
     conflicts_service = ConflictsService(
@@ -105,3 +110,21 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
         validacion_preventiva_lock_use_case=validacion_preventiva_lock_use_case,
         repositorio_preferencias=repositorio_preferencias,
     )
+
+
+def _build_repositorio_preferencias() -> IRepositorioPreferencias:
+    try:
+        modulo = importlib.import_module("infraestructura.repositorio_preferencias_qsettings")
+        repositorio_cls = getattr(modulo, "RepositorioPreferenciasQSettings")
+        return repositorio_cls()
+    except ImportError as exc:
+        LOGGER.warning(
+            "No se pudo cargar QSettings; se usa persistencia headless INI.",
+            extra={
+                "extra": {
+                    "fallback": "RepositorioPreferenciasIni",
+                    "motivo": str(exc),
+                }
+            },
+        )
+        return RepositorioPreferenciasIni()
