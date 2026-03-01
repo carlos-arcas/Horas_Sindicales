@@ -42,6 +42,7 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "ui: tests de interfaz PySide6")
     config.addinivalue_line("markers", "headless_safe: test UI que no requiere backend Qt")
     config.addinivalue_line("markers", "metrics: tests de métricas/calidad (radon opcional)")
+    config.addinivalue_line("markers", "smoke: pruebas smoke rápidas y deterministas")
     _UI_BACKEND_ERROR = _detect_ui_backend_issue()
 
 

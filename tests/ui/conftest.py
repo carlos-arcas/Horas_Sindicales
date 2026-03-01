@@ -56,30 +56,31 @@ def _is_ui_item(item: pytest.Item) -> bool:
 
 
 def pytest_collection_modifyitems(config, items):
-    skip_ui_in_ci = (
-        os.getenv("CI") == "true" and os.getenv("RUN_UI_TESTS") != "1"
-    )
     qt_ready = _qt_ready()
+    smoke_only_in_ci = os.getenv("CI") == "true" and os.getenv("RUN_UI_TESTS") != "1"
+    smoke_only_allowlist = {
+        "tests/ui/test_ui_arranque_minimo.py",
+        "tests/ui/test_ui_navegacion_minima.py",
+        "tests/ui/test_ui_headless_fallback_smoke.py",
+    }
 
-    skip_in_ci = pytest.mark.skip(
-        reason=(
-            "UI tests desactivados en CI por defecto "
-            "(RUN_UI_TESTS=1 para activarlos)."
-        )
+    skip_non_smoke = pytest.mark.skip(
+        reason="Modo smoke en CI: exporta RUN_UI_TESTS=1 para ejecutar toda la suite UI."
     )
     skip_qt = pytest.mark.skip(
         reason="PySide6 no disponible correctamente en entorno CI"
     )
 
-    # Explicación breve: solo tocamos tests en tests/ui/** para no skippear
-    # accidentalmente tests de dominio/infra cuando Qt no está disponible.
     for item in items:
         if not _is_ui_item(item):
             continue
 
-        if skip_ui_in_ci:
-            item.add_marker(skip_in_ci)
+        item_path = Path(str(getattr(item, "path", ""))).as_posix()
+        in_smoke_allowlist = any(item_path.endswith(path) for path in smoke_only_allowlist)
+        if smoke_only_in_ci and not in_smoke_allowlist:
+            item.add_marker(skip_non_smoke)
             continue
 
-        if not qt_ready:
+        keywords = getattr(item, "keywords", {})
+        if not qt_ready and "headless_safe" not in keywords:
             item.add_marker(skip_qt)
