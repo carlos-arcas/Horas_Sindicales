@@ -22,22 +22,27 @@ def apply_sync_report(ventana, report) -> None:
     ventana._sync_attempts.append({"status": report.status, "counts": report.counts})
     counts = report.counts
     set_sync_status_badge(ventana, report.status)
-    ventana.sync_source_label.setText(f"Fuente: {report.source}")
-    ventana.sync_scope_label.setText(f"Rango: {report.scope}")
-    ventana.sync_idempotency_label.setText(f"Evita duplicados: {report.idempotency_criteria}")
+    ventana.sync_source_label.setText(f"{copy_text('ui.sync.fuente_label')} {report.source}")
+    ventana.sync_scope_label.setText(f"{copy_text('ui.sync.rango_label')} {report.scope}")
+    ventana.sync_idempotency_label.setText(f"{copy_text('ui.sync.evita_duplicados_label')} {report.idempotency_criteria}")
     ventana.sync_counts_label.setText(
-        "Resumen: "
-        f"Filas creadas: {counts.get('created', 0)} · "
+        f"{copy_text('ui.sync.resumen_filas')}: "
+        f"{copy_text('ui.sync.filas_creadas_label')} {counts.get('created', 0)} · "
         f"{copy_text('ui.sync.bullet_filas_actualizadas')} {counts.get('updated', 0)} · "
         f"{copy_text('ui.sync.bullet_filas_omitidas')} {counts.get('skipped', 0)} · "
         f"{copy_text('ui.sync.bullet_conflictos')} {counts.get('conflicts', 0)} · "
         f"{copy_text('ui.sync.bullet_errores')} {counts.get('errors', 0)}"
     )
     ventana.sync_panel_status.setText(
-        f"Estado: intento #{len(ventana._sync_attempts)} · actual {status_to_label(report.status)} · final {status_to_label(report.final_status)}"
+        copy_text("ui.sync.estado_intento_actual_final").format(
+            intento=len(ventana._sync_attempts),
+            actual=status_to_label(report.status),
+            final=status_to_label(report.final_status),
+        )
     )
     ventana.last_sync_metrics_label.setText(
-        f"Duración: {report.duration_ms} ms · Cambios: {counts.get('created', 0) + counts.get('updated', 0)} · "
+        f"{copy_text('ui.sync.duracion_label')} {report.duration_ms} {copy_text('ui.sync.ms')} · "
+        f"{copy_text('ui.sync.cambios_label')} {counts.get('created', 0) + counts.get('updated', 0)} · "
         f"{copy_text('ui.sync.bullet_conflictos')} {report.conflicts_count} · {copy_text('ui.sync.bullet_errores')} {report.error_count}"
     )
     ventana._refresh_sync_trend_label()
@@ -45,7 +50,11 @@ def apply_sync_report(ventana, report) -> None:
     ventana.sync_details_button.setEnabled(True)
     ventana.copy_sync_report_button.setEnabled(True)
     ventana.retry_failed_button.setEnabled(bool(report.errors or report.conflicts))
-    ventana.review_conflicts_button.setText("Revisar conflictos" if report.conflicts_count > 0 else "Revisar conflictos (sin pendientes)")
+    ventana.review_conflicts_button.setText(
+        copy_text("ui.sync.revisar_conflictos")
+        if report.conflicts_count > 0
+        else copy_text("ui.sync.revisar_conflictos_sin_pendientes")
+    )
     ventana._update_conflicts_reminder()
     persist_report(report, Path.cwd())
     ventana._refresh_health_and_alerts()
@@ -54,15 +63,22 @@ def apply_sync_report(ventana, report) -> None:
 def on_show_sync_history(ventana) -> None:
     history = list_sync_history(Path.cwd())
     if not history:
-        ventana.toast.info("No hay sincronizaciones históricas disponibles.", title="Histórico")
+        ventana.toast.info(copy_text("ui.sync.no_hay_historico"), title=copy_text("ui.sync.historico"))
         return
     dialog = QDialog(ventana)
-    dialog.setWindowTitle("Histórico de sincronizaciones")
+    dialog.setWindowTitle(copy_text("ui.sync.historico_sincronizaciones"))
     dialog.resize(800, 420)
     layout = QVBoxLayout(dialog)
     table = QTreeWidget(dialog)
     table.setColumnCount(4)
-    table.setHeaderLabels(["Archivo", "Sync ID", "Estado", "Intentos"])
+    table.setHeaderLabels(
+        [
+            copy_text("ui.sync.columna_archivo"),
+            copy_text("ui.sync.columna_sync_id"),
+            copy_text("ui.sync.columna_estado"),
+            copy_text("ui.sync.columna_intentos"),
+        ]
+    )
     for path in history:
         report = load_sync_report(path)
         item = QTreeWidgetItem([path.name, report.sync_id, report.final_status, str(report.attempts)])
@@ -79,9 +95,9 @@ def on_show_sync_history(ventana) -> None:
         show_sync_details_dialog(ventana)
 
     actions = QHBoxLayout()
-    open_btn = QPushButton("Abrir detalle")
+    open_btn = QPushButton(copy_text("ui.sync.abrir_detalle"))
     open_btn.clicked.connect(_open_selected)
-    copy_btn = QPushButton("Copiar informe")
+    copy_btn = QPushButton(copy_text("ui.sync.copiar_informe"))
     copy_btn.clicked.connect(
         lambda: QApplication.clipboard().setText(to_markdown(load_sync_report(Path(table.selectedItems()[0].data(0, Qt.UserRole)))))
         if table.selectedItems()
@@ -98,13 +114,22 @@ def show_sync_details_dialog(ventana) -> None:
     if report is None:
         return
     dialog = QDialog(ventana)
-    dialog.setWindowTitle("Detalles de sincronización")
+    dialog.setWindowTitle(copy_text("ui.sync.detalles_sincronizacion"))
     dialog.resize(940, 480)
     apply_modal_behavior(dialog)
     layout = QVBoxLayout(dialog)
     table = QTreeWidget(dialog)
     table.setColumnCount(6)
-    table.setHeaderLabels(["Timestamp", "Sev", "Entidad", "Mensaje", "Acción sugerida", "Sección"])
+    table.setHeaderLabels(
+        [
+            copy_text("ui.sync.columna_timestamp"),
+            copy_text("ui.sync.columna_sev"),
+            copy_text("ui.sync.columna_entidad"),
+            copy_text("ui.sync.columna_mensaje"),
+            copy_text("ui.sync.columna_accion_sugerida"),
+            copy_text("ui.sync.columna_seccion"),
+        ]
+    )
     for entry in report.entries:
         item = QTreeWidgetItem([entry.timestamp, entry.severity, entry.entity, entry.message, entry.suggested_action, entry.section])
         table.addTopLevelItem(item)
@@ -112,30 +137,30 @@ def show_sync_details_dialog(ventana) -> None:
     layout.addWidget(table, 1)
 
     actions = QHBoxLayout()
-    open_affected = QPushButton("Abrir solicitud afectada")
+    open_affected = QPushButton(copy_text("ui.sync.abrir_solicitud_afectada"))
     open_affected.setProperty("variant", "secondary")
     open_affected.setEnabled(bool(report.conflicts))
     open_affected.clicked.connect(ventana._on_review_conflicts)
     actions.addWidget(open_affected)
 
-    mark_review = QPushButton("Marcar para revisión")
+    mark_review = QPushButton(copy_text("ui.sync.marcar_para_revision"))
     mark_review.setProperty("variant", "secondary")
     mark_review.setEnabled(bool(report.conflicts))
-    mark_review.clicked.connect(lambda: ventana.toast.info("Registro marcado para revisión manual."))
+    mark_review.clicked.connect(lambda: ventana.toast.info(copy_text("ui.sync.registro_marcado_revision_manual")))
     actions.addWidget(mark_review)
 
-    retry_failed = QPushButton("Reintentar solo fallidos")
+    retry_failed = QPushButton(copy_text("ui.sync.reintentar_solo_fallidos"))
     retry_failed.setProperty("variant", "secondary")
     retry_failed.setEnabled(bool(report.errors or report.conflicts))
     retry_failed.clicked.connect(ventana._on_retry_failed)
     actions.addWidget(retry_failed)
 
-    export_detail = QPushButton("Exportar detalle")
+    export_detail = QPushButton(copy_text("ui.sync.exportar_detalle"))
     export_detail.setProperty("variant", "secondary")
     export_detail.clicked.connect(ventana._on_copy_sync_report)
     actions.addWidget(export_detail)
 
-    close_button = QPushButton("Cerrar")
+    close_button = QPushButton(copy_text("ui.comun.cerrar"))
     close_button.setProperty("variant", "ghost")
     close_button.clicked.connect(dialog.accept)
     actions.addWidget(close_button)
@@ -171,39 +196,42 @@ def status_from_summary(summary: SyncSummary) -> str:
 
 def status_to_label(status: str) -> str:
     return {
-        "IDLE": "⏸ En espera",
-        "RUNNING": "🕒 Pendiente · Sincronizando",
+        "IDLE": copy_text("ui.sync.estado_en_espera"),
+        "RUNNING": copy_text("ui.sync.estado_pendiente_sincronizando"),
         "OK": status_badge("CONFIRMED"),
         "OK_WARN": status_badge("WARNING"),
         "ERROR": status_badge("ERROR"),
-        "CONFIG_INCOMPLETE": "⛔ Error · Configuración incompleta",
+        "CONFIG_INCOMPLETE": copy_text("ui.sync.estado_error_config_incompleta"),
     }.get(status, status)
 
 
 def sync_source_text(ventana) -> str:
     config = ventana._sheets_service.get_config()
     if not config:
-        return "Error: configura credenciales de Google Sheets"
-    credentials_name = Path(config.credentials_path).name if config.credentials_path else "sin archivo"
+        return copy_text("ui.sync.error_configura_credenciales")
+    credentials_name = Path(config.credentials_path).name if config.credentials_path else copy_text("ui.sync.sin_archivo")
     sheet_short = f"…{config.spreadsheet_id[-6:]}" if config.spreadsheet_id else "sin-id"
-    return f"Spreadsheet {sheet_short} · credencial {credentials_name}"
+    return (
+        f"{copy_text('ui.sync.spreadsheet_label')} {sheet_short} "
+        f"{copy_text('ui.sync.bullet_credencial')} {credentials_name}"
+    )
 
 
 def sync_scope_text() -> str:
-    return "Sincronización completa de delegadas y solicitudes."
+    return copy_text("ui.sync.sincronizacion_completa")
 
 
 def sync_actor_text(ventana) -> str:
     persona = ventana._current_persona()
-    return persona.nombre if persona is not None else "Delegada no seleccionada"
+    return persona.nombre if persona is not None else copy_text("ui.sync.delegada_no_seleccionada")
 
 
 def show_sync_summary_dialog(ventana, title: str, summary: SyncSummary) -> None:
     last_sync = ventana._sync_service.get_last_sync_at()
-    last_sync_text = ventana._format_timestamp(last_sync) if last_sync else "Nunca"
+    last_sync_text = ventana._format_timestamp(last_sync) if last_sync else copy_text("ui.sync.nunca")
     message = (
-        f"Insertadas en local: {summary.inserted_local}\n"
-        f"Actualizadas en local: {summary.updated_local}\n"
+        f"{copy_text('ui.sync.insertadas_local_label')} {summary.inserted_local}\n"
+        f"{copy_text('ui.sync.actualizadas_local_label')} {summary.updated_local}\n"
         f"{copy_text('ui.sync.resumen_insertadas')} {summary.inserted_remote}\n"
         f"{copy_text('ui.sync.resumen_actualizadas')} {summary.updated_remote}\n"
         f"{copy_text('ui.sync.resumen_duplicados_omitidos')} {summary.duplicates_skipped}\n"
