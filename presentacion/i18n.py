@@ -7,6 +7,7 @@ CATALOGO: dict[str, dict[str, str]] = {
     "es": {
         "splash_titulo": "Iniciando Horas Sindicales…",
         "splash_subtitulo": "Preparando configuración y servicios",
+        "splash_cargando": "Cargando…",
         "splash_error_titulo": "Error inesperado",
         "splash_error_mensaje": "No se pudo completar el arranque. ID de incidente: {incident_id}",
         "wizard_titulo": "Asistente de bienvenida",
@@ -33,6 +34,7 @@ CATALOGO: dict[str, dict[str, str]] = {
     "en": {
         "splash_titulo": "Starting Horas Sindicales…",
         "splash_subtitulo": "Preparing configuration and services",
+        "splash_cargando": "Loading…",
         "splash_error_titulo": "Unexpected error",
         "splash_error_mensaje": "Startup could not be completed. Incident ID: {incident_id}",
         "wizard_titulo": "Welcome wizard",
