@@ -58,11 +58,20 @@ jobs:
           }
           Compress-Archive -Path "dist/HorasSindicales/*" -DestinationPath $zipName
 
+      - name: Create SHA256 checksum
+        shell: pwsh
+        run: |
+          $zipName = "HorasSindicales-v$env:APP_VERSION-windows.zip"
+          $shaFile = "HorasSindicales-v$env:APP_VERSION-windows.sha256"
+          $hash = (Get-FileHash -Path $zipName -Algorithm SHA256).Hash.ToLower()
+          "$hash  $zipName" | Out-File -FilePath $shaFile -Encoding utf8NoBOM
+
       - name: Upload build artifact and logs
         uses: actions/upload-artifact@v4
         with:
           name: HorasSindicales-v${{ env.APP_VERSION }}-windows
           path: |
             HorasSindicales-v${{ env.APP_VERSION }}-windows.zip
+            HorasSindicales-v${{ env.APP_VERSION }}-windows.sha256
             logs/build_stdout.log
             logs/build_stderr.log
