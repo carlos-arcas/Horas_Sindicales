@@ -15,11 +15,16 @@ def _txt(key: str, **kwargs: object) -> str:
     return template.format(**kwargs) if kwargs else template
 
 
-def _parse_iso_to_utc_aware(value: str) -> datetime:
-    dt = datetime.fromisoformat(value)
+def _parsear_iso_utc_aware(valor_iso: str) -> datetime:
+    dt = datetime.fromisoformat(valor_iso)
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def _parse_iso_to_utc_aware(value: str) -> datetime:
+    """Compat alias for existing callsites/tests."""
+    return _parsear_iso_utc_aware(value)
 
 
 def build_sync_report(
@@ -60,6 +65,7 @@ def build_sync_report(
     attempts = max(1, len(attempt_history) or 1)
     total_operations = summary.inserted_local + summary.updated_local + summary.inserted_remote + summary.updated_remote
     success_rate = 1.0 if total_operations == 0 else max(0.0, (total_operations - summary.errors) / total_operations)
+
     return SyncReport(
         sync_id=sync_id or str(uuid.uuid4()),
         started_at=started,
@@ -270,6 +276,10 @@ def build_simulation_report(
             )
         )
     status = "OK" if plan.has_changes else "IDLE"
+    inicio = _parsear_iso_utc_aware(plan.generated_at)
+    fin = _parsear_iso_utc_aware(now)
+    duration_ms = max(0, int((fin - inicio).total_seconds() * 1000))
+
     return SyncReport(
         sync_id=sync_id or str(uuid.uuid4()),
         started_at=plan.generated_at,
@@ -292,7 +302,7 @@ def build_simulation_report(
         conflicts=[item.reason for item in plan.conflicts],
         errors=list(plan.potential_errors),
         entries=entries,
-        duration_ms=max(0, int((_parse_iso_to_utc_aware(now) - _parse_iso_to_utc_aware(plan.generated_at)).total_seconds() * 1000)),
+        duration_ms=duration_ms,
         rows_scanned_remote=len(plan.values_matrix),
         retry_count=max(0, len(attempt_history) - 1),
         conflicts_count=len(plan.conflicts),
