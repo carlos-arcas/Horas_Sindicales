@@ -4,6 +4,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 import logging
+from typing import Callable
 
 from PySide6.QtCore import QEvent, QObject, QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QGuiApplication
@@ -34,6 +35,8 @@ class NotificacionToast:
     detalles: str | None = None
     codigo: str | None = None
     correlacion_id: str | None = None
+    action_label: str | None = None
+    action_callback: Callable[[], None] | None = None
     timestamp: str = field(default_factory=lambda: datetime.now().strftime(copy_text("ui.toast.fecha_formato_default")))
     duracion_ms: int = 8000
 
@@ -127,11 +130,34 @@ class TarjetaToast(QFrame):
         self._btn_detalles.clicked.connect(lambda: self.solicitar_detalles.emit(self.notificacion.id))
         self._btn_detalles.setVisible(bool(self.notificacion.detalles or self.notificacion.correlacion_id))
         acciones.addWidget(self._btn_detalles)
+        self._btn_accion = QPushButton(self.notificacion.action_label or "")
+        self._btn_accion.setObjectName("toastActionButton")
+        self._btn_accion.clicked.connect(self._ejecutar_accion)
+        has_action_label = bool(self.notificacion.action_label)
+        self._btn_accion.setVisible(has_action_label)
+        self._btn_accion.setEnabled(self.notificacion.action_callback is not None)
+        acciones.addWidget(self._btn_accion)
         self._btn_cerrar = QPushButton(copy_text("ui.preferencias.cerrar"))
         self._btn_cerrar.setObjectName("toastCloseButton")
         self._btn_cerrar.clicked.connect(lambda: self.cerrado.emit(self.notificacion.id))
         acciones.addWidget(self._btn_cerrar)
         root.addLayout(acciones)
+
+    def _ejecutar_accion(self) -> None:
+        callback = self.notificacion.action_callback
+        if callback is None:
+            return
+        try:
+            callback()
+        except Exception:
+            logger.exception(
+                "toast_action_callback_failed",
+                extra={
+                    "toast_id": self.notificacion.id,
+                    "toast_level": self.notificacion.nivel,
+                    "toast_action_label": self.notificacion.action_label,
+                },
+            )
 
     def _apply_style(self) -> None:
         palette = QApplication.palette()
@@ -144,7 +170,7 @@ class TarjetaToast(QFrame):
             QFrame#toastWidget {{ background-color: {bg}; border: 1px solid {accent_soft}; border-left: 4px solid {accent}; border-radius: 10px; }}
             QLabel#toastTitle {{ color: {text}; font-weight: 700; }}
             QLabel#toastMessage {{ color: {text}; }}
-            QPushButton#toastCloseButton, QPushButton#toastDetailsButton {{ padding: 3px 10px; }}
+            QPushButton#toastCloseButton, QPushButton#toastDetailsButton, QPushButton#toastActionButton {{ padding: 3px 10px; }}
             """
         )
 
@@ -197,34 +223,152 @@ class GestorToasts(QObject):
         signal.connect(self.recibir_notificacion)  # type: ignore[attr-defined]
         return True
 
-    def show(self, message: str | None = None, level: str = "info", title: str | None = None, duration_ms: int | None = None, **opts: object) -> None:
+    def show(
+        self,
+        message: str | None = None,
+        level: str = "info",
+        title: str | None = None,
+        *,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+        details: str | None = None,
+        correlation_id: str | None = None,
+        code: str | None = None,
+        duration_ms: int | None = None,
+        **opts: object,
+    ) -> None:
         if message is None:
             return
+        details_value = details if isinstance(details, str) else opts.get("details") if isinstance(opts.get("details"), str) else None
+        code_value = code if isinstance(code, str) else opts.get("code") if isinstance(opts.get("code"), str) else opts.get("codigo") if isinstance(opts.get("codigo"), str) else None
+        correlation_value = (
+            correlation_id
+            if isinstance(correlation_id, str)
+            else opts.get("correlation_id")
+            if isinstance(opts.get("correlation_id"), str)
+            else opts.get("correlacion_id")
+            if isinstance(opts.get("correlacion_id"), str)
+            else None
+        )
         notificacion = NotificacionToast(
             id=str(id(message) + len(self._queue) + len(self._visibles)),
             titulo=title or copy_text("ui.toast.notificacion"),
             mensaje=message,
             nivel=level,
-            detalles=opts.get("details") if isinstance(opts.get("details"), str) else None,
-            codigo=opts.get("codigo") if isinstance(opts.get("codigo"), str) else None,
-            correlacion_id=opts.get("correlacion_id") if isinstance(opts.get("correlacion_id"), str) else None,
+            detalles=details_value,
+            codigo=code_value,
+            correlacion_id=correlation_value,
+            action_label=action_label if isinstance(action_label, str) else None,
+            action_callback=action_callback,
             duracion_ms=8000 if duration_ms is None else max(0, int(duration_ms)),
         )
         self.recibir_notificacion(notificacion)
 
-    def success(self, message: str, title: str | None = None, duration_ms: int | None = None, **opts: object) -> None:
-        self.show(message=message, level="success", title=title, duration_ms=duration_ms, **opts)
+    def success(
+        self,
+        message: str,
+        title: str | None = None,
+        *,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+        details: str | None = None,
+        correlation_id: str | None = None,
+        code: str | None = None,
+        duration_ms: int | None = None,
+        **opts: object,
+    ) -> None:
+        self.show(
+            message=message,
+            level="success",
+            title=title,
+            action_label=action_label,
+            action_callback=action_callback,
+            details=details,
+            correlation_id=correlation_id,
+            code=code,
+            duration_ms=duration_ms,
+            **opts,
+        )
 
-    def info(self, message: str, title: str | None = None, duration_ms: int | None = None, **opts: object) -> None:
-        self.show(message=message, level="info", title=title, duration_ms=duration_ms, **opts)
+    def info(
+        self,
+        message: str,
+        title: str | None = None,
+        *,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+        details: str | None = None,
+        correlation_id: str | None = None,
+        code: str | None = None,
+        duration_ms: int | None = None,
+        **opts: object,
+    ) -> None:
+        self.show(
+            message=message,
+            level="info",
+            title=title,
+            action_label=action_label,
+            action_callback=action_callback,
+            details=details,
+            correlation_id=correlation_id,
+            code=code,
+            duration_ms=duration_ms,
+            **opts,
+        )
 
-    def warning(self, message: str, title: str | None = None, duration_ms: int | None = None, **opts: object) -> None:
-        self.show(message=message, level="warning", title=title, duration_ms=duration_ms, **opts)
+    def warning(
+        self,
+        message: str,
+        title: str | None = None,
+        *,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+        details: str | None = None,
+        correlation_id: str | None = None,
+        code: str | None = None,
+        duration_ms: int | None = None,
+        **opts: object,
+    ) -> None:
+        self.show(
+            message=message,
+            level="warning",
+            title=title,
+            action_label=action_label,
+            action_callback=action_callback,
+            details=details,
+            correlation_id=correlation_id,
+            code=code,
+            duration_ms=duration_ms,
+            **opts,
+        )
 
-    def error(self, message: str, title: str | None = None, duration_ms: int | None = None, **opts: object) -> None:
-        details = opts.get("details")
-        payload_message = f"{message}\n{details}" if isinstance(details, str) and details else message
-        self.show(message=payload_message, level="error", title=title, duration_ms=duration_ms, **opts)
+    def error(
+        self,
+        message: str,
+        title: str | None = None,
+        *,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+        details: str | None = None,
+        correlation_id: str | None = None,
+        code: str | None = None,
+        duration_ms: int | None = None,
+        **opts: object,
+    ) -> None:
+        payload_details = details if isinstance(details, str) else opts.get("details") if isinstance(opts.get("details"), str) else None
+        payload_message = f"{message}\n{payload_details}" if payload_details else message
+        self.show(
+            message=payload_message,
+            level="error",
+            title=title,
+            action_label=action_label,
+            action_callback=action_callback,
+            details=payload_details,
+            correlation_id=correlation_id,
+            code=code,
+            duration_ms=duration_ms,
+            **opts,
+        )
 
     def recibir_notificacion(self, notificacion: NotificacionToast) -> None:
         if not self._is_active or self._overlay is None:
