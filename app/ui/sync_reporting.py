@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
+from app.application.tiempo.normalizacion_datetime import TZ_POR_DEFECTO, duracion_ms, parsear_iso_datetime
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncLogEntry, SyncReport, SyncSummary
 from app.ui.copy_catalog import copy_text
 
@@ -16,10 +17,7 @@ def _txt(key: str, **kwargs: object) -> str:
 
 
 def _parsear_iso_utc_aware(valor_iso: str) -> datetime:
-    dt = datetime.fromisoformat(valor_iso)
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+    return parsear_iso_datetime(valor_iso, TZ_POR_DEFECTO)
 
 
 def _parse_iso_to_utc_aware(value: str) -> datetime:
@@ -28,9 +26,9 @@ def _parse_iso_to_utc_aware(value: str) -> datetime:
 
 
 def _duracion_ms_entre_isos(inicio_iso: str, fin_iso: str) -> int:
-    inicio = _parsear_iso_utc_aware(inicio_iso)
-    fin = _parsear_iso_utc_aware(fin_iso)
-    return max(0, int((fin - inicio).total_seconds() * 1000))
+    inicio = parsear_iso_datetime(inicio_iso, TZ_POR_DEFECTO)
+    fin = parsear_iso_datetime(fin_iso, TZ_POR_DEFECTO)
+    return duracion_ms(inicio, fin)
 
 
 def build_sync_report(
@@ -280,9 +278,9 @@ def build_simulation_report(
             )
         )
     status = "OK" if plan.has_changes else "IDLE"
-    inicio = _parsear_iso_utc_aware(plan.generated_at)
-    fin = _parsear_iso_utc_aware(now)
-    duration_ms = max(0, int((fin - inicio).total_seconds() * 1000))
+    inicio = parsear_iso_datetime(plan.generated_at, TZ_POR_DEFECTO)
+    fin = parsear_iso_datetime(now, TZ_POR_DEFECTO)
+    duration_ms = duracion_ms(inicio, fin)
 
     return SyncReport(
         sync_id=sync_id or str(uuid.uuid4()),
