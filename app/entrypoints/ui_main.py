@@ -16,6 +16,7 @@ from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
 from app.application.use_cases.cargar_datos_demo_caso_uso import CargarDatosDemoCasoUso
 from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
+from app.ui.qt_message_handler import instalar_qt_message_handler
 from app.ui.qt_safe import is_qt_valid, safe_call
 
 LOGGER = logging.getLogger(__name__)
@@ -400,6 +401,7 @@ def run_ui(container=None) -> int:
     startup_timeout_ms = _resolver_startup_timeout_ms()
 
     app = QApplication([])
+    instalar_qt_message_handler(LOGGER, getattr(container, "boot_trace_writer", None))
     assert_hilo_ui_o_log("run_ui.bootstrap", LOGGER)
     i18n = I18nManager("es")
     splash = SplashWindow(i18n)
