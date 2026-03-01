@@ -15,10 +15,14 @@ from app.ui.vistas.main_window import (
     TAB_HISTORICO,
     resolve_active_delegada_id,
 )
+from app.ui.vistas.main_window.mixins.ajustes_post_build_mixin import AjustesPostBuildMixin
+from app.ui.vistas.main_window.mixins.handlers_formulario_solicitud_mixin import (
+    HandlersFormularioSolicitudMixin,
+)
 from app.ui.vistas.init_refresh import run_init_refresh
 
 
-class MainWindow(_MainWindowBase):
+class MainWindow(AjustesPostBuildMixin, HandlersFormularioSolicitudMixin, _MainWindowBase):
     """Clase pública estable que delega en la implementación modular."""
 
     def __init__(self, *args, **kwargs) -> None:
