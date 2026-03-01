@@ -1,19 +1,50 @@
 from __future__ import annotations
 
+import ast
 from dataclasses import dataclass
-from pathlib import Path
-
 from importlib import import_module
+from pathlib import Path
 
 import pytest
 
-from app.configuracion.calidad import (
-    EXCEPCIONES_CC,
-    EXCEPCIONES_LOC,
-    MAX_CC_POR_FUNCION,
-    MAX_LOC_POR_ARCHIVO,
-    RUTAS_EXCLUIDAS,
-)
+
+def _load_quality_limits() -> dict[str, object]:
+    """Carga configuración de métricas por lectura estática del archivo fuente.
+
+    Este test no debe importar módulos de la app para evitar side effects de UI/Qt.
+    """
+
+    root = Path(__file__).resolve().parents[1]
+    quality_path = root / "app" / "configuracion" / "calidad.py"
+    tree = ast.parse(quality_path.read_text(encoding="utf-8"), filename=quality_path.as_posix())
+
+    expected_keys = {
+        "MAX_LOC_POR_ARCHIVO",
+        "MAX_CC_POR_FUNCION",
+        "RUTAS_EXCLUIDAS",
+        "EXCEPCIONES_LOC",
+        "EXCEPCIONES_CC",
+    }
+    values: dict[str, object] = {}
+
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+            continue
+
+        name = node.targets[0].id
+        if name not in expected_keys:
+            continue
+        values[name] = ast.literal_eval(node.value)
+
+    missing = sorted(expected_keys - values.keys())
+    if missing:
+        raise AssertionError(
+            "Faltan constantes de quality gate en app/configuracion/calidad.py: " + ", ".join(missing)
+        )
+
+    return values
 
 
 @dataclass(frozen=True)
@@ -41,11 +72,13 @@ class CcViolation:
 def _iter_python_files() -> list[Path]:
     root = Path(__file__).resolve().parents[1]
     app_root = root / "app"
+    config = _load_quality_limits()
+    rutas_excluidas = set(config["RUTAS_EXCLUIDAS"])
     files: list[Path] = []
 
     for path in app_root.rglob("*.py"):
         relative = path.relative_to(root)
-        if any(part in RUTAS_EXCLUIDAS for part in relative.parts):
+        if any(part in rutas_excluidas for part in relative.parts):
             continue
         files.append(path)
 
@@ -93,6 +126,12 @@ def test_quality_gate_size_and_complexity() -> None:
     analyze = import_module("radon.raw").analyze
 
     root = Path(__file__).resolve().parents[1]
+    config = _load_quality_limits()
+    max_loc_por_archivo = int(config["MAX_LOC_POR_ARCHIVO"])
+    max_cc_por_funcion = int(config["MAX_CC_POR_FUNCION"])
+    excepciones_loc = dict(config["EXCEPCIONES_LOC"])
+    excepciones_cc = dict(config["EXCEPCIONES_CC"])
+
     loc_violations: list[LocViolation] = []
     cc_violations: list[CcViolation] = []
 
@@ -101,7 +140,7 @@ def test_quality_gate_size_and_complexity() -> None:
         relative = path.relative_to(root).as_posix()
 
         loc_value = analyze(source).sloc
-        loc_limit = EXCEPCIONES_LOC.get(relative, MAX_LOC_POR_ARCHIVO)
+        loc_limit = int(excepciones_loc.get(relative, max_loc_por_archivo))
         if loc_value > loc_limit:
             loc_violations.append(LocViolation(file=relative, value=loc_value, limit=loc_limit))
 
@@ -114,7 +153,7 @@ def test_quality_gate_size_and_complexity() -> None:
             else:
                 identifier = f"{relative}:{block.name}"
 
-            cc_limit = EXCEPCIONES_CC.get(identifier, MAX_CC_POR_FUNCION)
+            cc_limit = int(excepciones_cc.get(identifier, max_cc_por_funcion))
             if block.complexity > cc_limit:
                 cc_violations.append(
                     CcViolation(identifier=identifier, complexity=block.complexity, limit=cc_limit)
