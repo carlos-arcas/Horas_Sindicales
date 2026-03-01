@@ -92,3 +92,11 @@ Un cambio se considera **DONE** si cumple TODO lo siguiente:
 - [DONE] Extracción Iteración 1 en módulos nuevos: `app/ui/vistas/main_window/state_historico.py` y `app/ui/vistas/main_window/state_pendientes.py`.
 - [DONE] Wrappers críticos AST conservados en `MainWindow` con delegación thin (1 línea).
 - [DONE] LOC de `app/ui/vistas/main_window/state_controller.py`: **694 -> 694** (sin expansión; delegación refactor aplicada en wrappers).
+
+
+## Registro de progreso de esta PR (refactor preflight solicitudes PDF)
+
+- [DONE] Extracción de la lógica de preflight PDF a `app/application/use_cases/solicitudes/servicio_preflight_pdf.py` con DTOs de entrada/salida dedicados.
+- [DONE] `app/application/use_cases/solicitudes/use_case.py` conserva wrappers mínimos y delega nombre/ruta/colisión al servicio nuevo.
+- [DONE] LOC del hotspot `app/application/use_cases/solicitudes/use_case.py`: **900 -> 904** (iteración enfocada en aislamiento de lógica y cobertura de colisión, no en reducción neta de líneas).
+- [DONE] Cobertura de escenarios del servicio nuevo: caso OK, colisión con sugerencia y borde de normalización de caracteres.

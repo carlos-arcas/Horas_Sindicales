@@ -75,6 +75,10 @@ from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
     plan_pdf_confirmadas,
 )
 from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
+from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
+    EntradaNombrePdf,
+    ServicioPreflightPdf,
+)
 from app.application.use_cases.solicitudes.servicio_saldos import (
     acumular_consumo_anual_por_personas as _acumular_consumo_anual_por_personas,
     calcular_totales_globales as _calcular_totales_globales,
@@ -124,6 +128,10 @@ class SolicitudUseCases:
         self._config_repo = config_repo
         self._generador_pdf = generador_pdf
         self._fs = fs or PathFileSystem()
+        self._servicio_preflight_pdf = ServicioPreflightPdf(
+            fs=self._fs,
+            generador_pdf=self._generador_pdf,
+        )
 
     def listar_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
         return self.listar_solicitudes_por_persona_y_periodo(persona_id, None, None)
@@ -528,23 +536,19 @@ class SolicitudUseCases:
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
         fechas = [solicitud.fecha_pedida for solicitud in solicitudes_list]
-        if self._generador_pdf is None:
-            raise BusinessRuleError("No hay generador PDF configurado.")
-        return self._generador_pdf.construir_nombre_archivo(persona.nombre, fechas)
+        try:
+            return self._servicio_preflight_pdf.construir_nombre_pdf(
+                EntradaNombrePdf(nombre_persona=persona.nombre, fechas=tuple(fechas))
+            )
+        except ValueError as exc:
+            raise BusinessRuleError(str(exc)) from exc
 
-    def _resolve_pdf_destination_collision(self, destino: Path) -> Path:
-        """Devuelve un destino disponible sin romper el flujo si el archivo ya existe."""
-        if not self._fs.existe(destino):
-            return destino
-        stem = destino.stem
-        suffix = destino.suffix or ".pdf"
-        parent = destino.parent
-        # Para juniors: evitamos BusinessRuleError por colisión proponiendo copia incremental.
-        for index in range(1, 10_000):
-            candidate = parent / f"{stem}({index}){suffix}"
-            if not self._fs.existe(candidate):
-                return candidate
-        raise BusinessRuleError(f"No se pudo resolver colisión de ruta destino: {destino}")
+    def _validar_preflight_destino_pdf(self, destino: Path) -> Path:
+        preflight = self._servicio_preflight_pdf.validar_colision(str(destino))
+        if not preflight.colision:
+            return Path(preflight.ruta_destino)
+        sugerencia = f" Sugerencia: {preflight.ruta_sugerida}" if preflight.ruta_sugerida else ""
+        raise BusinessRuleError(f"{preflight.motivos[0]}.{sugerencia}".strip())
 
     def confirmar_lote_y_generar_pdf(
         self,
@@ -563,7 +567,7 @@ class SolicitudUseCases:
         for solicitud in solicitudes_list:
             validar_solicitud_dto_declarativo(solicitud)
 
-        destino_resuelto = self._resolve_pdf_destination_collision(destino)
+        destino_resuelto = self._validar_preflight_destino_pdf(destino)
 
         preflight = ConfirmacionPdfOperacion(fs=self._fs, generador_pdf=self._generador_pdf).ejecutar(
             RequestConfirmacionPdf(
