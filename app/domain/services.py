@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime
 import logging
+import re
 
 from app.core.errors import BusinessError, ValidationError
 
@@ -125,10 +127,6 @@ def _solapa_tramo(solicitud_a: Solicitud, solicitud_b: Solicitud) -> bool:
     except ValidationError:
         return False
     return overlaps(inicio_a, fin_a, inicio_b, fin_b)
-
-
-from dataclasses import dataclass
-import re
 
 
 @dataclass(frozen=True)
