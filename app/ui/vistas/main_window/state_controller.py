@@ -431,7 +431,12 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         layout_builder.build_status(self)
 
     def _status_to_label(self, status: str) -> str:
-        return status
+        from app.ui.vistas.main_window import dialogos_sincronizacion
+
+        try:
+            return dialogos_sincronizacion.status_to_label(status)
+        except Exception:
+            return status
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
         model = table.model()
