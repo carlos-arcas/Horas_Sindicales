@@ -5,6 +5,33 @@ from typing import Any, Callable
 
 from app.application.use_cases.sync_sheets.sync_sheets_helpers import execute_with_validation
 
+_BACKFILL_UUID_SQL_BY_TABLE = {
+    "personas": "UPDATE personas SET uuid = ?, updated_at = ? WHERE id = ?",
+    "solicitudes": "UPDATE solicitudes SET uuid = ?, updated_at = ? WHERE id = ?",
+    "cuadrantes": "UPDATE cuadrantes SET uuid = ?, updated_at = ? WHERE id = ?",
+}
+
+_DUPLICATE_QUERY_BY_FILTER = {
+    "uuid": """
+        SELECT s.uuid, s.persona_id, p.uuid AS delegada_uuid, s.fecha_pedida,
+               s.desde_min, s.hasta_min, s.completo, s.horas_solicitadas_min
+        FROM solicitudes s
+        JOIN personas p ON p.id = s.persona_id
+        WHERE p.uuid = ?
+          AND s.fecha_pedida = ?
+          AND (s.deleted = 0 OR s.deleted IS NULL)
+    """,
+    "persona_id": """
+        SELECT s.uuid, s.persona_id, p.uuid AS delegada_uuid, s.fecha_pedida,
+               s.desde_min, s.hasta_min, s.completo, s.horas_solicitadas_min
+        FROM solicitudes s
+        JOIN personas p ON p.id = s.persona_id
+        WHERE s.persona_id = ?
+          AND s.fecha_pedida = ?
+          AND (s.deleted = 0 OR s.deleted IS NULL)
+    """,
+}
+
 
 def insert_persona_from_remote(connection: Any, uuid_value: str, row: dict[str, Any], now_iso: Callable[[], str]) -> None:
     cursor = connection.cursor()
@@ -94,13 +121,10 @@ def execute_update_solicitud(connection: Any, payload: tuple[Any, ...]) -> None:
 
 
 def backfill_uuid(connection: Any, table_name: str, record_id: int, uuid_value: str, now_iso: Callable[[], str]) -> None:
-    allowed_tables = {"personas", "solicitudes", "cuadrantes"}
-    if table_name not in allowed_tables:
+    sql = _BACKFILL_UUID_SQL_BY_TABLE.get(table_name)
+    if sql is None:
         raise ValueError(f"table_name no soportada para backfill_uuid: {table_name}")
-    connection.cursor().execute(
-        f"UPDATE {table_name} SET uuid = ?, updated_at = ? WHERE id = ?",
-        (uuid_value, now_iso(), record_id),
-    )
+    connection.cursor().execute(sql, (uuid_value, now_iso(), record_id))
 
 
 def store_conflict(connection: Any, uuid_value: str, entity_type: str, local_snapshot: dict[str, Any], remote_snapshot: dict[str, Any], now_iso: Callable[[], str]) -> None:
@@ -161,22 +185,11 @@ def is_duplicate_local_solicitud(connection: Any, key: tuple[object, ...], exclu
     if not delegada_key or not fecha_pedida:
         return False
     cursor = connection.cursor()
-    query = (
-        """
-        SELECT s.uuid, s.persona_id, p.uuid AS delegada_uuid, s.fecha_pedida,
-               s.desde_min, s.hasta_min, s.completo, s.horas_solicitadas_min
-        FROM solicitudes s
-        JOIN personas p ON p.id = s.persona_id
-        WHERE {delegada_filter}
-          AND s.fecha_pedida = ?
-          AND (s.deleted = 0 OR s.deleted IS NULL)
-        """
-    )
     if str(delegada_key).startswith("uuid:"):
-        cursor.execute(query.format(delegada_filter="p.uuid = ?"), (str(delegada_key).removeprefix("uuid:"), fecha_pedida))
+        cursor.execute(_DUPLICATE_QUERY_BY_FILTER["uuid"], (str(delegada_key).removeprefix("uuid:"), fecha_pedida))
     elif str(delegada_key).startswith("id:"):
         persona_id = _int_or_zero(str(delegada_key).removeprefix("id:"))
-        cursor.execute(query.format(delegada_filter="s.persona_id = ?"), (persona_id, fecha_pedida))
+        cursor.execute(_DUPLICATE_QUERY_BY_FILTER["persona_id"], (persona_id, fecha_pedida))
     else:
         return False
     for row in cursor.fetchall():

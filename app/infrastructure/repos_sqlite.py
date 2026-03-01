@@ -30,6 +30,18 @@ _LOCKED_RETRY_BACKOFF_SECONDS = (0.05, 0.15, 0.3)
 _T = TypeVar("_T")
 
 
+_SOLICITUD_LIST_BY_YEAR_SQL = (
+    "SELECT " + SOLICITUD_SELECT_FIELDS
+    + " FROM solicitudes WHERE persona_id = ? AND strftime('%Y', fecha_pedida) = ?"
+    + " AND generated = 1 AND (deleted = 0 OR deleted IS NULL) ORDER BY fecha_pedida DESC"
+)
+_SOLICITUD_LIST_BY_YEAR_MONTH_SQL = (
+    "SELECT " + SOLICITUD_SELECT_FIELDS
+    + " FROM solicitudes WHERE persona_id = ? AND strftime('%Y', fecha_pedida) = ?"
+    + " AND strftime('%m', fecha_pedida) = ?"
+    + " AND generated = 1 AND (deleted = 0 OR deleted IS NULL) ORDER BY fecha_pedida DESC"
+)
+
 def _configure_connection_for_runtime(connection: sqlite3.Connection) -> None:
     """Aplica pragmas defensivos para minimizar conflictos de lock en runtime."""
     try:
@@ -235,19 +247,9 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor = self._connection.cursor()
 
         def _query() -> list[Solicitud]:
-            where_period, period_params = build_period_filters(year, month)
-            cursor.execute(
-                f"""
-                SELECT {SOLICITUD_SELECT_FIELDS}
-                FROM solicitudes
-                WHERE persona_id = ?
-                  AND {where_period}
-                  AND generated = 1
-                  AND (deleted = 0 OR deleted IS NULL)
-                ORDER BY fecha_pedida DESC
-                """,
-                (persona_id, *period_params),
-            )
+            _, period_params = build_period_filters(year, month)
+            sql = _SOLICITUD_LIST_BY_YEAR_SQL if month is None else _SOLICITUD_LIST_BY_YEAR_MONTH_SQL
+            cursor.execute(sql, (persona_id, *period_params))
             return [self._row_to_solicitud(row) for row in cursor.fetchall()]
 
         return _run_with_locked_retry(_query, context="solicitudes.list_by_persona_and_period")
@@ -344,21 +346,18 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         cursor = self._connection.cursor()
         candidate = build_solicitud_candidate(persona_id, fecha_pedida, desde_min, hasta_min, completo)
 
-        clauses = [
-            "s.persona_id = ?",
-            "s.fecha_pedida = ?",
-            "(s.deleted = 0 OR s.deleted IS NULL)",
-        ]
         params: list[object] = [persona_id, fecha_pedida]
         cursor.execute(
-            f"""
+            """
             SELECT s.id, s.uuid, p.uuid AS delegada_uuid,
                    s.persona_id, s.fecha_solicitud, s.fecha_pedida,
                    s.desde_min, s.hasta_min, s.completo,
                    s.horas_solicitadas_min, s.observaciones, s.notas, s.pdf_path, s.pdf_hash, s.generated
             FROM solicitudes s
             LEFT JOIN personas p ON p.id = s.persona_id
-            WHERE {' AND '.join(clauses)}
+            WHERE s.persona_id = ?
+              AND s.fecha_pedida = ?
+              AND (s.deleted = 0 OR s.deleted IS NULL)
             ORDER BY s.id DESC
             """,
             params,
