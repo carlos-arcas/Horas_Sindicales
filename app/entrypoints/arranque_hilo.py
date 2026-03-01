@@ -34,7 +34,10 @@ class TrabajadorArranque(QObject):
             if resolved_container is None:
                 from app.bootstrap.container import build_container
 
-                resolved_container = build_container()
+                try:
+                    resolved_container = build_container(preferencias_headless=True)
+                except TypeError:
+                    resolved_container = build_container()
 
             etapa_actual = "bootstrap.deps_arranque"
             self._emitir_progreso(etapa_actual)
