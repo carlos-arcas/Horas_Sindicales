@@ -19,6 +19,6 @@ def test_build_sync_permission_message_without_email() -> None:
 
 
 def test_sheets_permission_error_can_carry_service_account_email() -> None:
-    error = SheetsPermissionError("Sin permisos").with_service_account_email("sync-bot@example.iam.gserviceaccount.com")
+    error = SheetsPermissionError("Sin permisos").enriquecer_email_cuenta_servicio("sync-bot@example.iam.gserviceaccount.com")
 
     assert error.service_account_email == "sync-bot@example.iam.gserviceaccount.com"

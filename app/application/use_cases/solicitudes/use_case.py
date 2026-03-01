@@ -75,9 +75,9 @@ from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
     plan_pdf_confirmadas,
 )
 from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
+from app.application.use_cases.solicitudes.pdf_destino_policy import resolver_colision_pdf
 from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
     EntradaNombrePdf,
-    ResultadoPreflightPdf,
     ServicioPreflightPdf,
 )
 from app.application.use_cases.solicitudes.servicio_saldos import (
@@ -562,29 +562,22 @@ class SolicitudUseCases:
         overwrite: bool = False,
         auto_rename: bool = True,
     ) -> ResolucionDestinoPdf:
-        resultado = self._servicio_preflight_pdf.validar_colision(str(destino))
-        ruta_original = Path(resultado.ruta_destino)
-        if not resultado.colision:
-            return ResolucionDestinoPdf(
-                ruta_destino=ruta_original,
-                colision_detectada=False,
-                ruta_original=ruta_original,
-                ruta_alternativa=None,
-            )
+        ruta_original = destino.resolve(strict=False)
+        ruta_alternativa = resolver_colision_pdf(ruta_original, self._fs)
+        colision_detectada = ruta_alternativa != ruta_original
 
-        ruta_alternativa = Path(resultado.ruta_sugerida) if resultado.ruta_sugerida else None
-        if overwrite:
+        if overwrite or not colision_detectada:
             ruta_destino = ruta_original
-        elif auto_rename and ruta_alternativa is not None:
+        elif auto_rename:
             ruta_destino = ruta_alternativa
         else:
             ruta_destino = ruta_original
 
         return ResolucionDestinoPdf(
             ruta_destino=ruta_destino,
-            colision_detectada=True,
+            colision_detectada=colision_detectada,
             ruta_original=ruta_original,
-            ruta_alternativa=ruta_alternativa,
+            ruta_alternativa=ruta_alternativa if colision_detectada else None,
         )
 
     def confirmar_lote_y_generar_pdf(
@@ -604,7 +597,19 @@ class SolicitudUseCases:
         for solicitud in solicitudes_list:
             validar_solicitud_dto_declarativo(solicitud)
 
-        destino_resuelto = self.resolver_destino_pdf(destino, overwrite=False, auto_rename=True).ruta_destino
+        resolucion_destino = self.resolver_destino_pdf(destino, overwrite=False, auto_rename=True)
+        destino_resuelto = resolucion_destino.ruta_destino
+        if resolucion_destino.colision_detectada and correlation_id:
+            log_event(
+                logger,
+                "pdf_destino_colision_resuelta",
+                {
+                    "reason_code": "PDF_DESTINO_COLISION_RESUELTA",
+                    "ruta_original": str(resolucion_destino.ruta_original),
+                    "ruta_final": str(destino_resuelto),
+                },
+                correlation_id,
+            )
 
         preflight = ConfirmacionPdfOperacion(fs=self._fs, generador_pdf=self._generador_pdf).ejecutar(
             RequestConfirmacionPdf(
