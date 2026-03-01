@@ -30,6 +30,7 @@ from app.application.ports.pdf_puerto import GeneradorPdfPuerto
 from app.core.errors import InfraError, PersistenceError
 from app.core.metrics import metrics_registry
 from app.core.observability import log_event
+from app.configuracion.settings import is_read_only_enabled
 from app.domain.models import Persona, Solicitud
 from app.domain.ports import GrupoConfigRepository, PersonaRepository, SolicitudRepository
 from app.domain.request_time import compute_request_minutes, minutes_to_hours_float
@@ -405,6 +406,8 @@ class SolicitudUseCases:
         correlation_id: str | None = None,
         contexto: ContextoOperacion | None = None,
     ) -> SaldosDTO:
+        if is_read_only_enabled():
+            raise BusinessRuleError("Modo solo lectura activado")
         correlation_id = _resolver_correlation_id(correlation_id, contexto)
         if correlation_id:
             log_event(logger, "solicitud_delete_started", {"solicitud_id": solicitud_id}, correlation_id)
@@ -548,6 +551,8 @@ class SolicitudUseCases:
         destino: Path,
         correlation_id: str | None = None,
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:
+        if is_read_only_enabled():
+            raise BusinessRuleError("Modo solo lectura activado")
         solicitudes_list = list(solicitudes)
         if not correlation_id:
             correlation_id = str(uuid.uuid4())
@@ -655,6 +660,8 @@ class SolicitudUseCases:
         solicitudes: Iterable[SolicitudDTO],
         correlation_id: str | None = None,
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]:
+        if is_read_only_enabled():
+            raise BusinessRuleError("Modo solo lectura activado")
         solicitudes_list = list(solicitudes)
         if correlation_id:
             log_event(logger, "confirmar_sin_pdf_started", {"count": len(solicitudes_list)}, correlation_id)
