@@ -126,6 +126,7 @@ from . import data_refresh, layout_builder, wiring
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
 from .init_placeholders import inicializar_placeholders
+from app.ui.vistas.sync_status_mapping import status_to_label
 
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 from . import state_historico, state_pendientes
@@ -431,7 +432,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         layout_builder.build_status(self)
 
     def _status_to_label(self, status: str) -> str:
-        return status
+        return status_to_label(status)
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
         model = table.model()

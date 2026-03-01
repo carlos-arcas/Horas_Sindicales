@@ -37,23 +37,26 @@ def _extract_window_handlers_from_ast(tree: ast.AST) -> set[str]:
     return handlers
 
 
+def _missing_handlers_for_builder(builder: str, main_window_cls: type) -> list[str]:
+    code = Path(builder).read_text(encoding="utf-8")
+    tree = ast.parse(code, filename=builder)
+    handlers = _extract_window_handlers_from_ast(tree)
+    return sorted(
+        handler
+        for handler in handlers
+        if not hasattr(main_window_cls, handler) or not callable(getattr(main_window_cls, handler, None))
+    )
+
+
 def test_builders_referencian_handlers_presentes_y_callables_en_main_window() -> None:
-    handlers_referenciados: set[str] = set()
-
-    for builder in BUILDERS:
-        codigo_builder = Path(builder).read_text(encoding="utf-8")
-        ast_builder = ast.parse(codigo_builder, filename=builder)
-        handlers_referenciados.update(_extract_window_handlers_from_ast(ast_builder))
-
     from app.ui.vistas.main_window.state_controller import MainWindow
 
-    faltantes = sorted(
-        handler
-        for handler in handlers_referenciados
-        if not hasattr(MainWindow, handler) or not callable(getattr(MainWindow, handler, None))
-    )
+    missing_messages: list[str] = []
+    for builder in BUILDERS:
+        missing_handlers = _missing_handlers_for_builder(builder, MainWindow)
+        missing_messages.extend(
+            f"Falta handler requerido por {Path(builder).name}: {handler}"
+            for handler in missing_handlers
+        )
 
-    assert not faltantes, (
-        "Handlers faltantes/no callables en MainWindow detectados desde builders "
-        f"(calls/callbacks): {', '.join(faltantes)}"
-    )
+    assert not missing_messages, "\n".join(missing_messages)
