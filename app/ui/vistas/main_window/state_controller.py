@@ -64,7 +64,6 @@ try:
     from app.ui.conflicts_dialog import ConflictsDialog
     from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
     from app.ui.error_mapping import UiErrorMessage, map_error_to_ui_message
-    from app.ui.person_dialog import PersonaDialog
     from app.ui.patterns import apply_modal_behavior, build_modal_actions, status_badge, STATUS_PATTERNS
     from app.ui.widgets.toast import ToastManager
     from app.ui.controllers.personas_controller import PersonasController
@@ -100,7 +99,7 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     def _qt_unavailable(*args, **kwargs):
         raise RuntimeError("UI no disponible: falta instalación de Qt/PySide6")
 
-    ConflictsDialog = GrupoConfigDialog = PdfConfigDialog = PersonaDialog = ToastManager = object
+    ConflictsDialog = GrupoConfigDialog = PdfConfigDialog = ToastManager = object
     ActionStateInput = object
     build_action_state = _qt_unavailable
     validacion_preventiva = object
@@ -128,8 +127,8 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     abrir_archivo_local = _qt_unavailable
     build_estado_pendientes_debug_payload = build_historico_filters_payload = _qt_unavailable
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
-from . import acciones_sincronizacion, data_refresh, form_handlers, layout_builder, wiring
-from app.ui.vistas.personas_presenter import PersonaOption, PersonasLoadInput, build_personas_load_output, resolve_active_delegada_id as resolve_active_delegada_id_presenter
+from . import acciones_personas, acciones_sincronizacion, data_refresh, form_handlers, layout_builder, wiring
+from app.ui.vistas.personas_presenter import resolve_active_delegada_id as resolve_active_delegada_id_presenter
 from app.core.observability import OperationContext
 from app.bootstrap.logging import log_operational_error
 
@@ -508,41 +507,16 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         form_handlers.limpiar_formulario(self)
 
     def _is_form_dirty(self) -> bool:
-        return bool(self.notas_input.toPlainText().strip()) or self.fecha_input.date() != QDate.currentDate() or self.desde_input.time() != QTime(9, 0) or self.hasta_input.time() != QTime(17, 0) or self.completo_check.isChecked()
+        return acciones_personas.is_form_dirty(self)
 
     def _confirmar_cambio_delegada(self) -> bool:
-        respuesta = QMessageBox.question(
-            self,
-            "Cambiar delegada",
-            "Cambiar delegada descartará el formulario actual. ¿Continuar?",
-        )
-        return respuesta == QMessageBox.StandardButton.Yes
+        return acciones_personas.confirmar_cambio_delegada(self)
 
     def _save_current_draft(self, persona_id: int | None) -> None:
-        if persona_id is None:
-            return
-        if not self._is_form_dirty():
-            self._draft_solicitud_por_persona.pop(persona_id, None)
-            return
-        self._draft_solicitud_por_persona[persona_id] = {
-            "fecha": self.fecha_input.date(),
-            "desde": self.desde_input.time(),
-            "hasta": self.hasta_input.time(),
-            "completo": self.completo_check.isChecked(),
-            "notas": self.notas_input.toPlainText(),
-        }
+        return acciones_personas.save_current_draft(self, persona_id)
 
     def _restore_draft_for_persona(self, persona_id: int | None) -> None:
-        if persona_id is None:
-            return
-        draft = self._draft_solicitud_por_persona.get(persona_id)
-        if not draft:
-            return
-        self.fecha_input.setDate(draft["fecha"])
-        self.desde_input.setTime(draft["desde"])
-        self.hasta_input.setTime(draft["hasta"])
-        self.completo_check.setChecked(bool(draft["completo"]))
-        self.notas_input.setPlainText(str(draft["notas"]))
+        return acciones_personas.restore_draft_for_persona(self, persona_id)
 
     def _update_global_context(self) -> None:
         return
@@ -560,43 +534,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return historico_actions.on_export_historico_pdf(self)
 
     def _normalize_input_heights(self) -> None:
-        controls = [
-            self.persona_combo,
-            self.fecha_input,
-            self.desde_input,
-            self.hasta_input,
-            self.historico_search_input,
-            self.historico_estado_combo,
-            self.historico_delegada_combo,
-            self.historico_desde_date,
-            self.historico_hasta_date,
-            self.historico_apply_filters_button,
-            self.open_saldos_modal_button,
-            self.add_persona_button,
-            self.edit_persona_button,
-            self.edit_grupo_button,
-            self.opciones_button,
-            self.delete_persona_button,
-            self.agregar_button,
-            self.eliminar_pendiente_button,
-            self.editar_pdf_button,
-            self.insertar_sin_pdf_button,
-            self.confirmar_button,
-            self.eliminar_button,
-            self.generar_pdf_button,
-        ]
-        for control in controls:
-            control.setMinimumHeight(40)
+        return acciones_personas.normalize_input_heights(self)
 
     def _configure_operativa_focus_order(self) -> None:
-        self.setTabOrder(self.persona_combo, self.fecha_input)
-        self.setTabOrder(self.fecha_input, self.desde_input)
-        self.setTabOrder(self.desde_input, self.hasta_input)
-        self.setTabOrder(self.hasta_input, self.completo_check)
-        self.setTabOrder(self.completo_check, self.notas_input)
-        self.setTabOrder(self.notas_input, self.agregar_button)
-        self.setTabOrder(self.agregar_button, self.insertar_sin_pdf_button)
-        self.setTabOrder(self.insertar_sin_pdf_button, self.confirmar_button)
+        return acciones_personas.configure_operativa_focus_order(self)
 
     def _apply_help_preferences(self) -> None:
         saved = self._settings.value("ux/mostrar_ayuda", True, type=bool)
@@ -634,129 +575,28 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return historico_actions.focus_historico_search(self)
 
     def _update_responsive_columns(self) -> None:
-        if not hasattr(self, "solicitudes_splitter"):
-            return
-        available_width = self._scroll_area.viewport().width() if hasattr(self, "_scroll_area") else self.width()
-        left_size = max(300, int(available_width * 0.4))
-        right_size = max(420, int(available_width * 0.6))
-        self.solicitudes_splitter.setSizes([left_size, right_size])
+        return acciones_personas.update_responsive_columns(self)
 
     def _load_personas(self, select_id: int | None = None) -> None:
-        self._personas = list(self._persona_use_cases.listar())
-        presenter_output = build_personas_load_output(
-            PersonasLoadInput(
-                personas=tuple(PersonaOption(id=persona.id, nombre=persona.nombre) for persona in self._personas),
-                select_id=select_id,
-                saved_delegada_id=self._settings.value("contexto/delegada_seleccionada_id", None),
-            )
-        )
-
-        self.persona_combo.blockSignals(True)
-        self.persona_combo.clear()
-        for persona in presenter_output.persona_items:
-            self.persona_combo.addItem(persona.nombre, persona.id)
-        if presenter_output.selected_persona_id is not None:
-            for index in range(self.persona_combo.count()):
-                if self.persona_combo.itemData(index) == presenter_output.selected_persona_id:
-                    self.persona_combo.setCurrentIndex(index)
-                    break
-        self.persona_combo.blockSignals(False)
-
-        self._last_persona_id = self.persona_combo.currentData()
-        persona_nombres = presenter_output.persona_nombres
-        self.pendientes_model.set_persona_nombres(persona_nombres)
-        self.huerfanas_model.set_persona_nombres(persona_nombres)
-        self.historico_model.set_persona_nombres(persona_nombres)
-
-        self.historico_delegada_combo.blockSignals(True)
-        self.historico_delegada_combo.clear()
-        for nombre, persona_id in presenter_output.historico_items:
-            self.historico_delegada_combo.addItem(nombre, persona_id)
-        self.historico_delegada_combo.blockSignals(False)
-
-        self.config_delegada_combo.blockSignals(True)
-        self.config_delegada_combo.clear()
-        for nombre, persona_id in presenter_output.config_items:
-            # Nunca usar el texto visible para identificar registros: puede repetirse.
-            # Usamos siempre persona_id (delegada_id real) en userData.
-            self.config_delegada_combo.addItem(nombre, persona_id)
-        if presenter_output.active_config_id is not None:
-            for index in range(self.config_delegada_combo.count()):
-                if self.config_delegada_combo.itemData(index) == presenter_output.active_config_id:
-                    self.config_delegada_combo.setCurrentIndex(index)
-                    break
-        self.config_delegada_combo.blockSignals(False)
-        self._sync_config_persona_actions()
-        self._on_persona_changed()
+        return acciones_personas.load_personas(self, select_id=select_id)
 
     def _current_persona(self) -> PersonaDTO | None:
-        index = self.persona_combo.currentIndex()
-        if index < 0:
-            return None
-        persona_id = self.persona_combo.currentData()
-        for persona in self._personas:
-            if persona.id == persona_id:
-                return persona
-        return None
+        return acciones_personas.current_persona(self)
 
     def _on_persona_changed(self, *_args) -> None:
-        nueva_persona_id = self.persona_combo.currentData()
-
-        if self._last_persona_id != nueva_persona_id and self._is_form_dirty() and not self._confirmar_cambio_delegada():
-            for index in range(self.persona_combo.count()):
-                if self.persona_combo.itemData(index) == self._last_persona_id:
-                    self.persona_combo.setCurrentIndex(index)
-                    break
-            return
-
-        if self._last_persona_id != nueva_persona_id:
-            self._save_current_draft(self._last_persona_id)
-            self._limpiar_formulario()
-            self._restore_draft_for_persona(nueva_persona_id)
-
-        self._last_persona_id = nueva_persona_id
-        self.pendientes_table.clearSelection()
-        self.huerfanas_table.clearSelection()
-        self._reload_pending_views()
-        self._update_action_state()
-        self._refresh_saldos()
-        self._update_solicitud_preview()
-        self._update_global_context()
+        return acciones_personas.on_persona_changed(self, *_args)
 
     def _on_config_delegada_changed(self, *_args) -> None:
-        persona_id = self.config_delegada_combo.currentData()
-        self._sync_config_persona_actions()
-        self._settings.setValue("contexto/delegada_activa", persona_id)
-        self._settings.setValue("contexto/delegada_seleccionada_id", persona_id)
-        if persona_id is None:
-            return
-        for index in range(self.persona_combo.count()):
-            if self.persona_combo.itemData(index) == persona_id:
-                self.persona_combo.setCurrentIndex(index)
-                break
+        return acciones_personas.on_config_delegada_changed(self, *_args)
 
     def _restaurar_contexto_guardado(self) -> None:
-        delegada_id = self._settings.value("contexto/delegada_seleccionada_id", None)
-        historico_id = self._settings.value("historico/delegada", None)
-        for combo, value in ((self.config_delegada_combo, delegada_id), (self.historico_delegada_combo, historico_id)):
-            for index in range(combo.count()):
-                if str(combo.itemData(index)) == str(value):
-                    combo.setCurrentIndex(index)
-                    break
+        return acciones_personas.restaurar_contexto_guardado(self)
 
     def _selected_config_persona(self) -> PersonaDTO | None:
-        persona_id = self.config_delegada_combo.currentData()
-        if persona_id is None:
-            return None
-        for persona in self._personas:
-            if persona.id == persona_id:
-                return persona
-        return None
+        return acciones_personas.selected_config_persona(self)
 
     def _sync_config_persona_actions(self) -> None:
-        has_selected_persona = self.config_delegada_combo.currentData() is not None
-        self.edit_persona_button.setEnabled(has_selected_persona)
-        self.delete_persona_button.setEnabled(has_selected_persona)
+        return acciones_personas.sync_config_persona_actions(self)
 
     def _apply_historico_text_filter(self) -> None:
         return historico_actions.apply_historico_text_filter(self)
@@ -1090,64 +930,13 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return historico_actions.sync_historico_select_all_visible_state(self)
 
     def _on_add_persona(self) -> None:
-        dialog = PersonaDialog(self)
-        persona_dto = dialog.get_persona()
-        if persona_dto is None:
-            logger.info("Creación de persona cancelada")
-            return
-        self._personas_controller.on_add_persona(persona_dto)
+        return acciones_personas.on_add_persona(self)
 
     def _on_edit_persona(self) -> None:
-        persona = self._selected_config_persona()
-        if persona is None:
-            self.toast.warning("Selecciona una delegada válida para editar.", title="Delegada requerida")
-            return
-        dialog = PersonaDialog(self, persona)
-        persona_dto = dialog.get_persona()
-        if persona_dto is None:
-            logger.info("Edición de persona cancelada")
-            return
-        confirm = QMessageBox.question(
-            self,
-            "Confirmar cambios",
-            "¿Confirmas los cambios? Esto afectará a cálculos futuros.",
-        )
-        if confirm != QMessageBox.StandardButton.Yes:
-            return
-        try:
-            actualizada = self._persona_use_cases.editar_persona(persona_dto)
-        except (ValidacionError, BusinessRuleError) as exc:
-            self.toast.warning(str(exc), title="Validación")
-            return
-        except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error editando persona")
-            self._show_critical_error(exc)
-            return
-        self._load_personas(select_id=actualizada.id)
+        return acciones_personas.on_edit_persona(self)
 
     def _on_delete_persona(self) -> None:
-        persona = self._selected_config_persona()
-        if persona is None:
-            self.toast.warning("Selecciona una delegada válida para eliminar.", title="Delegada requerida")
-            return
-        logger.info("Se pide confirmación de borrado motivo=policy=always_confirm selection_count=1")
-        respuesta = QMessageBox.question(
-            self,
-            "Eliminar delegado",
-            f"¿Deseas deshabilitar a {persona.nombre}? El histórico se conservará.",
-        )
-        if respuesta != QMessageBox.StandardButton.Yes:
-            return
-        try:
-            self._persona_use_cases.desactivar_persona(persona.id or 0)
-        except (ValidacionError, BusinessRuleError) as exc:
-            self.toast.warning(str(exc), title="Validación")
-            return
-        except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error deshabilitando delegado")
-            self._show_critical_error(exc)
-            return
-        self._load_personas()
+        return acciones_personas.on_delete_persona(self)
 
     def _on_add_pendiente(self) -> None:
         logger.info("CLICK add_or_update_pendiente handler=_on_add_pendiente")

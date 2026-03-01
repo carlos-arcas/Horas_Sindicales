@@ -175,6 +175,7 @@
     "app/ui/vistas/init_refresh.py",
     "app/ui/vistas/main_window/__init__.py",
     "app/ui/vistas/main_window/acciones_pendientes.py",
+    "app/ui/vistas/main_window/acciones_personas.py",
     "app/ui/vistas/main_window/acciones_sincronizacion.py",
     "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
     "app/ui/vistas/main_window/data_refresh.py",
