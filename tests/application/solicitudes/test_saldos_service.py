@@ -4,8 +4,10 @@ import pytest
 
 from app.application.dto import PeriodoFiltro
 from app.application.use_cases.solicitudes.saldos_service import (
+    acumular_consumo_anual_por_personas,
     calcular_totales_globales,
     construir_resumen_saldos,
+    sumar_consumo_solicitudes,
 )
 from app.domain.models import Persona
 
@@ -80,3 +82,18 @@ def test_construir_resumen_saldos_error_si_filtro_invalido() -> None:
             total_consumidas_anual_min=50,
             bolsa_anual_grupo_min=70,
         )
+
+
+def test_sumar_consumo_solicitudes_normal_y_borde() -> None:
+    assert sumar_consumo_solicitudes([30, 45, 60]) == 135
+    assert sumar_consumo_solicitudes([]) == 0
+
+
+def test_acumular_consumo_anual_por_personas_error_compatible_longitudes() -> None:
+    personas = [_persona(1, horas_mes_min=120, horas_ano_min=1200), _persona(2, horas_mes_min=60, horas_ano_min=720)]
+    bolsa, consumo = acumular_consumo_anual_por_personas(
+        personas=personas,
+        consumo_anual_por_persona_min=[300, 120],
+    )
+    assert bolsa == 1920
+    assert consumo == 420
