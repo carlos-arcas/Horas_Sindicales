@@ -75,10 +75,10 @@ from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
     plan_pdf_confirmadas,
 )
 from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
-from app.application.use_cases.solicitudes.servicio_preverificacion_pdf import (
+from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
     EntradaNombrePdf,
-    ResultadoPreverificacionPdf,
-    ServicioPreverificacionPdf,
+    ResultadoPreflightPdf,
+    ServicioPreflightPdf,
 )
 from app.application.use_cases.solicitudes.servicio_saldos import (
     acumular_consumo_anual_por_personas as _acumular_consumo_anual_por_personas,
@@ -115,7 +115,7 @@ def _resolver_correlation_id(
     return correlation_id
 
 
-def _construir_mensaje_colision_pdf(resultado: "ResultadoPreverificacionPdf") -> str:
+def _construir_mensaje_colision_pdf(resultado: "ResultadoPreflightPdf") -> str:
     base = resultado.motivos[0].rstrip(".")
     if resultado.ruta_sugerida is None:
         return f"{base}."
@@ -136,7 +136,7 @@ class SolicitudUseCases:
         self._config_repo = config_repo
         self._generador_pdf = generador_pdf
         self._fs = fs or PathFileSystem()
-        self._servicio_preverificacion_pdf = ServicioPreverificacionPdf(
+        self._servicio_preflight_pdf = ServicioPreflightPdf(
             fs=self._fs,
             generador_pdf=self._generador_pdf,
         )
@@ -545,14 +545,14 @@ class SolicitudUseCases:
             raise BusinessRuleError("Persona no encontrada.")
         fechas = [solicitud.fecha_pedida for solicitud in solicitudes_list]
         try:
-            return self._servicio_preverificacion_pdf.construir_nombre_pdf(
-                EntradaNombrePdf(nombre_persona=persona.nombre, rango=tuple(fechas))
+            return self._servicio_preflight_pdf.construir_nombre_pdf(
+                EntradaNombrePdf(nombre_persona=persona.nombre, fechas=tuple(fechas))
             )
         except ValueError as exc:
             raise BusinessRuleError(str(exc)) from exc
 
     def _validar_preverificacion_destino_pdf(self, destino: Path) -> Path:
-        resultado = self._servicio_preverificacion_pdf.preverificar_ruta(str(destino))
+        resultado = self._servicio_preflight_pdf.validar_colision(str(destino))
         if not resultado.colision:
             return Path(resultado.ruta_destino)
         raise BusinessRuleError(_construir_mensaje_colision_pdf(resultado))
