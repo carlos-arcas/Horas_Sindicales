@@ -34,7 +34,7 @@ from app.infrastructure.sheets_gateway_gspread import SheetsGatewayGspread
 from app.infrastructure.sheets_repository import SheetsRepository
 from app.infrastructure.sync_sheets_adapter import SyncSheetsAdapter
 from aplicacion.puertos.repositorio_preferencias import IRepositorioPreferencias
-from app.infrastructure.repositorio_preferencias_ini import RepositorioPreferenciasIni
+from app.infrastructure.local_config import RepositorioPreferenciasIni
 
 LOGGER = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ import pytest
 from app.bootstrap import container as container_module
 from app.bootstrap.container import build_container
 from app.infrastructure.db import get_connection
-from app.infrastructure.repositorio_preferencias_ini import RepositorioPreferenciasIni
+from app.infrastructure.local_config import RepositorioPreferenciasIni
 
 
 def _connection_factory(tmp_path: Path):
