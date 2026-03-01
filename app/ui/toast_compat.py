@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 def _supports_action_kwargs(method: Callable[..., object]) -> bool:
     """Detecta si un método de toast acepta action_label/action_callback.
 
-    Nota: `ToastManager.success/error` (app/ui/widgets/toast.py) no aceptan acciones,
-    pero `ToastManager.show` sí las soporta por `**opts`.
+    Nota: `GestorToasts.success/error` (app/ui/widgets/toast.py) no aceptan acciones,
+    pero `GestorToasts.show` sí las soporta por `**opts`.
     """
 
     try:

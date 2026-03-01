@@ -67,7 +67,7 @@ try:
     from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
     from app.ui.error_mapping import UiErrorMessage, map_error_to_ui_message
     from app.ui.patterns import apply_modal_behavior, build_modal_actions, status_badge, STATUS_PATTERNS
-    from app.ui.widgets.toast import ToastManager
+    from app.ui.widgets.toast import GestorToasts
     from app.ui.controllers.personas_controller import PersonasController
     from app.ui.controllers.solicitudes_controller import SolicitudesController
     from app.ui.controllers.sync_controller import SyncController
@@ -106,7 +106,7 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     def _qt_unavailable(*args, **kwargs):
         raise RuntimeError(copy_text("ui.sync.qt_no_disponible"))
 
-    ConflictsDialog = GrupoConfigDialog = PdfConfigDialog = ToastManager = object
+    ConflictsDialog = GrupoConfigDialog = PdfConfigDialog = GestorToasts = object
     ActionStateInput = object
     build_action_state = _qt_unavailable
     acciones_pendientes = acciones_personas = acciones_sincronizacion = validacion_preventiva = object
@@ -288,7 +288,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self.cuadrante_warning_label = None
         self._last_persona_id: int | None = None
         self._draft_solicitud_por_persona: dict[int, dict[str, object]] = {}
-        self.toast = ToastManager()
+        self.toast = GestorToasts()
         self.notifications = NotificationService(self.toast, self)
         self._personas_controller = PersonasController(self)
         self._solicitudes_controller = SolicitudesController(self)

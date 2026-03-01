@@ -19,7 +19,7 @@ class NivelToast(str, Enum):
 
 
 @dataclass(slots=True)
-class NotificacionToastDTO:
+class NotificacionToast:
     """Representa una notificación Toast para la capa de aplicación."""
 
     nivel: NivelToast

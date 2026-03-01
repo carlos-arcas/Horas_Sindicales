@@ -19,13 +19,13 @@ def mock_ui_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
         def processEvents(self) -> None:
             return None
 
-    class _FakeToastManager:
+    class _FakeGestorToasts:
         def attach_to(self, *_args, **_kwargs) -> None:
             return None
 
     monkeypatch.setattr(main_window_vista, "QApplication", _FakeApp)
     monkeypatch.setattr(main_window_vista, "QMessageBox", SimpleNamespace(information=lambda *a, **k: None))
-    monkeypatch.setattr(main_window_vista, "ToastManager", _FakeToastManager)
+    monkeypatch.setattr(main_window_vista, "GestorToasts", _FakeGestorToasts)
 
     show_calls: list[str] = []
 

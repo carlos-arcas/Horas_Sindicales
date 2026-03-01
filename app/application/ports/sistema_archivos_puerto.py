@@ -18,3 +18,11 @@ class SistemaArchivosPuerto(Protocol):
     def mkdir(self, ruta: Path, *, parents: bool = True, exist_ok: bool = True) -> None: ...
 
     def listar(self, base: Path) -> list[Path]: ...
+
+
+class DocumentoNoEncontradoError(FileNotFoundError):
+    """Error de aplicación para documentos esperados que no existen."""
+
+
+class ProveedorDocumentosPuerto(Protocol):
+    def obtener_ruta_guia_sync(self) -> str: ...
