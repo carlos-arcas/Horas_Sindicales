@@ -105,5 +105,5 @@ Un cambio se considera **DONE** si cumple TODO lo siguiente:
 
 - [DONE] Nueva extracción de aplicación pura en `app/application/use_cases/solicitudes/servicio_preverificacion_pdf.py` con DTOs `EntradaNombrePdf` y `ResultadoPreverificacionPdf`.
 - [DONE] Integración del caso de uso para delegar nombre/ruta/colisión en `ServicioPreverificacionPdf` y mantener `BusinessRuleError` con mensaje accionable + sugerencia.
-- [DONE] LOC de `app/application/use_cases/solicitudes/use_case.py`: **904 -> 904** (iteración enfocada en semántica y experiencia de error, no en reducción neta de líneas).
+- [DONE] LOC de `app/application/use_cases/solicitudes/use_case.py`: **904 -> 911** (iteración centrada en mensaje accionable de colisión y helper explícito de composición de error).
 - [DONE] Cobertura unitaria de preverificación sin IO real: colisión simple, múltiple, límite sin sugerencia y caso OK.
