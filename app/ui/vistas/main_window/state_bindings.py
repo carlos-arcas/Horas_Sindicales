@@ -44,11 +44,15 @@ def _invocar_handler_compatible(fn: Callable[..., Any], self_obj: Any, args: tup
         return _recortar_args_por_firma(fn, self_obj, args, kwargs)
 
 
-def _bind_handler(clase: type, nombre_metodo: str, fn: Callable[..., Any]) -> None:
-    def _method(self: Any, *args: Any, **kwargs: Any) -> Any:
+def _adaptar_slot_a_senal(fn: Callable[..., Any]) -> Callable[..., Any]:
+    def _slot_compatible(self: Any, *args: Any, **kwargs: Any) -> Any:
         return _invocar_handler_compatible(fn, self, args, kwargs)
 
-    setattr(clase, nombre_metodo, _method)
+    return _slot_compatible
+
+
+def _bind_handler(clase: type, nombre_metodo: str, fn: Callable[..., Any]) -> None:
+    setattr(clase, nombre_metodo, _adaptar_slot_a_senal(fn))
 
 
 def registrar_state_bindings(clase: type) -> None:
