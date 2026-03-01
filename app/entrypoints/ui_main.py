@@ -14,6 +14,7 @@ from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
     ObtenerPreferenciaPantallaCompleta,
 )
 from app.application.use_cases.cargar_datos_demo_caso_uso import CargarDatosDemoCasoUso
+from app.bootstrap.boot_diagnostics import marcar_stage
 from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
 from app.ui.qt_safe import is_qt_valid, safe_call
@@ -79,6 +80,7 @@ class _CoordinadorArranqueConCierreDeterminista:
         _cerrar_splash_seguro(self.splash)
 
     def on_finished(self, startup_payload) -> None:
+        marcar_stage("on_finished_enter")
         self.terminado = True
         try:
             self._detener_watchdog_idempotente()
@@ -404,6 +406,7 @@ def run_ui(container=None) -> int:
     i18n = I18nManager("es")
     splash = SplashWindow(i18n)
     splash.show()
+    marcar_stage("splash_created")
 
     startup_thread = QThread(splash)
     startup_worker = TrabajadorArranque(container, i18n)
@@ -464,6 +467,7 @@ def run_ui(container=None) -> int:
             contexto="run_ui.startup_thread.start",
             logger=LOGGER,
         )
+        marcar_stage("startup_thread_started")
         return app.exec()
     except Exception as exc:  # noqa: BLE001
         _manejar_fallo_arranque(
