@@ -21,8 +21,14 @@ from app.ui.qt_safe import is_qt_valid, safe_call
 LOGGER = logging.getLogger(__name__)
 
 
+def _es_objeto_qt_valido(objeto) -> bool:
+    return is_qt_valid(objeto)
+
+
 def _cerrar_splash_seguro(splash) -> None:
     if splash is None:
+        return
+    if not _es_objeto_qt_valido(splash):
         return
     try:
         if hasattr(splash, "request_close"):
@@ -39,17 +45,25 @@ def _cerrar_splash_seguro(splash) -> None:
 def _stop_watchdog_en_main_thread(watchdog_timer) -> None:
     if watchdog_timer is None or not hasattr(watchdog_timer, "stop"):
         return
+    if not _es_objeto_qt_valido(watchdog_timer):
+        return
     try:
         from PySide6.QtCore import QTimer
     except Exception:
-        watchdog_timer.stop()
+        try:
+            watchdog_timer.stop()
+        except RuntimeError:
+            return
         return
-    QTimer.singleShot(0, watchdog_timer.stop)
+    try:
+        QTimer.singleShot(0, watchdog_timer.stop)
+    except RuntimeError:
+        return
 
 
 class _CoordinadorArranqueConCierreDeterminista:
     def _detener_watchdog_idempotente(self) -> None:
-        if not self._qt_is_alive(self.watchdog_timer):
+        if not _es_objeto_qt_valido(self.watchdog_timer):
             return
         try:
             _stop_watchdog_en_main_thread(self.watchdog_timer)
@@ -60,7 +74,7 @@ class _CoordinadorArranqueConCierreDeterminista:
         if self._splash_cerrado:
             return
         self._splash_cerrado = True
-        if not self._qt_is_alive(self.splash):
+        if not _es_objeto_qt_valido(self.splash):
             return
         _cerrar_splash_seguro(self.splash)
 
@@ -196,7 +210,12 @@ def _manejar_fallo_arranque(
     )
 
     def _safe_quit_thread() -> None:
-        safe_call(startup_thread, "quit")
+        if not _es_objeto_qt_valido(startup_thread):
+            return
+        try:
+            safe_call(startup_thread, "quit")
+        except RuntimeError:
+            return
 
     def _mostrar_dialogo_error() -> None:
         if getattr(app, "_fallo_arranque_dialogo_mostrado", False):
@@ -234,11 +253,17 @@ def _manejar_fallo_arranque(
             _exit_con_codigo()
 
     def _do_fail_safe() -> None:
+        if getattr(app, "_startup_fail_safe_ejecutado", False):
+            return
+        app._startup_fail_safe_ejecutado = True
         _stop_watchdog_en_main_thread(watchdog_timer)
         _safe_quit_thread()
         _cerrar_splash_seguro(splash)
-        if is_qt_valid(splash) and hasattr(splash, "deleteLater"):
-            QTimer.singleShot(0, splash.deleteLater)
+        if _es_objeto_qt_valido(splash) and hasattr(splash, "deleteLater"):
+            try:
+                QTimer.singleShot(0, splash.deleteLater)
+            except RuntimeError:
+                pass
         _mostrar_dialogo_error()
 
     app_thread = app.thread() if is_qt_valid(app) and hasattr(app, "thread") else None

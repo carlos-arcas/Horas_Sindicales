@@ -27,6 +27,12 @@ def _parse_iso_to_utc_aware(value: str) -> datetime:
     return _parsear_iso_utc_aware(value)
 
 
+def _duracion_ms_entre_isos(inicio_iso: str, fin_iso: str) -> int:
+    inicio = _parsear_iso_utc_aware(inicio_iso)
+    fin = _parsear_iso_utc_aware(fin_iso)
+    return max(0, int((fin - inicio).total_seconds() * 1000))
+
+
 def build_sync_report(
     summary: SyncSummary,
     *,
@@ -59,9 +65,7 @@ def build_sync_report(
         conflicts.append(_txt("ui.sync_report.conflictos_detectados", cantidad=summary.conflicts_detected))
 
     entries = _base_entries(summary, warnings=warnings, errors=errors, conflicts=conflicts, details=details, finished=finished)
-    started_dt = datetime.fromisoformat(started)
-    finished_dt = datetime.fromisoformat(finished)
-    duration_ms = max(0, int((finished_dt - started_dt).total_seconds() * 1000))
+    duration_ms = _duracion_ms_entre_isos(started, finished)
     attempts = max(1, len(attempt_history) or 1)
     total_operations = summary.inserted_local + summary.updated_local + summary.inserted_remote + summary.updated_remote
     success_rate = 1.0 if total_operations == 0 else max(0.0, (total_operations - summary.errors) / total_operations)
@@ -188,7 +192,7 @@ def build_failed_report(
                 message=details or _txt("ui.sync_report.sin_detalle_adicional"),
             ),
         ],
-        duration_ms=max(0, int((datetime.fromisoformat(now) - datetime.fromisoformat(start)).total_seconds() * 1000)),
+        duration_ms=_duracion_ms_entre_isos(start, now),
         error_count=1,
         success_rate=0.0,
         attempt_history=attempt_history or (SyncAttemptReport(attempt_number=1, status="ERROR", errors=1),),
