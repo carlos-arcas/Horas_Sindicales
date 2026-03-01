@@ -84,8 +84,14 @@ class _CoordinadorArranqueConCierreDeterminista:
             self._detener_watchdog_idempotente()
             self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
-            resolved_container, deps_arranque, idioma = startup_payload
-            self.i18n.set_idioma(idioma)
+            if isinstance(startup_payload, tuple) and len(startup_payload) == 3:
+                resolved_container, deps_arranque, idioma = startup_payload
+                self.i18n.set_idioma(idioma)
+            else:
+                resultado_arranque = startup_payload
+                self.i18n.set_idioma(resultado_arranque.idioma_inicial)
+                resolved_container = self.container_seed or _construir_container_ui()
+                deps_arranque = _construir_dependencias_arranque(resolved_container)
             orquestador = self.orquestador_factory(deps_arranque, self.i18n)
             self._cerrar_splash_idempotente()
             if not orquestador.resolver_onboarding():
@@ -120,6 +126,15 @@ class _CoordinadorArranqueConCierreDeterminista:
                 watchdog_timer=self.watchdog_timer,
             )
 
+
+
+
+
+def _traducir_arranque(key: str, **kwargs: object) -> str:
+    from presentacion.i18n import CATALOGO
+
+    base = CATALOGO["es"].get(key, key)
+    return base.format(**kwargs) if kwargs else base
 
 
 def _resolver_startup_timeout_ms() -> int:
@@ -274,6 +289,14 @@ def _manejar_fallo_arranque(
     return resolved_incident_id
 
 
+
+
+def _construir_container_ui():
+    from app.bootstrap.container import build_container
+
+    return build_container()
+
+
 def _construir_dependencias_arranque(container):
     from infraestructura.proveedor_documentos import ProveedorDocumentosInfra
     from presentacion.orquestador_arranque import DependenciasArranque
@@ -384,7 +407,7 @@ def run_ui(container=None) -> int:
     splash.show()
 
     startup_thread = QThread(splash)
-    startup_worker = TrabajadorArranque(container, i18n)
+    startup_worker = TrabajadorArranque(_traducir_arranque)
     startup_worker.moveToThread(startup_thread)
     splash.registrar_arranque(startup_thread, startup_worker)
 
@@ -400,6 +423,7 @@ def run_ui(container=None) -> int:
         i18n=i18n,
         splash=splash,
         startup_timeout_ms=startup_timeout_ms,
+        container_seed=container,
         startup_thread=startup_thread,
         startup_worker=startup_worker,
         watchdog_timer=watchdog_timer,

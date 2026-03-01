@@ -19,6 +19,7 @@ class CoordinadorArranque(QObject):
         i18n,
         splash,
         startup_timeout_ms: int,
+        container_seed=None,
         startup_thread,
         startup_worker,
         watchdog_timer,
@@ -32,6 +33,7 @@ class CoordinadorArranque(QObject):
         self.i18n = i18n
         self.splash = splash
         self.startup_timeout_ms = startup_timeout_ms
+        self.container_seed = container_seed
         self.thread = startup_thread
         self.worker = startup_worker
         self.watchdog_timer = watchdog_timer
