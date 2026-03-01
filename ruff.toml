@@ -1,2 +1,7 @@
+[lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "I001", "UP", "B904", "B905"]
+
 [lint.per-file-ignores]
 "tests/**/*.py" = ["E402", "F841"]
+"infraestructura/__init__.py" = ["F401"]

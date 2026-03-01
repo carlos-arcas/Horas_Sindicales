@@ -682,7 +682,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     credenciales_layout.addLayout(sync_actions)
     config_layout.addWidget(credenciales_card)
     config_layout.addStretch(1)
-    window.main_tabs.addTab(config_tab, copy_text("ui.sync.configuracion"))
+    window.main_tabs.addTab(config_tab, "Configuración")
 
     sync_tab = QWidget()
     sync_tab_layout = QVBoxLayout(sync_tab)

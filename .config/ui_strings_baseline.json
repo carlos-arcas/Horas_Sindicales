@@ -758,6 +758,7 @@
     "app/ui/vistas/solicitudes_ux_rules.py:44:Guardado",
     "app/ui/vistas/solicitudes_ux_rules.py:44:Los cambios de la solicitud se guardaron correctamente.",
     "app/ui/vistas/solicitudes_ux_rules.py:45:Listo",
-    "app/ui/vistas/solicitudes_ux_rules.py:45:Puedes completar una nueva solicitud."
+    "app/ui/vistas/solicitudes_ux_rules.py:45:Puedes completar una nueva solicitud.",
+    "app/ui/vistas/builders/main_window_builders.py:685:Configuración"
   ]
 }
