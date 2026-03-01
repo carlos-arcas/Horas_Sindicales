@@ -11,7 +11,26 @@ BUILDERS = (
     "app/ui/vistas/builders/builders_tablas.py",
     "app/ui/vistas/builders/builders_sync_panel.py",
 )
-STATE_CONTROLLER = "app/ui/vistas/main_window/state_controller.py"
+FUENTES_HANDLERS = (
+    "app/ui/vistas/main_window/state_controller.py",
+    "app/ui/vistas/main_window_vista.py",
+)
+PREFIJOS_HANDLER = (
+    "_on_",
+    "_apply_",
+    "_update_",
+    "_normalize_",
+    "_refresh_",
+    "_configure_",
+    "_bind_",
+    "_restore_",
+    "_run_",
+    "_focus_",
+    "_sync_",
+    "_build_",
+    "_load_",
+    "_save_",
+)
 
 
 @dataclass(frozen=True)
@@ -19,7 +38,12 @@ class HandlerRequirement:
     builder: str
     line: int
     handler: str
-    contexto: str
+    patron: str
+    contexto: str = "-"
+
+
+def _is_handler_privado(nombre: str) -> bool:
+    return nombre.startswith(PREFIJOS_HANDLER)
 
 
 def _is_window_handler_attr(node: ast.AST) -> bool:
@@ -27,16 +51,8 @@ def _is_window_handler_attr(node: ast.AST) -> bool:
         isinstance(node, ast.Attribute)
         and isinstance(node.value, ast.Name)
         and node.value.id == "window"
-        and node.attr.startswith("_")
+        and _is_handler_privado(node.attr)
     )
-
-
-def _extract_window_handlers_from_ast(tree: ast.AST) -> set[str]:
-    handlers: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Attribute) and _is_window_handler_attr(node):
-            handlers.add(node.attr)
-    return handlers
 
 
 def _is_conectar_signal_call(node: ast.Call) -> bool:
@@ -67,22 +83,74 @@ def _extract_contexto_from_call(node: ast.Call) -> str:
     return "<sin-contexto>"
 
 
+def _build_parent_map(tree: ast.AST) -> dict[ast.AST, ast.AST]:
+    parent_map: dict[ast.AST, ast.AST] = {}
+    for parent in ast.walk(tree):
+        for child in ast.iter_child_nodes(parent):
+            parent_map[child] = parent
+    return parent_map
+
+
+def _extract_connect_window_handlers(tree: ast.AST, builder: str) -> list[HandlerRequirement]:
+    requirements: list[HandlerRequirement] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Attribute) or node.func.attr != "connect":
+            continue
+        for arg in node.args:
+            if _is_window_handler_attr(arg):
+                requirements.append(HandlerRequirement(builder, node.lineno, arg.attr, "connect(window._handler)"))
+    return requirements
+
+
+def _extract_direct_window_calls(tree: ast.AST, builder: str) -> list[HandlerRequirement]:
+    requirements: list[HandlerRequirement] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not _is_window_handler_attr(node.func):
+            continue
+        requirements.append(HandlerRequirement(builder, node.lineno, node.func.attr, "window._handler()"))
+    return requirements
+
+
+def _extract_window_attr_accesses(tree: ast.AST, builder: str) -> list[HandlerRequirement]:
+    parent_map = _build_parent_map(tree)
+    requirements: list[HandlerRequirement] = []
+    for node in ast.walk(tree):
+        if not _is_window_handler_attr(node):
+            continue
+        parent = parent_map.get(node)
+        if isinstance(parent, ast.Call) and (parent.func is node or node in parent.args):
+            continue
+        requirements.append(HandlerRequirement(builder, node.lineno, node.attr, "window._handler (atributo)"))
+    return requirements
+
+
 def _extract_conectar_signal_handler_requirements(tree: ast.AST, builder: str) -> list[HandlerRequirement]:
     requirements: list[HandlerRequirement] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not _is_conectar_signal_call(node):
             continue
         handler = _extract_handler_name_from_call(node)
-        if handler is None:
+        if handler is None or not _is_handler_privado(handler):
             continue
         requirements.append(
             HandlerRequirement(
                 builder=builder,
                 line=node.lineno,
                 handler=handler,
+                patron='conectar_signal(..., handler_name="...")',
                 contexto=_extract_contexto_from_call(node),
             )
         )
+    return requirements
+
+
+def _extract_requirements_from_builder(tree: ast.AST, builder: str) -> list[HandlerRequirement]:
+    requirements = _extract_connect_window_handlers(tree, builder)
+    requirements.extend(_extract_direct_window_calls(tree, builder))
+    requirements.extend(_extract_window_attr_accesses(tree, builder))
+    requirements.extend(_extract_conectar_signal_handler_requirements(tree, builder))
     return requirements
 
 
@@ -102,59 +170,57 @@ def _collect_builder_trees() -> list[tuple[str, ast.AST]]:
     return [(builder, _read_ast(builder)) for builder in BUILDERS]
 
 
+def _collect_defined_handlers() -> set[str]:
+    handlers: set[str] = set()
+    for source in FUENTES_HANDLERS:
+        if Path(source).exists():
+            handlers.update(_extract_defined_functions_from_ast(_read_ast(source)))
+    return handlers
+
+
 def _format_missing_requirements(missing: list[HandlerRequirement]) -> str:
-    ordered = sorted(missing, key=lambda item: (item.builder, item.line, item.handler, item.contexto))
+    ordered = sorted(missing, key=lambda item: (item.builder, item.line, item.handler, item.patron))
     lines = [
-        f"- {item.builder}:{item.line} | handler={item.handler} | contexto={item.contexto}"
+        (
+            f"- {item.builder}:{item.line} | handler={item.handler} | patron={item.patron}"
+            f" | contexto={item.contexto}"
+        )
         for item in ordered
     ]
-    return "Faltan handlers requeridos por conectar_signal\n" + "\n".join(lines)
-
-
-def test_builders_referencian_handlers_presentes_en_state_controller_ast() -> None:
-    handlers_referenciados: set[str] = set()
-    requirements: list[HandlerRequirement] = []
-
-    for builder, tree in _collect_builder_trees():
-        handlers_referenciados.update(_extract_window_handlers_from_ast(tree))
-        requirements.extend(_extract_conectar_signal_handler_requirements(tree, builder))
-
-    handlers_referenciados.update(req.handler for req in requirements)
-    handlers_definidos = _extract_defined_functions_from_ast(_read_ast(STATE_CONTROLLER))
-
-    faltantes = sorted(handler for handler in handlers_referenciados if handler not in handlers_definidos)
-
-    assert not faltantes, (
-        "Handlers faltantes en state_controller.py detectados desde builders "
-        f"(calls/callbacks y conectar_signal): {', '.join(faltantes)}"
+    return (
+        "Faltan handlers requeridos por builders. "
+        "Revisa el handler o agrega binding/def en state_controller.py o main_window_vista.py.\n"
+        + "\n".join(lines)
     )
 
 
-def test_conectar_signal_handler_name_literal_debe_existir_en_state_controller() -> None:
-    handlers_definidos = _extract_defined_functions_from_ast(_read_ast(STATE_CONTROLLER))
-    missing: list[HandlerRequirement] = []
+def test_builders_referencian_handlers_presentes_en_fuentes_ast() -> None:
+    handlers_definidos = _collect_defined_handlers()
+    requirements: list[HandlerRequirement] = []
 
     for builder, tree in _collect_builder_trees():
-        for req in _extract_conectar_signal_handler_requirements(tree, builder):
-            if req.handler not in handlers_definidos:
-                missing.append(req)
+        requirements.extend(_extract_requirements_from_builder(tree, builder))
+
+    missing = [req for req in requirements if req.handler not in handlers_definidos]
 
     assert not missing, _format_missing_requirements(missing)
 
 
-def test_extractor_detecta_llamadas_y_callbacks_status_to_label() -> None:
+def test_extractor_detecta_patrones_requeridos() -> None:
     tree = ast.parse(
         """
-window._status_to_label("IDLE")
-button.clicked.connect(window._status_to_label)
-conectar_signal(window, signal, "_status_to_label", contexto="estado")
-conectar_signal(window, signal, handler_name="_save", contexto="guardar")
+window._normalize_input_heights()
+button.clicked.connect(window._update_responsive_columns)
+x = window._refresh_header_title
+conectar_signal(window, signal, "_on_confirmar", contexto="confirmar")
+conectar_signal(window, signal, handler_name="_apply_historico_filters", contexto="histórico")
 """
     )
 
-    handlers = _extract_window_handlers_from_ast(tree)
-    reqs = _extract_conectar_signal_handler_requirements(tree, "builder.py")
+    reqs = _extract_requirements_from_builder(tree, "builder.py")
 
-    assert "_status_to_label" in handlers
-    assert any(req.handler == "_status_to_label" and req.contexto == "estado" for req in reqs)
-    assert any(req.handler == "_save" and req.contexto == "guardar" for req in reqs)
+    assert any(req.handler == "_normalize_input_heights" and req.patron == "window._handler()" for req in reqs)
+    assert any(req.handler == "_update_responsive_columns" and req.patron == "connect(window._handler)" for req in reqs)
+    assert any(req.handler == "_refresh_header_title" and req.patron == "window._handler (atributo)" for req in reqs)
+    assert any(req.handler == "_on_confirmar" and req.contexto == "confirmar" for req in reqs)
+    assert any(req.handler == "_apply_historico_filters" and req.contexto == "histórico" for req in reqs)
