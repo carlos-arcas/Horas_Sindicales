@@ -125,3 +125,136 @@ def _solapa_tramo(solicitud_a: Solicitud, solicitud_b: Solicitud) -> bool:
     except ValidationError:
         return False
     return overlaps(inicio_a, fin_a, inicio_b, fin_b)
+
+
+from dataclasses import dataclass
+import re
+
+
+@dataclass(frozen=True)
+class EntradaFiltroHistorico:
+    patron_busqueda: str
+    modo_anio: str | None
+    anio: int | None
+    mes: int | None
+    fecha_desde: date | None
+    fecha_hasta: date | None
+    codigo_estado: str | None
+    id_delegada: int | None
+    ver_todas: bool
+
+
+@dataclass(frozen=True)
+class RegistroHistoricoAplicacion:
+    id_persona: int | None
+    fecha: date | None
+    codigo_estado: str
+    texto_busqueda: str
+
+
+@dataclass(frozen=True)
+class DecisionFiltroAplicacion:
+    acepta: bool
+    codigo_razon: str
+
+
+def normalizar_texto(value: str) -> str:
+    return value.strip()
+
+
+def hay_filtros(entrada: EntradaFiltroHistorico) -> bool:
+    hay_filtro_delegada = not entrada.ver_todas and entrada.id_delegada is not None
+    return any(
+        (
+            hay_filtro_delegada,
+            hay_filtro_periodo(entrada),
+            bool(entrada.codigo_estado),
+            bool(normalizar_texto(entrada.patron_busqueda)),
+        )
+    )
+
+
+def hay_filtro_periodo(entrada: EntradaFiltroHistorico) -> bool:
+    if entrada.modo_anio == "ALL_YEAR":
+        return entrada.anio is not None
+    if entrada.modo_anio == "YEAR_MONTH":
+        return entrada.anio is not None and entrada.mes is not None
+    if entrada.modo_anio == "RANGE":
+        return entrada.fecha_desde is not None or entrada.fecha_hasta is not None
+    return False
+
+
+def coincide_delegada(entrada: EntradaFiltroHistorico, fila: RegistroHistoricoAplicacion) -> bool:
+    if entrada.ver_todas or entrada.id_delegada is None:
+        return True
+    return fila.id_persona == entrada.id_delegada
+
+
+def coincide_modo_fecha(entrada: EntradaFiltroHistorico, fila: RegistroHistoricoAplicacion) -> bool:
+    if entrada.modo_anio == "ALL_YEAR":
+        return coincide_anio(entrada.anio, fila.fecha)
+    if entrada.modo_anio == "YEAR_MONTH":
+        return coincide_anio_mes(entrada.anio, entrada.mes, fila.fecha)
+    if entrada.modo_anio == "RANGE":
+        return coincide_rango_fechas(entrada.fecha_desde, entrada.fecha_hasta, fila.fecha)
+    return True
+
+
+def coincide_anio(anio: int | None, fecha: date | None) -> bool:
+    if anio is None:
+        return True
+    if fecha is None:
+        return False
+    return fecha.year == anio
+
+
+def coincide_anio_mes(anio: int | None, mes: int | None, fecha: date | None) -> bool:
+    if anio is None or mes is None:
+        return True
+    if fecha is None:
+        return False
+    return fecha.year == anio and fecha.month == mes
+
+
+def coincide_rango_fechas(fecha_desde: date | None, fecha_hasta: date | None, fecha: date | None) -> bool:
+    if not fecha_desde and not fecha_hasta:
+        return True
+    if fecha is None:
+        return True
+    if fecha_desde and fecha < fecha_desde:
+        return False
+    if fecha_hasta and fecha > fecha_hasta:
+        return False
+    return True
+
+
+def coincide_estado(codigo_estado: str | None, fila: RegistroHistoricoAplicacion) -> bool:
+    if not codigo_estado:
+        return True
+    return fila.codigo_estado == codigo_estado
+
+
+def coincide_busqueda(patron_busqueda: str, texto_busqueda: str) -> bool:
+    patron = normalizar_texto(patron_busqueda)
+    if not patron:
+        return True
+    return re.search(patron, texto_busqueda, flags=re.IGNORECASE) is not None
+
+
+def decidir_aceptacion(entrada: EntradaFiltroHistorico, fila: RegistroHistoricoAplicacion) -> DecisionFiltroAplicacion:
+    if not hay_filtros(entrada):
+        return DecisionFiltroAplicacion(acepta=True, codigo_razon="no_filters")
+
+    if not coincide_delegada(entrada, fila):
+        return DecisionFiltroAplicacion(acepta=False, codigo_razon="delegada_mismatch")
+
+    if not coincide_modo_fecha(entrada, fila):
+        return DecisionFiltroAplicacion(acepta=False, codigo_razon="date_mismatch")
+
+    if not coincide_estado(entrada.codigo_estado, fila):
+        return DecisionFiltroAplicacion(acepta=False, codigo_razon="estado_mismatch")
+
+    if not coincide_busqueda(entrada.patron_busqueda, fila.texto_busqueda):
+        return DecisionFiltroAplicacion(acepta=False, codigo_razon="search_mismatch")
+
+    return DecisionFiltroAplicacion(acepta=True, codigo_razon="accepted")

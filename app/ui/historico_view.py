@@ -9,7 +9,7 @@ from PySide6.QtCore import QDate, QModelIndex, QRegularExpression, QSortFilterPr
 from app.application.dto import SolicitudDTO
 from app.ui.models_qt import SOLICITUD_FECHA_ROLE, SolicitudesTableModel
 from app.ui.patterns import status_badge
-from app.ui.vistas.historico_filter_rules import FiltroHistoricoEntrada, RegistroHistorico, decide_accept
+from app.domain.services import EntradaFiltroHistorico, RegistroHistoricoAplicacion, decidir_aceptacion
 
 
 @dataclass(frozen=True)
@@ -59,11 +59,11 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
 
     def set_date_range(self, date_from: QDate | None, date_to: QDate | None) -> None:
         self.set_filters(
-            delegada_id=self._delegada_id,
+            id_delegada=self._delegada_id,
             ver_todas=self._ver_todas,
             year_mode="RANGE",
-            year=self._year,
-            month=self._month,
+            anio=self._year,
+            mes=self._month,
             date_from=date_from,
             date_to=date_to,
         )
@@ -134,22 +134,22 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
         estado = HistoricoStatusResolver.resolve(solicitud)
         entrada = self._build_filter_input()
         row = self._build_row_snapshot(source_row, solicitud, estado)
-        return decide_accept(entrada, row).accept
+        return decidir_aceptacion(entrada, row).acepta
 
-    def _build_filter_input(self) -> FiltroHistoricoEntrada:
-        return FiltroHistoricoEntrada(
-            search_pattern=self._filter_regex.pattern(),
-            year_mode=self._year_mode,
-            year=self._year,
-            month=self._month,
-            date_from=self._date_from_py,
-            date_to=self._date_to_py,
-            estado_code=self._estado_code,
-            delegada_id=self._delegada_id,
+    def _build_filter_input(self) -> EntradaFiltroHistorico:
+        return EntradaFiltroHistorico(
+            patron_busqueda=self._filter_regex.pattern(),
+            modo_anio=self._year_mode,
+            anio=self._year,
+            mes=self._month,
+            fecha_desde=self._date_from_py,
+            fecha_hasta=self._date_to_py,
+            codigo_estado=self._estado_code,
+            id_delegada=self._delegada_id,
             ver_todas=self._ver_todas,
         )
 
-    def _build_row_snapshot(self, source_row: int, solicitud: SolicitudDTO, estado: EstadoHistorico) -> RegistroHistorico:
+    def _build_row_snapshot(self, source_row: int, solicitud: SolicitudDTO, estado: EstadoHistorico) -> RegistroHistoricoAplicacion:
         values = [
             solicitud.fecha_pedida,
             solicitud.desde or "",
@@ -166,11 +166,11 @@ class HistoricoFilterProxyModel(QSortFilterProxyModel):
             for column in range(source_model.columnCount()):
                 idx = source_model.index(source_row, column)
                 values.append(str(source_model.data(idx, Qt.DisplayRole) or ""))
-        return RegistroHistorico(
-            persona_id=solicitud.persona_id,
+        return RegistroHistoricoAplicacion(
+            id_persona=solicitud.persona_id,
             fecha=self._extract_fecha(source_row),
-            estado_code=estado.code,
-            haystack=" ".join(values),
+            codigo_estado=estado.code,
+            texto_busqueda=" ".join(values),
         )
 
     def _extract_fecha(self, source_row: int) -> date | None:

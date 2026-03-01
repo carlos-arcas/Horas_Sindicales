@@ -1,0 +1,46 @@
+{
+  "resumen": {
+    "estado_global": "PASS",
+    "total_infracciones": 1,
+    "pendientes": 0,
+    "corregidas": 1
+  },
+  "infracciones": [
+    {
+      "id": "CA-UI-001",
+      "archivo": "app/ui/vistas/historico_filter_rules.py",
+      "linea_aprox": 1,
+      "tipo": "A2_logica_negocio_en_ui",
+      "severidad": "alta",
+      "impacto": "Las reglas de filtrado del histórico vivían en UI, mezclando presentación con reglas de aplicación y dificultando pruebas por capa.",
+      "propuesta": "Mover reglas puras a app/domain/services.py y dejar UI como compatibilidad.",
+      "estado": "corregida"
+    }
+  ],
+  "dependencias_por_capa": {
+    "domain": {
+      "domain": 8
+    },
+    "application": {
+      "application": 111,
+      "domain": 61
+    },
+    "infrastructure": {
+      "domain": 18,
+      "infrastructure": 21,
+      "application": 10
+    },
+    "ui": {
+      "ui": 107,
+      "application": 41,
+      "domain": 28
+    }
+  },
+  "reglas_evaluadas": [
+    "A1",
+    "A2",
+    "A3",
+    "A4",
+    "A5"
+  ]
+}
