@@ -116,6 +116,14 @@ class GestorToasts(_GestorToastsBase):
         )
 
 
+class ToastManager(GestorToasts):
+    """Alias retrocompatible del facade de toasts.
+
+    Mantiene la firma pública histórica (`success/error` con
+    `action_label/action_callback`) delegando íntegramente en `GestorToasts`.
+    """
+
+
 Toast = TarjetaToast
 
 
@@ -128,6 +136,7 @@ __all__ = [
     Toast.__name__,
     NotificacionToast.__name__,
     GestorToasts.__name__,
+    ToastManager.__name__,
     TarjetaToast.__name__,
     CapaToasts.__name__,
     DialogoDetallesNotificacion.__name__,
