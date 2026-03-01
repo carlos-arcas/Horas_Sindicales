@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.core.errors import BusinessError, InfraError
-from app.core.observability import get_correlation_id
+from app.core.observability import get_correlation_id; from app.ui.copy_catalog import copy_text
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,7 @@ class UiErrorMessage:
         body = (
             f"{self.title}\n"
             f"Causa probable: {self.probable_cause}\n"
-            f"Acción recomendada: {self.recommended_action}"
+            f"{copy_text('ui.conflictos.accion_recomendada_label')} {self.recommended_action}"
         )
         if self.incident_id:
             body = f"{body}\nID de incidente: {self.incident_id}"

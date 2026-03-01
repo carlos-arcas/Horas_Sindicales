@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.application.conflicts_service import ConflictRecord
+from app.application.conflicts_service import ConflictRecord; from app.ui.copy_catalog import copy_text
 
 
 def classify_conflict(conflict: ConflictRecord) -> str:
@@ -39,8 +39,8 @@ def build_what_happened(conflict: ConflictRecord) -> str:
     return (
         f"Tipo: {conflict_type}\n"
         f"Delegada afectada: {delegada_name(conflict)}\n"
-        f"Solicitud: {conflict.uuid}\n"
-        f"Acción recomendada: {recommended_action(conflict_type)}"
+        f"{copy_text('ui.conflictos.solicitud_label')} {conflict.uuid}\n"
+        f"{copy_text('ui.conflictos.accion_recomendada_label')} {recommended_action(conflict_type)}"
     )
 
 
