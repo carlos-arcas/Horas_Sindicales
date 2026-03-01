@@ -8,6 +8,24 @@ from app.domain.sync_models import SyncExecutionPlan, SyncFieldDiff, SyncPlanIte
 logger = logging.getLogger(__name__)
 
 
+
+_PERSONA_MINUTES_SQL = {
+    ("lun", "man"): "SELECT cuad_lun_man_min AS value FROM personas WHERE id = ?",
+    ("lun", "tar"): "SELECT cuad_lun_tar_min AS value FROM personas WHERE id = ?",
+    ("mar", "man"): "SELECT cuad_mar_man_min AS value FROM personas WHERE id = ?",
+    ("mar", "tar"): "SELECT cuad_mar_tar_min AS value FROM personas WHERE id = ?",
+    ("mie", "man"): "SELECT cuad_mie_man_min AS value FROM personas WHERE id = ?",
+    ("mie", "tar"): "SELECT cuad_mie_tar_min AS value FROM personas WHERE id = ?",
+    ("jue", "man"): "SELECT cuad_jue_man_min AS value FROM personas WHERE id = ?",
+    ("jue", "tar"): "SELECT cuad_jue_tar_min AS value FROM personas WHERE id = ?",
+    ("vie", "man"): "SELECT cuad_vie_man_min AS value FROM personas WHERE id = ?",
+    ("vie", "tar"): "SELECT cuad_vie_tar_min AS value FROM personas WHERE id = ?",
+    ("sab", "man"): "SELECT cuad_sab_man_min AS value FROM personas WHERE id = ?",
+    ("sab", "tar"): "SELECT cuad_sab_tar_min AS value FROM personas WHERE id = ?",
+    ("dom", "man"): "SELECT cuad_dom_man_min AS value FROM personas WHERE id = ?",
+    ("dom", "tar"): "SELECT cuad_dom_tar_min AS value FROM personas WHERE id = ?",
+}
+
 def build_solicitudes_sync_plan(
     service: Any, spreadsheet: Any, canonical_header: list[str]
 ) -> SyncExecutionPlan:
@@ -179,10 +197,10 @@ def sync_local_cuadrantes_from_personas(service: Any) -> None:
 
 
 def _get_persona_minutes(cursor: Any, persona_id: int, dia: str, segmento: str) -> int:
-    cursor.execute(
-        f"SELECT cuad_{dia}_{segmento}_min AS value FROM personas WHERE id = ?",
-        (persona_id,),
-    )
+    sql = _PERSONA_MINUTES_SQL.get((dia, segmento))
+    if sql is None:
+        raise ValueError(f"Combinación de cuadrante no soportada: {dia}/{segmento}")
+    cursor.execute(sql, (persona_id,))
     row = cursor.fetchone()
     return row["value"] if row and row["value"] is not None else 0
 

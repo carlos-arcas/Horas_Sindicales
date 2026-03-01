@@ -24,6 +24,14 @@ logger = logging.getLogger(__name__)
 _LOCKED_RETRY_BACKOFF_SECONDS = (0.05, 0.15, 0.3)
 _T = TypeVar("_T")
 
+_PERSONA_SELECT_ALL_ACTIVE_SQL = (
+    "SELECT " + PERSONA_SELECT_FIELDS + " FROM personas WHERE is_active = 1 AND (deleted = 0 OR deleted IS NULL) ORDER BY nombre"
+)
+_PERSONA_SELECT_ALL_SQL = "SELECT " + PERSONA_SELECT_FIELDS + " FROM personas WHERE deleted = 0 OR deleted IS NULL ORDER BY nombre"
+_PERSONA_BY_ID_SQL = "SELECT " + PERSONA_SELECT_FIELDS + " FROM personas WHERE id = ? AND (deleted = 0 OR deleted IS NULL)"
+_PERSONA_BY_NOMBRE_SQL = "SELECT " + PERSONA_SELECT_FIELDS + " FROM personas WHERE nombre = ? AND (deleted = 0 OR deleted IS NULL)"
+_PERSONA_BY_UUID_SQL = "SELECT " + PERSONA_SELECT_FIELDS + " FROM personas WHERE uuid = ? AND (deleted = 0 OR deleted IS NULL)"
+
 
 def _configure_connection_for_runtime(connection: sqlite3.Connection) -> None:
     """Aplica pragmas defensivos para minimizar conflictos de lock en runtime."""
@@ -92,30 +100,19 @@ class PersonaRepositorySQLite(PersonaRepository):
 
     def list_all(self, include_inactive: bool = False) -> Iterable[Persona]:
         cursor = self._connection.cursor()
-        sql = f"SELECT {PERSONA_SELECT_FIELDS} FROM personas"
-        if not include_inactive:
-            sql += " WHERE is_active = 1 AND (deleted = 0 OR deleted IS NULL)"
-        else:
-            sql += " WHERE deleted = 0 OR deleted IS NULL"
-        sql += " ORDER BY nombre"
+        sql = _PERSONA_SELECT_ALL_SQL if include_inactive else _PERSONA_SELECT_ALL_ACTIVE_SQL
         cursor.execute(sql)
         return [row_to_persona(row) for row in cursor.fetchall()]
 
     def get_by_id(self, persona_id: int) -> Persona | None:
         cursor = self._connection.cursor()
-        cursor.execute(
-            f"SELECT {PERSONA_SELECT_FIELDS} FROM personas WHERE id = ? AND (deleted = 0 OR deleted IS NULL)",
-            (persona_id,),
-        )
+        cursor.execute(_PERSONA_BY_ID_SQL, (persona_id,))
         row = cursor.fetchone()
         return row_to_persona(row) if row else None
 
     def get_by_nombre(self, nombre: str) -> Persona | None:
         cursor = self._connection.cursor()
-        cursor.execute(
-            f"SELECT {PERSONA_SELECT_FIELDS} FROM personas WHERE nombre = ? AND (deleted = 0 OR deleted IS NULL)",
-            (nombre,),
-        )
+        cursor.execute(_PERSONA_BY_NOMBRE_SQL, (nombre,))
         row = cursor.fetchone()
         return row_to_persona(row) if row else None
 
@@ -194,10 +191,7 @@ class PersonaRepositorySQLite(PersonaRepository):
 
     def get_by_uuid(self, persona_uuid: str) -> Persona | None:
         cursor = self._connection.cursor()
-        cursor.execute(
-            f"SELECT {PERSONA_SELECT_FIELDS} FROM personas WHERE uuid = ? AND (deleted = 0 OR deleted IS NULL)",
-            (persona_uuid,),
-        )
+        cursor.execute(_PERSONA_BY_UUID_SQL, (persona_uuid,))
         row = cursor.fetchone()
         return row_to_persona(row) if row else None
 
