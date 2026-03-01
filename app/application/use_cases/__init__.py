@@ -4,6 +4,7 @@ from app.application.use_cases import sync_sheets_core
 from app.application.use_cases.cargar_datos_demo_caso_uso import CargarDatosDemoCasoUso
 from app.application.use_cases.grupos_config import GrupoConfigUseCases
 from app.application.use_cases.personas import PersonaFactory, PersonaUseCases
+from app.application.use_cases.exportar_compartir_periodo import ExportarCompartirPeriodoCasoUso
 from app.application.use_cases.solicitudes import SolicitudUseCases
 
 __all__ = [
@@ -12,5 +13,6 @@ __all__ = [
     "PersonaUseCases",
     "SolicitudUseCases",
     "CargarDatosDemoCasoUso",
+    "ExportarCompartirPeriodoCasoUso",
     "sync_sheets_core",
 ]

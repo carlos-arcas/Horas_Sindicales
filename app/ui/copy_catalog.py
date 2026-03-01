@@ -334,6 +334,14 @@ _COPY: dict[str, str] = {
     "ui.toast.no_disponible": "No disponible",
     "ui.toast.notificacion": "Notificación",
     "ui.toast.fecha_formato_default": "%d/%m/%Y %H:%M:%S",
+    "ui.export_share.boton": "Exportar y compartir (E2E)",
+    "ui.export_share.titulo": "Exportación",
+    "ui.export_share.sin_registros": "No hay solicitudes para exportar.",
+    "ui.export_share.accion_abrir_carpeta": "Abrir carpeta",
+    "ui.export_share.accion_copiar_ruta": "Copiar ruta",
+    "ui.export_share.accion_ver_informe": "Ver informe",
+    "ui.export_share.ok": "Exportación E2E finalizada.",
+    "ui.export_share.error": "Falló la exportación E2E.",
 }
 
 

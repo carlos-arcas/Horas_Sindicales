@@ -10,6 +10,7 @@ from app.application.conflicts_service import ConflictsService
 from app.application.sheets_service import SheetsService
 from app.application.sync_sheets_use_case import SyncSheetsUseCase
 from app.application.use_cases import CargarDatosDemoCasoUso
+from app.application.use_cases.exportar_compartir_periodo import ExportarCompartirPeriodoCasoUso
 from app.application.use_cases.grupos_config import GrupoConfigUseCases
 from app.application.use_cases.personas import PersonaUseCases
 from app.application.use_cases.solicitudes import SolicitudUseCases
@@ -20,6 +21,8 @@ from app.infrastructure.cargador_datos_demo_sqlite import CargadorDatosDemoSQLit
 from app.infrastructure.db import _default_db_path, get_connection
 from app.infrastructure.health_probes import DefaultConnectivityProbe, SheetsConfigProbe, SQLiteLocalDbProbe
 from app.infrastructure.local_config import RepositorioPreferenciasIni
+from app.infrastructure.auditoria_e2e.adaptadores import RelojSistema
+from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 from app.infrastructure.local_config_store import LocalConfigStore
 from app.infrastructure.migrations import run_migrations
 from app.infrastructure.pdf.generador_pdf_reportlab import GeneradorPdfReportlab
@@ -55,6 +58,7 @@ class AppContainer:
     validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase
     repositorio_preferencias: IRepositorioPreferencias
     cargar_datos_demo_caso_uso: CargarDatosDemoCasoUso
+    exportar_compartir_periodo_caso_uso: ExportarCompartirPeriodoCasoUso
 
 
 ConnectionFactory = Callable[[], object]
@@ -105,6 +109,11 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
     proveedor_dataset_demo = ProveedorDatasetDemo()
     cargador_demo = CargadorDatosDemoSQLite(proveedor_dataset_demo, _default_db_path())
     cargar_datos_demo_caso_uso = CargarDatosDemoCasoUso(cargador_demo)
+    exportar_compartir_periodo_caso_uso = ExportarCompartirPeriodoCasoUso(
+        fs=SistemaArchivosLocal(),
+        reloj=RelojSistema(),
+        exportador_pdf=generador_pdf,
+    )
 
     return AppContainer(
         persona_use_cases=persona_use_cases,
@@ -118,6 +127,7 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
         validacion_preventiva_lock_use_case=validacion_preventiva_lock_use_case,
         repositorio_preferencias=repositorio_preferencias,
         cargar_datos_demo_caso_uso=cargar_datos_demo_caso_uso,
+        exportar_compartir_periodo_caso_uso=exportar_compartir_periodo_caso_uso,
     )
 
 
