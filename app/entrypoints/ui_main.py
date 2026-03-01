@@ -21,6 +21,16 @@ from app.bootstrap.logging import log_operational_error
 LOGGER = logging.getLogger(__name__)
 
 
+def _resolver_startup_timeout_ms() -> int:
+    import os
+
+    raw = os.getenv("HORAS_STARTUP_TIMEOUT_MS", "25000")
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 25_000
+
+
 def construir_mensaje_error_ui(incident_id: str) -> str:
     return f"Ha ocurrido un error inesperado.\nID de incidente: {incident_id}"
 
@@ -65,19 +75,23 @@ def _manejar_fallo_arranque(
     startup_thread,
     app,
     dialogo_factory: Callable[..., object] | None = None,
+    mensaje_usuario: str | None = None,
+    incident_id: str | None = None,
+    detalles: str | None = None,
 ) -> str:
-    incident_id = _resolver_incident_id(exc, trace_info)
-    detalles = ""
-    if trace_info is not None and all(trace_info):
-        detalles = "".join(traceback.format_exception(trace_info[0], trace_info[1], trace_info[2]))
-    elif exc is not None:
-        detalles = repr(exc)
+    resolved_incident_id = incident_id or _resolver_incident_id(exc, trace_info)
+    resolved_detalles = detalles or ""
+    if not resolved_detalles:
+        if trace_info is not None and all(trace_info):
+            resolved_detalles = "".join(traceback.format_exception(trace_info[0], trace_info[1], trace_info[2]))
+        elif exc is not None:
+            resolved_detalles = repr(exc)
 
     log_operational_error(
         LOGGER,
-        i18n.t("splash_error_mensaje", incident_id=incident_id),
+        i18n.t("splash_error_mensaje", incident_id=resolved_incident_id),
         exc=exc,
-        extra={"incident_id": incident_id},
+        extra={"incident_id": resolved_incident_id},
     )
     startup_thread.quit()
     splash.close()
@@ -90,14 +104,14 @@ def _manejar_fallo_arranque(
     dialogo = dialogo_factory(
         i18n,
         titulo=i18n.t("splash_error_titulo"),
-        mensaje_usuario=i18n.t("startup_error_dialog_message"),
-        incident_id=incident_id,
-        detalles=detalles,
+        mensaje_usuario=mensaje_usuario or i18n.t("startup_error_dialog_message"),
+        incident_id=resolved_incident_id,
+        detalles=resolved_detalles,
     )
     if hasattr(dialogo, "exec"):
         dialogo.exec()
     app.exit(2)
-    return incident_id
+    return resolved_incident_id
 
 
 def _construir_dependencias_arranque(container):
@@ -188,6 +202,7 @@ def _instalar_menu_ayuda(
 
 
 def run_ui(container=None) -> int:
+    from app.entrypoints.arranque_hilo import TrabajadorArranque
     from app.ui.estilos.apply_theme import aplicar_tema
     from app.ui.main_window import MainWindow
     from app.ui.splash_window import SplashWindow
@@ -195,31 +210,10 @@ def run_ui(container=None) -> int:
     from presentacion.i18n import I18nManager
     from presentacion.orquestador_arranque import OrquestadorArranqueUI
 
-    from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal, Slot
+    from PySide6.QtCore import QThread, QTimer, Qt, Slot
     from PySide6.QtWidgets import QApplication
 
-    class _StartupWorker(QObject):
-        finished = Signal(object)
-        failed = Signal(object, object)
-
-        def __init__(self, container_seed) -> None:
-            super().__init__()
-            self._container_seed = container_seed
-
-        @Slot()
-        def run(self) -> None:
-            try:
-                resolved_container = self._container_seed
-                if resolved_container is None:
-                    from app.bootstrap.container import build_container
-
-                    resolved_container = build_container()
-                deps_arranque = _construir_dependencias_arranque(resolved_container)
-                idioma = deps_arranque.obtener_idioma_ui.ejecutar()
-                self.finished.emit((resolved_container, deps_arranque, idioma))
-            except Exception as exc:  # noqa: BLE001
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                self.failed.emit(exc, (exc_type, exc_value, exc_traceback))
+    startup_timeout_ms = _resolver_startup_timeout_ms()
 
     app = QApplication([])
     i18n = I18nManager("es")
@@ -227,12 +221,62 @@ def run_ui(container=None) -> int:
     splash.show()
 
     startup_thread = QThread()
-    startup_worker = _StartupWorker(container)
+    startup_worker = TrabajadorArranque(container, i18n)
     startup_worker.moveToThread(startup_thread)
     splash.registrar_arranque(startup_thread, startup_worker)
+    startup_context = {
+        "incident_id": "",
+        "ultima_etapa": "",
+        "terminado": False,
+        "watchdog_disparado": False,
+    }
+    watchdog = QTimer()
+    watchdog.setSingleShot(True)
+    watchdog.setInterval(startup_timeout_ms)
+
+    def _detalles_con_etapa(detalles: str) -> str:
+        ultima_etapa = startup_context["ultima_etapa"]
+        if not ultima_etapa:
+            return detalles
+        etiqueta = i18n.t("startup_last_stage", etapa=i18n.t(ultima_etapa))
+        return f"{etiqueta}\n{detalles}" if detalles else etiqueta
+
+    @Slot()
+    def _on_startup_timeout() -> None:
+        if startup_context["terminado"]:
+            return
+        startup_context["watchdog_disparado"] = True
+        startup_context["terminado"] = True
+        if not startup_context["incident_id"]:
+            startup_context["incident_id"] = f"INC-UI-{uuid.uuid4().hex[:12].upper()}"
+        LOGGER.warning(
+            "STARTUP_TIMEOUT",
+            extra={
+                "extra": {
+                    "incident_id": startup_context["incident_id"],
+                    "etapa": startup_context["ultima_etapa"],
+                    "timeout_ms": startup_timeout_ms,
+                }
+            },
+        )
+        _manejar_fallo_arranque(
+            exc=None,
+            trace_info=None,
+            i18n=i18n,
+            splash=splash,
+            startup_thread=startup_thread,
+            app=app,
+            mensaje_usuario=i18n.t("startup_timeout_message"),
+            incident_id=startup_context["incident_id"],
+            detalles=_detalles_con_etapa(i18n.t("startup_timeout_message")),
+        )
+
+    watchdog.timeout.connect(_on_startup_timeout, Qt.ConnectionType.QueuedConnection)
 
     def _abrir_ventana_principal(startup_payload) -> None:
         try:
+            startup_context["terminado"] = True
+            watchdog.stop()
             resolved_container, deps_arranque, idioma = startup_payload
             i18n.set_idioma(idioma)
             orquestador = OrquestadorArranqueUI(deps_arranque, i18n)
@@ -282,18 +326,31 @@ def run_ui(container=None) -> int:
     def _on_startup_finished(startup_payload) -> None:
         _abrir_ventana_principal(startup_payload)
 
-    @Slot(object, object)
-    def _on_startup_failed(exc, trace_info) -> None:
+    @Slot(str)
+    def _on_startup_progreso(etapa: str) -> None:
+        startup_context["ultima_etapa"] = etapa
+        splash.set_status(etapa)
+
+    @Slot(str, str, str)
+    def _on_startup_failed(incident_id: str, mensaje_usuario: str, detalles: str) -> None:
+        startup_context["terminado"] = True
+        watchdog.stop()
+        startup_context["incident_id"] = incident_id
         _manejar_fallo_arranque(
-            exc=exc,
-            trace_info=trace_info,
+            exc=None,
+            trace_info=None,
             i18n=i18n,
             splash=splash,
             startup_thread=startup_thread,
             app=app,
+            mensaje_usuario=mensaje_usuario,
+            dialogo_factory=None,
+            incident_id=incident_id,
+            detalles=_detalles_con_etapa(detalles),
         )
 
     startup_worker.finished.connect(startup_thread.quit)
+    startup_worker.progreso.connect(_on_startup_progreso, Qt.ConnectionType.QueuedConnection)
     startup_worker.finished.connect(_on_startup_finished, Qt.ConnectionType.QueuedConnection)
     startup_worker.failed.connect(startup_thread.quit)
     startup_worker.failed.connect(_on_startup_failed, Qt.ConnectionType.QueuedConnection)
@@ -306,13 +363,13 @@ def run_ui(container=None) -> int:
             aplicar_tema(app)
         except OSError:
             app.setStyleSheet(build_stylesheet())
+        watchdog.start()
         QTimer.singleShot(0, startup_thread.start)
         return app.exec()
     except Exception as exc:  # noqa: BLE001
-        exc_type, exc_value, exc_traceback = sys.exc_info()
         _manejar_fallo_arranque(
             exc=exc,
-            trace_info=(exc_type, exc_value, exc_traceback),
+            trace_info=None,
             i18n=i18n,
             splash=splash,
             startup_thread=startup_thread,

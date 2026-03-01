@@ -48,6 +48,12 @@ CATALOGO: dict[str, dict[str, str]] = {
         "startup_error_incident_label": "ID de incidente: {incident_id}",
         "startup_error_copy_id": "Copiar ID",
         "startup_error_open_logs": "Abrir carpeta de logs",
+        "bootstrap.container": "Preparando contenedor…",
+        "bootstrap.deps_arranque": "Preparando dependencias de arranque…",
+        "bootstrap.crear_mainwindow_deps": "Preparando datos de ventana principal…",
+        "startup_timeout_message": "Arranque tardando más de lo normal",
+        "startup_last_stage": "Última etapa: {etapa}",
+        "startup_worker_no_terminal_signal": "El worker de arranque no emitió señal terminal. Etapa: {etapa}",
     },
     "en": {
         "splash_titulo": "Starting Horas Sindicales…",
@@ -93,6 +99,12 @@ CATALOGO: dict[str, dict[str, str]] = {
         "startup_error_incident_label": "Incident ID: {incident_id}",
         "startup_error_copy_id": "Copy ID",
         "startup_error_open_logs": "Open logs folder",
+        "bootstrap.container": "Preparing container…",
+        "bootstrap.deps_arranque": "Preparing startup dependencies…",
+        "bootstrap.crear_mainwindow_deps": "Preparing main window data…",
+        "startup_timeout_message": "Startup is taking longer than expected",
+        "startup_last_stage": "Last stage: {etapa}",
+        "startup_worker_no_terminal_signal": "Startup worker did not emit a terminal signal. Stage: {etapa}",
     },
 }
 

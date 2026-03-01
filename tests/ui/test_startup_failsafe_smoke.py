@@ -98,3 +98,46 @@ def test_startup_failsafe_muestra_dialogo_con_incident_id_y_quit_thread(monkeypa
     assert _DialogSpy.invocaciones
     assert _DialogSpy.invocaciones[-1]["incident_id"]
     assert quit_spy["calls"] >= 1
+
+
+def test_startup_watchdog_timeout_muestra_dialogo_y_no_wait(monkeypatch) -> None:
+    pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    monkeypatch.setenv("HORAS_STARTUP_TIMEOUT_MS", "100")
+    _DialogSpy.invocaciones.clear()
+
+    wait_calls = {"calls": 0}
+
+    def _wait_spy(*_args, **_kwargs):
+        wait_calls["calls"] += 1
+        raise AssertionError("QThread.wait no debe invocarse")
+
+    monkeypatch.setattr("PySide6.QtCore.QThread.wait", _wait_spy, raising=False)
+
+    def _run_colgado(_self) -> None:
+        from PySide6.QtCore import QThread
+
+        QThread.msleep(400)
+
+    monkeypatch.setattr("app.entrypoints.arranque_hilo.TrabajadorArranque.run", _run_colgado, raising=False)
+    monkeypatch.setattr("app.ui.dialogos.dialogo_error_arranque.DialogoErrorArranque", _DialogSpy)
+
+    class _DummyContainer:
+        persona_use_cases = None
+        solicitud_use_cases = None
+        grupo_use_cases = None
+        sheets_service = None
+        sync_service = None
+        conflicts_service = None
+        health_check_use_case = None
+        alert_engine = None
+        validacion_preventiva_lock_use_case = None
+        repositorio_preferencias = None
+        cargar_datos_demo_caso_uso = None
+
+    exit_code = ui_main.run_ui(container=_DummyContainer())
+
+    assert exit_code == 2
+    assert _DialogSpy.invocaciones
+    assert _DialogSpy.invocaciones[-1]["mensaje_usuario"]
+    assert wait_calls["calls"] == 0
