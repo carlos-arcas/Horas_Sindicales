@@ -139,6 +139,7 @@ from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
 
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
+from . import state_historico, state_pendientes
 try:
     from .state_helpers import resolve_active_delegada_id, set_processing_state, update_action_state
     from .state_actions import MainWindowStateActionsMixin
@@ -528,28 +529,28 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         return acciones_personas.restaurar_contexto_guardado(self)
 
     def _apply_historico_text_filter(self) -> None:
-        return historico_actions.apply_historico_text_filter(self)
+        return state_historico.aplicar_filtro_texto_historico(self)
 
     def _historico_period_filter_state(self) -> tuple[str, int | None, int | None]:
-        return historico_actions.historico_period_filter_state(self)
+        return state_historico.estado_filtro_periodo_historico(self)
 
     def _update_historico_empty_state(self) -> None:
-        return historico_actions.update_historico_empty_state(self)
+        return state_historico.actualizar_estado_vacio_historico(self)
 
     def _on_historico_escape(self) -> None:
-        return historico_actions.on_historico_escape(self)
+        return state_historico.manejar_escape_historico(self)
 
     def _selected_historico_solicitudes(self) -> list[SolicitudDTO]:
-        return historico_actions.selected_historico_solicitudes(self)
+        return state_historico.obtener_solicitudes_historico_seleccionadas(self)
 
     def _selected_historico(self) -> SolicitudDTO | None:
-        return historico_actions.selected_historico(self)
+        return state_historico.obtener_solicitud_historico_seleccionada(self)
 
     def _on_historico_select_all_visible_toggled(self, checked: bool) -> None:
-        return historico_actions.on_historico_select_all_visible_toggled(self, checked)
+        return state_historico.alternar_seleccion_visible_historico(self, checked)
 
     def _sync_historico_select_all_visible_state(self) -> None:
-        return historico_actions.sync_historico_select_all_visible_state(self)
+        return state_historico.sincronizar_estado_seleccion_visible_historico(self)
 
     def _notify_historico_filter_if_hidden(self, solicitudes_insertadas: list[SolicitudDTO]) -> None:
         return historico_actions.notify_historico_filter_if_hidden(self, solicitudes_insertadas)
@@ -615,19 +616,19 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         return acciones_sincronizacion.apply_sync_report(self, report)
 
     def _selected_pending_row_indexes(self) -> list[int]:
-        return acciones_pendientes.helper_selected_pending_row_indexes(self)
+        return state_pendientes.obtener_indices_filas_pendientes_seleccionadas(self)
 
     def _selected_pending_for_editing(self) -> SolicitudDTO | None:
-        return acciones_pendientes.helper_selected_pending_for_editing(self)
+        return state_pendientes.obtener_pendiente_para_edicion(self)
 
     def _find_pending_row_by_id(self, solicitud_id: int | None) -> int | None:
-        return acciones_pendientes.helper_find_row_by_id(self, solicitud_id)
+        return state_pendientes.buscar_fila_pendiente_por_id(self, solicitud_id)
 
     def _focus_pending_row(self, row: int) -> None:
-        return acciones_pendientes.helper_focus_pending_row(self, row)
+        return state_pendientes.enfocar_fila_pendiente(self, row)
 
     def _focus_pending_by_id(self, solicitud_id: int | None) -> bool:
-        return acciones_pendientes.helper_focus_pending_by_id(self, solicitud_id)
+        return state_pendientes.enfocar_pendiente_por_id(self, solicitud_id)
 
     def _update_pending_totals(self) -> None:
         return acciones_pendientes.helper_update_pending_totals(self)
