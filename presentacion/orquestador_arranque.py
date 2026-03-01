@@ -44,6 +44,6 @@ class OrquestadorArranqueUI:
         self._deps.marcar_onboarding_completado.ejecutar()
         return True
 
-    def aplicar_preferencias_ventana(self, main_window) -> None:
-        if self._deps.obtener_preferencia_pantalla_completa.ejecutar():
-            main_window.showFullScreen()
+    def debe_iniciar_maximizada(self) -> bool:
+        """Define si la ventana principal debe abrirse maximizada."""
+        return self._deps.obtener_preferencia_pantalla_completa.ejecutar()

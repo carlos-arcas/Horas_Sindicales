@@ -41,3 +41,20 @@ rg '"correlation_id": "<ID>"' logs/seguimiento.log logs/error_operativo.log logs
 2. Mantener `correlation_id` en toda la operación.
 3. Para errores manejados, usar helper de bootstrap `log_operational_error(...)`.
 4. Ante incidencias graves, revisar primero `crash.log`.
+
+
+## Comandos operativos relacionados
+
+Para reproducir entorno y validar logs durante ejecución normal o pruebas:
+
+```bat
+scripts\lanzar_app.bat
+scripts\ejecutar_tests.bat
+```
+
+El script de tests ejecuta cobertura con gate mínimo:
+
+```bat
+pytest --cov=. --cov-report=term-missing --cov-fail-under=85
+```
+

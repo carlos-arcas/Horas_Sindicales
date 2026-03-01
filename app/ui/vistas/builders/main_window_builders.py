@@ -649,6 +649,12 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     pdf_layout.addLayout(pdf_actions)
     config_layout.addWidget(pdf_card)
 
+    preferencias_card, preferencias_layout = window._create_card("Preferencias")
+    window.preferencia_pantalla_completa_check = QCheckBox("Abrir la app maximizada por defecto")
+    window.preferencia_pantalla_completa_check.toggled.connect(window._on_toggle_preferencia_pantalla_completa)
+    preferencias_layout.addWidget(window.preferencia_pantalla_completa_check)
+    config_layout.addWidget(preferencias_card)
+
     credenciales_card, credenciales_layout = window._create_card("Google Sheets")
     window.sync_source_label = QLabel("Fuente: --")
     window.sync_source_label.setProperty("role", "secondary")
