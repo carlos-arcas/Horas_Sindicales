@@ -77,6 +77,7 @@ from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
 from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
 from app.application.use_cases.solicitudes.servicio_preverificacion_pdf import (
     EntradaNombrePdf,
+    ResultadoPreverificacionPdf,
     ServicioPreverificacionPdf,
 )
 from app.application.use_cases.solicitudes.servicio_saldos import (
@@ -112,6 +113,13 @@ def _resolver_correlation_id(
     if contexto is not None:
         return contexto.correlation_id
     return correlation_id
+
+
+def _construir_mensaje_colision_pdf(resultado: "ResultadoPreverificacionPdf") -> str:
+    base = resultado.motivos[0].rstrip(".")
+    if resultado.ruta_sugerida is None:
+        return f"{base}."
+    return f"{base}. Sugerencia: {resultado.ruta_sugerida}"
 
 class SolicitudUseCases:
     """Casos de uso para solicitudes."""
@@ -547,8 +555,7 @@ class SolicitudUseCases:
         resultado = self._servicio_preverificacion_pdf.preverificar_ruta(str(destino))
         if not resultado.colision:
             return Path(resultado.ruta_destino)
-        sugerencia = f" Sugerencia: {resultado.ruta_sugerida}" if resultado.ruta_sugerida else ""
-        raise BusinessRuleError(f"{resultado.motivos[0]}.{sugerencia}".strip())
+        raise BusinessRuleError(_construir_mensaje_colision_pdf(resultado))
 
     def confirmar_lote_y_generar_pdf(
         self,
