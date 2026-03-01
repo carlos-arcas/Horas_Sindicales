@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 from dataclasses import replace
 from pathlib import Path
@@ -767,6 +768,7 @@ class SolicitudUseCases:
             raise BusinessRuleError("Persona no encontrada.")
         pdf_options = self._config_repo.get() if self._config_repo else None
         operacion = ExportacionPdfHistoricoOperacion(fs=self._fs, generador_pdf=self._generador_pdf)
+        started_at = time.perf_counter()
         resultado = operacion.ejecutar(
             RequestExportacionPdfHistorico(
                 solicitudes=solicitudes_list,
@@ -780,6 +782,8 @@ class SolicitudUseCases:
         )
         if resultado.conflictos.no_ejecutable:
             raise BusinessRuleError("; ".join(resultado.conflictos.conflictos))
+        metrics_registry.incrementar("pdfs_generados")
+        metrics_registry.registrar_tiempo("latency.generar_pdf_ms", (time.perf_counter() - started_at) * 1000)
         pdf_path = Path(resultado.artefactos_generados[0])
         if correlation_id:
             log_event(logger, "generar_pdf_historico_succeeded", {"path": str(pdf_path)}, correlation_id)
@@ -807,6 +811,7 @@ class SolicitudUseCases:
             raise BusinessRuleError("No hay solicitudes para generar el PDF.")
         pdf_options = self._config_repo.get() if self._config_repo else None
         operacion = ExportacionPdfHistoricoOperacion(fs=self._fs, generador_pdf=self._generador_pdf)
+        started_at = time.perf_counter()
         resultado = operacion.ejecutar(
             RequestExportacionPdfHistorico(
                 solicitudes=solicitudes_list,
@@ -820,6 +825,8 @@ class SolicitudUseCases:
         )
         if resultado.conflictos.no_ejecutable:
             raise BusinessRuleError("; ".join(resultado.conflictos.conflictos))
+        metrics_registry.incrementar("pdfs_generados")
+        metrics_registry.registrar_tiempo("latency.generar_pdf_ms", (time.perf_counter() - started_at) * 1000)
         pdf_path = Path(resultado.artefactos_generados[0])
         if correlation_id:
             log_event(logger, "exportar_historico_pdf_succeeded", {"path": str(pdf_path)}, correlation_id)
