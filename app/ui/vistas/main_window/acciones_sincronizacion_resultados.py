@@ -5,9 +5,12 @@ import logging
 
 try:
     from PySide6.QtCore import QThread
+    from PySide6.QtWidgets import QApplication
 except Exception:  # pragma: no cover
     QThread = object
+    QApplication = None
 
+from app.domain.sheets_errors import SheetsPermissionError
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
 from app.ui import dialogos_comunes
 from app.ui.conflicts_dialog import ConflictsDialog
@@ -116,16 +119,23 @@ def on_sync_failed(ventana, payload: object) -> None:
     error, details = normalize_sync_error(payload)
     if details:
         log_operational_error(logger, "Sync failed", exc=error, extra={"operation": "sync_ui", "correlation_id": getattr(ventana._sync_operation_context, "correlation_id", None), "sync_id": ventana._active_sync_id})
-    report = build_failed_report(
-        map_error_to_ui_message(error).as_text(),
-        source=dialogos_sincronizacion.sync_source_text(ventana),
-        scope=dialogos_sincronizacion.sync_scope_text(),
-        actor=dialogos_sincronizacion.sync_actor_text(ventana),
-        details=details,
-        started_at=ventana._sync_started_at,
-        sync_id=ventana._active_sync_id,
-        attempt_history=ventana._attempt_history,
-    )
+    if isinstance(error, SheetsPermissionError):
+        report = build_config_incomplete_report(
+            source=dialogos_sincronizacion.sync_source_text(ventana),
+            scope=dialogos_sincronizacion.sync_scope_text(),
+            actor=dialogos_sincronizacion.sync_actor_text(ventana),
+        )
+    else:
+        report = build_failed_report(
+            map_error_to_ui_message(error).as_text(),
+            source=dialogos_sincronizacion.sync_source_text(ventana),
+            scope=dialogos_sincronizacion.sync_scope_text(),
+            actor=dialogos_sincronizacion.sync_actor_text(ventana),
+            details=details,
+            started_at=ventana._sync_started_at,
+            sync_id=ventana._active_sync_id,
+            attempt_history=ventana._attempt_history,
+        )
     apply_sync_report(ventana, report)
     ventana.notifications.notify_operation(OperationFeedback(title="Sincronización con fallo", happened="No se pudo completar la sincronización.", affected_count=0, incidents="Se detectó un error durante el proceso.", next_step="Revisa el detalle y vuelve a intentar.", status="error"))
     show_sync_error_dialog(ventana, error, details)
@@ -191,7 +201,18 @@ def show_sync_error_dialog(ventana, error: Exception, details: str | None) -> No
         retry_callback=ventana._sync_controller.on_sync,
         open_google_sheets_config_callback=ventana._open_google_sheets_config,
         toast_warning=lambda message, title, duration_ms: ventana.toast.warning(message, title=title, duration_ms=duration_ms),
+        clipboard_setter=_set_clipboard_text,
     )
+
+
+def _set_clipboard_text(value: str) -> None:
+    if QApplication is None:
+        raise RuntimeError("Clipboard no disponible: Qt no está inicializado")
+    clipboard = QApplication.clipboard()
+    if clipboard is None:
+        raise RuntimeError("Clipboard no disponible")
+    clipboard.setText(value)
+
 
 
 def normalize_sync_error(payload: object) -> tuple[Exception, str | None]:
