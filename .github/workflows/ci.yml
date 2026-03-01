@@ -38,6 +38,9 @@ jobs:
       - name: Verificación de sintaxis (compileall)
         run: python -m compileall -q app scripts tests
 
+      - name: Secret scanning por contenido
+        run: pytest -q -m "not ui" tests/test_no_secrets_content_scan.py
+
       - name: Tests CORE + coverage (sin UI)
         run: |
           COVERAGE_FAIL_UNDER=$(python -c "import json; d=json.load(open('.config/quality_gate.json', encoding='utf-8')); print(d.get('coverage_fail_under_core', d['coverage_fail_under']))")
