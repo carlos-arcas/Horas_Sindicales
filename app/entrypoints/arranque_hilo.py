@@ -8,6 +8,8 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Signal, Slot
 
+from app.entrypoints.arranque_nucleo import ejecutar_arranque_puro
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -30,25 +32,18 @@ class TrabajadorArranque(QObject):
         etapa_actual = "bootstrap.container"
         try:
             self._emitir_progreso(etapa_actual)
-            resolved_container = self._container_seed
-            if resolved_container is None:
-                from app.bootstrap.container import build_container
-
-                try:
-                    resolved_container = build_container(preferencias_headless=True)
-                except TypeError:
-                    resolved_container = build_container()
-
             etapa_actual = "bootstrap.deps_arranque"
             self._emitir_progreso(etapa_actual)
             from app.entrypoints.ui_main import _construir_dependencias_arranque
 
-            deps_arranque = _construir_dependencias_arranque(resolved_container)
-            idioma = deps_arranque.obtener_idioma_ui.ejecutar()
+            resultado = ejecutar_arranque_puro(
+                self._container_seed,
+                _construir_dependencias_arranque,
+            )
 
             etapa_actual = "bootstrap.crear_mainwindow_deps"
             self._emitir_progreso(etapa_actual)
-            self.finished.emit((resolved_container, deps_arranque, idioma))
+            self.finished.emit((resultado.container, resultado.deps_arranque, resultado.idioma))
             resultado_emitido = True
         except Exception as exc:  # noqa: BLE001
             incident_id = f"INC-BOOT-{uuid.uuid4().hex[:12].upper()}"
