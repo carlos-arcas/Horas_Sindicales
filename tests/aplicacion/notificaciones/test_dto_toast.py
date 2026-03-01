@@ -4,11 +4,11 @@ from datetime import datetime
 
 import pytest
 
-from aplicacion.notificaciones.dto_toast import NivelToast, NotificacionToastDTO
+from aplicacion.notificaciones.dto_toast import NivelToast, NotificacionToast
 
 
 def test_dto_valido_se_crea_correctamente() -> None:
-    toast = NotificacionToastDTO(
+    toast = NotificacionToast(
         nivel=NivelToast.SUCCESS,
         titulo="Guardado",
         mensaje="Cambios guardados con éxito",
@@ -29,7 +29,7 @@ def test_dto_valido_se_crea_correctamente() -> None:
 
 def test_titulo_vacio_lanza_value_error() -> None:
     with pytest.raises(ValueError, match="titulo"):
-        NotificacionToastDTO(
+        NotificacionToast(
             nivel=NivelToast.INFO,
             titulo="   ",
             mensaje="Mensaje válido",
@@ -38,7 +38,7 @@ def test_titulo_vacio_lanza_value_error() -> None:
 
 def test_mensaje_vacio_lanza_value_error() -> None:
     with pytest.raises(ValueError, match="mensaje"):
-        NotificacionToastDTO(
+        NotificacionToast(
             nivel=NivelToast.INFO,
             titulo="Título válido",
             mensaje="",
@@ -47,7 +47,7 @@ def test_mensaje_vacio_lanza_value_error() -> None:
 
 def test_duracion_negativa_lanza_value_error() -> None:
     with pytest.raises(ValueError, match="duracion_ms"):
-        NotificacionToastDTO(
+        NotificacionToast(
             nivel=NivelToast.WARNING,
             titulo="Título válido",
             mensaje="Mensaje válido",
@@ -56,7 +56,7 @@ def test_duracion_negativa_lanza_value_error() -> None:
 
 
 def test_id_y_timestamp_se_generan_automaticamente() -> None:
-    toast = NotificacionToastDTO(
+    toast = NotificacionToast(
         nivel=NivelToast.ERROR,
         titulo="Error",
         mensaje="Se produjo un error",
@@ -68,7 +68,7 @@ def test_id_y_timestamp_se_generan_automaticamente() -> None:
 
 
 def test_valores_por_defecto_correctos() -> None:
-    toast = NotificacionToastDTO(
+    toast = NotificacionToast(
         nivel=NivelToast.INFO,
         titulo="Info",
         mensaje="Mensaje",

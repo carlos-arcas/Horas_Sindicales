@@ -11,7 +11,7 @@ from app.application.dto import SolicitudDTO
 from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.domain.time_utils import minutes_to_hhmm
 from app.ui.patterns import SPACING_BASE, apply_modal_behavior, build_modal_actions, status_badge
-from app.ui.widgets.toast import ToastManager
+from app.ui.widgets.toast import GestorToasts
 
 
 @dataclass(slots=True)
@@ -80,7 +80,7 @@ class OperationFeedbackDialog(QDialog):
 
 
 class NotificationService:
-    def __init__(self, toast: ToastManager, parent: QWidget) -> None:
+    def __init__(self, toast: GestorToasts, parent: QWidget) -> None:
         self._toast = toast
         self._parent = parent
         self._operation_counter = 0

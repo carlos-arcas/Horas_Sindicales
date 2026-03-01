@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from app.application.ports.proveedor_documentos_puerto import DocumentoNoEncontradoError
-from app.infrastructure.proveedor_documentos_repositorio import ProveedorDocumentosRepositorio
+from app.application.ports.sistema_archivos_puerto import DocumentoNoEncontradoError
+from app.infrastructure.local_config import ProveedorDocumentosRepositorio
 
 
 def test_obtener_ruta_guia_sync_devuelve_ruta_existente_y_md_correcto() -> None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.infrastructure.proveedor_documentos_repositorio import ProveedorDocumentosRepositorio
+from app.infrastructure.local_config import ProveedorDocumentosRepositorio
 from aplicacion.puertos.proveedor_documentos import IProveedorDocumentos
 
 

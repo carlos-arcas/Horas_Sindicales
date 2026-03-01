@@ -8,16 +8,16 @@ require_qt()
 from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import QMainWindow
 
-from app.ui.widgets.toast_manager import ToastManager
-from app.ui.widgets.toast_models import ToastDTO
+from app.ui.widgets.toast import GestorToasts
+from app.ui.widgets.toast import NotificacionToast
 
 
 class _FakeAdapter(QObject):
     toast_requested = Signal(object)
 
 
-def _dto(idx: int, *, duracion_ms: int = 8000, detalles: str | None = None, correlacion_id: str | None = None) -> ToastDTO:
-    return ToastDTO(
+def _dto(idx: int, *, duracion_ms: int = 8000, detalles: str | None = None, correlacion_id: str | None = None) -> NotificacionToast:
+    return NotificacionToast(
         id=f"toast-{idx}",
         titulo=f"Título {idx}",
         mensaje=f"Mensaje {idx}",
@@ -34,10 +34,10 @@ def test_emitir_senal_adapter_muestra_toast(qtbot) -> None:
     qtbot.addWidget(window)
     window.show()
 
-    manager = ToastManager()
+    manager = GestorToasts()
     manager.attach_to(window)
     adapter = _FakeAdapter()
-    assert manager.conectar_adapter(adapter)
+    assert manager.conectar_adaptador(adapter)
 
     adapter.toast_requested.emit(_dto(1))
     qtbot.wait(50)
@@ -50,11 +50,11 @@ def test_stack_maximo_tres_y_fifo(qtbot) -> None:
     qtbot.addWidget(window)
     window.show()
 
-    manager = ToastManager()
+    manager = GestorToasts()
     manager.attach_to(window)
 
     for idx in range(10):
-        manager.recibir_dto(_dto(idx, duracion_ms=4000))
+        manager.recibir_notificacion(_dto(idx, duracion_ms=4000))
 
     assert len(manager._visibles) == 3
     assert len(manager._queue) == 7
@@ -65,9 +65,9 @@ def test_auto_cierre_funciona(qtbot) -> None:
     qtbot.addWidget(window)
     window.show()
 
-    manager = ToastManager()
+    manager = GestorToasts()
     manager.attach_to(window)
-    manager.recibir_dto(_dto(1, duracion_ms=120))
+    manager.recibir_notificacion(_dto(1, duracion_ms=120))
 
     assert len(manager._visibles) == 1
     qtbot.wait(220)
@@ -79,9 +79,9 @@ def test_boton_cerrar_elimina_toast(qtbot) -> None:
     qtbot.addWidget(window)
     window.show()
 
-    manager = ToastManager()
+    manager = GestorToasts()
     manager.attach_to(window)
-    manager.recibir_dto(_dto(2, duracion_ms=4000))
+    manager.recibir_notificacion(_dto(2, duracion_ms=4000))
 
     toast = next(iter(manager._visibles.values()))
     qtbot.mouseClick(toast._btn_cerrar, Qt.MouseButton.LeftButton)
@@ -95,9 +95,9 @@ def test_boton_detalles_abre_dialogo(qtbot, monkeypatch: pytest.MonkeyPatch) -> 
     qtbot.addWidget(window)
     window.show()
 
-    manager = ToastManager()
+    manager = GestorToasts()
     manager.attach_to(window)
-    manager.recibir_dto(_dto(3, detalles="stacktrace", correlacion_id="CID-1"))
+    manager.recibir_notificacion(_dto(3, detalles="stacktrace", correlacion_id="CID-1"))
 
     called = {"open": 0}
 
@@ -105,7 +105,7 @@ def test_boton_detalles_abre_dialogo(qtbot, monkeypatch: pytest.MonkeyPatch) -> 
         called["open"] += 1
         return 0
 
-    monkeypatch.setattr("app.ui.widgets.dialogo_detalles_toast.DialogoDetallesToast.exec", _fake_exec)
+    monkeypatch.setattr("app.ui.widgets.toast.DialogoDetallesNotificacion.exec", _fake_exec)
 
     toast = next(iter(manager._visibles.values()))
     qtbot.mouseClick(toast._btn_detalles, Qt.MouseButton.LeftButton)
