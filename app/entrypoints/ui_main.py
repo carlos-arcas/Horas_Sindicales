@@ -366,6 +366,7 @@ def run_ui(container=None) -> int:
     from app.ui.estilos.apply_theme import aplicar_tema
     from app.ui.main_window import MainWindow
     from app.ui.splash_window import SplashWindow
+    from app.ui.qt_hilos import assert_hilo_ui_o_log, ejecutar_en_hilo_ui
     from app.ui.theme import build_stylesheet
     from presentacion.i18n import I18nManager
     from presentacion.orquestador_arranque import OrquestadorArranqueUI
@@ -377,6 +378,7 @@ def run_ui(container=None) -> int:
     startup_timeout_ms = _resolver_startup_timeout_ms()
 
     app = QApplication([])
+    assert_hilo_ui_o_log("run_ui.bootstrap", LOGGER)
     i18n = I18nManager("es")
     splash = SplashWindow(i18n)
     splash.show()
@@ -435,7 +437,11 @@ def run_ui(container=None) -> int:
         except OSError:
             app.setStyleSheet(build_stylesheet())
         controlador.iniciar()
-        QTimer.singleShot(0, startup_thread.start)
+        ejecutar_en_hilo_ui(
+            startup_thread.start,
+            contexto="run_ui.startup_thread.start",
+            logger=LOGGER,
+        )
         return app.exec()
     except Exception as exc:  # noqa: BLE001
         _manejar_fallo_arranque(

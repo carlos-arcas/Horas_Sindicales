@@ -126,6 +126,7 @@ from . import data_refresh, layout_builder, wiring
 from .ui_layout_helpers import normalize_input_heights, update_responsive_columns
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
+from app.ui.qt_hilos import assert_hilo_ui_o_log
 from .init_placeholders import inicializar_placeholders
 
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
@@ -175,6 +176,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         obtener_preferencia_pantalla_completa: ObtenerPreferenciaPantallaCompleta | None = None,
     ) -> None:
         super().__init__()
+        assert_hilo_ui_o_log("MainWindow.__init__", logger)
         self._persona_use_cases = persona_use_cases
         self._solicitud_use_cases = solicitud_use_cases
         self._grupo_use_cases = grupo_use_cases
