@@ -85,3 +85,10 @@ Un cambio se considera **DONE** si cumple TODO lo siguiente:
 - [DONE] Extracción en módulos por zona (`builders_barra_superior`, `builders_formulario_solicitud`, `builders_tablas`, `builders_sync_panel`) manteniendo wiring UI.
 - [DONE] Reducción de LOC del hotspot: **937 -> 131** en `main_window_builders.py`.
 - [DONE] Smoke test UI actualizado para validar widgets clave y conexión de `fecha_input.dateChanged`.
+
+
+## Registro de progreso de esta PR (refactor state_controller historico/pendientes)
+
+- [DONE] Extracción Iteración 1 en módulos nuevos: `app/ui/vistas/main_window/state_historico.py` y `app/ui/vistas/main_window/state_pendientes.py`.
+- [DONE] Wrappers críticos AST conservados en `MainWindow` con delegación thin (1 línea).
+- [DONE] LOC de `app/ui/vistas/main_window/state_controller.py`: **694 -> 694** (sin expansión; delegación refactor aplicada en wrappers).
