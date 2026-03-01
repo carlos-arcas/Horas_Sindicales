@@ -97,6 +97,7 @@ try:
                                                    build_historico_filters_payload,
                                                    handle_historico_render_mismatch, log_estado_pendientes,
                                                    show_sync_error_dialog_from_exception)
+    from app.ui.vistas.main_window import acciones_pendientes
     from app.ui.vistas.solicitudes_presenter import (ActionStateInput, PreventiveValidationViewInput,
                                                      build_action_state, build_preventive_validation_view_model)
     from app.ui.vistas.solicitudes_ux_rules import (SolicitudesFocusInput, SolicitudesStatusInput,
@@ -134,7 +135,6 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     abrir_archivo_local = _qt_unavailable
     build_estado_pendientes_debug_payload = build_historico_filters_payload = _qt_unavailable
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
-from app.ui.vistas.pending_duplicate_presenter import PendingDuplicateEntrada, resolve_pending_duplicate_row
 from . import acciones_sincronizacion, data_refresh, form_handlers, layout_builder, wiring
 from app.ui.vistas.personas_presenter import PersonaOption, PersonasLoadInput, build_personas_load_output, resolve_active_delegada_id as resolve_active_delegada_id_presenter
 from app.core.observability import OperationContext
@@ -1175,8 +1175,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         update_action_state(self)
 
     def _selected_pending_solicitudes(self) -> list[SolicitudDTO]:
-        selected_rows = self._selected_pending_row_indexes()
-        return [self._pending_solicitudes[row] for row in selected_rows if 0 <= row < len(self._pending_solicitudes)]
+        return acciones_pendientes.helper_selected_pending_solicitudes(self)
 
     def _build_debug_estado_pendientes(self) -> dict[str, object]:
         # Para juniors: lo sacamos a helper para bajar LOC y poder testear diagnóstico sin instanciar la ventana completa.
@@ -1222,33 +1221,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.toast.info("Pendiente deshecha")
 
     def _refresh_pending_conflicts(self) -> None:
-        conflict_rows: set[int] = set()
-        if self._pending_solicitudes:
-            try:
-                conflict_rows = self._solicitud_use_cases.detectar_conflictos_pendientes(
-                    self._pending_solicitudes
-                )
-            except BusinessRuleError as exc:
-                logger.warning("No se pudieron calcular conflictos de pendientes: %s", exc)
-
-        previously_conflicting = bool(self._pending_conflict_rows)
-        self._pending_conflict_rows = conflict_rows
-        self.pendientes_model.set_conflict_rows(conflict_rows)
-
-        if conflict_rows and not previously_conflicting:
-            self.toast.warning(
-                "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
-                title="Conflictos detectados",
-            )
+        return acciones_pendientes.helper_refresh_pending_conflicts(self)
 
     def _refresh_pending_ui_state(self) -> None:
-        self.pendientes_model.set_show_delegada(self._pending_view_all)
-        self.pendientes_model.set_solicitudes(self._pending_solicitudes)
-        self._configure_solicitudes_table(self.pendientes_table)
-        self._update_pending_totals()
-        self._refresh_pending_conflicts()
-        self._update_action_state()
-        self._update_global_context()
+        return acciones_pendientes.helper_refresh_pending_ui_state(self)
 
     def _reconstruir_tabla_pendientes(self) -> None:
         self._refresh_pending_ui_state()
@@ -1395,86 +1371,25 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._solicitudes_controller.on_add_pendiente()
 
     def _selected_pending_row_indexes(self) -> list[int]:
-        selection_model = self.pendientes_table.selectionModel()
-        if selection_model is None:
-            return []
-        return sorted({index.row() for index in selection_model.selectedRows()})
+        return acciones_pendientes.helper_selected_pending_row_indexes(self)
 
     def _selected_pending_for_editing(self) -> SolicitudDTO | None:
-        rows = self._selected_pending_row_indexes()
-        if len(rows) != 1:
-            return None
-        row = rows[0]
-        if row < 0 or row >= len(self._pending_solicitudes):
-            return None
-        return self._pending_solicitudes[row]
+        return acciones_pendientes.helper_selected_pending_for_editing(self)
 
     def _find_pending_duplicate_row(self, solicitud: SolicitudDTO) -> int | None:
-        editing = self._selected_pending_for_editing()
-        editing_id = getattr(editing, "id", None)
-        selected_rows = self._selected_pending_row_indexes()
-        editing_row = selected_rows[0] if selected_rows else None
-        decision = resolve_pending_duplicate_row(
-            PendingDuplicateEntrada(
-                solicitud=solicitud,
-                pending_solicitudes=self._pending_solicitudes,
-                editing_pending_id=editing_id,
-                editing_row=editing_row,
-                duplicated_keys=detectar_duplicados_en_pendientes(self._pending_solicitudes),
-            )
-        )
-        logger.info(
-            "UI_PREVENTIVE_DUPLICATE_RESULT duplicate_row=%s editing_id=%s editing_row=%s reason=%s",
-            decision.row_index,
-            editing_id,
-            editing_row,
-            decision.reason_code,
-        )
-        return decision.row_index
+        return acciones_pendientes.helper_find_pending_duplicate_row(self, solicitud)
 
     def _find_pending_row_by_id(self, solicitud_id: int | None) -> int | None:
-        if solicitud_id is None:
-            return None
-        for row, pending in enumerate(self._pending_solicitudes):
-            if pending.id == solicitud_id:
-                return row
-        return None
+        return acciones_pendientes.helper_find_row_by_id(self, solicitud_id)
 
     def _handle_duplicate_before_add(self, duplicate_row: int) -> bool:
-        dialog = QMessageBox(self)
-        dialog.setWindowTitle("Pendiente duplicada")
-        dialog.setText("Ya existe una pendiente igual para esta delegada, fecha y tramo horario.")
-        dialog.setInformativeText("Puedes ir a la existente o crear igualmente.")
-        goto_button = dialog.addButton("Ir a la pendiente existente", QMessageBox.AcceptRole)
-        create_button = dialog.addButton("Crear igualmente", QMessageBox.ActionRole)
-        cancel_button = dialog.addButton("Cancelar", QMessageBox.RejectRole)
-        create_button.setEnabled(False)
-        create_button.setToolTip("No permitido por la regla de negocio de duplicados.")
-        dialog.exec()
-        clicked = dialog.clickedButton()
-        if clicked is goto_button:
-            self._focus_pending_row(duplicate_row)
-            return False
-        if clicked is create_button:
-            return True
-        if clicked is cancel_button:
-            return False
-        return False
+        return acciones_pendientes.on_handle_duplicate_before_add(self, duplicate_row)
 
     def _focus_pending_row(self, row: int) -> None:
-        if row < 0 or row >= self.pendientes_model.rowCount():
-            return
-        self.pendientes_table.selectRow(row)
-        model_index = self.pendientes_model.index(row, 0)
-        self.pendientes_table.scrollTo(model_index, QAbstractItemView.PositionAtCenter)
-        self.pendientes_table.setFocus()
+        return acciones_pendientes.helper_focus_pending_row(self, row)
 
     def _focus_pending_by_id(self, solicitud_id: int | None) -> bool:
-        row = self._find_pending_row_by_id(solicitud_id)
-        if row is None:
-            return False
-        self._focus_pending_row(row)
-        return True
+        return acciones_pendientes.helper_focus_pending_by_id(self, solicitud_id)
 
     def _focus_historico_duplicate(self, solicitud: SolicitudDTO) -> None:
         return historico_actions.focus_historico_duplicate(self, solicitud)
@@ -1509,24 +1424,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return False
 
     def _resolve_pending_conflict(self, fecha_pedida: str, completo: bool) -> bool:
-        conflictos = [
-            index
-            for index, solicitud in enumerate(self._pending_solicitudes)
-            if solicitud.fecha_pedida == fecha_pedida and solicitud.completo != completo
-        ]
-        if not conflictos:
-            return True
-        mensaje = (
-            "Hay horas parciales. ¿Sustituirlas por COMPLETO?"
-            if completo
-            else "Ya existe un COMPLETO. ¿Sustituirlo por esta franja?"
-        )
-        if not self._confirm_conflicto(mensaje):
-            return False
-        for index in sorted(conflictos, reverse=True):
-            self._pending_solicitudes.pop(index)
-        self._refresh_pending_ui_state()
-        return True
+        return acciones_pendientes.on_resolve_pending_conflict(self, fecha_pedida, completo)
 
     def _resolve_backend_conflict(self, persona_id: int, solicitud: SolicitudDTO) -> bool:
         try:
@@ -1772,18 +1670,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return historico_actions.notify_historico_filter_if_hidden(self, solicitudes_insertadas)
 
     def _update_pending_totals(self) -> None:
-        persona = self._current_persona()
-        total_min = 0
-        if persona is not None and self._pending_solicitudes:
-            try:
-                total_min = self._solicitud_use_cases.sumar_pendientes_min(persona.id or 0, self._pending_solicitudes)
-            except BusinessRuleError:
-                total_min = 0
-        formatted = self._format_minutes(total_min)
-        self.total_pendientes_label.setText(f"Total: {formatted}")
-        if self.status_pending_label is not None:
-            self.status_pending_label.setText(f"Pendiente: {formatted}")
-        self.statusBar().showMessage(f"Pendiente: {formatted}", 4000)
+        return acciones_pendientes.helper_update_pending_totals(self)
 
     def _service_account_email(self) -> str | None:
         return acciones_sincronizacion.service_account_email(self)
@@ -1795,56 +1682,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return historico_actions.on_eliminar(self)
 
     def _on_remove_pendiente(self) -> None:
-        logger.info("CLICK eliminar_pendiente handler=_on_remove_pendiente")
-        self._dump_estado_pendientes("click_eliminar_pendiente")
-        selection = self.pendientes_table.selectionModel().selectedRows()
-        if not selection:
-            logger.info("_on_remove_pendiente early_return motivo=sin_seleccion")
-            return
-        logger.info(
-            "Se pide confirmación de borrado motivo=policy=always_confirm selection_count>0 (instrumentación)",
-        )
-        confirm = QMessageBox.question(
-            self,
-            copy_text("solicitudes.confirm_delete_pending_title"),
-            copy_text("solicitudes.confirm_delete_pending_message"),
-        )
-        if confirm != QMessageBox.StandardButton.Yes:
-            return
-        rows = sorted((index.row() for index in selection), reverse=True)
-        ids_to_delete: list[int] = []
-        for row in rows:
-            if 0 <= row < len(self._pending_solicitudes):
-                solicitud = self._pending_solicitudes[row]
-                if solicitud.id is not None:
-                    ids_to_delete.append(solicitud.id)
-        try:
-            self._set_processing_state(True)
-            for solicitud_id in ids_to_delete:
-                with OperationContext("eliminar_pendiente") as operation:
-                    self._solicitud_use_cases.eliminar_solicitud(
-                        solicitud_id, correlation_id=operation.correlation_id
-                    )
-        except (ValidacionError, BusinessRuleError) as exc:
-            self.toast.warning(str(exc), title="Validación")
-            return
-        except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error eliminando pendiente")
-            self._show_critical_error(exc)
-            return
-        finally:
-            self._set_processing_state(False)
-        self._reload_pending_views()
-        self._refresh_saldos()
-        self.notifications.notify_operation(
-            OperationFeedback(
-                title="Pendientes eliminadas",
-                happened="Las solicitudes pendientes seleccionadas se eliminaron.",
-                affected_count=len(ids_to_delete),
-                incidents="Sin incidencias.",
-                next_step="Puedes añadir nuevas solicitudes o confirmar otras pendientes.",
-            )
-        )
+        return acciones_pendientes.on_remove_pendiente(self)
 
     def _refresh_historico(self, *, force: bool = False) -> None:
         data_refresh.refresh_historico(self, force=force)
@@ -1874,36 +1712,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return PeriodoFiltro.mensual(periodo_base.year(), periodo_base.month())
 
     def _pending_minutes_for_period(self, filtro: PeriodoFiltro) -> int:
-        persona = self._current_persona()
-        if persona is None or not self._pending_solicitudes:
-            return 0
-        pendientes_filtrados = []
-        for solicitud in self._pending_solicitudes:
-            fecha = datetime.strptime(solicitud.fecha_pedida, "%Y-%m-%d")
-            if fecha.year != filtro.year:
-                continue
-            if filtro.modo == "MENSUAL" and fecha.month != filtro.month:
-                continue
-            pendientes_filtrados.append(solicitud)
-        if not pendientes_filtrados:
-            return 0
-        try:
-            return self._solicitud_use_cases.sumar_pendientes_min(
-                persona.id or 0, pendientes_filtrados
-            )
-        except BusinessRuleError:
-            return 0
+        return acciones_pendientes.helper_pending_minutes_for_period(self, filtro)
 
     def _clear_pendientes(self) -> None:
-        self._pending_solicitudes = []
-        self._pending_all_solicitudes = []
-        self._hidden_pendientes = []
-        self._orphan_pendientes = []
-        self.pendientes_model.clear()
-        self.huerfanas_model.clear()
-        self._pending_conflict_rows = set()
-        self._update_pending_totals()
-        self._update_action_state()
+        return acciones_pendientes.on_clear_pendientes(self)
 
     def _on_toggle_ver_todas_pendientes(self, checked: bool) -> None:
         self._pending_view_all = checked
@@ -1914,25 +1726,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         data_refresh.reload_pending_views(self)
 
     def _on_review_hidden_pendientes(self) -> None:
-        if not self._hidden_pendientes:
-            return
-        first_hidden = self._hidden_pendientes[0]
-        self.ver_todas_pendientes_button.setChecked(True)
-        self._reload_pending_views()
-        self._focus_pending_by_id(first_hidden.id)
+        return acciones_pendientes.on_review_hidden(self)
 
     def _on_remove_huerfana(self) -> None:
-        selection = self.huerfanas_table.selectionModel().selectedRows()
-        if not selection:
-            return
-        row = selection[0].row()
-        if row < 0 or row >= len(self._orphan_pendientes):
-            return
-        solicitud = self._orphan_pendientes[row]
-        if solicitud.id is None:
-            return
-        self._solicitud_use_cases.eliminar_solicitud(solicitud.id)
-        self._reload_pending_views()
+        return acciones_pendientes.on_remove_huerfana(self)
 
     def _confirm_conflicto(self, mensaje: str) -> bool:
         return (
