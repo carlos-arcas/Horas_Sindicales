@@ -20,6 +20,7 @@ from app.infrastructure.repos_sqlite_builders import (
     solicitud_insert_params,
 )
 from app.infrastructure.repos_sqlite_personas import PersonaRepositorySQLite  # noqa: F401 - re-export for compatibility
+from app.infrastructure.sqlite_connection_config import configurar_conexion
 from app.infrastructure.sqlite_uow import transaccion
 
 
@@ -32,9 +33,8 @@ _T = TypeVar("_T")
 def _configure_connection_for_runtime(connection: sqlite3.Connection) -> None:
     """Aplica pragmas defensivos para minimizar conflictos de lock en runtime."""
     try:
-        connection.execute("PRAGMA busy_timeout=30000")
+        configurar_conexion(connection, busy_timeout_ms=30000)
         connection.execute("PRAGMA synchronous=NORMAL")
-        connection.execute("PRAGMA journal_mode=WAL")
     except sqlite3.Error:
         logger.debug("sqlite_runtime_pragmas_skipped", exc_info=True)
 
