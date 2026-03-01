@@ -93,6 +93,16 @@ def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
         )
         raise SystemExit(2)
 
+    if importlib.util.find_spec("radon") is None:
+        LOGGER.error(
+            "Falta radon en el entorno activo. Instala dependencias dev con: "
+            "python -m pip install -r requirements-dev.txt"
+        )
+        LOGGER.error(
+            "El quality gate de LOC/CC debe ejecutarse sin SKIP en CI/local para ser determinista."
+        )
+        raise SystemExit(2)
+
     return {"degraded_mode": False, "degraded_reason": None}
 
 

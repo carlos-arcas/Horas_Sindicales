@@ -28,6 +28,9 @@
 - **2026-03-01 — Reglas de filtrado de histórico movidas de UI a aplicación — Vigente**  
   Antes: `app/ui/vistas/historico_filter_rules.py` contenía lógica de aceptación/descartes por estado, rango y búsqueda. Después: reglas puras en `app/domain/services.py`, y el módulo UI queda como shim de compatibilidad sin negocio. Se refuerza con guard de imports entre capas.
 
+- **2026-03-01 — Quality gate LOC/CC headless y determinista — Vigente**  
+  El test de métricas (`tests/test_quality_gate_metrics.py`) deja de importar configuración desde `app.*` y pasa a leer límites por AST desde `app/configuracion/calidad.py`, evitando side effects de Qt/UI. Además, `scripts/quality_gate.py` exige `radon` en preflight para impedir `SKIP` en CI y se añade guard dedicado para proteger la regla.
+
 ## Procedimiento de actualización
 
 1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).
