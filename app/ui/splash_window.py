@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, QThread, Qt
 from PySide6.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
 from presentacion.i18n import I18nManager
@@ -10,6 +10,8 @@ class SplashWindow(QWidget):
     def __init__(self, i18n: I18nManager) -> None:
         super().__init__()
         self._i18n = i18n
+        self._hilo_arranque: QThread | None = None
+        self._worker_arranque: QObject | None = None
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
         self.setFixedSize(460, 200)
@@ -43,3 +45,15 @@ class SplashWindow(QWidget):
     def _actualizar_textos(self) -> None:
         self._titulo.setText(self._i18n.t("splash_titulo"))
         self._cargando.setText(self._i18n.t("splash_cargando"))
+
+    def registrar_arranque(self, hilo: QThread, worker: QObject) -> None:
+        self._hilo_arranque = hilo
+        self._worker_arranque = worker
+
+    def closeEvent(self, event) -> None:  # type: ignore[override]
+        hilo = self._hilo_arranque
+        if hilo is not None and hilo.isRunning():
+            hilo.quit()
+            event.ignore()
+            return
+        super().closeEvent(event)

@@ -136,11 +136,12 @@ def run_ui(container=None) -> int:
     from presentacion.i18n import I18nManager
     from presentacion.orquestador_arranque import OrquestadorArranqueUI
 
-    from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot
+    from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal, Slot
     from PySide6.QtWidgets import QApplication, QMessageBox
 
     class _StartupWorker(QObject):
-        terminado = Signal(object, object, object)
+        finished = Signal(object)
+        failed = Signal(object, object)
 
         def __init__(self, container_seed) -> None:
             super().__init__()
@@ -156,10 +157,10 @@ def run_ui(container=None) -> int:
                     resolved_container = build_container()
                 deps_arranque = _construir_dependencias_arranque(resolved_container)
                 idioma = deps_arranque.obtener_idioma_ui.ejecutar()
-                self.terminado.emit((resolved_container, deps_arranque, idioma), None, None)
+                self.finished.emit((resolved_container, deps_arranque, idioma))
             except Exception as exc:  # noqa: BLE001
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                self.terminado.emit(None, exc, (exc_type, exc_value, exc_traceback))
+                self.failed.emit(exc, (exc_type, exc_value, exc_traceback))
 
     app = QApplication([])
     i18n = I18nManager("es")
@@ -169,6 +170,7 @@ def run_ui(container=None) -> int:
     startup_thread = QThread()
     startup_worker = _StartupWorker(container)
     startup_worker.moveToThread(startup_thread)
+    splash.registrar_arranque(startup_thread, startup_worker)
 
     def _finalizar_con_error(exc: Exception | None, trace_info) -> None:
         if trace_info is not None and all(trace_info):
@@ -186,53 +188,59 @@ def run_ui(container=None) -> int:
         app.exit(2)
 
     def _abrir_ventana_principal(startup_payload) -> None:
-        resolved_container, deps_arranque, idioma = startup_payload
-        i18n.set_idioma(idioma)
-        orquestador = OrquestadorArranqueUI(deps_arranque, i18n)
+        try:
+            resolved_container, deps_arranque, idioma = startup_payload
+            i18n.set_idioma(idioma)
+            orquestador = OrquestadorArranqueUI(deps_arranque, i18n)
 
-        if not orquestador.resolver_onboarding():
+            if not orquestador.resolver_onboarding():
+                splash.close()
+                app.exit(0)
+                return
+
+            window = MainWindow(
+                resolved_container.persona_use_cases,
+                resolved_container.solicitud_use_cases,
+                resolved_container.grupo_use_cases,
+                resolved_container.sheets_service,
+                resolved_container.sync_service,
+                resolved_container.conflicts_service,
+                resolved_container.health_check_use_case,
+                resolved_container.alert_engine,
+                resolved_container.validacion_preventiva_lock_use_case,
+                guardar_preferencia_pantalla_completa=deps_arranque.guardar_preferencia_pantalla_completa,
+                obtener_preferencia_pantalla_completa=deps_arranque.obtener_preferencia_pantalla_completa,
+            )
+            app.setProperty("_main_window_ref", window)
+            _instalar_menu_ayuda(
+                window,
+                i18n,
+                ReiniciarOnboarding(resolved_container.repositorio_preferencias),
+                resolved_container.cargar_datos_demo_caso_uso,
+            )
+            if orquestador.debe_iniciar_maximizada():
+                window.showMaximized()
+            else:
+                window.show()
             splash.close()
-            app.exit(0)
-            return
+        except Exception as exc:  # noqa: BLE001
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            _finalizar_con_error(exc, (exc_type, exc_value, exc_traceback))
 
-        window = MainWindow(
-            resolved_container.persona_use_cases,
-            resolved_container.solicitud_use_cases,
-            resolved_container.grupo_use_cases,
-            resolved_container.sheets_service,
-            resolved_container.sync_service,
-            resolved_container.conflicts_service,
-            resolved_container.health_check_use_case,
-            resolved_container.alert_engine,
-            resolved_container.validacion_preventiva_lock_use_case,
-            guardar_preferencia_pantalla_completa=deps_arranque.guardar_preferencia_pantalla_completa,
-            obtener_preferencia_pantalla_completa=deps_arranque.obtener_preferencia_pantalla_completa,
-        )
-        app.setProperty("_main_window_ref", window)
-        _instalar_menu_ayuda(
-            window,
-            i18n,
-            ReiniciarOnboarding(resolved_container.repositorio_preferencias),
-            resolved_container.cargar_datos_demo_caso_uso,
-        )
-        if orquestador.debe_iniciar_maximizada():
-            window.showMaximized()
-        else:
-            window.show()
-        splash.close()
-
-    @Slot(object, object, object)
-    def _on_startup_terminado(startup_payload, exc, trace_info) -> None:
-        startup_thread.quit()
-        startup_thread.wait()
-        startup_worker.deleteLater()
-        startup_thread.deleteLater()
-        if exc is not None:
-            _finalizar_con_error(exc, trace_info)
-            return
+    @Slot(object)
+    def _on_startup_finished(startup_payload) -> None:
         _abrir_ventana_principal(startup_payload)
 
-    startup_worker.terminado.connect(_on_startup_terminado)
+    @Slot(object, object)
+    def _on_startup_failed(exc, trace_info) -> None:
+        _finalizar_con_error(exc, trace_info)
+
+    startup_worker.finished.connect(startup_thread.quit)
+    startup_worker.finished.connect(_on_startup_finished, Qt.ConnectionType.QueuedConnection)
+    startup_worker.failed.connect(startup_thread.quit)
+    startup_worker.failed.connect(_on_startup_failed, Qt.ConnectionType.QueuedConnection)
+    startup_thread.finished.connect(startup_worker.deleteLater)
+    startup_thread.finished.connect(startup_thread.deleteLater)
     startup_thread.started.connect(startup_worker.run)
 
     try:
