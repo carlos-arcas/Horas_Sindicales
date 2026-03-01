@@ -4,13 +4,14 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QDate
-from PySide6.QtWidgets import QDialog, QMessageBox
+from PySide6.QtCore import QDate, QItemSelectionModel
+from PySide6.QtWidgets import QAbstractItemView, QDialog, QMessageBox
 
 from app.core.observability import OperationContext, log_event
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.bootstrap.logging import log_operational_error
 from app.ui.patterns import status_badge
+from app.ui.notification_service import OperationFeedback
 
 
 logger = logging.getLogger(__name__)
@@ -86,6 +87,141 @@ def on_historico_apply_filters(window: Any) -> None:
         year_mode,
     )
     window._apply_historico_filters()
+
+
+def configure_historico_focus_order(window: Any) -> None:
+    window.setTabOrder(window.historico_search_input, window.historico_estado_combo)
+    window.setTabOrder(window.historico_estado_combo, window.historico_delegada_combo)
+    window.setTabOrder(window.historico_delegada_combo, window.historico_desde_date)
+    window.setTabOrder(window.historico_desde_date, window.historico_hasta_date)
+    window.setTabOrder(window.historico_hasta_date, window.historico_apply_filters_button)
+    window.setTabOrder(window.historico_apply_filters_button, window.historico_table)
+
+
+def focus_historico_search(window: Any) -> None:
+    window.historico_search_input.setFocus()
+    window.historico_search_input.selectAll()
+
+
+def apply_historico_text_filter(window: Any) -> None:
+    window.historico_proxy_model.set_search_text(window.historico_search_input.text())
+    window._update_action_state()
+
+
+def historico_period_filter_state(window: Any) -> tuple[str, int | None, int | None]:
+    if window.historico_periodo_anual_radio.isChecked():
+        return "ALL_YEAR", window.historico_periodo_anual_spin.value(), None
+    if window.historico_periodo_mes_radio.isChecked():
+        return "YEAR_MONTH", window.historico_periodo_mes_ano_spin.value(), window.historico_periodo_mes_combo.currentData()
+    return "RANGE", None, None
+
+
+def update_historico_empty_state(window: Any) -> None:
+    has_rows = window.historico_proxy_model.rowCount() > 0
+    window.historico_empty_state.setVisible(not has_rows)
+    window.historico_details_content.setVisible(True)
+
+
+def on_historico_escape(window: Any) -> None:
+    if window.historico_search_input.hasFocus():
+        window.historico_search_input.clearFocus()
+        return
+    window.historico_table.clearSelection()
+
+
+def selected_historico_solicitudes(window: Any) -> list[Any]:
+    selection = window.historico_table.selectionModel().selectedRows()
+    if not selection:
+        return []
+    solicitudes: list[Any] = []
+    for proxy_index in selection:
+        source_index = window.historico_proxy_model.mapToSource(proxy_index)
+        solicitud = window.historico_model.solicitud_at(source_index.row())
+        if solicitud is not None:
+            solicitudes.append(solicitud)
+    return solicitudes
+
+
+def selected_historico(window: Any) -> Any | None:
+    selected = window._selected_historico_solicitudes()
+    return selected[0] if selected else None
+
+
+def on_historico_select_all_visible_toggled(window: Any, checked: bool) -> None:
+    selection_model = window.historico_table.selectionModel()
+    if selection_model is None:
+        return
+    flag = QItemSelectionModel.SelectionFlag.Select if checked else QItemSelectionModel.SelectionFlag.Deselect
+    for row in range(window.historico_proxy_model.rowCount()):
+        index = window.historico_proxy_model.index(row, 0)
+        selection_model.select(index, flag | QItemSelectionModel.SelectionFlag.Rows)
+    window._update_action_state()
+
+
+def sync_historico_select_all_visible_state(window: Any) -> None:
+    if window.historico_select_all_visible_check is None:
+        return
+    visible_rows = window.historico_proxy_model.rowCount()
+    window.historico_select_all_visible_check.blockSignals(True)
+    if visible_rows == 0:
+        window.historico_select_all_visible_check.setChecked(False)
+        window.historico_select_all_visible_check.setEnabled(False)
+        window.historico_select_all_visible_check.blockSignals(False)
+        return
+    selected_count = len(window.historico_table.selectionModel().selectedRows())
+    window.historico_select_all_visible_check.setEnabled(True)
+    window.historico_select_all_visible_check.setChecked(selected_count == visible_rows)
+    window.historico_select_all_visible_check.blockSignals(False)
+
+
+def focus_historico_duplicate(window: Any, solicitud: Any) -> None:
+    window._refresh_historico()
+    for row in range(window.historico_model.rowCount()):
+        model_solicitud = window.historico_model.solicitud_at(row)
+        if model_solicitud.id == solicitud.id:
+            source_index = window.historico_model.index(row, 0)
+            proxy_index = window.historico_proxy_model.mapFromSource(source_index)
+            if proxy_index.isValid():
+                window.historico_table.clearSelection()
+                window.historico_table.selectRow(proxy_index.row())
+                window.historico_table.scrollTo(
+                    proxy_index,
+                    QAbstractItemView.ScrollHint.PositionAtCenter,
+                )
+            break
+
+
+def notify_historico_filter_if_hidden(window: Any, solicitudes_insertadas: list[Any]) -> None:
+    inserted_ids = {solicitud.id for solicitud in solicitudes_insertadas if solicitud.id is not None}
+    if not inserted_ids:
+        return
+    visibles_ids: set[int] = set()
+    for row in range(window.historico_proxy_model.rowCount()):
+        proxy_index = window.historico_proxy_model.index(row, 0)
+        source_index = window.historico_proxy_model.mapToSource(proxy_index)
+        solicitud = window.historico_model.solicitud_at(source_index.row())
+        if solicitud and solicitud.id is not None:
+            visibles_ids.add(solicitud.id)
+    if inserted_ids.issubset(visibles_ids):
+        return
+    logger.info(
+        "Solicitudes insertadas en histórico pero no visibles por filtros actuales: ids=%s",
+        sorted(inserted_ids - visibles_ids),
+    )
+    window._show_optional_notice(
+        "confirmaciones/no_visible_filtros",
+        "Solicitud confirmada",
+        "Solicitud confirmada. Ajusta filtros para verla en Histórico.",
+    )
+
+
+def on_export_historico_pdf(window: Any) -> None:
+    export_handler = getattr(window, "_on_generar_pdf_historico", None)
+    if callable(export_handler):
+        export_handler()
+        return
+    logger.warning("export_historico_pdf_not_available")
+    QMessageBox.information(window, "Exportación", "Función no disponible")
 
 
 def on_generar_pdf_historico(window: Any) -> None:
@@ -166,3 +302,39 @@ def on_open_historico_detalle(window: Any) -> None:
     }
     dialog = window._historico_detalle_dialog_class(payload, window)
     dialog.exec()
+
+
+def on_eliminar(window: Any) -> None:
+    logger.info("CLICK eliminar_historico handler=_on_eliminar selected=%s", len(window._selected_historico_solicitudes()))
+    seleccionadas = [sol for sol in window._selected_historico_solicitudes() if sol.id is not None]
+    if not seleccionadas:
+        logger.info("_on_eliminar early_return motivo=sin_seleccion")
+        return
+    try:
+        window._set_processing_state(True)
+        for solicitud in seleccionadas:
+            with OperationContext("eliminar_solicitud") as operation:
+                window._solicitud_use_cases.eliminar_solicitud(
+                    solicitud.id or 0, correlation_id=operation.correlation_id
+                )
+    except (ValidacionError, BusinessRuleError) as exc:
+        window.toast.warning(str(exc), title="Validación")
+        return
+    except Exception as exc:  # pragma: no cover - fallback
+        logger.exception("Error eliminando solicitud")
+        window._show_critical_error(exc)
+        return
+    finally:
+        window._set_processing_state(False)
+    window._refresh_historico()
+    window._refresh_saldos()
+    window._update_action_state()
+    window.notifications.notify_operation(
+        OperationFeedback(
+            title="Solicitudes eliminadas",
+            happened="Las solicitudes seleccionadas se eliminaron del histórico.",
+            affected_count=len(seleccionadas),
+            incidents="Sin incidencias.",
+            next_step="Puedes continuar o revisar histórico.",
+        )
+    )

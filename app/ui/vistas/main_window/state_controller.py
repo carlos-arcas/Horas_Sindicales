@@ -91,10 +91,7 @@ try:
                                                     prompt_confirm_pdf_path, show_confirmation_closure,
                                                     show_pdf_actions_dialog, sum_solicitudes_minutes,
                                                     undo_confirmation)
-    from app.ui.vistas.historico_actions import (apply_historico_default_range, apply_historico_filters,
-                                                 apply_historico_last_30_days, on_generar_pdf_historico,
-                                                 on_historico_apply_filters, on_historico_periodo_mode_changed,
-                                                 on_open_historico_detalle)
+    from app.ui.vistas import historico_actions
     from app.ui.vistas.ui_helpers import abrir_archivo_local
     from app.ui.vistas.main_window_helpers import (build_estado_pendientes_debug_payload,
                                                    build_historico_filters_payload,
@@ -129,9 +126,11 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     execute_confirmar_with_pdf = finalize_confirmar_with_pdf = iterar_pendientes_en_tabla = _qt_unavailable
     on_confirmar = on_insertar_sin_pdf = prompt_confirm_pdf_path = _qt_unavailable
     show_confirmation_closure = show_pdf_actions_dialog = sum_solicitudes_minutes = undo_confirmation = _qt_unavailable
-    apply_historico_default_range = apply_historico_filters = apply_historico_last_30_days = _qt_unavailable
-    on_generar_pdf_historico = on_historico_apply_filters = _qt_unavailable
-    on_historico_periodo_mode_changed = on_open_historico_detalle = _qt_unavailable
+    class _HistoricoActionsFallback:
+        def __getattr__(self, _name):
+            return _qt_unavailable
+
+    historico_actions = _HistoricoActionsFallback()
     abrir_archivo_local = _qt_unavailable
     build_estado_pendientes_debug_payload = build_historico_filters_payload = _qt_unavailable
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
@@ -565,17 +564,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return acciones_sincronizacion.on_sync_with_confirmation(self)
 
     def _on_export_historico_pdf(self) -> None:
-        """Alias estable para acciones de shell/header refactorizadas."""
-        export_handler = getattr(self, "_on_generar_pdf_historico", None)
-        if callable(export_handler):
-            export_handler()
-            return
-        logger.warning("export_historico_pdf_not_available")
-        QMessageBox.information(
-            self,
-            "Exportación",
-            "Función no disponible",
-        )
+        return historico_actions.on_export_historico_pdf(self)
 
     def _normalize_input_heights(self) -> None:
         controls = [
@@ -645,17 +634,11 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.notas_input.setToolTip(copy_text("solicitudes.tooltip_notas") if extended else "")
 
     def _configure_historico_focus_order(self) -> None:
-        self.setTabOrder(self.historico_search_input, self.historico_estado_combo)
-        self.setTabOrder(self.historico_estado_combo, self.historico_delegada_combo)
-        self.setTabOrder(self.historico_delegada_combo, self.historico_desde_date)
-        self.setTabOrder(self.historico_desde_date, self.historico_hasta_date)
-        self.setTabOrder(self.historico_hasta_date, self.historico_apply_filters_button)
-        self.setTabOrder(self.historico_apply_filters_button, self.historico_table)
+        return historico_actions.configure_historico_focus_order(self)
 
     def _focus_historico_search(self) -> None:
         self.main_tabs.setCurrentIndex(1)
-        self.historico_search_input.setFocus()
-        self.historico_search_input.selectAll()
+        return historico_actions.focus_historico_search(self)
 
     def _update_responsive_columns(self) -> None:
         if not hasattr(self, "solicitudes_splitter"):
@@ -783,30 +766,22 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.delete_persona_button.setEnabled(has_selected_persona)
 
     def _apply_historico_text_filter(self) -> None:
-        self.historico_proxy_model.set_search_text(self.historico_search_input.text())
-        self._update_action_state()
+        return historico_actions.apply_historico_text_filter(self)
 
     def _historico_period_filter_state(self) -> tuple[str, int | None, int | None]:
-        if self.historico_periodo_anual_radio.isChecked():
-            return "ALL_YEAR", self.historico_periodo_anual_spin.value(), None
-        if self.historico_periodo_mes_radio.isChecked():
-            return "YEAR_MONTH", self.historico_periodo_mes_ano_spin.value(), self.historico_periodo_mes_combo.currentData()
-        return "RANGE", None, None
+        return historico_actions.historico_period_filter_state(self)
 
     def _apply_historico_filters(self) -> None:
-        apply_historico_filters(self)
+        historico_actions.apply_historico_filters(self)
 
     def _update_historico_empty_state(self) -> None:
-        has_rows = self.historico_proxy_model.rowCount() > 0
-        self.historico_empty_state.setVisible(not has_rows)
-        # Los filtros de histórico deben permanecer utilizables incluso sin resultados.
-        self.historico_details_content.setVisible(True)
+        return historico_actions.update_historico_empty_state(self)
 
     def _apply_historico_default_range(self) -> None:
-        apply_historico_default_range(self)
+        historico_actions.apply_historico_default_range(self)
 
     def _apply_historico_last_30_days(self) -> None:
-        apply_historico_last_30_days(self)
+        historico_actions.apply_historico_last_30_days(self)
 
     def _on_historico_todas_delegadas_toggled(self, checked: bool) -> None:
         self.historico_delegada_combo.setEnabled(not checked)
@@ -814,10 +789,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
             self.historico_delegada_combo.setCurrentIndex(0)
 
     def _on_historico_periodo_mode_changed(self) -> None:
-        on_historico_periodo_mode_changed(self)
+        historico_actions.on_historico_periodo_mode_changed(self)
 
     def _on_historico_apply_filters(self) -> None:
-        on_historico_apply_filters(self)
+        historico_actions.on_historico_apply_filters(self)
 
     def _on_open_saldos_modal(self) -> None:
         logger.info("UI_SALDOS_MODAL_OPEN")
@@ -853,10 +828,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         dialog.exec()
 
     def _on_historico_escape(self) -> None:
-        if self.historico_search_input.hasFocus():
-            self.historico_search_input.clearFocus()
-            return
-        self.historico_table.clearSelection()
+        return historico_actions.on_historico_escape(self)
 
     def _on_completo_changed(self, checked: bool) -> None:
         self._sync_completo_visibility(checked)
@@ -1337,50 +1309,16 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         )
 
     def _selected_historico(self) -> SolicitudDTO | None:
-        selected = self._selected_historico_solicitudes()
-        return selected[0] if selected else None
+        return historico_actions.selected_historico(self)
 
     def _selected_historico_solicitudes(self) -> list[SolicitudDTO]:
-        selection = self.historico_table.selectionModel().selectedRows()
-        if not selection:
-            return []
-        solicitudes: list[SolicitudDTO] = []
-        for proxy_index in selection:
-            source_index = self.historico_proxy_model.mapToSource(proxy_index)
-            solicitud = self.historico_model.solicitud_at(source_index.row())
-            if solicitud is not None:
-                solicitudes.append(solicitud)
-        return solicitudes
+        return historico_actions.selected_historico_solicitudes(self)
 
     def _on_historico_select_all_visible_toggled(self, checked: bool) -> None:
-        selection_model = self.historico_table.selectionModel()
-        if selection_model is None:
-            return
-        if checked:
-            for row in range(self.historico_proxy_model.rowCount()):
-                index = self.historico_proxy_model.index(row, 0)
-                selection_model.select(index, QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows)
-        else:
-            for row in range(self.historico_proxy_model.rowCount()):
-                index = self.historico_proxy_model.index(row, 0)
-                selection_model.select(index, QItemSelectionModel.SelectionFlag.Deselect | QItemSelectionModel.SelectionFlag.Rows)
-        self._update_action_state()
+        return historico_actions.on_historico_select_all_visible_toggled(self, checked)
 
     def _sync_historico_select_all_visible_state(self) -> None:
-        if self.historico_select_all_visible_check is None:
-            return
-        visible_rows = self.historico_proxy_model.rowCount()
-        if visible_rows == 0:
-            self.historico_select_all_visible_check.blockSignals(True)
-            self.historico_select_all_visible_check.setChecked(False)
-            self.historico_select_all_visible_check.setEnabled(False)
-            self.historico_select_all_visible_check.blockSignals(False)
-            return
-        selected_count = len(self.historico_table.selectionModel().selectedRows())
-        self.historico_select_all_visible_check.blockSignals(True)
-        self.historico_select_all_visible_check.setEnabled(True)
-        self.historico_select_all_visible_check.setChecked(selected_count == visible_rows)
-        self.historico_select_all_visible_check.blockSignals(False)
+        return historico_actions.sync_historico_select_all_visible_state(self)
 
     def _on_add_persona(self) -> None:
         dialog = PersonaDialog(self)
@@ -1539,22 +1477,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return True
 
     def _focus_historico_duplicate(self, solicitud: SolicitudDTO) -> None:
-        self._refresh_historico()
-        for row in range(self.historico_model.rowCount()):
-            model_solicitud = self.historico_model.solicitud_at(row)
-            if model_solicitud is None:
-                continue
-            if model_solicitud.id == solicitud.id:
-                source_index = self.historico_model.index(row, 0)
-                proxy_index = self.historico_proxy_model.mapFromSource(source_index)
-                if not proxy_index.isValid():
-                    continue
-                self.historico_table.selectRow(proxy_index.row())
-                self.historico_table.scrollTo(
-                    proxy_index, QAbstractItemView.PositionAtCenter
-                )
-                self.main_tabs.setCurrentIndex(1)
-                return
+        return historico_actions.focus_historico_duplicate(self, solicitud)
 
     def _handle_duplicate_detected(self, duplicate: SolicitudDTO) -> bool:
         is_pending = not duplicate.generated
@@ -1846,27 +1769,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self.toast.info(message, title=title)
 
     def _notify_historico_filter_if_hidden(self, solicitudes_insertadas: list[SolicitudDTO]) -> None:
-        inserted_ids = {solicitud.id for solicitud in solicitudes_insertadas if solicitud.id is not None}
-        if not inserted_ids:
-            return
-        visibles_ids: set[int] = set()
-        for row in range(self.historico_proxy_model.rowCount()):
-            proxy_index = self.historico_proxy_model.index(row, 0)
-            source_index = self.historico_proxy_model.mapToSource(proxy_index)
-            solicitud = self.historico_model.solicitud_at(source_index.row())
-            if solicitud and solicitud.id is not None:
-                visibles_ids.add(solicitud.id)
-        if inserted_ids.issubset(visibles_ids):
-            return
-        logger.info(
-            "Solicitudes insertadas en histórico pero no visibles por filtros actuales: ids=%s",
-            sorted(inserted_ids - visibles_ids),
-        )
-        self._show_optional_notice(
-            "confirmaciones/no_visible_filtros",
-            "Solicitud confirmada",
-            "Solicitud confirmada. Ajusta filtros para verla en Histórico.",
-        )
+        return historico_actions.notify_historico_filter_if_hidden(self, solicitudes_insertadas)
 
     def _update_pending_totals(self) -> None:
         persona = self._current_persona()
@@ -1886,41 +1789,10 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         return acciones_sincronizacion.service_account_email(self)
 
     def _on_generar_pdf_historico(self) -> None:
-        on_generar_pdf_historico(self)
+        historico_actions.on_generar_pdf_historico(self)
+
     def _on_eliminar(self) -> None:
-        logger.info("CLICK eliminar_historico handler=_on_eliminar selected=%s", len(self._selected_historico_solicitudes()))
-        seleccionadas = [sol for sol in self._selected_historico_solicitudes() if sol.id is not None]
-        if not seleccionadas:
-            logger.info("_on_eliminar early_return motivo=sin_seleccion")
-            return
-        try:
-            self._set_processing_state(True)
-            for solicitud in seleccionadas:
-                with OperationContext("eliminar_solicitud") as operation:
-                    self._solicitud_use_cases.eliminar_solicitud(
-                        solicitud.id or 0, correlation_id=operation.correlation_id
-                    )
-        except (ValidacionError, BusinessRuleError) as exc:
-            self.toast.warning(str(exc), title="Validación")
-            return
-        except Exception as exc:  # pragma: no cover - fallback
-            logger.exception("Error eliminando solicitud")
-            self._show_critical_error(exc)
-            return
-        finally:
-            self._set_processing_state(False)
-        self._refresh_historico()
-        self._refresh_saldos()
-        self._update_action_state()
-        self.notifications.notify_operation(
-            OperationFeedback(
-                title="Solicitudes eliminadas",
-                happened="Las solicitudes seleccionadas se eliminaron del histórico.",
-                affected_count=len(seleccionadas),
-                incidents="Sin incidencias.",
-                next_step="Puedes continuar o revisar histórico.",
-            )
-        )
+        return historico_actions.on_eliminar(self)
 
     def _on_remove_pendiente(self) -> None:
         logger.info("CLICK eliminar_pendiente handler=_on_remove_pendiente")
@@ -1995,7 +1867,7 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._update_action_state()
 
     def _on_open_historico_detalle(self) -> None:
-        on_open_historico_detalle(self)
+        historico_actions.on_open_historico_detalle(self)
 
     def _current_saldo_filtro(self) -> PeriodoFiltro:
         periodo_base = self.fecha_input.date() if hasattr(self, "fecha_input") else QDate.currentDate()
