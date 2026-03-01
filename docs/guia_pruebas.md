@@ -33,6 +33,23 @@ Opciones del menú operativo:
 
 El launcher informa la carpeta de logs (`logs\`) y muestra `PASS`/`FAIL` por opción según el exit code devuelto por cada script.
 
+
+## Scripts en `scripts/` (compatibilidad CI/manual)
+
+También existen wrappers equivalentes para ejecución desde la carpeta `scripts`:
+
+```bat
+scripts\lanzar_app.bat
+scripts\ejecutar_tests.bat
+```
+
+- `scripts\lanzar_app.bat`: crea `.venv` si falta, instala `requirements.txt` y ejecuta `python main.py`.
+- `scripts\ejecutar_tests.bat`: crea `.venv` si falta, instala `requirements.txt` (+ `requirements-dev.txt` si existe) y ejecuta:
+
+```bat
+pytest --cov=. --cov-report=term-missing --cov-fail-under=85
+```
+
 ## Ejecución manual equivalente
 
 Desde la raíz del repositorio:

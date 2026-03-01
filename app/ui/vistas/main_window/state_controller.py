@@ -56,6 +56,10 @@ from app.application.use_cases.retry_sync_use_case import RetrySyncUseCase
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
+from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
+    GuardarPreferenciaPantallaCompleta,
+    ObtenerPreferenciaPantallaCompleta,
+)
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan
 try:
@@ -167,6 +171,8 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         health_check_use_case: HealthCheckUseCase | None = None,
         alert_engine: AlertEngine | None = None,
         validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase | None = None,
+        guardar_preferencia_pantalla_completa: GuardarPreferenciaPantallaCompleta | None = None,
+        obtener_preferencia_pantalla_completa: ObtenerPreferenciaPantallaCompleta | None = None,
     ) -> None:
         super().__init__()
         self._persona_use_cases = persona_use_cases
@@ -181,6 +187,8 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
             validacion_preventiva_lock_use_case or ValidacionPreventivaLockUseCase()
         )
         self._alert_snooze: dict[str, str] = {}
+        self._guardar_preferencia_pantalla_completa = guardar_preferencia_pantalla_completa
+        self._obtener_preferencia_pantalla_completa = obtener_preferencia_pantalla_completa
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
@@ -270,6 +278,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self.total_preview_input = None
         self.add_persona_button = self.edit_persona_button = self.delete_persona_button = None
         self.edit_grupo_button = self.opciones_button = self.config_delegada_combo = None
+        self.preferencia_pantalla_completa_check = None
         self.cuadrante_warning_label = None
         self._last_persona_id: int | None = None
         self._draft_solicitud_por_persona: dict[int, dict[str, object]] = {}
@@ -284,6 +293,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._optional_confirm_dialog_class = OptionalConfirmDialog
         self.setWindowTitle("Horas Sindicales")
         self._build_ui()
+        self._inicializar_preferencia_pantalla_completa()
         self._apply_help_preferences()
         self._apply_solicitudes_tooltips()
         self._validate_required_widgets()
@@ -302,6 +312,22 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._refresh_health_and_alerts()
         self._post_init_load()
         QTimer.singleShot(0, self._warmup_sync_client)
+
+
+    def _inicializar_preferencia_pantalla_completa(self) -> None:
+        if self.preferencia_pantalla_completa_check is None:
+            return
+        if self._obtener_preferencia_pantalla_completa is None:
+            return
+        preferencia = self._obtener_preferencia_pantalla_completa.ejecutar()
+        self.preferencia_pantalla_completa_check.blockSignals(True)
+        self.preferencia_pantalla_completa_check.setChecked(preferencia)
+        self.preferencia_pantalla_completa_check.blockSignals(False)
+
+    def _on_toggle_preferencia_pantalla_completa(self, valor: bool) -> None:
+        if self._guardar_preferencia_pantalla_completa is None:
+            return
+        self._guardar_preferencia_pantalla_completa.ejecutar(valor)
 
     def _warmup_sync_client(self) -> None:
         try:

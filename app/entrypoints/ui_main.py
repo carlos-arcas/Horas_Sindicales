@@ -115,10 +115,14 @@ def run_ui(container=None) -> int:
             resolved_container.health_check_use_case,
             resolved_container.alert_engine,
             resolved_container.validacion_preventiva_lock_use_case,
+            guardar_preferencia_pantalla_completa=deps_arranque.guardar_preferencia_pantalla_completa,
+            obtener_preferencia_pantalla_completa=deps_arranque.obtener_preferencia_pantalla_completa,
         )
         _instalar_menu_ayuda(window, i18n, ReiniciarOnboarding(resolved_container.repositorio_preferencias))
-        orquestador.aplicar_preferencias_ventana(window)
-        window.show()
+        if orquestador.debe_iniciar_maximizada():
+            window.showMaximized()
+        else:
+            window.show()
         splash.close()
         return app.exec()
     except Exception as exc:  # noqa: BLE001

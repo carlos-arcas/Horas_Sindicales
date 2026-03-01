@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 try:
-    from PySide6.QtCore import QObject
+    import PySide6  # noqa: F401
 except Exception as exc:  # pragma: no cover
     pytest.skip(f"Qt no disponible: {exc}", allow_module_level=True)
 
@@ -21,14 +21,6 @@ class StubCasoUso:
         return self.retorno
 
 
-class FakeWindow:
-    def __init__(self) -> None:
-        self.fullscreen = False
-
-    def showFullScreen(self) -> None:
-        self.fullscreen = True
-
-
 def _deps(onboarding_completado: bool) -> DependenciasArranque:
     return DependenciasArranque(
         obtener_estado_onboarding=StubCasoUso(onboarding_completado),
@@ -41,14 +33,11 @@ def _deps(onboarding_completado: bool) -> DependenciasArranque:
     )
 
 
-def test_orquestador_aplica_fullscreen_si_preferencia_true() -> None:
+def test_orquestador_indica_arranque_maximizado_si_preferencia_true() -> None:
     deps = _deps(onboarding_completado=True)
     orquestador = OrquestadorArranqueUI(deps, I18nManager("es"))
-    window = FakeWindow()
 
-    orquestador.aplicar_preferencias_ventana(window)
-
-    assert window.fullscreen is True
+    assert orquestador.debe_iniciar_maximizada() is True
 
 
 def test_orquestador_no_muestra_wizard_si_onboarding_ya_completado() -> None:
