@@ -123,6 +123,7 @@ from app.ui.vistas.main_window.importaciones import (
 )  # noqa: F401
 
 from . import data_refresh, layout_builder, wiring
+from .layout_helpers import normalize_input_heights
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
 from .init_placeholders import inicializar_placeholders
@@ -429,6 +430,9 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _build_status_bar(self) -> None:
         layout_builder.build_status(self)
+
+    def _normalize_input_heights(self) -> None:
+        normalize_input_heights(self)
 
     def _status_to_label(self, status: str) -> str:
         from app.ui.vistas.main_window import dialogos_sincronizacion
