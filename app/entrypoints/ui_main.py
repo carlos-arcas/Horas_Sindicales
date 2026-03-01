@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import uuid
 from types import TracebackType
 
 from aplicacion.casos_de_uso.documentos import ObtenerRutaGuiaSync
@@ -11,6 +12,7 @@ from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
     GuardarPreferenciaPantallaCompleta,
     ObtenerPreferenciaPantallaCompleta,
 )
+from app.application.use_cases.cargar_datos_demo_caso_uso import CargarDatosDemoCasoUso
 from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
 
@@ -56,11 +58,17 @@ def _construir_dependencias_arranque(container):
     )
 
 
-def _instalar_menu_ayuda(main_window, i18n, reiniciar_onboarding: ReiniciarOnboarding) -> None:
+def _instalar_menu_ayuda(
+    main_window,
+    i18n,
+    reiniciar_onboarding: ReiniciarOnboarding,
+    cargar_datos_demo: CargarDatosDemoCasoUso,
+) -> None:
     from PySide6.QtWidgets import QMessageBox
 
     menu_ayuda = main_window.menuBar().addMenu(i18n.t("menu_ayuda"))
     accion_reiniciar = menu_ayuda.addAction(i18n.t("menu_reiniciar_asistente"))
+    accion_cargar_demo = menu_ayuda.addAction(i18n.t("menu_cargar_demo"))
 
     def _reiniciar_asistente() -> None:
         respuesta = QMessageBox.question(
@@ -75,7 +83,49 @@ def _instalar_menu_ayuda(main_window, i18n, reiniciar_onboarding: ReiniciarOnboa
         reiniciar_onboarding.ejecutar()
         QMessageBox.information(main_window, i18n.t("menu_ayuda"), i18n.t("menu_reiniciar_ok"))
 
+    def _cargar_demo() -> None:
+        confirmacion = QMessageBox.question(
+            main_window,
+            i18n.t("menu_cargar_demo_confirmar_titulo"),
+            i18n.t("menu_cargar_demo_confirmar_mensaje"),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if confirmacion != QMessageBox.Yes:
+            return
+        resultado = cargar_datos_demo.ejecutar(modo="BACKUP")
+        if resultado.ok:
+            main_window._load_personas()
+            main_window._reload_pending_views()
+            main_window._refresh_historico(force=True)
+            main_window._refresh_saldos()
+            main_window.main_tabs.setCurrentIndex(0)
+            main_window.toast.show(
+                i18n.t("menu_cargar_demo_toast_ok"),
+                level="success",
+                title=i18n.t("menu_cargar_demo"),
+                action_label=i18n.t("menu_cargar_demo_ir_solicitudes"),
+                action_callback=lambda: main_window.main_tabs.setCurrentIndex(0),
+            )
+            return
+        correlation_id = str(uuid.uuid4())
+        main_window.toast.show(
+            i18n.t("menu_cargar_demo_toast_error"),
+            level="error",
+            title=i18n.t("menu_cargar_demo"),
+            action_label=i18n.t("menu_cargar_demo_ver_detalles"),
+            action_callback=lambda: QMessageBox.critical(
+                main_window,
+                i18n.t("menu_cargar_demo"),
+                resultado.detalles or i18n.t("menu_cargar_demo_error_sin_detalles"),
+            ),
+            details=resultado.detalles,
+            correlation_id=correlation_id,
+            code="DEMO_LOAD_FAILED",
+        )
+
     accion_reiniciar.triggered.connect(_reiniciar_asistente)
+    accion_cargar_demo.triggered.connect(_cargar_demo)
 
 
 def run_ui(container=None) -> int:
@@ -159,7 +209,12 @@ def run_ui(container=None) -> int:
             obtener_preferencia_pantalla_completa=deps_arranque.obtener_preferencia_pantalla_completa,
         )
         app.setProperty("_main_window_ref", window)
-        _instalar_menu_ayuda(window, i18n, ReiniciarOnboarding(resolved_container.repositorio_preferencias))
+        _instalar_menu_ayuda(
+            window,
+            i18n,
+            ReiniciarOnboarding(resolved_container.repositorio_preferencias),
+            resolved_container.cargar_datos_demo_caso_uso,
+        )
         if orquestador.debe_iniciar_maximizada():
             window.showMaximized()
         else:

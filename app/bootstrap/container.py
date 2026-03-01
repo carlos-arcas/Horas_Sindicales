@@ -9,18 +9,21 @@ from app.application.base_cuadrantes_service import BaseCuadrantesService
 from app.application.conflicts_service import ConflictsService
 from app.application.sheets_service import SheetsService
 from app.application.sync_sheets_use_case import SyncSheetsUseCase
+from app.application.use_cases import CargarDatosDemoCasoUso
 from app.application.use_cases.grupos_config import GrupoConfigUseCases
 from app.application.use_cases.personas import PersonaUseCases
 from app.application.use_cases.solicitudes import SolicitudUseCases
 from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.health_check import HealthCheckUseCase
-from app.infrastructure.db import get_connection
+from app.infrastructure.cargador_datos_demo_sqlite import CargadorDatosDemoSQLite
+from app.infrastructure.db import _default_db_path, get_connection
 from app.infrastructure.health_probes import DefaultConnectivityProbe, SheetsConfigProbe, SQLiteLocalDbProbe
-from app.infrastructure.sqlite_lock_error_classifier import SQLiteLockErrorClassifier
+from app.infrastructure.local_config import RepositorioPreferenciasIni
 from app.infrastructure.local_config_store import LocalConfigStore
-from app.infrastructure.pdf.generador_pdf_reportlab import GeneradorPdfReportlab
 from app.infrastructure.migrations import run_migrations
+from app.infrastructure.pdf.generador_pdf_reportlab import GeneradorPdfReportlab
+from app.infrastructure.proveedor_dataset_demo import ProveedorDatasetDemo
 from app.infrastructure.repos_conflicts_sqlite import SQLiteConflictsRepository
 from app.infrastructure.repos_sqlite import (
     CuadranteRepositorySQLite,
@@ -32,9 +35,9 @@ from app.infrastructure.seed import seed_if_empty
 from app.infrastructure.sheets_client import SheetsClient
 from app.infrastructure.sheets_gateway_gspread import SheetsGatewayGspread
 from app.infrastructure.sheets_repository import SheetsRepository
+from app.infrastructure.sqlite_lock_error_classifier import SQLiteLockErrorClassifier
 from app.infrastructure.sync_sheets_adapter import SyncSheetsAdapter
 from aplicacion.puertos.repositorio_preferencias import IRepositorioPreferencias
-from app.infrastructure.local_config import RepositorioPreferenciasIni
 
 LOGGER = logging.getLogger(__name__)
 
@@ -51,6 +54,7 @@ class AppContainer:
     alert_engine: AlertEngine
     validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase
     repositorio_preferencias: IRepositorioPreferencias
+    cargar_datos_demo_caso_uso: CargarDatosDemoCasoUso
 
 
 ConnectionFactory = Callable[[], object]
@@ -98,6 +102,10 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
         lambda: config_store.load().device_id if config_store.load() else "",
     )
 
+    proveedor_dataset_demo = ProveedorDatasetDemo()
+    cargador_demo = CargadorDatosDemoSQLite(proveedor_dataset_demo, _default_db_path())
+    cargar_datos_demo_caso_uso = CargarDatosDemoCasoUso(cargador_demo)
+
     return AppContainer(
         persona_use_cases=persona_use_cases,
         solicitud_use_cases=solicitud_use_cases,
@@ -109,6 +117,7 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
         alert_engine=alert_engine,
         validacion_preventiva_lock_use_case=validacion_preventiva_lock_use_case,
         repositorio_preferencias=repositorio_preferencias,
+        cargar_datos_demo_caso_uso=cargar_datos_demo_caso_uso,
     )
 
 
