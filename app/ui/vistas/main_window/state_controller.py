@@ -430,6 +430,9 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _build_status_bar(self) -> None:
         layout_builder.build_status(self)
 
+    def _status_to_label(self, status: str) -> str:
+        return status
+
     def _configure_solicitudes_table(self, table: QTableView) -> None:
         model = table.model()
         column_count = model.columnCount() if model is not None else 6
