@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from pathlib import Path
 
 try:
@@ -58,9 +57,7 @@ from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
-from app.application.use_cases.solicitudes.validaciones import detectar_duplicados_en_pendientes
 from app.domain.services import BusinessRuleError, ValidacionError
-from app.domain.request_time import validate_request_inputs
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
 from app.ui.copy_catalog import copy_text
 try:
@@ -97,20 +94,16 @@ try:
                                                    build_historico_filters_payload,
                                                    handle_historico_render_mismatch, log_estado_pendientes,
                                                    show_sync_error_dialog_from_exception)
-    from app.ui.vistas.main_window import acciones_pendientes
-    from app.ui.vistas.solicitudes_presenter import (ActionStateInput, PreventiveValidationViewInput,
-                                                     build_action_state, build_preventive_validation_view_model)
-    from app.ui.vistas.solicitudes_ux_rules import (SolicitudesFocusInput, SolicitudesStatusInput,
-                                                    build_solicitudes_status, resolve_first_invalid_field)
+    from app.ui.vistas.main_window import acciones_pendientes, validacion_preventiva
+    from app.ui.vistas.solicitudes_presenter import ActionStateInput, build_action_state
 except Exception:  # pragma: no cover - habilita import parcial sin dependencias de UI/Qt
     def _qt_unavailable(*args, **kwargs):
         raise RuntimeError("UI no disponible: falta instalación de Qt/PySide6")
 
     ConflictsDialog = GrupoConfigDialog = PdfConfigDialog = PersonaDialog = ToastManager = object
-    ActionStateInput = PreventiveValidationViewInput = object
-    build_action_state = build_preventive_validation_view_model = _qt_unavailable
-    build_solicitudes_status = resolve_first_invalid_field = _qt_unavailable
-    SolicitudesFocusInput = SolicitudesStatusInput = object
+    ActionStateInput = object
+    build_action_state = _qt_unavailable
+    validacion_preventiva = object
     PersonasController = SolicitudesController = SyncController = PdfController = object
     ConfirmationSummaryPayload = NotificationService = OperationFeedback = object
     SaldosCard = PushWorker = object
@@ -850,54 +843,19 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         self._bind_manual_hours_preview_refresh()
 
     def _bind_preventive_validation_events(self) -> None:
-        self.persona_combo.currentIndexChanged.connect(lambda _: self._mark_field_touched("delegada"))
-        self.fecha_input.editingFinished.connect(lambda: self._mark_field_touched("fecha"))
-        self.desde_input.editingFinished.connect(lambda: self._mark_field_touched("tramo"))
-        self.hasta_input.editingFinished.connect(lambda: self._mark_field_touched("tramo"))
-        self.completo_check.toggled.connect(lambda _: self._mark_field_touched("tramo"))
+        return validacion_preventiva._bind_preventive_validation_events(self)
 
     def _mark_field_touched(self, field: str) -> None:
-        self._field_touched.add(field)
-        self._schedule_preventive_validation()
+        return validacion_preventiva._mark_field_touched(self, field)
 
     def _schedule_preventive_validation(self) -> None:
-        if self._preventive_validation_in_progress:
-            return
-        self._preventive_validation_timer.start(self._preventive_validation_debounce_ms)
+        return validacion_preventiva._schedule_preventive_validation(self)
 
     def _run_preventive_validation(self) -> None:
-        if self._preventive_validation_in_progress:
-            return
-        self._preventive_validation_in_progress = True
-        try:
-            blocking, warnings = self._collect_preventive_validation()
-            self._blocking_errors = blocking
-            self._warnings = warnings
-            self._render_preventive_validation()
-            self._dump_estado_pendientes("after_run_preventive_validation")
-        finally:
-            self._preventive_validation_in_progress = False
+        return validacion_preventiva._run_preventive_validation(self)
 
     def _collect_base_preventive_errors(self) -> dict[str, str]:
-        blocking: dict[str, str] = {}
-        if self._current_persona() is None:
-            blocking["delegada"] = copy_text("solicitudes.validation_delegada")
-
-        fecha_pedida = self.fecha_input.date().toString("yyyy-MM-dd")
-        try:
-            datetime.strptime(fecha_pedida, "%Y-%m-%d")
-        except ValueError:
-            blocking["fecha"] = copy_text("solicitudes.validation_fecha")
-
-        completo = self.completo_check.isChecked()
-        tramo_errors = validate_request_inputs(
-            None if completo else self.desde_input.time().toString("HH:mm"),
-            None if completo else self.hasta_input.time().toString("HH:mm"),
-            completo,
-        )
-        if tramo_errors:
-            blocking["tramo"] = f"{copy_text('solicitudes.validation_tramo_prefix')} {next(iter(tramo_errors.values()))}"
-        return blocking
+        return validacion_preventiva._collect_base_preventive_errors(self)
 
     def _collect_preventive_business_rules(
         self,
@@ -905,134 +863,25 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         warnings: dict[str, str],
         blocking: dict[str, str],
     ) -> None:
-        minutos = self._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
-        year, month, _ = (int(part) for part in solicitud.fecha_pedida.split("-"))
-        saldos = self._solicitud_use_cases.calcular_saldos(solicitud.persona_id, year, month)
-        if saldos.restantes_mes < minutos or saldos.restantes_ano < minutos:
-            warnings["saldo"] = "Saldo insuficiente. La petición se ha registrado igualmente."
-
-        similares = list(self._solicitud_use_cases.buscar_similares(solicitud))
-        if similares:
-            ids_similares = [str(item.id) for item in similares if item.id is not None]
-            warnings["similares"] = "Posibles similares: " + ", ".join(ids_similares)
-
-        conflicto = self._solicitud_use_cases.validar_conflicto_dia(
-            solicitud.persona_id, solicitud.fecha_pedida, solicitud.completo
-        )
-        if not conflicto.ok:
-            blocking["conflicto"] = copy_text("solicitudes.validation_conflict")
-
-        if solicitud.completo and self.cuadrante_warning_label.isVisible():
-            warnings["cuadrante"] = "⚠ El cuadrante no está configurado y puede alterar el cálculo final."
+        return validacion_preventiva._collect_preventive_business_rules(self, solicitud, warnings, blocking)
 
     def _collect_pending_duplicates_warning(self, warnings: dict[str, str]) -> None:
-        claves_duplicadas = detectar_duplicados_en_pendientes(self._pending_solicitudes)
-        if not claves_duplicadas:
-            return
-        warnings["duplicados_pendientes"] = "Hay duplicados en pendientes."
-        self._duplicate_target = self._pending_solicitudes[0] if self._pending_solicitudes else None
+        return validacion_preventiva._collect_pending_duplicates_warning(self, warnings)
 
     def _collect_preventive_validation(self) -> tuple[dict[str, str], dict[str, str]]:
-        blocking = self._collect_base_preventive_errors()
-        warnings: dict[str, str] = {}
-        self._duplicate_target = None
-        self._collect_pending_duplicates_warning(warnings)
-
-        solicitud = self._build_preview_solicitud()
-        if solicitud is None or blocking:
-            return blocking, warnings
-
-        try:
-            db_locked_error = self._validacion_preventiva_lock_use_case.ejecutar(
-                lambda: self._collect_preventive_business_rules(solicitud, warnings, blocking)
-            )
-            if db_locked_error is not None:
-                log_operational_error(
-                    logger,
-                    "DB locked during preventive validation",
-                    exc=db_locked_error,
-                    extra={
-                        "operation": "preventive_validation",
-                        "persona_id": solicitud.persona_id,
-                    },
-                )
-                warnings["db"] = "Validación parcial temporal: base de datos ocupada. Vuelve a intentar en unos segundos."
-        except (ValidacionError, BusinessRuleError) as exc:
-            blocking.setdefault("tramo", f"{copy_text('solicitudes.validation_tramo_prefix')} {str(exc)}")
-
-        self._dump_estado_pendientes("after_collect_preventive_validation")
-        return blocking, warnings
+        return validacion_preventiva._collect_preventive_validation(self)
 
     def _render_preventive_validation(self) -> None:
-        if not self._ui_ready:
-            return
-        view_model = build_preventive_validation_view_model(
-            PreventiveValidationViewInput(
-                blocking_errors=self._blocking_errors,
-                field_touched=self._field_touched,
-                has_duplicate_target=self._duplicate_target is not None,
-            )
-        )
-        self.delegada_field_error.setVisible(bool(view_model.delegada_error))
-        self.delegada_field_error.setText(view_model.delegada_error)
-        self.fecha_field_error.setVisible(bool(view_model.fecha_error))
-        self.fecha_field_error.setText(view_model.fecha_error)
-        self.tramo_field_error.setVisible(bool(view_model.tramo_error))
-        self.tramo_field_error.setText(view_model.tramo_error)
-        self.pending_errors_frame.setVisible(view_model.show_pending_errors_frame)
-        summary_text = view_model.summary_text
-        if summary_text:
-            summary_text = f"{copy_text('solicitudes.pending_errors_intro')}\n{summary_text}"
-        self.pending_errors_summary.setText(summary_text)
-        show_duplicate_cta = view_model.show_duplicate_cta
-        self.goto_existing_button.setVisible(show_duplicate_cta)
-        logger.debug(
-            "duplicate_banner_updated visible=%s has_duplicate_error=%s duplicate_target_id=%s",
-            show_duplicate_cta,
-            "duplicado" in self._blocking_errors,
-            self._duplicate_target.id if self._duplicate_target is not None else None,
-        )
+        return validacion_preventiva._render_preventive_validation(self)
 
     def _on_go_to_existing_duplicate(self) -> None:
-        duplicate = self._duplicate_target
-        if duplicate is None:
-            return
-        if not duplicate.generated:
-            if self._focus_pending_by_id(duplicate.id):
-                return
-            duplicate_row = self._find_pending_duplicate_row(duplicate)
-            if duplicate_row is not None:
-                self._focus_pending_row(duplicate_row)
-                return
-        self._focus_historico_duplicate(duplicate)
+        return validacion_preventiva._on_go_to_existing_duplicate(self)
 
     def _run_preconfirm_checks(self) -> bool:
-        self._field_touched.update({"delegada", "fecha", "tramo"})
-        self._run_preventive_validation()
-        if self._blocking_errors:
-            self._focus_first_invalid_field()
-            self.toast.warning(copy_text("solicitudes.validation_blocking_toast"), title="Validación preventiva")
-            return False
-        if self._warnings:
-            warning_text = "\n".join(f"• {msg}" for msg in self._warnings.values())
-            self.toast.info(
-                f"Se detectaron advertencias no bloqueantes:\n{warning_text}",
-                title="Advertencias",
-            )
-        return True
+        return validacion_preventiva._run_preconfirm_checks(self)
 
     def _bind_manual_hours_preview_refresh(self) -> None:
-        if not hasattr(self, "horas_input"):
-            return
-        horas_input = self.horas_input
-        for signal_name in ("minutesChanged", "timeChanged", "valueChanged", "textChanged"):
-            signal = getattr(horas_input, signal_name, None)
-            if signal is None:
-                continue
-            try:
-                signal.connect(self._update_solicitud_preview)
-            except Exception:  # pragma: no cover - compatibilidad entre widgets Qt
-                continue
+        return validacion_preventiva._bind_manual_hours_preview_refresh(self)
 
     def _sync_completo_visibility(self, checked: bool) -> None:
         self.desde_input.setEnabled(not checked)
@@ -1095,81 +944,25 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
         dialog.exec()
 
     def _manual_hours_minutes(self) -> int:
-        if not hasattr(self, "horas_input"):
-            return 0
-        horas_input = self.horas_input
-        if hasattr(horas_input, "minutes"):
-            return max(0, int(horas_input.minutes()))
-        if hasattr(horas_input, "time"):
-            qtime = horas_input.time()
-            return (qtime.hour() * 60) + qtime.minute()
-        if hasattr(horas_input, "value"):
-            return max(0, int(horas_input.value() * 60))
-        return 0
+        return validacion_preventiva._manual_hours_minutes(self)
 
     def _build_preview_solicitud(self) -> SolicitudDTO | None:
         return form_handlers.build_preview_solicitud(self)
 
     def _calculate_preview_minutes(self) -> tuple[int | None, bool]:
-        solicitud = self._build_preview_solicitud()
-        if solicitud is None:
-            return 0, False
-        try:
-            minutos = self._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
-            return minutos, False
-        except BusinessRuleError as exc:
-            mensaje = str(exc).lower()
-            warning = solicitud.completo and "configura el cuadrante" in mensaje
-            return None, warning
+        return validacion_preventiva._calculate_preview_minutes(self)
 
     def _update_solicitud_preview(self) -> None:
-        if not self._ui_ready:
-            return
-        valid, message = self._validate_solicitud_form()
-        minutos, warning = self._calculate_preview_minutes()
-        total_txt = "—" if minutos is None or not valid else self._format_minutes(minutos)
-        self.total_preview_input.setText(total_txt)
-        self.cuadrante_warning_label.setVisible(warning)
-        self.cuadrante_warning_label.setText("Cuadrante no configurado" if warning else "")
-        self.solicitud_inline_error.setVisible(False)
-        self.solicitud_inline_error.setText("")
-        self._solicitudes_last_action_saved = False
-        self._run_preventive_validation()
-        self._update_action_state()
+        return validacion_preventiva._update_solicitud_preview(self)
 
     def _validate_solicitud_form(self) -> tuple[bool, str]:
-        if self._current_persona() is None:
-            return False, "Selecciona una persona para crear la solicitud."
-        completo = self.completo_check.isChecked()
-        errors = validate_request_inputs(
-            None if completo else self.desde_input.time().toString("HH:mm"),
-            None if completo else self.hasta_input.time().toString("HH:mm"),
-            completo,
-        )
-        if errors:
-            return False, next(iter(errors.values()))
-        return True, ""
+        return validacion_preventiva._validate_solicitud_form(self)
 
     def _update_solicitudes_status_panel(self) -> None:
-        if self.solicitudes_status_label is None or self.solicitudes_status_hint is None:
-            return
-        status = build_solicitudes_status(
-            SolicitudesStatusInput(
-                pending_count=len(self._pending_solicitudes),
-                has_blocking_errors=bool(getattr(self, "_blocking_errors", {})),
-                has_runtime_error=self._solicitudes_runtime_error,
-                last_action_saved=self._solicitudes_last_action_saved,
-            )
-        )
-        self.solicitudes_status_label.setText(status.label)
-        self.solicitudes_status_hint.setText(status.hint)
+        return validacion_preventiva._update_solicitudes_status_panel(self)
 
     def _focus_first_invalid_field(self) -> None:
-        first_field = resolve_first_invalid_field(SolicitudesFocusInput(blocking_errors=self._blocking_errors))
-        mapping = {"delegada": self.persona_combo, "fecha": self.fecha_input, "tramo": self.desde_input}
-        target = mapping.get(first_field)
-        if target is not None:
-            target.setFocus()
+        return validacion_preventiva._focus_first_invalid_field(self)
 
     def _update_action_state(self) -> None:
         update_action_state(self)

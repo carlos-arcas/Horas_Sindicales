@@ -182,6 +182,7 @@
     "app/ui/vistas/main_window/form_handlers.py",
     "app/ui/vistas/main_window/layout_builder.py",
     "app/ui/vistas/main_window/state_controller.py",
+    "app/ui/vistas/main_window/validacion_preventiva.py",
     "app/ui/vistas/main_window/wiring.py",
     "app/ui/vistas/main_window_health_mixin.py",
     "app/ui/vistas/main_window_helpers.py",
