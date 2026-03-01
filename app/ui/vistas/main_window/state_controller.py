@@ -324,6 +324,9 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _update_action_state(self) -> None:
         update_action_state(self)
 
+    def _update_solicitud_preview(self) -> None:
+        self._update_action_state()
+
     def _validate_required_widgets(self) -> None:
         required_widgets = (
             "persona_combo",

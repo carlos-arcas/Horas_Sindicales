@@ -53,6 +53,7 @@ def test_ui_arranque_minimo(monkeypatch: pytest.MonkeyPatch) -> None:
         qt_core.QCoreApplication.processEvents()
         assert window is not None
         assert hasattr(window, "_on_fecha_changed")
+        assert hasattr(window, "_update_solicitud_preview")
         assert window.windowTitle() is not None
         assert getattr(window, "stack", None) is not None
     finally:
