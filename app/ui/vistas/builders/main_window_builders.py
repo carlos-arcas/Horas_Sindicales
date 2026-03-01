@@ -47,6 +47,11 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     layout.setContentsMargins(12, 8, 12, 12)
     layout.setSpacing(16)
 
+    window.header_title_label = QLabel(copy_text("solicitudes.section_title"))
+    window.header_title_label.setObjectName("header_title_label")
+    window.header_title_label.setProperty("role", "sectionTitle")
+    layout.addWidget(window.header_title_label)
+
     window.main_tabs = QTabWidget()
     window.main_tabs.setObjectName("mainTabs")
     window.main_tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -83,6 +88,7 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window.historico_apply_filters_button.clicked.connect(window._on_historico_apply_filters)
     window.open_saldos_modal_button.clicked.connect(window._on_open_saldos_modal)
     window.main_tabs.currentChanged.connect(window._on_main_tab_changed)
+    window.main_tabs.currentChanged.connect(lambda index: _on_tab_index_changed(window, index))
     window._restaurar_contexto_guardado()
     window._on_historico_todas_delegadas_toggled(window.historico_todas_delegadas_check.isChecked())
     window._on_historico_periodo_mode_changed()
@@ -100,14 +106,18 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window._apply_historico_filters()
     window._update_solicitud_preview()
     window._update_action_state()
-    window.main_tabs.currentChanged.connect(lambda index: on_tab_changed(window, index))
 
 
 def build_shell_layout(window: "MainWindow") -> None:
     window.setCentralWidget(window._scroll_area)
 
 
-def on_tab_changed(window: "MainWindow", index: int) -> None:
+def _on_tab_index_changed(window: "MainWindow", index: int) -> None:
+    tab_to_sidebar_index = {0: 1, 1: 2, 2: 3}
+    if index in tab_to_sidebar_index:
+        window._active_sidebar_index = tab_to_sidebar_index[index]
+    window._refresh_header_title()
+
     if index == 0:
         persona = window._current_persona()
         window._restore_draft_for_persona(persona.id if persona is not None else None)

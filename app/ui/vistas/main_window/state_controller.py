@@ -130,6 +130,7 @@ from .init_placeholders import inicializar_placeholders
 
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 from . import state_historico, state_pendientes
+from .header_state import resolve_section_title, resolve_sidebar_tab_index
 try:
     from .state_helpers import resolve_active_delegada_id, set_processing_state, update_action_state
     from .state_actions import MainWindowStateActionsMixin
@@ -155,6 +156,8 @@ except Exception:  # pragma: no cover
         return None
 logger = logging.getLogger(__name__)
 TAB_HISTORICO = 1
+
+
 
 class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, MainWindowHealthMixin, QMainWindow):
     def __init__(
@@ -232,7 +235,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self.solicitudes_splitter: QSplitter | None = None
         self.sidebar_buttons: list[QPushButton] = []
         self._sidebar_routes: list[dict[str, int | None]] = []
-        self._active_sidebar_index = 0
+        self._active_sidebar_index = 1
         inicializar_placeholders(self)
         self._last_persona_id: int | None = None
         self._draft_solicitud_por_persona: dict[int, dict[str, object]] = {}
@@ -425,8 +428,26 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         layout_builder.build_shell(self)
 
     def _switch_sidebar_page(self, index: int) -> None:
-        if self.main_tabs is not None and 0 <= index <= 2:
-            self.main_tabs.setCurrentIndex(index)
+        target_tab_index = resolve_sidebar_tab_index(index)
+        if target_tab_index is None and index != 0:
+            return
+
+        self._active_sidebar_index = index
+
+        if self.main_tabs is not None and target_tab_index is not None and self.main_tabs.currentIndex() != target_tab_index:
+            self.main_tabs.setCurrentIndex(target_tab_index)
+
+        self._refresh_header_title()
+
+    def _refresh_header_title(self) -> None:
+        header_title = getattr(self, "header_title_label", None)
+        if header_title is None:
+            return
+
+        title = resolve_section_title(self._active_sidebar_index)
+        if header_title.text() == title:
+            return
+        header_title.setText(title)
 
     def _build_status_bar(self) -> None:
         layout_builder.build_status(self)
