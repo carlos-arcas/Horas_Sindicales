@@ -48,7 +48,7 @@ except Exception:  # pragma: no cover - habilita import en entornos CI sin Qt
     QVBoxLayout = QWidget = QDialogButtonBox = QTextEdit = QTreeWidget = QTreeWidgetItem = object
 
 from app.application.conflicts_service import ConflictsService
-from app.application.dto import PeriodoFiltro, PersonaDTO, SolicitudDTO
+from app.application.dto import PersonaDTO, SolicitudDTO
 from app.application.sheets_service import SheetsService
 from app.application.sync_sheets_use_case import SyncSheetsUseCase
 from app.application.use_cases.conflict_resolution_policy import ConflictResolutionPolicy
@@ -57,9 +57,7 @@ from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
-from app.domain.services import BusinessRuleError, ValidacionError
-from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
-from app.ui.copy_catalog import copy_text
+from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan
 try:
     from app.ui.conflicts_dialog import ConflictsDialog
     from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
@@ -93,7 +91,7 @@ try:
                                                    build_historico_filters_payload,
                                                    handle_historico_render_mismatch, log_estado_pendientes,
                                                    show_sync_error_dialog_from_exception)
-    from app.ui.vistas.main_window import acciones_pendientes, validacion_preventiva
+    from app.ui.vistas.main_window import validacion_preventiva
     from app.ui.vistas.solicitudes_presenter import ActionStateInput, build_action_state
 except Exception:  # pragma: no cover - habilita import parcial sin dependencias de UI/Qt
     def _qt_unavailable(*args, **kwargs):
@@ -127,8 +125,7 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     abrir_archivo_local = _qt_unavailable
     build_estado_pendientes_debug_payload = build_historico_filters_payload = _qt_unavailable
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
-from . import acciones_personas, acciones_sincronizacion, data_refresh, form_handlers, layout_builder, wiring
-from app.core.observability import OperationContext
+from . import layout_builder, wiring
 from app.bootstrap.logging import log_operational_error
 
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
