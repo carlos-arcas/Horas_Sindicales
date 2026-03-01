@@ -62,6 +62,22 @@ class SheetsPermissionError(SheetsConfigError):
             payload["service_account_email"] = self.service_account_email
         return payload
 
+    def __str__(self) -> str:
+        details = ", ".join(f"{k}={v}" for k, v in self.to_safe_payload().items())
+        if not details:
+            return self.args[0]
+        return f"{self.args[0]} ({details})"
+
+    def __repr__(self) -> str:
+        return (
+            "SheetsPermissionError("
+            f"message={self.args[0]!r}, "
+            f"spreadsheet_id={self.spreadsheet_id!r}, "
+            f"worksheet={self.worksheet!r}, "
+            f"service_account_email={self.service_account_email!r}"
+            ")"
+        )
+
 
 class SheetsNotFoundError(SheetsConfigError):
     pass

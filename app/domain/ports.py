@@ -191,6 +191,9 @@ class SheetsClientPort(Protocol):
     def values_batch_update(self, body: dict[str, Any]) -> None:
         ...
 
+    def check_write_access(self, worksheet_name: str | None = None) -> None:
+        ...
+
 
 class SheetsRepositoryPort(Protocol):
     def ensure_schema(self, spreadsheet, schema: dict[str, list[str]]) -> list[str]:
