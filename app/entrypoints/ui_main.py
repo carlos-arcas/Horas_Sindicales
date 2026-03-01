@@ -63,6 +63,15 @@ def _instalar_menu_ayuda(main_window, i18n, reiniciar_onboarding: ReiniciarOnboa
     accion_reiniciar = menu_ayuda.addAction(i18n.t("menu_reiniciar_asistente"))
 
     def _reiniciar_asistente() -> None:
+        respuesta = QMessageBox.question(
+            main_window,
+            i18n.t("menu_reiniciar_confirmar_titulo"),
+            i18n.t("menu_reiniciar_confirmar_mensaje"),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if respuesta != QMessageBox.Yes:
+            return
         reiniciar_onboarding.ejecutar()
         QMessageBox.information(main_window, i18n.t("menu_ayuda"), i18n.t("menu_reiniciar_ok"))
 

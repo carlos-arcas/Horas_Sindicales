@@ -51,3 +51,29 @@ def test_orquestador_no_muestra_wizard_si_onboarding_ya_completado() -> None:
     assert deps.obtener_idioma_ui.calls
     assert not deps.guardar_idioma_ui.calls
     assert not deps.marcar_onboarding_completado.calls
+
+
+def test_orquestador_guarda_onboarding_y_preferencias_al_finalizar(monkeypatch) -> None:
+    deps = _deps(onboarding_completado=False)
+
+    class WizardFalso:
+        Accepted = 1
+
+        def __init__(self, _i18n, _guia_sync, idioma_inicial, pantalla_completa_inicial, parent=None) -> None:
+            self.idioma_seleccionado = "en"
+            self.pantalla_completa_por_defecto = not pantalla_completa_inicial
+            self.idioma_inicial = idioma_inicial
+            self.parent = parent
+
+        def exec(self) -> int:
+            return self.Accepted
+
+    monkeypatch.setattr("presentacion.wizard_bienvenida.WizardBienvenida", WizardFalso)
+    orquestador = OrquestadorArranqueUI(deps, I18nManager("es"))
+
+    ok = orquestador.resolver_onboarding(parent=object())
+
+    assert ok is True
+    assert deps.guardar_preferencia_pantalla_completa.calls == [(False,)]
+    assert deps.guardar_idioma_ui.calls == [("en",)]
+    assert deps.marcar_onboarding_completado.calls == [()]

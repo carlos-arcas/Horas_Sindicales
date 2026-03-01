@@ -3,6 +3,7 @@ from __future__ import annotations
 from aplicacion.casos_de_uso.onboarding import (
     MarcarOnboardingCompletado,
     ObtenerEstadoOnboarding,
+    ReiniciarOnboarding,
 )
 from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
     GuardarPreferenciaPantallaCompleta,
@@ -62,3 +63,12 @@ def test_repositorio_respeta_por_defecto_para_claves_inexistentes() -> None:
 
     assert repositorio.obtener_bool("clave_no_existente", por_defecto=False) is False
     assert repositorio.obtener_bool("otra_clave_no_existente", por_defecto=True) is True
+
+
+def test_reiniciar_onboarding_persiste_false() -> None:
+    repositorio = FakeRepositorioPreferencias()
+    MarcarOnboardingCompletado(repositorio).ejecutar()
+
+    ReiniciarOnboarding(repositorio).ejecutar()
+
+    assert ObtenerEstadoOnboarding(repositorio).ejecutar() is False
