@@ -74,8 +74,10 @@ from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
 )
 from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
 from app.application.use_cases.solicitudes.saldos_service import (
+    acumular_consumo_anual_por_personas as _acumular_consumo_anual_por_personas,
     calcular_totales_globales as _calcular_totales_globales,
     construir_resumen_saldos as _construir_resumen_saldos,
+    sumar_consumo_solicitudes as _sumar_consumo_solicitudes,
     sugerir_nombre_pdf_historico as _sugerir_nombre_pdf_historico,
 )
 from app.application.use_cases.solicitudes.validacion_service import (
@@ -106,11 +108,7 @@ def _resolver_correlation_id(
     return correlation_id
 
 class SolicitudUseCases:
-    """Casos de uso para altas, sustituciones y saldos de solicitudes.
-
-    Esta capa protege invariantes del dominio antes de persistir: conflicto
-    completo/parcial, deduplicación y cálculo en minutos como unidad canónica.
-    """
+    """Casos de uso para solicitudes."""
     def __init__(
         self,
         repo: SolicitudRepository,
@@ -419,14 +417,7 @@ class SolicitudUseCases:
             log_event(logger, "solicitud_delete_succeeded", {"solicitud_id": solicitud_id}, correlation_id)
         return self.calcular_saldos(solicitud.persona_id, year, month)
 
-    def validar_conflicto_dia(
-        self, persona_id: int, fecha_pedida: str, tipo_nuevo: bool
-    ) -> ConflictoDiaDTO:
-        """Impide mezclar solicitudes completas y parciales en la misma fecha.
-
-        La regla existe para mantener una semántica única de consumo diario y
-        evitar dobles cómputos cuando se sustituyen solicitudes existentes.
-        """
+    def validar_conflicto_dia(self, persona_id: int, fecha_pedida: str, tipo_nuevo: bool) -> ConflictoDiaDTO:
         existentes = list(self._repo.list_by_persona_and_fecha(persona_id, fecha_pedida))
         if tipo_nuevo:
             conflictos = [s for s in existentes if not s.completo]
@@ -630,26 +621,7 @@ class SolicitudUseCases:
         return creada
 
     def _generar_pdf_confirmadas(self, creadas: list[SolicitudDTO], destino: Path, *, correlation_id: str | None) -> tuple[Path | None, list[SolicitudDTO]]:
-        """Orquesta builder/runner para confirmar PDF sin acoplar reglas de decisión a IO.
-
-        Entradas:
-        - ``creadas``: snapshot de solicitudes confirmadas previamente.
-        - ``destino``: ruta candidata del PDF ya validada en preflight.
-        - ``correlation_id``: id opcional de trazabilidad para observabilidad.
-
-        Salidas:
-        - ``(pdf_path, solicitudes_actualizadas)``.
-        - Si el plan no requiere PDF, mantiene ``creadas`` intacto como resultado observable.
-
-        Efectos secundarios (delegados al runner):
-        - Generación de PDF mediante el puerto configurado.
-        - Cálculo de hash del archivo.
-        - Actualización de estado/pdf_path/pdf_hash en repositorio.
-
-        Errores:
-        - Reglas de negocio (persona/generador) se propagan como ``BusinessRuleError``.
-        - Errores técnicos de infraestructura se encapsulan en ``ErrorAplicacionSolicitud``.
-        """
+        """Genera y persiste PDF de solicitudes confirmadas."""
         pdf_options = self._config_repo.get() if self._config_repo else None
         entrada = PdfConfirmadasEntrada(
             creadas=tuple(creadas),
@@ -858,14 +830,13 @@ class SolicitudUseCases:
 
     def calcular_totales_globales(self, filtro: PeriodoFiltro) -> TotalesGlobalesDTO:
         personas = list(self._persona_repo.list_all())
+        mes = filtro.month if filtro.modo == "MENSUAL" else None
         consumidas_por_persona = [
-            sum(
-                solicitud.horas_solicitadas_min
-                for solicitud in self._repo.list_by_persona_and_period(
-                    persona.id or 0,
-                    filtro.year,
-                    filtro.month if filtro.modo == "MENSUAL" else None,
-                )
+            _sumar_consumo_solicitudes(
+                [
+                    solicitud.horas_solicitadas_min
+                    for solicitud in self._repo.list_by_persona_and_period(persona.id or 0, filtro.year, mes)
+                ]
             )
             for persona in personas
         ]
@@ -887,14 +858,19 @@ class SolicitudUseCases:
         solicitudes_ano = self._repo.list_by_persona_and_period(
             persona_id, filtro.year, None
         )
-        consumidas_periodo = sum(s.horas_solicitadas_min for s in solicitudes_periodo)
-        consumidas_anual = sum(s.horas_solicitadas_min for s in solicitudes_ano)
+        consumidas_periodo = _sumar_consumo_solicitudes([s.horas_solicitadas_min for s in solicitudes_periodo])
+        consumidas_anual = _sumar_consumo_solicitudes([s.horas_solicitadas_min for s in solicitudes_ano])
 
         personas = list(self._persona_repo.list_all())
-        total_bolsa_anual = sum(p.horas_ano_min for p in personas)
-        total_consumidas_anual = sum(
-            sum(s.horas_solicitadas_min for s in self._repo.list_by_persona_and_period(p.id or 0, filtro.year, None))
+        consumo_anual_por_persona = [
+            _sumar_consumo_solicitudes(
+                [s.horas_solicitadas_min for s in self._repo.list_by_persona_and_period(p.id or 0, filtro.year, None)]
+            )
             for p in personas
+        ]
+        total_bolsa_anual, total_consumidas_anual = _acumular_consumo_anual_por_personas(
+            personas=personas,
+            consumo_anual_por_persona_min=consumo_anual_por_persona,
         )
 
         config = self._config_repo.get() if self._config_repo else None

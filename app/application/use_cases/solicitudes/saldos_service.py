@@ -58,6 +58,18 @@ def calcular_totales_globales(
     )
 
 
+def sumar_consumo_solicitudes(solicitudes_min: list[int]) -> int:
+    return sum(solicitudes_min)
+
+
+def acumular_consumo_anual_por_personas(
+    *,
+    personas: list[Persona],
+    consumo_anual_por_persona_min: list[int],
+) -> tuple[int, int]:
+    return sum(persona.horas_ano_min for persona in personas), sum(consumo_anual_por_persona_min)
+
+
 def construir_resumen_saldos(
     *,
     persona: Persona,
