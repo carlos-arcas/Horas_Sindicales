@@ -9,7 +9,13 @@ from presentacion.i18n import I18nManager
 class PaginaSync(PaginaTexto):
     def __init__(self, i18n: I18nManager, on_ver_guia) -> None:
         self._on_ver_guia = on_ver_guia
-        super().__init__(i18n, "wizard_paso_3", "wizard_sync_texto")
+        super().__init__(
+            i18n,
+            "wizard_paso_3",
+            "wizard_sync_texto",
+            auto_actualizar_textos=False,
+        )
+        self.actualizar_textos()
 
     def _construir_ui(self) -> None:
         super()._construir_ui()
