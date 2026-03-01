@@ -18,30 +18,18 @@ from app.bootstrap.boot_diagnostics import marcar_stage
 from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
 from app.ui.qt_message_handler import instalar_qt_message_handler
-from app.ui.qt_safe import is_qt_valid, safe_call
+from app.ui.qt_safe import safe_call
+from app.ui.qt_safe_ops import es_objeto_qt_valido, safe_hide, safe_quit_thread
 
 LOGGER = logging.getLogger(__name__)
 
 
 def _es_objeto_qt_valido(objeto) -> bool:
-    return is_qt_valid(objeto)
+    return es_objeto_qt_valido(objeto)
 
 
 def _cerrar_splash_seguro(splash) -> None:
-    if splash is None:
-        return
-    if not _es_objeto_qt_valido(splash):
-        return
-    try:
-        if hasattr(splash, "request_close"):
-            splash.request_close()
-            return
-        if hasattr(splash, "hide"):
-            splash.hide()
-        if hasattr(splash, "close"):
-            splash.close()
-    except RuntimeError:
-        return
+    safe_hide(splash)
 
 
 def _stop_watchdog_en_main_thread(watchdog_timer) -> None:
@@ -83,7 +71,8 @@ class _CoordinadorArranqueConCierreDeterminista:
     def on_finished(self, startup_payload) -> None:
         marcar_stage("on_finished_enter")
         self.terminado = True
-        try:
+
+        def _aplicar_resultado_en_ui() -> None:
             self._detener_watchdog_idempotente()
             self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
@@ -112,6 +101,11 @@ class _CoordinadorArranqueConCierreDeterminista:
                 window.showMaximized()
             else:
                 window.show()
+
+        try:
+            from PySide6.QtCore import QTimer
+
+            QTimer.singleShot(0, _aplicar_resultado_en_ui)
         except Exception as exc:  # noqa: BLE001
             import sys
 
@@ -215,12 +209,7 @@ def _manejar_fallo_arranque(
     )
 
     def _safe_quit_thread() -> None:
-        if not _es_objeto_qt_valido(startup_thread):
-            return
-        try:
-            safe_call(startup_thread, "quit")
-        except RuntimeError:
-            return
+        safe_quit_thread(startup_thread)
 
     def _mostrar_dialogo_error() -> None:
         if getattr(app, "_fallo_arranque_dialogo_mostrado", False):
@@ -271,7 +260,7 @@ def _manejar_fallo_arranque(
                 pass
         _mostrar_dialogo_error()
 
-    app_thread = app.thread() if is_qt_valid(app) and hasattr(app, "thread") else None
+    app_thread = app.thread() if es_objeto_qt_valido(app) and hasattr(app, "thread") else None
     if app_thread is not None and QThread.currentThread() is not app_thread:
         QTimer.singleShot(0, app, _do_fail_safe)
     else:
