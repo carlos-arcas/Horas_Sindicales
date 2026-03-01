@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import pytest
-
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+
+import pytest
 
 
 def _load_conectar_signal():
@@ -39,7 +39,9 @@ class WindowWithNonCallable:
     _on_click = "not-callable"
 
 
-def test_conectar_signal_ok_conecta_handler() -> None:
+def test_conectar_signal_ok_conecta_handler(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.delenv("WIRING_STRICT", raising=False)
     window = WindowWithHandler()
     signal = FakeSignal()
 
@@ -48,14 +50,16 @@ def test_conectar_signal_ok_conecta_handler() -> None:
     assert signal.connected is window._on_click
 
 
-def test_conectar_signal_missing_handler_raises_runtime_error() -> None:
+def test_conectar_signal_missing_handler_raises_runtime_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("WIRING_STRICT", "true")
     signal = FakeSignal()
 
     with pytest.raises(RuntimeError, match=r"_on_click.*builder:test"):
         conectar_signal(WindowWithoutHandler(), signal, "_on_click", contexto="builder:test")
 
 
-def test_conectar_signal_non_callable_handler_raises_runtime_error() -> None:
+def test_conectar_signal_non_callable_handler_raises_runtime_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("WIRING_STRICT", "true")
     signal = FakeSignal()
 
     with pytest.raises(RuntimeError, match=r"_on_click.*builder:test"):
