@@ -7,6 +7,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncLogEntry, SyncReport, SyncSummary
+from app.ui.copy_catalog import copy_text
+
+
+def _txt(key: str, **kwargs: object) -> str:
+    template = copy_text(key)
+    return template.format(**kwargs) if kwargs else template
 
 
 def _parse_iso_to_utc_aware(value: str) -> datetime:
@@ -35,17 +41,17 @@ def build_sync_report(
     finished = datetime.now().isoformat()
     warnings: list[str] = []
     if summary.duplicates_skipped > 0:
-        warnings.append(f"{summary.duplicates_skipped} solicitudes ya existían y no cambiaron.")
+        warnings.append(_txt("ui.sync_report.warning_solicitudes_existian", cantidad=summary.duplicates_skipped))
     if summary.omitted_by_delegada > 0:
-        warnings.append(f"{summary.omitted_by_delegada} filas omitidas por filtro de delegada.")
+        warnings.append(_txt("ui.sync_report.warning_filas_omitidas_delegada", cantidad=summary.omitted_by_delegada))
 
     errors = []
     if summary.errors > 0:
-        errors.append(f"Error en {summary.errors} solicitudes durante la sincronización.")
+        errors.append(_txt("ui.sync_report.error_solicitudes_sincronizacion", cantidad=summary.errors))
 
     conflicts = []
     if summary.conflicts_detected > 0:
-        conflicts.append(f"Se detectaron {summary.conflicts_detected} conflictos.")
+        conflicts.append(_txt("ui.sync_report.conflictos_detectados", cantidad=summary.conflicts_detected))
 
     entries = _base_entries(summary, warnings=warnings, errors=errors, conflicts=conflicts, details=details, finished=finished)
     started_dt = datetime.fromisoformat(started)
@@ -63,7 +69,7 @@ def build_sync_report(
         status=status,
         source=source,
         scope=scope,
-        idempotency_criteria="Una solicitud por delegada, fecha y tramo.",
+        idempotency_criteria=_txt("ui.sync_report.idempotency_criteria"),
         actor=actor,
         counts={
             "created": summary.inserted_local + summary.inserted_remote,
@@ -76,8 +82,8 @@ def build_sync_report(
         errors=errors,
         conflicts=conflicts,
         items_changed=[
-            f"Local: +{summary.inserted_local} / ~{summary.updated_local}",
-            f"Sheets: +{summary.inserted_remote} / ~{summary.updated_remote}",
+            _txt("ui.sync_report.items_changed_local", created=summary.inserted_local, updated=summary.updated_local),
+            _txt("ui.sync_report.items_changed_sheets", created=summary.inserted_remote, updated=summary.updated_remote),
         ],
         entries=entries,
         duration_ms=duration_ms,
@@ -120,13 +126,13 @@ def build_config_incomplete_report(source: str, scope: str, actor: str) -> SyncR
             SyncLogEntry(
                 timestamp=now,
                 severity="ERROR",
-                section="Operación",
-                entity="Config",
-                message="Falta configuración de Google Sheets (Spreadsheet ID o credenciales).",
-                suggested_action="Ir a configuración y completar los campos obligatorios.",
+                section=_txt("ui.sync_report.section_operacion"),
+                entity=_txt("ui.sync_report.entity_config"),
+                message=_txt("ui.sync_report.error_falta_config"),
+                suggested_action=_txt("ui.sync_report.sugerencia_ir_config"),
             )
         ],
-        errors=["Configuración incompleta."],
+        errors=[_txt("ui.sync_report.error_config_incompleta")],
         counts={"created": 0, "updated": 0, "skipped": 0, "conflicts": 0, "errors": 1},
         error_count=1,
         success_rate=0.0,
@@ -155,7 +161,7 @@ def build_failed_report(
         status="ERROR",
         source=source,
         scope=scope,
-        idempotency_criteria="Una solicitud por delegada, fecha y tramo.",
+        idempotency_criteria=_txt("ui.sync_report.idempotency_criteria"),
         actor=actor,
         counts={"created": 0, "updated": 0, "skipped": 0, "conflicts": 0, "errors": 1},
         errors=[error_message],
@@ -163,17 +169,17 @@ def build_failed_report(
             SyncLogEntry(
                 timestamp=now,
                 severity="ERROR",
-                section="Errores",
-                entity="Red",
+                section=_txt("ui.sync_report.section_errores"),
+                entity=_txt("ui.sync_report.entity_red"),
                 message=error_message,
-                suggested_action="Revisa configuración o red. Reintenta solo fallidos.",
+                suggested_action=_txt("ui.sync_report.sugerencia_revisar_config_red"),
             ),
             SyncLogEntry(
                 timestamp=now,
                 severity="INFO",
-                section="Operación",
-                entity="Sync",
-                message=details or "Sin detalle adicional.",
+                section=_txt("ui.sync_report.section_operacion"),
+                entity=_txt("ui.sync_report.entity_sync"),
+                message=details or _txt("ui.sync_report.sin_detalle_adicional"),
             ),
         ],
         duration_ms=max(0, int((datetime.fromisoformat(now) - datetime.fromisoformat(start)).total_seconds() * 1000)),
@@ -200,9 +206,9 @@ def build_simulation_report(
             SyncLogEntry(
                 timestamp=now,
                 severity="INFO",
-                section="Creaciones",
-                entity="Solicitud",
-                message=f"{item.uuid}: Solicitud nueva",
+                section=_txt("ui.sync_report.section_creaciones"),
+                entity=_txt("ui.sync_report.entity_solicitud"),
+                message=_txt("ui.sync_report.solicitud_nueva", uuid=item.uuid),
             )
         )
     for item in plan.to_update:
@@ -210,9 +216,9 @@ def build_simulation_report(
             SyncLogEntry(
                 timestamp=now,
                 severity="INFO",
-                section="Actualizaciones",
-                entity="Solicitud",
-                message=f"{item.uuid}: {len(item.diffs)} campo(s) con cambios.",
+                section=_txt("ui.sync_report.section_actualizaciones"),
+                entity=_txt("ui.sync_report.entity_solicitud"),
+                message=_txt("ui.sync_report.solicitud_cambios", uuid=item.uuid, cantidad=len(item.diffs)),
             )
         )
         for diff in item.diffs:
@@ -220,9 +226,15 @@ def build_simulation_report(
                 SyncLogEntry(
                     timestamp=now,
                     severity="INFO",
-                    section="Diff",
-                    entity="Solicitud",
-                    message=f"{item.uuid} | {diff.field} | actual: {diff.current_value} | nuevo: {diff.new_value}",
+                    section=_txt("ui.sync_report.section_diff"),
+                    entity=_txt("ui.sync_report.entity_solicitud"),
+                    message=_txt(
+                        "ui.sync_report.diff_line",
+                        uuid=item.uuid,
+                        field=diff.field,
+                        current_value=diff.current_value,
+                        new_value=diff.new_value,
+                    ),
                 )
             )
     for item in plan.conflicts:
@@ -230,10 +242,10 @@ def build_simulation_report(
             SyncLogEntry(
                 timestamp=now,
                 severity="WARN",
-                section="Conflictos",
-                entity="Solicitud",
+                section=_txt("ui.sync_report.section_conflictos"),
+                entity=_txt("ui.sync_report.entity_solicitud"),
                 message=f"{item.uuid}: {item.reason}",
-                suggested_action="Revisa el conflicto y vuelve a sincronizar.",
+                suggested_action=_txt("ui.sync_report.sugerencia_revisar_conflicto"),
             )
         )
     for error in plan.potential_errors:
@@ -241,10 +253,10 @@ def build_simulation_report(
             SyncLogEntry(
                 timestamp=now,
                 severity="WARN",
-                section="Validaciones",
-                entity="SyncPlanner",
+                section=_txt("ui.sync_report.section_validaciones"),
+                entity=_txt("ui.sync_report.entity_sync_planner"),
                 message=error,
-                suggested_action="Corregir dato y volver a simular.",
+                suggested_action=_txt("ui.sync_report.sugerencia_corregir_dato"),
             )
         )
     if not entries:
@@ -252,9 +264,9 @@ def build_simulation_report(
             SyncLogEntry(
                 timestamp=now,
                 severity="INFO",
-                section="Operación",
-                entity="SyncPlanner",
-                message="No hay cambios que aplicar.",
+                section=_txt("ui.sync_report.section_operacion"),
+                entity=_txt("ui.sync_report.entity_sync_planner"),
+                message=_txt("ui.sync_report.no_hay_cambios"),
             )
         )
     status = "OK" if plan.has_changes else "IDLE"
@@ -267,7 +279,7 @@ def build_simulation_report(
         status=status,
         source=source,
         scope=scope,
-        idempotency_criteria="Plan inmutable generado por SyncPlanner antes de ejecutar SyncExecutor.",
+        idempotency_criteria=_txt("ui.sync_report.idempotency_simulacion"),
         actor=actor,
         counts={
             "created": len(plan.to_create),
@@ -276,7 +288,7 @@ def build_simulation_report(
             "conflicts": len(plan.conflicts),
             "errors": len(plan.potential_errors),
         },
-        warnings=["Simulación sin escritura en Google Sheets."],
+        warnings=[_txt("ui.sync_report.simulacion_sin_escritura")],
         conflicts=[item.reason for item in plan.conflicts],
         errors=list(plan.potential_errors),
         entries=entries,
@@ -309,7 +321,7 @@ def persist_report(report: SyncReport, root: Path) -> tuple[Path, Path]:
 
     history_dir = logs_dir / "sync_history"
     history_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stamp = datetime.now().strftime(_txt("ui.sync_report.timestamp_format"))
     sync_id = report.sync_id or "no-sync-id"
     history_json = history_dir / f"{stamp}_{sync_id}.json"
     history_md = history_dir / f"{stamp}_{sync_id}.md"
@@ -321,42 +333,53 @@ def persist_report(report: SyncReport, root: Path) -> tuple[Path, Path]:
 
 def to_markdown(report: SyncReport) -> str:
     lines = [
-        "# Informe de sincronización",
-        f"- Estado: **{report.status}**",
-        f"- Inicio: {report.started_at}",
-        f"- Fin: {report.finished_at}",
-        f"- Duración: {report.duration_ms} ms",
-        f"- Actor: {report.actor}",
-        f"- Fuente: {report.source}",
-        f"- Alcance: {report.scope}",
-        f"- Idempotencia: {report.idempotency_criteria}",
+        _txt("ui.sync_report.md_titulo_informe"),
+        _txt("ui.sync_report.md_estado", estado=report.status),
+        _txt("ui.sync_report.md_inicio", inicio=report.started_at),
+        _txt("ui.sync_report.md_fin", fin=report.finished_at),
+        _txt("ui.sync_report.md_duracion", duracion_ms=report.duration_ms),
+        _txt("ui.sync_report.md_actor", actor=report.actor),
+        _txt("ui.sync_report.md_fuente", fuente=report.source),
+        _txt("ui.sync_report.md_alcance", alcance=report.scope),
+        _txt("ui.sync_report.md_idempotencia", idempotencia=report.idempotency_criteria),
         "",
-        "## Resumen",
-        f"- Solicitudes creadas: {report.counts.get('created', 0)}",
-        f"- Solicitudes actualizadas: {report.counts.get('updated', 0)}",
-        f"- Solicitudes omitidas (sin cambios): {report.counts.get('skipped', 0)}",
-        f"- Conflictos detectados: {report.counts.get('conflicts', 0)}",
-        f"- Errores: {report.counts.get('errors', 0)}",
-        f"- Solicitudes locales totales: {report.rows_total_local}",
-        f"- Solicitudes remotas revisadas: {report.rows_scanned_remote}",
-        f"- Llamadas API: {report.api_calls_count}",
-        f"- Reintentos: {report.retry_count}",
-        f"- Conflictos (métrica): {report.conflicts_count}",
-        f"- Errores (métrica): {report.error_count}",
-        f"- Tasa de éxito: {report.success_rate:.0%}",
+        _txt("ui.sync_report.seccion_resumen"),
+        _txt("ui.sync_report.md_solicitudes_creadas", cantidad=report.counts.get("created", 0)),
+        _txt("ui.sync_report.md_solicitudes_actualizadas", cantidad=report.counts.get("updated", 0)),
+        _txt("ui.sync_report.md_solicitudes_omitidas", cantidad=report.counts.get("skipped", 0)),
+        _txt("ui.sync_report.md_conflictos_detectados", cantidad=report.counts.get("conflicts", 0)),
+        _txt("ui.sync_report.md_errores", cantidad=report.counts.get("errors", 0)),
+        _txt("ui.sync_report.md_solicitudes_locales_totales", cantidad=report.rows_total_local),
+        _txt("ui.sync_report.md_solicitudes_remotas_revisadas", cantidad=report.rows_scanned_remote),
+        _txt("ui.sync_report.md_llamadas_api", cantidad=report.api_calls_count),
+        _txt("ui.sync_report.md_reintentos", cantidad=report.retry_count),
+        _txt("ui.sync_report.md_conflictos_metrica", cantidad=report.conflicts_count),
+        _txt("ui.sync_report.md_errores_metrica", cantidad=report.error_count),
+        _txt("ui.sync_report.md_tasa_exito", tasa=report.success_rate),
         "",
-        "## Detalle",
+        _txt("ui.sync_report.seccion_detalle"),
     ]
     for entry in report.entries:
         lines.append(
-            f"- [{entry.timestamp}] **{entry.severity}** · {entry.section}/{entry.entity}: {entry.message}"
-            + (f". Acción: {entry.suggested_action}" if entry.suggested_action else "")
+            _txt(
+                "ui.sync_report.md_detalle_entry",
+                timestamp=entry.timestamp,
+                severity=entry.severity,
+                section=entry.section,
+                entity=entry.entity,
+                message=entry.message,
+            )
+            + (
+                _txt("ui.sync_report.md_detalle_accion", accion=entry.suggested_action)
+                if entry.suggested_action
+                else ""
+            )
         )
     return "\n".join(lines)
 
 
 def _trim_history(history_dir: Path, max_entries: int = 20) -> None:
-    files = sorted(history_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    files = sorted(history_dir.glob(_txt("ui.sync_report.glob_json")), key=lambda item: item.stat().st_mtime, reverse=True)
     companion_md = {path.with_suffix(".md") for path in files}
     all_files = files + [path for path in companion_md if path.exists()]
     for old in all_files[max_entries * 2 :]:
@@ -367,7 +390,7 @@ def list_sync_history(root: Path) -> list[Path]:
     history_dir = root / "logs" / "sync_history"
     if not history_dir.exists():
         return []
-    return sorted(history_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    return sorted(history_dir.glob(_txt("ui.sync_report.glob_json")), key=lambda item: item.stat().st_mtime, reverse=True)
 
 
 def load_sync_report(path: Path) -> SyncReport:
@@ -384,7 +407,7 @@ def load_sync_report(path: Path) -> SyncReport:
         source=data.get("source", ""),
         scope=data.get("scope", ""),
         idempotency_criteria=data.get("idempotency_criteria", ""),
-        actor=data.get("actor", "N/D"),
+        actor=data.get("actor", _txt("ui.sync_report.no_disponible_abrev")),
         counts=data.get("counts", {}),
         warnings=data.get("warnings", []),
         errors=data.get("errors", []),
@@ -416,18 +439,21 @@ def _base_entries(
         SyncLogEntry(
             timestamp=finished,
             severity="INFO",
-            section="Operación",
-            entity="Sync",
-            message="Sincronización finalizada.",
+            section=_txt("ui.sync_report.section_operacion"),
+            entity=_txt("ui.sync_report.entity_sync"),
+            message=_txt("ui.sync_report.sincronizacion_finalizada"),
         ),
         SyncLogEntry(
             timestamp=finished,
             severity="INFO",
-            section="Cambios aplicados",
-            entity="Solicitud",
-            message=(
-                f"Local +{summary.inserted_local}/~{summary.updated_local}; "
-                f"Sheets +{summary.inserted_remote}/~{summary.updated_remote}."
+            section=_txt("ui.sync_report.section_cambios_aplicados"),
+            entity=_txt("ui.sync_report.entity_solicitud"),
+            message=_txt(
+                "ui.sync_report.cambios_aplicados_resumen",
+                inserted_local=summary.inserted_local,
+                updated_local=summary.updated_local,
+                inserted_remote=summary.inserted_remote,
+                updated_remote=summary.updated_remote,
             ),
         ),
     ]
@@ -435,10 +461,10 @@ def _base_entries(
         SyncLogEntry(
             timestamp=finished,
             severity="WARN",
-            section="Cambios aplicados",
-            entity="Solicitud",
+            section=_txt("ui.sync_report.section_cambios_aplicados"),
+            entity=_txt("ui.sync_report.entity_solicitud"),
             message=warning,
-            suggested_action="Revisar filtros y confirmar si el comportamiento era esperado.",
+            suggested_action=_txt("ui.sync_report.sugerencia_revisar_filtros"),
         )
         for warning in warnings
     )
@@ -446,10 +472,10 @@ def _base_entries(
         SyncLogEntry(
             timestamp=finished,
             severity="WARN",
-            section="Conflictos",
-            entity="Solicitud",
+            section=_txt("ui.sync_report.section_conflictos"),
+            entity=_txt("ui.sync_report.entity_solicitud"),
             message=conflict,
-            suggested_action="Abre las solicitudes afectadas y revísalas.",
+            suggested_action=_txt("ui.sync_report.sugerencia_abrir_solicitudes"),
         )
         for conflict in conflicts
     )
@@ -457,10 +483,10 @@ def _base_entries(
         SyncLogEntry(
             timestamp=finished,
             severity="ERROR",
-            section="Errores",
-            entity="Sync",
+            section=_txt("ui.sync_report.section_errores"),
+            entity=_txt("ui.sync_report.entity_sync"),
             message=error,
-            suggested_action="Reintentar solo fallidos.",
+            suggested_action=_txt("ui.sync_report.sugerencia_reintentar_fallidos"),
         )
         for error in errors
     )
@@ -469,8 +495,8 @@ def _base_entries(
             SyncLogEntry(
                 timestamp=finished,
                 severity="INFO",
-                section="Operación",
-                entity="Red",
+                section=_txt("ui.sync_report.section_operacion"),
+                entity=_txt("ui.sync_report.entity_red"),
                 message=details,
             )
         )
