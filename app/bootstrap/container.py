@@ -31,6 +31,7 @@ from app.infrastructure.sheets_client import SheetsClient
 from app.infrastructure.sheets_gateway_gspread import SheetsGatewayGspread
 from app.infrastructure.sheets_repository import SheetsRepository
 from app.infrastructure.sync_sheets_adapter import SyncSheetsAdapter
+from infraestructura.repositorio_preferencias_qsettings import RepositorioPreferenciasQSettings
 
 
 @dataclass
@@ -44,6 +45,7 @@ class AppContainer:
     health_check_use_case: HealthCheckUseCase
     alert_engine: AlertEngine
     validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase
+    repositorio_preferencias: RepositorioPreferenciasQSettings
 
 
 ConnectionFactory = Callable[[], object]
@@ -83,6 +85,8 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
     alert_engine = AlertEngine()
     validacion_preventiva_lock_use_case = ValidacionPreventivaLockUseCase(SQLiteLockErrorClassifier())
 
+    repositorio_preferencias = RepositorioPreferenciasQSettings()
+
     conflicts_repository = SQLiteConflictsRepository(connection)
     conflicts_service = ConflictsService(
         conflicts_repository,
@@ -99,4 +103,5 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
         health_check_use_case=health_check_use_case,
         alert_engine=alert_engine,
         validacion_preventiva_lock_use_case=validacion_preventiva_lock_use_case,
+        repositorio_preferencias=repositorio_preferencias,
     )
