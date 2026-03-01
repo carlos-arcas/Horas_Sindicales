@@ -38,7 +38,43 @@ def prompt_confirm_pdf_path(window: Any, selected: list[SolicitudDTO]) -> str | 
 
     default_path = str(Path.home() / default_name)
     pdf_path, _ = QFileDialog.getSaveFileName(window, "Guardar PDF", default_path, "PDF (*.pdf)")
-    return pdf_path or None
+    if not pdf_path:
+        return None
+    return _resolver_colision_destino_pdf(window, pdf_path)
+
+
+def _resolver_colision_destino_pdf(window: Any, pdf_path: str) -> str | None:
+    resolucion = window._solicitudes_controller.obtener_resolucion_destino_pdf(pdf_path)
+    if not resolucion.colision_detectada:
+        return str(resolucion.ruta_destino)
+
+    alternativa = resolucion.ruta_alternativa
+    dialog = QMessageBox(window)
+    dialog.setIcon(QMessageBox.Icon.Warning)
+    dialog.setWindowTitle("Archivo ya existe")
+    dialog.setText("Ya existe un PDF con ese nombre en la carpeta elegida.")
+    dialog.setInformativeText("Elige cómo continuar para evitar perder información.")
+
+    rename_button = None
+    if alternativa is not None:
+        rename_button = dialog.addButton(f"Guardar como {alternativa.name}", QMessageBox.ButtonRole.AcceptRole)
+    change_folder_button = dialog.addButton("Cambiar carpeta", QMessageBox.ButtonRole.ActionRole)
+    overwrite_button = dialog.addButton("Sobrescribir", QMessageBox.ButtonRole.DestructiveRole)
+    cancel_button = dialog.addButton("Cancelar", QMessageBox.ButtonRole.RejectRole)
+
+    dialog.exec()
+    clicked = dialog.clickedButton()
+
+    if rename_button is not None and clicked is rename_button:
+        return str(alternativa)
+    if clicked is overwrite_button:
+        return str(resolucion.ruta_original)
+    if clicked is change_folder_button:
+        return prompt_confirm_pdf_path(window, window._selected_pending_solicitudes())
+    if clicked is cancel_button:
+        return None
+    return None
+
 
 
 def execute_confirmar_with_pdf(

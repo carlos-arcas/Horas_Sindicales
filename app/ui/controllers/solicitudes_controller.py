@@ -154,6 +154,28 @@ class SolicitudesController:
     def refresh_historico(self) -> list[SolicitudDTO]:
         return list(self.window._solicitud_use_cases.listar_historico())
 
+
+    def resolver_destino_pdf_confirmacion(
+        self,
+        pdf_path: str,
+        *,
+        overwrite: bool = False,
+        auto_rename: bool = True,
+    ) -> Path:
+        resolucion = self.window._solicitud_use_cases.resolver_destino_pdf(
+            Path(pdf_path),
+            overwrite=overwrite,
+            auto_rename=auto_rename,
+        )
+        return resolucion.ruta_destino
+
+    def obtener_resolucion_destino_pdf(self, pdf_path: str):
+        return self.window._solicitud_use_cases.resolver_destino_pdf(
+            Path(pdf_path),
+            overwrite=False,
+            auto_rename=False,
+        )
+
     def confirmar_lote(
         self,
         pendientes_actuales: list[SolicitudDTO],
