@@ -29,19 +29,20 @@ pytestmark = pytest.mark.headless_safe
     ],
 )
 def test_build_display_columnas_base(column: int, kwargs: dict, expected: str) -> None:
-    entrada = SolicitudDisplayEntrada(
-        column=column,
-        fecha_pedida="2026-01-10",
-        desde="09:00",
-        hasta="10:00",
-        completo=False,
-        horas=2.0,
-        notas="Nota",
-        generated=False,
-        show_estado=False,
-        show_delegada=False,
-        **kwargs,
-    )
+    defaults = {
+        "column": column,
+        "fecha_pedida": "2026-01-10",
+        "desde": "09:00",
+        "hasta": "10:00",
+        "completo": False,
+        "horas": 2.0,
+        "notas": "Nota",
+        "generated": False,
+        "show_estado": False,
+        "show_delegada": False,
+    }
+    defaults.update(kwargs)
+    entrada = SolicitudDisplayEntrada(**defaults)
 
     assert build_display(entrada).texto_display == expected
 

@@ -15,6 +15,7 @@ from app.ui.vistas.main_window import (
     TAB_HISTORICO,
     resolve_active_delegada_id,
 )
+from app.ui.vistas.init_refresh import run_init_refresh
 
 
 class MainWindow(_MainWindowBase):
@@ -23,6 +24,8 @@ class MainWindow(_MainWindowBase):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.toast = getattr(self, "toast", None)
+        self.historico_desde_date = getattr(self, "historico_desde_date", None)
+        self.historico_hasta_date = getattr(self, "historico_hasta_date", None)
 
     def _toast_success(self, message: str, title: str | None = None) -> None:
         try:
@@ -33,9 +36,12 @@ class MainWindow(_MainWindowBase):
         except TypeError:
             self.toast.success(message)
 
-    def _toast_error(self, message: str, *, title: str = "Error") -> None:
+    def _toast_error(self, message: str, *, title: str | None = None) -> None:
         try:
-            self.toast.error(message, title=title)
+            if title:
+                self.toast.error(message, title=title)
+            else:
+                self.toast.error(message)
         except TypeError:
             self.toast.error(message)
 
@@ -43,6 +49,25 @@ class MainWindow(_MainWindowBase):
         # Se mantiene referencia explícita para guardrails de contrato:
         # QMessageBox.critical
         return super()._show_error_detail(title, message, details)
+
+    def _post_init_load(self) -> None:
+        run_init_refresh(
+            refresh_resumen=self._refresh_saldos,
+            refresh_pendientes=self._reload_pending_views,
+            refresh_historico=lambda: self._refresh_historico(force=True),
+        )
+
+    def _on_main_tab_changed(self, index: int) -> None:
+        if index != TAB_HISTORICO:
+            return
+        if not (self.historico_desde_date.date().isValid() and self.historico_hasta_date.date().isValid()):
+            self._apply_historico_last_30_days()
+        self._refresh_historico(force=False)
+
+    def _refresh_historico(self, *, force: bool = False) -> None:
+        # Mantiene la fuente de verdad del histórico en el controller.
+        self._solicitudes_controller.refresh_historico()
+        return super()._refresh_historico(force=force)
 
 
 __all__ = [
