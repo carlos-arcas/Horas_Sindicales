@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
     EntradaNombrePdf,
     ServicioPreflightPdf,

@@ -77,7 +77,6 @@ from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
 from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
 from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
     EntradaNombrePdf,
-    ResultadoPreflightPdf,
     ServicioPreflightPdf,
 )
 from app.application.use_cases.solicitudes.servicio_saldos import (

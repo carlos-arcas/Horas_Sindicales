@@ -9,6 +9,26 @@ from app.ui.widgets.widget_toast import NotificacionToast, TarjetaToast
 
 
 class GestorToasts(_GestorToastsBase):
+    def _show_tolerante(self, **kwargs: object) -> None:
+        try:
+            self.show(**kwargs)
+        except TypeError:
+            kwargs_filtrados = {
+                clave: kwargs.get(clave)
+                for clave in (
+                    "message",
+                    "level",
+                    "title",
+                    "action_label",
+                    "action_callback",
+                    "details",
+                    "correlation_id",
+                    "code",
+                    "duration_ms",
+                )
+            }
+            self.show(**kwargs_filtrados)
+
     def success(
         self,
         message: str,
@@ -22,7 +42,7 @@ class GestorToasts(_GestorToastsBase):
         duration_ms: int | None = None,
         **opts: object,
     ) -> None:
-        self.show(
+        self._show_tolerante(
             message=message,
             level="success",
             title=title,
@@ -48,7 +68,7 @@ class GestorToasts(_GestorToastsBase):
         duration_ms: int | None = None,
         **opts: object,
     ) -> None:
-        self.show(
+        self._show_tolerante(
             message=message,
             level="info",
             title=title,
@@ -74,7 +94,7 @@ class GestorToasts(_GestorToastsBase):
         duration_ms: int | None = None,
         **opts: object,
     ) -> None:
-        self.show(
+        self._show_tolerante(
             message=message,
             level="warning",
             title=title,
@@ -102,7 +122,7 @@ class GestorToasts(_GestorToastsBase):
     ) -> None:
         payload_details = details if isinstance(details, str) else opts.get("details") if isinstance(opts.get("details"), str) else None
         payload_message = f"{message}\n{payload_details}" if payload_details else message
-        self.show(
+        self._show_tolerante(
             message=payload_message,
             level="error",
             title=title,
