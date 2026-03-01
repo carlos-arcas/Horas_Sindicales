@@ -19,7 +19,7 @@ from app.infrastructure.repos_sqlite_builders import (
     int_or_zero,
     solicitud_insert_params,
 )
-from app.infrastructure.repos_sqlite_personas import PersonaRepositorySQLite  # noqa: F401 - re-export for compatibility
+from app.infrastructure.repos_sqlite_personas import PersonaRepositorySQLite
 from app.infrastructure.sqlite_uow import transaccion
 
 
@@ -27,6 +27,13 @@ logger = logging.getLogger(__name__)
 
 _LOCKED_RETRY_BACKOFF_SECONDS = (0.05, 0.15, 0.3)
 _T = TypeVar("_T")
+
+__all__ = [
+    "CuadranteRepositorySQLite",
+    "SolicitudRepositorySQLite",
+    "GrupoConfigRepositorySQLite",
+    "PersonaRepositorySQLite",
+]
 
 
 def _configure_connection_for_runtime(connection: sqlite3.Connection) -> None:
@@ -88,9 +95,6 @@ def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: Iterable[
             f"SQL param mismatch for {context}: expected {expected} placeholders, got {actual} parameters."
         )
     cursor.execute(sql, tuple(params_list))
-
-
-
 
 class CuadranteRepositorySQLite(CuadranteRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
