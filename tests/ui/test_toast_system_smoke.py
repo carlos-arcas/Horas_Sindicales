@@ -111,3 +111,40 @@ def test_boton_detalles_abre_dialogo(qtbot, monkeypatch: pytest.MonkeyPatch) -> 
     qtbot.mouseClick(toast._btn_detalles, Qt.MouseButton.LeftButton)
 
     assert called["open"] == 1
+
+
+def test_success_con_accion_no_crashea_y_ejecuta_callback(qtbot) -> None:
+    window = QMainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    manager = GestorToasts()
+    manager.attach_to(window)
+
+    called = {"count": 0}
+
+    def _action() -> None:
+        called["count"] += 1
+
+    manager.success("Mensaje", action_label="X", action_callback=_action)
+
+    toast = next(iter(manager._visibles.values()))
+    assert toast._btn_accion.isVisible()
+    assert toast._btn_accion.text() == "X"
+
+    qtbot.mouseClick(toast._btn_accion, Qt.MouseButton.LeftButton)
+
+    assert called["count"] == 1
+
+
+def test_success_sin_action_label_no_muestra_boton(qtbot) -> None:
+    window = QMainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    manager = GestorToasts()
+    manager.attach_to(window)
+    manager.success("Mensaje")
+
+    toast = next(iter(manager._visibles.values()))
+    assert not toast._btn_accion.isVisible()
