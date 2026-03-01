@@ -1,17 +1,22 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, QThread, Qt
+from PySide6.QtCore import QObject, QThread, Qt, Signal, Slot
 from PySide6.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
 from presentacion.i18n import I18nManager
 
 
 class SplashWindow(QWidget):
+    _status_requested = Signal(str)
+    _close_requested = Signal()
+
     def __init__(self, i18n: I18nManager) -> None:
         super().__init__()
         self._i18n = i18n
-        self._hilo_arranque: QThread | None = None
-        self._worker_arranque: QObject | None = None
+        self._startup_thread: QThread | None = None
+        self._startup_worker: QObject | None = None
+        self._watchdog_timer: QObject | None = None
+        self._close_in_progress = False
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
         self.setFixedSize(460, 200)
@@ -41,24 +46,51 @@ class SplashWindow(QWidget):
 
         self._estado_clave = "splash_cargando"
         self._i18n.idioma_cambiado.connect(self._actualizar_textos)
+        self._status_requested.connect(self._set_status_internal, Qt.ConnectionType.QueuedConnection)
+        self._close_requested.connect(self._request_close_internal, Qt.ConnectionType.QueuedConnection)
         self._actualizar_textos()
 
     def _actualizar_textos(self) -> None:
         self._titulo.setText(self._i18n.t("splash_titulo"))
         self._cargando.setText(self._i18n.t(self._estado_clave))
 
-    def set_status(self, texto: str) -> None:
+    @Slot(str)
+    def _set_status_internal(self, texto: str) -> None:
         self._estado_clave = texto
         self._cargando.setText(self._i18n.t(texto))
 
+    def set_status(self, texto: str) -> None:
+        if QThread.currentThread() == self.thread():
+            self._set_status_internal(texto)
+            return
+        self._status_requested.emit(texto)
+
     def registrar_arranque(self, hilo: QThread, worker: QObject) -> None:
-        self._hilo_arranque = hilo
-        self._worker_arranque = worker
+        self._startup_thread = hilo
+        self._startup_worker = worker
+
+    def registrar_watchdog(self, timer: QObject) -> None:
+        self._watchdog_timer = timer
+
+    @Slot()
+    def _request_close_internal(self) -> None:
+        if self._close_in_progress:
+            return
+        self._close_in_progress = True
+        self.hide()
+        self.close()
+
+    def request_close(self) -> None:
+        if QThread.currentThread() == self.thread():
+            self._request_close_internal()
+            return
+        self._close_requested.emit()
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
-        hilo = self._hilo_arranque
+        hilo = self._startup_thread
         if hilo is not None and hilo.isRunning():
             hilo.quit()
+            self._close_in_progress = False
             event.ignore()
             return
         super().closeEvent(event)
