@@ -432,7 +432,47 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         layout_builder.build_status(self)
 
     def _normalize_input_heights(self) -> None:
-        normalize_input_heights(self)
+        try:
+            normalize_input_heights(self)
+        except Exception as exc:
+            log_operational_error(
+                logger,
+                "UI_NORMALIZE_INPUT_HEIGHTS_FALLBACK",
+                exc=exc,
+                extra={"contexto": "MainWindow._normalize_input_heights"},
+            )
+            names = ("persona_combo", "fecha_input", "desde_input", "hasta_input", "notas_input")
+            widgets = [getattr(self, name, None) for name in names]
+            widgets = [widget for widget in widgets if widget is not None]
+            heights: list[int] = []
+            for widget in widgets:
+                size_hint = getattr(widget, "sizeHint", None)
+                if not callable(size_hint):
+                    continue
+                hint = size_hint()
+                height_getter = getattr(hint, "height", None)
+                if not callable(height_getter):
+                    continue
+                height = height_getter()
+                if isinstance(height, int) and height > 0:
+                    heights.append(height)
+            if not heights:
+                return
+            target_height = max(heights)
+            single_line = {
+                "QComboBox",
+                "QDateEdit",
+                "QTimeEdit",
+                "QLineEdit",
+                "QSpinBox",
+                "QDoubleSpinBox",
+            }
+            for widget in widgets:
+                if type(widget).__name__ not in single_line:
+                    continue
+                set_fixed_height = getattr(widget, "setFixedHeight", None)
+                if callable(set_fixed_height):
+                    set_fixed_height(target_height)
 
     def _status_to_label(self, status: str) -> str:
         from app.ui.vistas.main_window import dialogos_sincronizacion
@@ -599,6 +639,32 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _on_insertar_sin_pdf(self) -> None:
         return on_insertar_sin_pdf(self)
+
+    def _on_confirmar(self, *args, **kwargs) -> None:
+        _ = (args, kwargs)
+        confirmar_action = globals().get("on_confirmar")
+        if not callable(confirmar_action):
+            mensaje = copy_text("ui.errores.no_se_pudo_completar_operacion")
+            detalle = copy_text("ui.errores.reintenta_contacta_soporte")
+            toast_error(self.toast, f"{mensaje}. {detalle}")
+            log_operational_error(
+                logger,
+                "UI_CONFIRMAR_HANDLER_NO_DISPONIBLE",
+                extra={"handler": "on_confirmar", "contexto": "MainWindow._on_confirmar"},
+            )
+            return
+        try:
+            confirmar_action(self)
+        except Exception as exc:
+            mensaje = copy_text("ui.errores.no_se_pudo_completar_operacion")
+            detalle = copy_text("ui.errores.reintenta_contacta_soporte")
+            toast_error(self.toast, f"{mensaje}. {detalle}")
+            log_operational_error(
+                logger,
+                "UI_CONFIRMAR_HANDLER_FALLO",
+                exc=exc,
+                extra={"handler": "on_confirmar", "contexto": "MainWindow._on_confirmar"},
+            )
 
     def _render_preventive_validation(self) -> None:
         return validacion_preventiva._render_preventive_validation(self)
