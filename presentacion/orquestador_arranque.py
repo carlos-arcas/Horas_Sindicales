@@ -35,7 +35,13 @@ class OrquestadorArranqueUI:
 
         from presentacion.wizard_bienvenida import WizardBienvenida
 
-        wizard = WizardBienvenida(self._i18n, self._deps.obtener_ruta_guia_sync, parent=parent)
+        wizard = WizardBienvenida(
+            self._i18n,
+            self._deps.obtener_ruta_guia_sync,
+            idioma_inicial=self._deps.obtener_idioma_ui.ejecutar(),
+            pantalla_completa_inicial=self._deps.obtener_preferencia_pantalla_completa.ejecutar(),
+            parent=parent,
+        )
         if wizard.exec() != WizardBienvenida.Accepted:
             return False
 
