@@ -22,3 +22,15 @@
 ## Evidencia de control
 - Se ejecutó escaneo AST de imports entre capas para detectar A1 y A4.
 - Se revisó A2 manualmente para ubicar reglas de filtrado en UI y se movieron a dominio puro.
+
+## Bugs UI: aridad bindings + header externo
+- **Causa raíz:** Las señales de Qt pueden inyectar argumentos posicionales (por ejemplo `checked/index`) que no coinciden con handlers legacy sin payload; además faltaba una red de pruebas focalizada para garantizar que el título del header externo se resolviera al navegar entre secciones.
+- **Solución aplicada:** Se añadieron pruebas de regresión para la aridad de bindings (`_adaptar_slot_a_senal`) y para el mapeo de sección a título del header externo (`resolve_section_title`) con claves de catálogo i18n.
+- **Archivos tocados:**
+  - `tests/ui/test_state_bindings_arity.py`
+  - `tests/ui/test_header_externo_actualiza_titulo.py`
+  - `docs/auditorias/auditoria_clean_architecture.md`
+- **Tests añadidos:**
+  - `tests/ui/test_state_bindings_arity.py`
+  - `tests/ui/test_header_externo_actualiza_titulo.py`
+- **Riesgos residuales:** El smoke real con Qt sigue dependiendo del entorno gráfico offscreen; estas pruebas nuevas cubren la lógica determinista sin levantar UI completa, pero no sustituyen al smoke end-to-end del shell.
