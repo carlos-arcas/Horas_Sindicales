@@ -1,51 +1,48 @@
 from __future__ import annotations
 
+# ruff: noqa: F401
+
 import logging
 from pathlib import Path
 
-try:
-    from PySide6.QtCore import QDate, QEvent, QItemSelectionModel, QObject, QSettings, QThread, QTime, QTimer, Qt
-    # `QKeyEvent` vive en QtGui en PySide6 (no en QtCore); importarlo aquí evita NameError en eventFilter.
-    from PySide6.QtGui import QKeyEvent
-    from PySide6.QtWidgets import (
-        QAbstractItemView,
-        QApplication,
-        QCheckBox,
-        QComboBox,
-        QDateEdit,
-        QDialog,
-        QDialogButtonBox,
-        QFileDialog,
-        QFrame,
-        QHeaderView,
-        QHBoxLayout,
-        QLabel,
-        QMainWindow,
-        QMessageBox,
-        QPlainTextEdit,
-        QProgressBar,
-        QPushButton,
-        QSizePolicy,
-        QSplitter,
-        QTableView,
-        QTextEdit,
-        QTimeEdit,
-        QTreeWidget,
-        QTreeWidgetItem,
-        QVBoxLayout,
-        QWidget,
-    )
-except Exception:  # pragma: no cover - habilita import en entornos CI sin Qt
-    class _QtFallbackBase:
-        pass
-
-    QDate = QEvent = QItemSelectionModel = QObject = QSettings = QThread = QTime = QTimer = Qt = object
-    QKeyEvent = object
-    QCheckBox = QComboBox = QDateEdit = QDialog = QFileDialog = QHBoxLayout = QLabel = object
-    QMainWindow = type("QMainWindow", (_QtFallbackBase,), {})
-    QMessageBox = QPushButton = QApplication = QAbstractItemView = QPlainTextEdit = object
-    QFrame = QHeaderView = QProgressBar = QSizePolicy = QSplitter = QTableView = QTimeEdit = object
-    QVBoxLayout = QWidget = QDialogButtonBox = QTextEdit = QTreeWidget = QTreeWidgetItem = object
+from app.ui.qt_compat import (
+    QAbstractItemView,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDate,
+    QDateEdit,
+    QDialog,
+    QDialogButtonBox,
+    QEvent,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QHeaderView,
+    QItemSelectionModel,
+    QKeyEvent,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QObject,
+    QPlainTextEdit,
+    QProgressBar,
+    QPushButton,
+    QSettings,
+    QSizePolicy,
+    QSplitter,
+    QTableView,
+    QTextEdit,
+    QThread,
+    QTime,
+    QTimeEdit,
+    QTimer,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+    Qt,
+)  # noqa: F401
 
 from app.application.conflicts_service import ConflictsService
 from app.application.dto import PersonaDTO, SolicitudDTO
@@ -62,81 +59,73 @@ from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
 )
 from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan
-try:
-    from app.ui.conflicts_dialog import ConflictsDialog
-    from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
-    from app.ui.error_mapping import UiErrorMessage, map_error_to_ui_message
-    from app.ui.patterns import apply_modal_behavior, build_modal_actions, status_badge, STATUS_PATTERNS
-    from app.ui.widgets.toast import GestorToasts
-    from app.ui.controllers.personas_controller import PersonasController
-    from app.ui.controllers.solicitudes_controller import SolicitudesController
-    from app.ui.controllers.sync_controller import SyncController
-    from app.ui.controllers.pdf_controller import PdfController
-    from app.ui.notification_service import ConfirmationSummaryPayload, NotificationService, OperationFeedback
-    from app.ui.toast_helpers import toast_error, toast_success
-    from app.ui.components.saldos_card import SaldosCard
-    from app.ui.sync_reporting import (build_config_incomplete_report, build_failed_report, build_simulation_report,
-                                       build_sync_report, list_sync_history, load_sync_report, persist_report,
-                                       to_markdown)
-    from app.ui.workers.sincronizacion_workers import PushWorker
-    from app.ui.vistas.main_window_health_mixin import MainWindowHealthMixin
-    from app.ui.vistas.init_refresh import run_init_refresh
-    from app.ui.vistas.builders.main_window_builders import build_main_window_widgets, build_shell_layout, build_status_bar
-    from app.ui.vistas.confirmar_pdf_state import debe_habilitar_confirmar_pdf
-    from app.ui.vistas.confirmacion_actions import (ask_push_after_pdf, build_confirmation_payload,
-                                                    execute_confirmar_with_pdf, finalize_confirmar_with_pdf,
-                                                    iterar_pendientes_en_tabla, on_confirmar, on_insertar_sin_pdf,
-                                                    prompt_confirm_pdf_path, show_confirmation_closure,
-                                                    show_pdf_actions_dialog, sum_solicitudes_minutes,
-                                                    undo_confirmation)
-    from app.ui.vistas import historico_actions
-    from app.ui.vistas.ui_helpers import abrir_archivo_local
-    from app.ui.vistas.main_window_helpers import (build_estado_pendientes_debug_payload,
-                                                   build_historico_filters_payload,
-                                                   handle_historico_render_mismatch, log_estado_pendientes,
-                                                   show_sync_error_dialog_from_exception)
-    from app.ui.vistas.main_window import (
-        acciones_pendientes,
-        acciones_personas,
-        acciones_sincronizacion,
-        validacion_preventiva,
-    )
-    from app.ui.vistas.solicitudes_presenter import ActionStateInput, build_action_state
-except Exception:  # pragma: no cover - habilita import parcial sin dependencias de UI/Qt
-    def _qt_unavailable(*args, **kwargs):
-        raise RuntimeError(copy_text("ui.sync.qt_no_disponible"))
+from app.ui.vistas.main_window.importaciones import (
+    ActionStateInput,
+    ConfirmationSummaryPayload,
+    ConflictsDialog,
+    GestorToasts,
+    GrupoConfigDialog,
+    MainWindowHealthMixin,
+    NotificationService,
+    OperationFeedback,
+    PdfConfigDialog,
+    PdfController,
+    PersonasController,
+    PushWorker,
+    STATUS_PATTERNS,
+    SaldosCard,
+    SolicitudesController,
+    SyncController,
+    UiErrorMessage,
+    abrir_archivo_local,
+    acciones_pendientes,
+    acciones_personas,
+    acciones_sincronizacion,
+    apply_modal_behavior,
+    ask_push_after_pdf,
+    build_action_state,
+    build_config_incomplete_report,
+    build_confirmation_payload,
+    build_estado_pendientes_debug_payload,
+    build_failed_report,
+    build_historico_filters_payload,
+    build_main_window_widgets,
+    build_modal_actions,
+    build_shell_layout,
+    build_simulation_report,
+    build_status_bar,
+    build_sync_report,
+    debe_habilitar_confirmar_pdf,
+    execute_confirmar_with_pdf,
+    finalize_confirmar_with_pdf,
+    handle_historico_render_mismatch,
+    historico_actions,
+    iterar_pendientes_en_tabla,
+    list_sync_history,
+    load_sync_report,
+    log_estado_pendientes,
+    map_error_to_ui_message,
+    on_confirmar,
+    on_insertar_sin_pdf,
+    persist_report,
+    prompt_confirm_pdf_path,
+    run_init_refresh,
+    show_confirmation_closure,
+    show_pdf_actions_dialog,
+    show_sync_error_dialog_from_exception,
+    status_badge,
+    sum_solicitudes_minutes,
+    to_markdown,
+    toast_error,
+    toast_success,
+    undo_confirmation,
+    validacion_preventiva,
+)  # noqa: F401
 
-    ConflictsDialog = GrupoConfigDialog = PdfConfigDialog = GestorToasts = object
-    ActionStateInput = object
-    build_action_state = _qt_unavailable
-    acciones_pendientes = acciones_personas = acciones_sincronizacion = validacion_preventiva = object
-    PersonasController = SolicitudesController = SyncController = PdfController = object
-    ConfirmationSummaryPayload = NotificationService = OperationFeedback = object
-    SaldosCard = PushWorker = object
-    MainWindowHealthMixin = type("MainWindowHealthMixin", (), {})
-    UiErrorMessage = object
-    map_error_to_ui_message = _qt_unavailable
-    apply_modal_behavior = build_modal_actions = status_badge = _qt_unavailable
-    STATUS_PATTERNS = {}
-    toast_error = toast_success = _qt_unavailable
-    build_config_incomplete_report = build_failed_report = build_simulation_report = _qt_unavailable
-    build_sync_report = list_sync_history = load_sync_report = persist_report = to_markdown = _qt_unavailable
-    run_init_refresh = build_main_window_widgets = build_shell_layout = build_status_bar = _qt_unavailable
-    debe_habilitar_confirmar_pdf = ask_push_after_pdf = build_confirmation_payload = _qt_unavailable
-    execute_confirmar_with_pdf = finalize_confirmar_with_pdf = iterar_pendientes_en_tabla = _qt_unavailable
-    on_confirmar = on_insertar_sin_pdf = prompt_confirm_pdf_path = _qt_unavailable
-    show_confirmation_closure = show_pdf_actions_dialog = sum_solicitudes_minutes = undo_confirmation = _qt_unavailable
-    class _HistoricoActionsFallback:
-        def __getattr__(self, _name):
-            return _qt_unavailable
-
-    historico_actions = _HistoricoActionsFallback()
-    abrir_archivo_local = _qt_unavailable
-    build_estado_pendientes_debug_payload = build_historico_filters_payload = _qt_unavailable
-    handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
 from . import data_refresh, layout_builder, wiring
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
+from .init_placeholders import inicializar_placeholders
 
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 from . import state_historico, state_pendientes
@@ -243,50 +232,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self.sidebar_buttons: list[QPushButton] = []
         self._sidebar_routes: list[dict[str, int | None]] = []
         self._active_sidebar_index = 0
-        # Placeholders explícitos para contratos de inicialización self.* en tests estáticos.
-        self.main_tabs = None
-        self.persona_combo = self.fecha_input = self.desde_input = self.hasta_input = None
-        self.desde_container = self.hasta_container = None
-        self.desde_placeholder = self.hasta_placeholder = None
-        self.completo_check = self.notas_input = None
-        self.pending_errors_frame = self.pending_errors_summary = None
-        self.show_help_toggle = None
-        self.solicitudes_status_label = self.solicitudes_status_hint = None
-        self.solicitudes_tip_1 = self.solicitudes_tip_2 = self.solicitudes_tip_3 = None
-        self.solicitud_inline_error = self.delegada_field_error = self.fecha_field_error = self.tramo_field_error = None
-        self.insertar_sin_pdf_button = self.confirmar_button = None
-        self.agregar_button = self.eliminar_pendiente_button = self.eliminar_huerfana_button = None
-        self.revisar_ocultas_button = self.ver_todas_pendientes_button = None
-        self.total_pendientes_label = self.pending_filter_warning = None
-        self.pendientes_table = self.huerfanas_table = None
-        self.pendientes_model = self.huerfanas_model = None
-        self.huerfanas_label = None
-        self.sync_button = self.confirm_sync_button = None
-        self.retry_failed_button = self.simulate_sync_button = self.review_conflicts_button = None
-        self.go_to_sync_config_button = self.copy_sync_report_button = None
-        self.sync_progress = self.sync_panel_status = None
-        self.sync_status_label = self.sync_status_badge = None
-        self.sync_counts_label = self.sync_details_button = None
-        self.sync_source_label = self.sync_scope_label = self.sync_idempotency_label = None
-        self.last_sync_metrics_label = self.conflicts_reminder_label = None
-        self.historico_search_input = self.historico_estado_combo = self.historico_delegada_combo = None
-        self.historico_desde_date = self.historico_hasta_date = None
-        self.historico_apply_filters_button = None
-        self.historico_todas_delegadas_check = None
-        self.historico_periodo_anual_radio = self.historico_periodo_mes_radio = self.historico_periodo_rango_radio = None
-        self.historico_periodo_anual_spin = self.historico_periodo_mes_ano_spin = self.historico_periodo_mes_combo = None
-        self.historico_table = self.historico_model = self.historico_proxy_model = None
-        self.historico_empty_state = self.historico_details_content = None
-        self.open_saldos_modal_button = None
-        self.generar_pdf_button = self.eliminar_button = None
-        self.historico_select_all_visible_check = self.historico_sync_button = None
-        self.historico_export_hint_label = None
-        self.editar_pdf_button = self.abrir_pdf_check = self.goto_existing_button = None
-        self.total_preview_input = None
-        self.add_persona_button = self.edit_persona_button = self.delete_persona_button = None
-        self.edit_grupo_button = self.opciones_button = self.config_delegada_combo = None
-        self.preferencia_pantalla_completa_check = None
-        self.cuadrante_warning_label = None
+        inicializar_placeholders(self)
         self._last_persona_id: int | None = None
         self._draft_solicitud_por_persona: dict[int, dict[str, object]] = {}
         self.toast = GestorToasts()
