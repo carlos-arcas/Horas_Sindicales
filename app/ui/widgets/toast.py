@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from typing import Callable
 
 from app.ui.widgets.dialogo_detalles_toast import DialogoDetallesNotificacion
 from app.ui.widgets.gestor_toasts import GestorToasts as _GestorToastsBase
 from app.ui.widgets.overlay_toast import CapaToasts
 from app.ui.widgets.widget_toast import NotificacionToast, TarjetaToast
+
+logger = logging.getLogger(__name__)
 
 
 class GestorToasts(_GestorToastsBase):
@@ -29,6 +32,32 @@ class GestorToasts(_GestorToastsBase):
             }
             self.show(**kwargs_filtrados)
 
+    def _resolver_aliases_accion(
+        self,
+        *,
+        action_label: str | None,
+        action_callback: Callable[[], None] | None,
+        opts: dict[str, object],
+    ) -> tuple[str | None, Callable[[], None] | None]:
+        claves_permitidas = {"action_text", "action"}
+        claves_desconocidas = sorted(set(opts.keys()) - claves_permitidas)
+        if claves_desconocidas:
+            logger.error(
+                "toast_kwargs_invalidos",
+                extra={"kwargs_no_soportados": claves_desconocidas},
+            )
+            raise ValueError(f"toast_kwargs_invalidos:{','.join(claves_desconocidas)}")
+
+        alias_label = opts.get("action_text")
+        if action_label is None and isinstance(alias_label, str):
+            action_label = alias_label
+
+        alias_callback = opts.get("action")
+        if action_callback is None and callable(alias_callback):
+            action_callback = alias_callback
+
+        return action_label, action_callback
+
     def success(
         self,
         message: str,
@@ -42,6 +71,12 @@ class GestorToasts(_GestorToastsBase):
         duration_ms: int | None = None,
         **opts: object,
     ) -> None:
+        action_label, action_callback = self._resolver_aliases_accion(
+            action_label=action_label,
+            action_callback=action_callback,
+            opts=opts,
+        )
+
         self._show_tolerante(
             message=message,
             level="success",
@@ -52,7 +87,6 @@ class GestorToasts(_GestorToastsBase):
             correlation_id=correlation_id,
             code=code,
             duration_ms=duration_ms,
-            **opts,
         )
 
     def info(
@@ -68,6 +102,12 @@ class GestorToasts(_GestorToastsBase):
         duration_ms: int | None = None,
         **opts: object,
     ) -> None:
+        action_label, action_callback = self._resolver_aliases_accion(
+            action_label=action_label,
+            action_callback=action_callback,
+            opts=opts,
+        )
+
         self._show_tolerante(
             message=message,
             level="info",
@@ -78,7 +118,6 @@ class GestorToasts(_GestorToastsBase):
             correlation_id=correlation_id,
             code=code,
             duration_ms=duration_ms,
-            **opts,
         )
 
     def warning(
@@ -94,6 +133,12 @@ class GestorToasts(_GestorToastsBase):
         duration_ms: int | None = None,
         **opts: object,
     ) -> None:
+        action_label, action_callback = self._resolver_aliases_accion(
+            action_label=action_label,
+            action_callback=action_callback,
+            opts=opts,
+        )
+
         self._show_tolerante(
             message=message,
             level="warning",
@@ -104,7 +149,6 @@ class GestorToasts(_GestorToastsBase):
             correlation_id=correlation_id,
             code=code,
             duration_ms=duration_ms,
-            **opts,
         )
 
     def error(
@@ -120,7 +164,12 @@ class GestorToasts(_GestorToastsBase):
         duration_ms: int | None = None,
         **opts: object,
     ) -> None:
-        payload_details = details if isinstance(details, str) else opts.get("details") if isinstance(opts.get("details"), str) else None
+        action_label, action_callback = self._resolver_aliases_accion(
+            action_label=action_label,
+            action_callback=action_callback,
+            opts=opts,
+        )
+        payload_details = details
         payload_message = f"{message}\n{payload_details}" if payload_details else message
         self._show_tolerante(
             message=payload_message,
@@ -132,7 +181,6 @@ class GestorToasts(_GestorToastsBase):
             correlation_id=correlation_id,
             code=code,
             duration_ms=duration_ms,
-            **opts,
         )
 
 
