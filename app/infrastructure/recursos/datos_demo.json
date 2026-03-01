@@ -1,0 +1,32 @@
+{
+  "delegadas": [
+    {
+      "nombre": "Ana Ruiz",
+      "genero": "F",
+      "horas_mes_min": 900,
+      "horas_ano_min": 10800
+    },
+    {
+      "nombre": "Marta León",
+      "genero": "F",
+      "horas_mes_min": 720,
+      "horas_ano_min": 8640
+    },
+    {
+      "nombre": "Lucía Pérez",
+      "genero": "F",
+      "horas_mes_min": 840,
+      "horas_ano_min": 10080
+    }
+  ],
+  "solicitudes": [
+    {"delegada": "Ana Ruiz", "fecha_pedida": "2026-02-04", "desde_min": 540, "hasta_min": 660, "completo": false, "horas_solicitadas_min": 120, "generated": false, "notas": "Reunión comité"},
+    {"delegada": "Ana Ruiz", "fecha_pedida": "2026-02-04", "desde_min": 540, "hasta_min": 660, "completo": false, "horas_solicitadas_min": 120, "generated": false, "notas": "Duplicada intencional para demo"},
+    {"delegada": "Ana Ruiz", "fecha_pedida": "2026-02-06", "desde_min": 480, "hasta_min": 600, "completo": false, "horas_solicitadas_min": 120, "generated": true, "notas": "Histórico confirmado"},
+    {"delegada": "Marta León", "fecha_pedida": "2026-02-03", "desde_min": 600, "hasta_min": 720, "completo": false, "horas_solicitadas_min": 120, "generated": false, "notas": "Negociación convenio"},
+    {"delegada": "Marta León", "fecha_pedida": "2026-02-10", "desde_min": null, "hasta_min": null, "completo": true, "horas_solicitadas_min": 360, "generated": true, "notas": "Jornada completa"},
+    {"delegada": "Marta León", "fecha_pedida": "2026-02-12", "desde_min": 780, "hasta_min": 870, "completo": false, "horas_solicitadas_min": 90, "generated": false, "notas": "Asamblea local"},
+    {"delegada": "Lucía Pérez", "fecha_pedida": "2026-02-05", "desde_min": 510, "hasta_min": 630, "completo": false, "horas_solicitadas_min": 120, "generated": true, "notas": "Histórico confirmado"},
+    {"delegada": "Lucía Pérez", "fecha_pedida": "2026-02-14", "desde_min": 540, "hasta_min": 660, "completo": false, "horas_solicitadas_min": 120, "generated": false, "notas": "Seguimiento de incidencias"}
+  ]
+}
