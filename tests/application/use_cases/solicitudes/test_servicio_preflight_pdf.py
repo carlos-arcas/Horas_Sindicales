@@ -9,7 +9,6 @@ from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
     ServicioPreflightPdf,
 )
 from app.application.use_cases.solicitudes.use_case import SolicitudUseCases
-from app.domain.services import BusinessRuleError
 
 
 class FakeSistemaArchivos:
@@ -83,7 +82,7 @@ def test_sugerir_ruta_alternativa_propone_siguiente_disponible(tmp_path: Path) -
     assert sugerida == str((tmp_path / "solicitud(3).pdf").resolve(strict=False))
 
 
-def test_use_case_lanza_error_colision_con_sugerencia(tmp_path: Path) -> None:
+def test_use_case_resuelve_colision_con_renombrado_automatico(tmp_path: Path) -> None:
     destino = tmp_path / "colision.pdf"
     existentes = {
         str(destino.resolve(strict=False)),
@@ -96,9 +95,8 @@ def test_use_case_lanza_error_colision_con_sugerencia(tmp_path: Path) -> None:
         fs=FakeSistemaArchivos(existentes),
     )
 
-    with pytest.raises(BusinessRuleError, match=r"Colisión de ruta destino") as exc:
-        use_case._validar_preverificacion_destino_pdf(destino)
+    resolucion = use_case.resolver_destino_pdf(destino, overwrite=False, auto_rename=True)
 
-    assert f"{destino.resolve(strict=False)}" in str(exc.value)
-    assert "Sugerencia:" in str(exc.value)
-    assert "colision(2).pdf" in str(exc.value)
+    assert resolucion.colision_detectada is True
+    assert str(resolucion.ruta_original).endswith("colision.pdf")
+    assert str(resolucion.ruta_destino).endswith("colision(2).pdf")
