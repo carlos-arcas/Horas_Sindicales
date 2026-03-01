@@ -27,3 +27,13 @@ class MarcarOnboardingCompletado:
 
     def ejecutar(self) -> None:
         self._repositorio_preferencias.guardar_bool(ONBOARDING_COMPLETADO, True)
+
+
+class ReiniciarOnboarding:
+    """Restablece el estado de onboarding para volver a mostrar el asistente."""
+
+    def __init__(self, repositorio_preferencias: IRepositorioPreferencias) -> None:
+        self._repositorio_preferencias = repositorio_preferencias
+
+    def ejecutar(self) -> None:
+        self._repositorio_preferencias.guardar_bool(ONBOARDING_COMPLETADO, False)

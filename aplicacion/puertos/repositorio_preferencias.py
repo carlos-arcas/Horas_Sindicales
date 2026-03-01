@@ -1,4 +1,4 @@
-"""Puerto de persistencia para preferencias simples tipo bool."""
+"""Puerto de persistencia para preferencias simples de UI."""
 
 from __future__ import annotations
 
@@ -13,3 +13,10 @@ class IRepositorioPreferencias(Protocol):
 
     def guardar_bool(self, clave: str, valor: bool) -> None:
         """Guarda un valor booleano por clave."""
+
+
+    def obtener_texto(self, clave: str, por_defecto: str) -> str:
+        """Obtiene un valor de texto por clave."""
+
+    def guardar_texto(self, clave: str, valor: str) -> None:
+        """Guarda un valor de texto por clave."""
