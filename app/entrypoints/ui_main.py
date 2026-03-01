@@ -85,6 +85,8 @@ class _CoordinadorArranqueConCierreDeterminista:
             self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
             resolved_container, deps_arranque, idioma = startup_payload
+            deps_arranque = _actualizar_preferencias_en_hilo_ui(resolved_container, deps_arranque)
+            idioma = deps_arranque.obtener_idioma_ui.ejecutar()
             self.i18n.set_idioma(idioma)
             orquestador = self.orquestador_factory(deps_arranque, self.i18n)
             self._cerrar_splash_idempotente()
@@ -289,6 +291,26 @@ def _construir_dependencias_arranque(container):
         guardar_idioma_ui=GuardarIdiomaUI(repo_pref),
         obtener_ruta_guia_sync=ObtenerRutaGuiaSync(proveedor_documentos),
     )
+
+
+def _actualizar_preferencias_en_hilo_ui(resolved_container, deps_arranque):
+    """Reemplaza preferencias headless por QSettings desde el hilo de UI."""
+    try:
+        from infraestructura.repositorio_preferencias_qsettings import RepositorioPreferenciasQSettings
+    except Exception:
+        return deps_arranque
+
+    try:
+        resolved_container.repositorio_preferencias = RepositorioPreferenciasQSettings()
+    except Exception as exc:  # pragma: no cover - error dependiente de plataforma
+        log_operational_error(
+            LOGGER,
+            "No se pudo crear RepositorioPreferenciasQSettings en hilo UI; se mantiene repositorio actual.",
+            exc=exc,
+        )
+        return deps_arranque
+
+    return _construir_dependencias_arranque(resolved_container)
 
 
 def _instalar_menu_ayuda(
