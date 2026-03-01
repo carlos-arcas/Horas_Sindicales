@@ -134,7 +134,7 @@ def main() -> int:
 
         # Guard-rail: el contenido no debe volver a montar un HeaderWidget interno.
         header_module = importlib.import_module("app.ui.widgets.header")
-        header_widget_cls = getattr(header_module, "HeaderWidget")
+        header_widget_cls = header_module.HeaderWidget
         content_page = getattr(window, "page_solicitudes", None)
         search_root = content_page if content_page is not None else window
         internal_headers = search_root.findChildren(header_widget_cls)
