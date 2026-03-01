@@ -26,6 +26,7 @@ from app.application.use_cases.sync_sheets import payloads_puros
 from app.application.use_cases.sync_sheets.pull_planner import PullAction, PullPlannerSignals, plan_pull_actions
 from app.application.use_cases.sync_sheets.pull_runner import run_pull_actions, run_with_savepoint
 from app.application.use_cases.sync_sheets.push_builder import build_push_solicitudes_payloads
+from app.application.use_cases.sync_sheets.servicio_escritura_lotes import ServicioEscrituraLotes
 from app.application.use_cases.sync_sheets.ayudantes_push import push_config, push_delegadas, push_pdf_log
 from app.application.use_cases.sync_sheets.push_runner import run_push_values_update
 from app.application.use_cases.sync_sheets.sync_reporting_rules import (
@@ -53,7 +54,6 @@ from app.application.use_cases.sync_sheets.persona_resolution_rules import build
 from app.application.use_cases.sync_sheets.planner import build_plan
 from app.application.use_cases.sync_sheets.sync_sheets_helpers import (
     execute_with_validation,
-    rowcol_to_a1,
     rows_with_index,
 )
 from app.application.use_cases.sync_sheets import persistence_ops
@@ -98,10 +98,11 @@ class SheetsSyncService:
         self._client = client
         self._repository = repository
         self._worksheet_cache: dict[str, Any] = {}
-        self._pending_append_rows: dict[str, list[list[Any]]] = {}
-        self._pending_batch_updates: dict[str, list[dict[str, Any]]] = {}
-        self._pending_values_batch_updates: dict[str, list[dict[str, Any]]] = {}
-        self._worksheet_next_append_row: dict[str, int] = {}
+        self._servicio_escritura_lotes = ServicioEscrituraLotes()
+        self._pending_append_rows = self._servicio_escritura_lotes.pendientes_altas
+        self._pending_batch_updates = self._servicio_escritura_lotes.pendientes_actualizaciones
+        self._pending_values_batch_updates = self._servicio_escritura_lotes.pendientes_backfill
+        self._worksheet_next_append_row = self._servicio_escritura_lotes.siguiente_fila_append
         self._enable_backfill = enable_backfill
         self._defer_local_commits = False
         self._pull_apply_context: _PullApplyContext | None = None
@@ -1119,7 +1120,7 @@ class SheetsSyncService:
             except SheetsRateLimitError:
                 logger.warning("Rate limit al leer worksheet=%s; reintentando una vez.", cache_name)
                 values = self._client.read_all_values(cache_name)
-            self._worksheet_next_append_row[cache_name] = len(values) + 1
+            self._servicio_escritura_lotes.registrar_siguiente_fila_append(cache_name, len(values))
         else:
             values = worksheet.get_all_values()
         return rows_with_index(values, worksheet_name=cache_name or worksheet.title, aliases=aliases)
@@ -1139,75 +1140,25 @@ class SheetsSyncService:
         return index
 
     def _update_row(self, worksheet: Any, row_number: int, headers: list[str], payload: dict[str, Any]) -> None:
-        # Evita write-per-row: acumulamos updates y se ejecutan en un único batch_update por worksheet.
-        row_values = [payload.get(header, "") for header in headers]
-        range_name = f"A{row_number}:{rowcol_to_a1(row_number, len(headers))}"
-        self._pending_batch_updates.setdefault(worksheet.title, []).append({"range": range_name, "values": [row_values]})
+        self._servicio_escritura_lotes.encolar_actualizacion(worksheet, row_number, headers, payload)
 
     def _append_row(self, worksheet: Any, headers: list[str], payload: dict[str, Any]) -> None:
-        # Evita write-per-row: acumulamos altas y se ejecutan en un único append_rows por worksheet.
-        row_values = [payload.get(header, "") for header in headers]
-        self._pending_append_rows.setdefault(worksheet.title, []).append(row_values)
+        self._servicio_escritura_lotes.encolar_alta(worksheet, headers, payload)
 
 
     def _reset_write_batch_state(self) -> None:
-        self._pending_append_rows = {}
-        self._pending_batch_updates = {}
-        self._pending_values_batch_updates = {}
-        self._worksheet_next_append_row = {}
-
-    @staticmethod
-    def _a1_sheet_range(title: str, start_row: int, col_count: int, rows_count: int = 1) -> str:
-        safe_title = title.replace("'", "''")
-        end_row = start_row + max(rows_count, 1) - 1
-        end_col = rowcol_to_a1(1, col_count).rstrip("1")
-        return f"'{safe_title}'!A{start_row}:{end_col}{end_row}"
-
-    def _build_append_batch_entries(self, worksheet: Any, rows: list[list[Any]]) -> list[dict[str, Any]]:
-        if not rows:
-            return []
-        title = worksheet.title
-        start_row = self._worksheet_next_append_row.get(title)
-        if start_row is None:
-            start_row = len(self._client.read_all_values(title)) + 1
-        col_count = len(rows[0]) if rows[0] else 1
-        range_name = self._a1_sheet_range(title, start_row, col_count, len(rows))
-        self._worksheet_next_append_row[title] = start_row + len(rows)
-        return [{"range": range_name, "values": rows}]
-
-    @staticmethod
-    def _compose_values_batch_body(*parts: list[dict[str, Any]]) -> dict[str, Any]:
-        data = [entry for batch in parts for entry in batch]
-        return {"valueInputOption": "USER_ENTERED", "data": data}
+        self._servicio_escritura_lotes.reiniciar()
 
     def _queue_values_batch_update(self, worksheet: Any, row_number: int, col_idx: int, value: Any) -> None:
-        a1_cell = rowcol_to_a1(row_number, col_idx)
-        sheet_title = worksheet.title.replace("'", "''")
-        range_name = f"'{sheet_title}'!{a1_cell}"
-        self._pending_values_batch_updates.setdefault(worksheet.title, []).append({"range": range_name, "values": [[value]]})
+        self._servicio_escritura_lotes.encolar_backfill(worksheet, row_number, col_idx, value)
 
     def _flush_write_batches(self, spreadsheet: Any, worksheet: Any) -> None:
-        worksheet_title = worksheet.title
-        appended_rows = self._pending_append_rows.pop(worksheet_title, [])
-        updated_rows = self._pending_batch_updates.pop(worksheet_title, [])
-        backfills = self._pending_values_batch_updates.pop(worksheet_title, [])
-        append_batch = self._build_append_batch_entries(worksheet, appended_rows)
-        body = self._compose_values_batch_body(append_batch, updated_rows, backfills)
-
-        if body["data"]:
-            if hasattr(self._client, "values_batch_update"):
-                self._client.values_batch_update(body)
-            else:
-                spreadsheet.values_batch_update(body)
-        if appended_rows or updated_rows or backfills:
-            logger.info(
-                "Write batch (%s): appended=%s updated=%s backfills=%s total_ranges=%s",
-                worksheet_title,
-                len(appended_rows),
-                len(updated_rows),
-                len(backfills),
-                len(body["data"]),
-            )
+        self._servicio_escritura_lotes.flush(
+            spreadsheet=spreadsheet,
+            worksheet=worksheet,
+            cliente=self._client,
+            lector_valores=self._client.read_all_values,
+        )
 
     def _log_sync_stats(self, operation: str) -> None:
         read_count = self._client.get_read_calls_count() if hasattr(self._client, "get_read_calls_count") else "n/a"
