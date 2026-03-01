@@ -24,7 +24,7 @@ from app.ui.conflict_guidance import (
     classify_conflict,
     delegada_name,
     recommended_action,
-)
+); from app.ui.copy_catalog import copy_text
 
 
 @dataclass(frozen=True)
@@ -287,9 +287,9 @@ class ConflictsDialog(QDialog):
         self.summary_label.setText(
             "[Conflictos detectados]\n"
             f"- Total: {len(rows)}\n"
-            f"- Tipo de conflicto: {classify_conflict(first)}\n"
-            f"- Delegada afectada: {delegada_name(first)}\n"
-            f"- Acción recomendada: {recommended_action(classify_conflict(first))}"
+            f"{copy_text('ui.conflictos.item_tipo_conflicto')} {classify_conflict(first)}\n"
+            f"{copy_text('ui.conflictos.item_delegada_afectada')} {delegada_name(first)}\n"
+            f"{copy_text('ui.conflictos.item_accion_recomendada')} {recommended_action(classify_conflict(first))}"
         )
 
     def _refresh_resolution_summary(self, rows: list[ConflictRow]) -> None:
@@ -298,8 +298,8 @@ class ConflictsDialog(QDialog):
         self.resolution_summary_label.setText(
             "Resumen: "
             f"Conflictos resueltos {self._resolved_count} · "
-            f"Pendiente {len(rows)} · "
-            f"Con avisos {manual_pending}"
+            f"{copy_text('ui.conflictos.estado_pendiente')} {len(rows)} · "
+            f"{copy_text('ui.conflictos.estado_con_avisos')} {manual_pending}"
         )
 
     def _current_rows(self) -> list[ConflictRow]:

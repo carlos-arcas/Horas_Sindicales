@@ -10,7 +10,7 @@ except Exception:  # pragma: no cover - habilita import en CI sin Qt
     Qt = object
 
 from app.domain.sync_models import SyncSummary
-from app.ui import dialogos_comunes
+from app.ui import dialogos_comunes; from app.ui.copy_catalog import copy_text
 from app.ui.patterns import STATUS_PATTERNS, apply_modal_behavior, status_badge
 from app.ui.sync_reporting import list_sync_history, load_sync_report, persist_report, to_markdown
 from app.ui.toast_helpers import toast_success
@@ -27,17 +27,17 @@ def apply_sync_report(ventana, report) -> None:
     ventana.sync_counts_label.setText(
         "Resumen: "
         f"Filas creadas: {counts.get('created', 0)} · "
-        f"Filas actualizadas: {counts.get('updated', 0)} · "
-        f"Filas omitidas: {counts.get('skipped', 0)} · "
-        f"Conflictos: {counts.get('conflicts', 0)} · "
-        f"Errores: {counts.get('errors', 0)}"
+        f"{copy_text('ui.sync.bullet_filas_actualizadas')} {counts.get('updated', 0)} · "
+        f"{copy_text('ui.sync.bullet_filas_omitidas')} {counts.get('skipped', 0)} · "
+        f"{copy_text('ui.sync.bullet_conflictos')} {counts.get('conflicts', 0)} · "
+        f"{copy_text('ui.sync.bullet_errores')} {counts.get('errors', 0)}"
     )
     ventana.sync_panel_status.setText(
         f"Estado: intento #{len(ventana._sync_attempts)} · actual {status_to_label(report.status)} · final {status_to_label(report.final_status)}"
     )
     ventana.last_sync_metrics_label.setText(
         f"Duración: {report.duration_ms} ms · Cambios: {counts.get('created', 0) + counts.get('updated', 0)} · "
-        f"Conflictos: {report.conflicts_count} · Errores: {report.error_count}"
+        f"{copy_text('ui.sync.bullet_conflictos')} {report.conflicts_count} · {copy_text('ui.sync.bullet_errores')} {report.error_count}"
     )
     ventana._refresh_sync_trend_label()
     ventana.go_to_sync_config_button.setVisible(report.status == "CONFIG_INCOMPLETE")
@@ -203,13 +203,13 @@ def show_sync_summary_dialog(ventana, title: str, summary: SyncSummary) -> None:
     message = (
         f"Insertadas en local: {summary.inserted_local}\n"
         f"Actualizadas en local: {summary.updated_local}\n"
-        f"Insertadas en Sheets: {summary.inserted_remote}\n"
-        f"Actualizadas en Sheets: {summary.updated_remote}\n"
-        f"Duplicados omitidos: {summary.duplicates_skipped}\n"
-        f"Omitidas por delegada: {summary.omitted_by_delegada}\n"
-        f"Conflictos: {summary.conflicts_detected}\n"
-        f"Errores: {summary.errors}\n"
-        f"Última sincronización: {last_sync_text}"
+        f"{copy_text('ui.sync.resumen_insertadas')} {summary.inserted_remote}\n"
+        f"{copy_text('ui.sync.resumen_actualizadas')} {summary.updated_remote}\n"
+        f"{copy_text('ui.sync.resumen_duplicados_omitidos')} {summary.duplicates_skipped}\n"
+        f"{copy_text('ui.sync.resumen_omitidas_delegada')} {summary.omitted_by_delegada}\n"
+        f"{copy_text('ui.sync.resumen_conflictos')} {summary.conflicts_detected}\n"
+        f"{copy_text('ui.sync.resumen_errores')} {summary.errors}\n"
+        f"{copy_text('ui.sync.resumen_ultima_sincronizacion')} {last_sync_text}"
     )
     if summary.conflicts_detected > 0 or summary.errors > 0:
         ventana.toast.warning(message, title=title, duration_ms=7000)
