@@ -134,7 +134,7 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     abrir_archivo_local = _qt_unavailable
     build_estado_pendientes_debug_payload = build_historico_filters_payload = _qt_unavailable
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
-from . import layout_builder, wiring
+from . import data_refresh, layout_builder, wiring
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
 
@@ -364,6 +364,18 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         if not (self.historico_desde_date.date().isValid() and self.historico_hasta_date.date().isValid()):
             self._apply_historico_last_30_days()
         self._refresh_historico(force=False)
+
+    def _refresh_historico(self, *, force: bool = False) -> None:
+        data_refresh.refresh_historico(self, force=force)
+
+    def _refresh_saldos(self) -> None:
+        data_refresh.refresh_saldos(self)
+
+    def _reload_pending_views(self) -> None:
+        data_refresh.reload_pending_views(self)
+
+    def _update_action_state(self) -> None:
+        update_action_state(self)
 
     def _validate_required_widgets(self) -> None:
         required_widgets = (
