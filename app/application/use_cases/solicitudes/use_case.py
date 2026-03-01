@@ -9,9 +9,6 @@ from typing import Iterable
 from app.application.dto import (
     ConflictoDiaDTO,
     PeriodoFiltro,
-    ResumenGlobalAnualDTO,
-    ResumenGrupoAnualDTO,
-    ResumenIndividualDTO,
     ResumenSaldosDTO,
     ResultadoCrearSolicitudDTO,
     SaldosDTO,
@@ -76,6 +73,11 @@ from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
     plan_pdf_confirmadas,
 )
 from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
+from app.application.use_cases.solicitudes.saldos_service import (
+    calcular_totales_globales as _calcular_totales_globales,
+    construir_resumen_saldos as _construir_resumen_saldos,
+    sugerir_nombre_pdf_historico as _sugerir_nombre_pdf_historico,
+)
 from app.application.use_cases.solicitudes.validacion_service import (
     build_periodo_filtro as _build_periodo_filtro,
     calcular_minutos as _calcular_minutos,
@@ -102,21 +104,6 @@ def _resolver_correlation_id(
     if contexto is not None:
         return contexto.correlation_id
     return correlation_id
-
-MONTH_NAMES = {
-    1: "ENERO",
-    2: "FEBRERO",
-    3: "MARZO",
-    4: "ABRIL",
-    5: "MAYO",
-    6: "JUNIO",
-    7: "JULIO",
-    8: "AGOSTO",
-    9: "SEPTIEMBRE",
-    10: "OCTUBRE",
-    11: "NOVIEMBRE",
-    12: "DICIEMBRE",
-}
 
 class SolicitudUseCases:
     """Casos de uso para altas, sustituciones y saldos de solicitudes.
@@ -867,28 +854,25 @@ class SolicitudUseCases:
         return pdf_path
 
     def sugerir_nombre_pdf_historico(self, filtro: PeriodoFiltro) -> str:
-        if filtro.modo == "ANUAL":
-            return f"Historico_Horas_Sindicales_(AÑO {filtro.year}).pdf"
-        month_name = MONTH_NAMES.get(filtro.month or 0, "")
-        return f"Historico_Horas_Sindicales_({month_name} {filtro.year}).pdf"
+        return _sugerir_nombre_pdf_historico(filtro)
 
     def calcular_totales_globales(self, filtro: PeriodoFiltro) -> TotalesGlobalesDTO:
         personas = list(self._persona_repo.list_all())
-        total_bolsa = 0
-        total_consumidas = 0
-        for persona in personas:
-            total_bolsa += (
-                persona.horas_mes_min if filtro.modo == "MENSUAL" else persona.horas_ano_min
+        consumidas_por_persona = [
+            sum(
+                solicitud.horas_solicitadas_min
+                for solicitud in self._repo.list_by_persona_and_period(
+                    persona.id or 0,
+                    filtro.year,
+                    filtro.month if filtro.modo == "MENSUAL" else None,
+                )
             )
-            solicitudes = self._repo.list_by_persona_and_period(
-                persona.id or 0, filtro.year, filtro.month if filtro.modo == "MENSUAL" else None
-            )
-            total_consumidas += sum(s.horas_solicitadas_min for s in solicitudes)
-        total_restantes = total_bolsa - total_consumidas
-        return TotalesGlobalesDTO(
-            total_consumidas_min=total_consumidas,
-            total_bolsa_min=total_bolsa,
-            total_restantes_min=total_restantes,
+            for persona in personas
+        ]
+        return _calcular_totales_globales(
+            filtro=filtro,
+            personas=personas,
+            consumidas_por_persona=consumidas_por_persona,
         )
 
     def calcular_resumen_saldos(
@@ -905,40 +889,22 @@ class SolicitudUseCases:
         )
         consumidas_periodo = sum(s.horas_solicitadas_min for s in solicitudes_periodo)
         consumidas_anual = sum(s.horas_solicitadas_min for s in solicitudes_ano)
-        bolsa_periodo = (
-            persona.horas_mes_min if filtro.modo == "MENSUAL" else persona.horas_ano_min
-        )
-        bolsa_anual = persona.horas_ano_min
-        individuales = ResumenIndividualDTO(
-            consumidas_periodo_min=consumidas_periodo,
-            bolsa_periodo_min=bolsa_periodo,
-            restantes_periodo_min=bolsa_periodo - consumidas_periodo,
-            consumidas_anual_min=consumidas_anual,
-            bolsa_anual_min=bolsa_anual,
-            restantes_anual_min=bolsa_anual - consumidas_anual,
-        )
 
         personas = list(self._persona_repo.list_all())
         total_bolsa_anual = sum(p.horas_ano_min for p in personas)
-        total_consumidas_anual = 0
-        for persona_item in personas:
-            solicitudes_persona = self._repo.list_by_persona_and_period(
-                persona_item.id or 0, filtro.year, None
-            )
-            total_consumidas_anual += sum(s.horas_solicitadas_min for s in solicitudes_persona)
-        global_anual = ResumenGlobalAnualDTO(
-            consumidas_anual_min=total_consumidas_anual,
-            bolsa_anual_min=total_bolsa_anual,
-            restantes_anual_min=total_bolsa_anual - total_consumidas_anual,
+        total_consumidas_anual = sum(
+            sum(s.horas_solicitadas_min for s in self._repo.list_by_persona_and_period(p.id or 0, filtro.year, None))
+            for p in personas
         )
 
         config = self._config_repo.get() if self._config_repo else None
         bolsa_grupo = config.bolsa_anual_grupo_min if config else 0
-        grupo_anual = ResumenGrupoAnualDTO(
-            consumidas_anual_min=total_consumidas_anual,
+        return _construir_resumen_saldos(
+            persona=persona,
+            filtro=filtro,
+            consumidas_periodo_min=consumidas_periodo,
+            consumidas_anual_persona_min=consumidas_anual,
+            total_bolsa_anual_min=total_bolsa_anual,
+            total_consumidas_anual_min=total_consumidas_anual,
             bolsa_anual_grupo_min=bolsa_grupo,
-            restantes_anual_grupo_min=bolsa_grupo - total_consumidas_anual,
-        )
-        return ResumenSaldosDTO(
-            individual=individuales, global_anual=global_anual, grupo_anual=grupo_anual
         )
