@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Callable
 import logging
 
 from PySide6.QtCore import QEvent, QObject, QTimer, Qt
