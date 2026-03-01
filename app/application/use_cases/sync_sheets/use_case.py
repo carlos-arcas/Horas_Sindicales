@@ -26,6 +26,7 @@ from app.application.use_cases.sync_sheets import payloads_puros
 from app.application.use_cases.sync_sheets.pull_planner import PullAction, PullPlannerSignals, plan_pull_actions
 from app.application.use_cases.sync_sheets.pull_runner import run_pull_actions, run_with_savepoint
 from app.application.use_cases.sync_sheets.push_builder import build_push_solicitudes_payloads
+from app.application.use_cases.sync_sheets.push_helpers import push_config, push_delegadas, push_pdf_log
 from app.application.use_cases.sync_sheets.push_runner import run_push_values_update
 from app.application.use_cases.sync_sheets.sync_reporting_rules import (
     accumulate_write_result,
@@ -703,136 +704,15 @@ class SheetsSyncService:
         return downloaded
 
     def _push_pdf_log(self, spreadsheet: Any, last_sync_at: str | None) -> int:
-        worksheet = self._get_worksheet(spreadsheet, "pdf_log")
-        headers, rows = self._rows_with_index(worksheet)
-        header_map = self._header_map(headers, SHEETS_SCHEMA["pdf_log"])
-        remote_index = {row["pdf_id"]: row for _, row in rows if row.get("pdf_id")}
-        cursor = self._connection.cursor()
-        cursor.execute(
-            """
-            SELECT pdf_id, delegada_uuid, rango_fechas, fecha_generacion, hash, updated_at, source_device
-            FROM pdf_log
-            WHERE updated_at IS NOT NULL
-            """
-        )
-        uploaded = 0
-        for row in cursor.fetchall():
-            if not sync_sheets_core.is_after_last_sync(row["updated_at"], last_sync_at):
-                continue
-            remote_row = remote_index.get(row["pdf_id"])
-            remote_updated_at = sync_sheets_core.parse_iso(remote_row.get("updated_at") if remote_row else None)
-            local_updated_at = sync_sheets_core.parse_iso(row["updated_at"])
-            if remote_row and remote_updated_at and local_updated_at and remote_updated_at > local_updated_at:
-                continue
-            payload = {
-                "pdf_id": row["pdf_id"],
-                "delegada_uuid": row["delegada_uuid"],
-                "rango_fechas": row["rango_fechas"],
-                "fecha_generacion": row["fecha_generacion"],
-                "hash": row["hash"],
-                "updated_at": row["updated_at"],
-                "source_device": row["source_device"] or self._device_id(),
-            }
-            if remote_row:
-                if self._enable_backfill:
-                    row_number = remote_row["__row_number__"]
-                    self._update_row(worksheet, row_number, header_map, payload)
-                continue
-            self._append_row(worksheet, header_map, payload)
-            uploaded += 1
-        self._flush_write_batches(spreadsheet, worksheet)
-        return uploaded
+        return push_pdf_log(self, spreadsheet, last_sync_at)
 
     def _push_config(self, spreadsheet: Any, last_sync_at: str | None) -> int:
-        worksheet = self._get_worksheet(spreadsheet, "config")
-        headers, rows = self._rows_with_index(worksheet)
-        header_map = self._header_map(headers, SHEETS_SCHEMA["config"])
-        remote_index = {row["key"]: row for _, row in rows if row.get("key")}
-        cursor = self._connection.cursor()
-        cursor.execute(
-            """
-            SELECT key, value, updated_at, source_device
-            FROM sync_config
-            WHERE updated_at IS NOT NULL
-            """
-        )
-        uploaded = 0
-        for row in cursor.fetchall():
-            if not sync_sheets_core.is_after_last_sync(row["updated_at"], last_sync_at):
-                continue
-            remote_row = remote_index.get(row["key"])
-            remote_updated_at = sync_sheets_core.parse_iso(remote_row.get("updated_at") if remote_row else None)
-            local_updated_at = sync_sheets_core.parse_iso(row["updated_at"])
-            if remote_row and remote_updated_at and local_updated_at and remote_updated_at > local_updated_at:
-                continue
-            payload = {
-                "key": row["key"],
-                "value": row["value"],
-                "updated_at": row["updated_at"],
-                "source_device": row["source_device"] or self._device_id(),
-            }
-            if remote_row:
-                if self._enable_backfill:
-                    row_number = remote_row["__row_number__"]
-                    self._update_row(worksheet, row_number, header_map, payload)
-                continue
-            self._append_row(worksheet, header_map, payload)
-            uploaded += 1
-        self._flush_write_batches(spreadsheet, worksheet)
-        return uploaded
+        return push_config(self, spreadsheet, last_sync_at)
 
-    def _push_delegadas(
-        self, spreadsheet: Any, last_sync_at: str | None
-    ) -> tuple[int, int]:
-        worksheet = self._get_worksheet(spreadsheet, "delegadas")
-        headers, rows = self._rows_with_index(worksheet)
-        header_map = self._header_map(headers, SHEETS_SCHEMA["delegadas"])
-        remote_index = self._uuid_index(rows)
-        cursor = self._connection.cursor()
-        cursor.execute(
-            """
-            SELECT id, uuid, nombre, genero, is_active, horas_mes_min, horas_ano_min,
-                   updated_at, source_device, deleted
-            FROM personas
-            WHERE updated_at IS NOT NULL
-            """
-        )
-        uploaded = 0
-        conflicts = 0
-        for row in cursor.fetchall():
-            if not sync_sheets_core.is_after_last_sync(row["updated_at"], last_sync_at):
-                continue
-            uuid_value = row["uuid"]
-            remote_row = remote_index.get(uuid_value)
-            remote_updated_at = sync_sheets_core.parse_iso(remote_row.get("updated_at") if remote_row else None)
-            if sync_sheets_core.is_conflict(row["updated_at"], remote_updated_at, last_sync_at):
-                self._store_conflict("delegadas", uuid_value, dict(row), remote_row or {})
-                conflicts += 1
-                continue
-            payload = {
-                "uuid": uuid_value,
-                "nombre": row["nombre"],
-                "genero": row["genero"],
-                "activa": 1 if row["is_active"] else 0,
-                "bolsa_mes_min": row["horas_mes_min"] or 0,
-                "bolsa_anual_min": row["horas_ano_min"] or 0,
-                "updated_at": row["updated_at"],
-                "source_device": row["source_device"] or self._device_id(),
-                "deleted": row["deleted"] or 0,
-            }
-            if remote_row:
-                if self._enable_backfill:
-                    row_number = remote_row["__row_number__"]
-                    self._update_row(worksheet, row_number, header_map, payload)
-                continue
-            self._append_row(worksheet, header_map, payload)
-            uploaded += 1
-        self._flush_write_batches(spreadsheet, worksheet)
-        return uploaded, conflicts
+    def _push_delegadas(self, spreadsheet: Any, last_sync_at: str | None) -> tuple[int, int]:
+        return push_delegadas(self, spreadsheet, last_sync_at)
 
-    def _push_solicitudes(
-        self, spreadsheet: Any, last_sync_at: str | None
-    ) -> tuple[int, int, int]:
+    def _push_solicitudes(self, spreadsheet: Any, last_sync_at: str | None) -> tuple[int, int, int]:
         worksheet = self._get_worksheet(spreadsheet, "solicitudes")
         headers, rows = self._rows_with_index(worksheet)
         remote_index = self._uuid_index(rows)
@@ -884,9 +764,7 @@ class SheetsSyncService:
     def _remote_solicitud_payload(self, remote_row: dict[str, Any]) -> tuple[Any, ...]:
         return payloads_puros.payload_remoto_solicitud(remote_row)
 
-    def _push_cuadrantes(
-        self, spreadsheet: Any, last_sync_at: str | None
-    ) -> tuple[int, int]:
+    def _push_cuadrantes(self, spreadsheet: Any, last_sync_at: str | None) -> tuple[int, int]:
         worksheet = self._get_worksheet(spreadsheet, "cuadrantes")
         headers, rows = self._rows_with_index(worksheet)
         header_map = self._header_map(headers, SHEETS_SCHEMA["cuadrantes"])
