@@ -25,4 +25,7 @@ class PaginaSync(PaginaTexto):
 
     def actualizar_textos(self) -> None:
         super().actualizar_textos()
-        self._boton_ver_guia.setText(self._i18n.t("wizard_boton_ver_guia_sync"))
+        boton_ver_guia = getattr(self, "_boton_ver_guia", None)
+        if boton_ver_guia is None:
+            return
+        boton_ver_guia.setText(self._i18n.t("wizard_boton_ver_guia_sync"))
