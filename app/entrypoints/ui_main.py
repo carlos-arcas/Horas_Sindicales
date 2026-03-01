@@ -21,6 +21,22 @@ from app.bootstrap.logging import log_operational_error
 LOGGER = logging.getLogger(__name__)
 
 
+def _es_objeto_qt_valido(obj) -> bool:
+    if obj is None:
+        return False
+    try:
+        from shiboken6 import isValid as _is_valid_qobject
+    except Exception:  # pragma: no cover - fallback defensivo
+        try:
+            return bool(obj)
+        except RuntimeError:
+            return False
+    try:
+        return _is_valid_qobject(obj)
+    except RuntimeError:
+        return False
+
+
 def _resolver_startup_timeout_ms() -> int:
     import os
 
@@ -83,27 +99,27 @@ def _manejar_fallo_arranque(
     from PySide6.QtCore import QTimer, Qt
     from PySide6.QtWidgets import QApplication
 
-    try:
-        from shiboken6 import isValid as _is_valid_qobject
-    except Exception:  # pragma: no cover - fallback defensivo
-        _is_valid_qobject = None
+    if getattr(app, "_fallo_arranque_reportado", False):
+        return incident_id or ""
+    app._fallo_arranque_reportado = True
 
     def _cerrar_splash() -> None:
-        if splash is None:
+        if not _es_objeto_qt_valido(splash):
             return
-        splash.hide()
-        splash.close()
-        QTimer.singleShot(0, splash.deleteLater)
+        try:
+            splash.hide()
+            splash.close()
+            QTimer.singleShot(0, splash.deleteLater)
+        except RuntimeError:
+            return
 
     def _safe_quit_thread() -> None:
-        if startup_thread is None or not hasattr(startup_thread, "quit"):
-            return
-        if _is_valid_qobject is not None and not _is_valid_qobject(startup_thread):
+        if not _es_objeto_qt_valido(startup_thread) or not hasattr(startup_thread, "quit"):
             return
         try:
             startup_thread.quit()
-        except RuntimeError as exc:
-            LOGGER.warning("STARTUP_THREAD_ALREADY_DESTROYED", exc_info=exc)
+        except RuntimeError:
+            return
 
     resolved_incident_id = incident_id or _resolver_incident_id(exc, trace_info)
     resolved_detalles = detalles or ""
@@ -119,8 +135,11 @@ def _manejar_fallo_arranque(
         exc=exc,
         extra={"incident_id": resolved_incident_id},
     )
-    if watchdog_timer is not None and hasattr(watchdog_timer, "stop"):
-        watchdog_timer.stop()
+    if _es_objeto_qt_valido(watchdog_timer) and hasattr(watchdog_timer, "stop"):
+        try:
+            watchdog_timer.stop()
+        except RuntimeError:
+            pass
     _safe_quit_thread()
     _cerrar_splash()
 
@@ -274,11 +293,23 @@ def run_ui(container=None) -> int:
             self.ultima_etapa = ""
             self.terminado = False
             self.watchdog_disparado = False
+            self._fallo_arranque_reportado = False
 
         def _cerrar_splash(self) -> None:
-            self.splash.hide()
-            self.splash.close()
-            QTimer.singleShot(0, self.splash.deleteLater)
+            if not _es_objeto_qt_valido(self.splash):
+                return
+            try:
+                self.splash.hide()
+                self.splash.close()
+                QTimer.singleShot(0, self.splash.deleteLater)
+            except RuntimeError:
+                return
+
+        def _reportar_fallo_arranque(self, **kwargs) -> None:
+            if self._fallo_arranque_reportado:
+                return
+            self._fallo_arranque_reportado = True
+            _manejar_fallo_arranque(**kwargs)
 
         def _detalles_con_etapa(self, detalles: str) -> str:
             if not self.ultima_etapa:
@@ -312,7 +343,7 @@ def run_ui(container=None) -> int:
                     }
                 },
             )
-            _manejar_fallo_arranque(
+            self._reportar_fallo_arranque(
                 exc=None,
                 trace_info=None,
                 i18n=self.i18n,
@@ -331,12 +362,16 @@ def run_ui(container=None) -> int:
                 app_thread = QApplication.instance().thread()
                 assert QThread.currentThread() == app_thread
             try:
+                self._cerrar_splash()
                 self.terminado = True
-                self.watchdog_timer.stop()
+                if _es_objeto_qt_valido(self.watchdog_timer):
+                    try:
+                        self.watchdog_timer.stop()
+                    except RuntimeError:
+                        pass
                 resolved_container, deps_arranque, idioma = startup_payload
                 self.i18n.set_idioma(idioma)
                 orquestador = OrquestadorArranqueUI(deps_arranque, self.i18n)
-                self._cerrar_splash()
 
                 if not orquestador.resolver_onboarding():
                     self.app.exit(0)
@@ -368,7 +403,7 @@ def run_ui(container=None) -> int:
                     window.show()
             except Exception as exc:  # noqa: BLE001
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                _manejar_fallo_arranque(
+                self._reportar_fallo_arranque(
                     exc=exc,
                     trace_info=(exc_type, exc_value, exc_traceback),
                     i18n=self.i18n,
@@ -381,10 +416,14 @@ def run_ui(container=None) -> int:
         @Slot(str, str, str)
         def on_failed(self, incident_id: str, mensaje_usuario: str, detalles: str) -> None:
             self.terminado = True
-            self.watchdog_timer.stop()
+            if _es_objeto_qt_valido(self.watchdog_timer):
+                try:
+                    self.watchdog_timer.stop()
+                except RuntimeError:
+                    pass
             self.incident_id = incident_id
             self._cerrar_splash()
-            _manejar_fallo_arranque(
+            self._reportar_fallo_arranque(
                 exc=None,
                 trace_info=None,
                 i18n=self.i18n,
