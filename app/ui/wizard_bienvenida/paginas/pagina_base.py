@@ -6,7 +6,14 @@ from presentacion.i18n import I18nManager
 
 
 class PaginaTexto(QWidget):
-    def __init__(self, i18n: I18nManager, key_titulo: str, key_texto: str, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        i18n: I18nManager,
+        key_titulo: str,
+        key_texto: str,
+        parent: QWidget | None = None,
+        auto_actualizar_textos: bool = True,
+    ) -> None:
         super().__init__(parent)
         self._i18n = i18n
         self._key_titulo = key_titulo
@@ -14,8 +21,9 @@ class PaginaTexto(QWidget):
 
         self._ui_construida = False
         self._construir_ui()
-        
-        self.actualizar_textos()
+
+        if auto_actualizar_textos:
+            self.actualizar_textos()
 
     def _construir_ui(self) -> None:
         if self._ui_construida:
