@@ -24,3 +24,5 @@ def test_build_container_smoke(tmp_path: Path) -> None:
     assert container.alert_engine is not None
     assert container.validacion_preventiva_lock_use_case is not None
     assert container.repositorio_preferencias is not None
+
+    assert container.exportar_compartir_periodo_caso_uso is not None
