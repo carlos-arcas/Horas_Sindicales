@@ -9,6 +9,7 @@ except Exception:  # pragma: no cover
     QThread = object
 
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncSummary
+from app.ui import dialogos_comunes
 from app.ui.conflicts_dialog import ConflictsDialog
 from app.ui.error_mapping import map_error_to_ui_message
 from app.ui.notification_service import OperationFeedback
@@ -183,7 +184,9 @@ def show_sync_error_dialog(ventana, error: Exception, details: str | None) -> No
         error=error,
         details=details,
         service_account_email=dialogos_sincronizacion.service_account_email(ventana),
-        show_message_with_details=ventana._show_message_with_details,
+        show_message_with_details=lambda title, message, detail, icon, action_buttons=(): dialogos_comunes.show_message_with_details(
+            ventana, title, message, detail, icon, action_buttons
+        ),
         open_options_callback=ventana._on_open_opciones,
         retry_callback=ventana._sync_controller.on_sync,
         open_google_sheets_config_callback=ventana._open_google_sheets_config,

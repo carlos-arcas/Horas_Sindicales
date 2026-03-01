@@ -147,6 +147,7 @@
     "app/ui/controllers/sync_controller.py",
     "app/ui/copy_catalog.py",
     "app/ui/dialog_opciones.py",
+    "app/ui/dialogos_comunes.py",
     "app/ui/error_mapping.py",
     "app/ui/estado/estado_main_window.py",
     "app/ui/estilos/apply_theme.py",

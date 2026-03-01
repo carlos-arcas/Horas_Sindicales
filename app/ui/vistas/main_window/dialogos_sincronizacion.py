@@ -4,12 +4,13 @@ from pathlib import Path
 
 try:
     from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QApplication, QDialog, QHBoxLayout, QMessageBox, QPlainTextEdit, QPushButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout
+    from PySide6.QtWidgets import QApplication, QDialog, QHBoxLayout, QPushButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout
 except Exception:  # pragma: no cover - habilita import en CI sin Qt
-    QApplication = QDialog = QHBoxLayout = QMessageBox = QPlainTextEdit = QPushButton = QTreeWidget = QTreeWidgetItem = QVBoxLayout = object
+    QApplication = QDialog = QHBoxLayout = QPushButton = QTreeWidget = QTreeWidgetItem = QVBoxLayout = object
     Qt = object
 
 from app.domain.sync_models import SyncSummary
+from app.ui import dialogos_comunes
 from app.ui.patterns import STATUS_PATTERNS, apply_modal_behavior, status_badge
 from app.ui.sync_reporting import list_sync_history, load_sync_report, persist_report, to_markdown
 from app.ui.toast_helpers import toast_success
@@ -225,42 +226,11 @@ def show_message_with_details(
     icon,
     action_buttons: tuple[tuple[str, object], ...] = (),
 ) -> None:
-    dialog = QMessageBox(ventana)
-    dialog.setWindowTitle(title)
-    dialog.setIcon(icon)
-    dialog.setText(message)
-    action_mapping: dict[object, object] = {}
-    for label, callback in action_buttons:
-        button = dialog.addButton(label, QMessageBox.ActionRole)
-        action_mapping[button] = callback
-    details_button = None
-    if details:
-        details_button = dialog.addButton("Ver detalles", QMessageBox.ActionRole)
-    dialog.addButton("Cerrar", QMessageBox.AcceptRole)
-    dialog.exec()
-    clicked_button = dialog.clickedButton()
-    if clicked_button in action_mapping:
-        action_mapping[clicked_button]()
-        return
-    if details_button and clicked_button == details_button:
-        show_details_dialog(ventana, title, details)
+    dialogos_comunes.show_message_with_details(ventana, title, message, details, icon, action_buttons)
 
 
 def show_details_dialog(ventana, title: str, details: str) -> None:
-    dialog = QDialog(ventana)
-    dialog.setWindowTitle(title)
-    apply_modal_behavior(dialog)
-    layout = QVBoxLayout(dialog)
-    details_text = QPlainTextEdit()
-    details_text.setReadOnly(True)
-    details_text.setPlainText(details)
-    layout.addWidget(details_text)
-    close_button = QPushButton("Cerrar")
-    close_button.setProperty("variant", "ghost")
-    close_button.clicked.connect(dialog.accept)
-    layout.addWidget(close_button, alignment=Qt.AlignRight)
-    dialog.resize(520, 360)
-    dialog.exec()
+    dialogos_comunes.show_details_dialog(ventana, title, details)
 
 
 def service_account_email(ventana) -> str | None:
