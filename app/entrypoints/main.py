@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import faulthandler
 import logging
 import os
 import sys
 from pathlib import Path
 
+from app.bootstrap.boot_diagnostics import init_boot_diagnostics, marcar_stage
 from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import CRASH_LOG_NAME, configure_logging
 from app.bootstrap.settings import project_root, resolve_log_dir
@@ -47,14 +47,17 @@ def _run_selfcheck(log_dir: Path) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    log_dir = resolve_log_dir()
+    init_boot_diagnostics(log_dir)
+    marcar_stage("main_enter")
+
     parser = argparse.ArgumentParser(description="Horas Sindicales")
     parser.add_argument("--selfcheck", action="store_true", help="Valida recursos sin abrir UI")
     args = parser.parse_args(argv)
 
-    log_dir = resolve_log_dir()
     configure_logging(log_dir)
     sys.excepthook = manejar_excepcion_global
-    faulthandler.enable()
+    marcar_stage("logging_configured")
 
     if os.getenv("HORAS_FORCE_UNHANDLED_EXCEPTION") == "1":
         raise RuntimeError("Excepción forzada para pruebas de robustez global")
@@ -66,5 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("CWD: %s", Path.cwd())
 
     if args.selfcheck:
+        marcar_stage("selfcheck_requested")
         return _run_selfcheck(log_dir)
+    marcar_stage("run_ui_start")
     return run_ui()
