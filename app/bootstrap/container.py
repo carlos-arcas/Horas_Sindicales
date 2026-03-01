@@ -115,9 +115,9 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
 def _build_repositorio_preferencias() -> IRepositorioPreferencias:
     try:
         modulo = importlib.import_module("infraestructura.repositorio_preferencias_qsettings")
-        repositorio_cls = getattr(modulo, "RepositorioPreferenciasQSettings")
+        repositorio_cls = modulo.RepositorioPreferenciasQSettings
         return repositorio_cls()
-    except ImportError as exc:
+    except (ImportError, AttributeError) as exc:
         LOGGER.warning(
             "No se pudo cargar QSettings; se usa persistencia headless INI.",
             extra={
