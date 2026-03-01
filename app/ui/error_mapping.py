@@ -19,37 +19,37 @@ class UiErrorMessage:
     def as_text(self) -> str:
         body = (
             f"{self.title}\n"
-            f"Causa probable: {self.probable_cause}\n"
+            f"{copy_text('ui.errores.causa_probable_label')} {self.probable_cause}\n"
             f"{copy_text('ui.conflictos.accion_recomendada_label')} {self.recommended_action}"
         )
         if self.incident_id:
-            body = f"{body}\nID de incidente: {self.incident_id}"
+            body = f"{body}\n{copy_text('ui.errores.id_incidente_label')} {self.incident_id}"
         return body
 
 
 def map_error_to_ui_message(error: Exception, *, incident_id: str | None = None) -> UiErrorMessage:
     resolved_incident_id = incident_id or get_correlation_id()
     if isinstance(error, BusinessError):
-        message = str(error).strip() or "No se pudo completar la operación"
+        message = str(error).strip() or copy_text("ui.errores.no_se_pudo_completar_operacion")
         return UiErrorMessage(
             title=message,
-            probable_cause="Los datos ingresados no cumplen una regla de negocio.",
-            recommended_action="Corrige los datos marcados y reintenta.",
+            probable_cause=copy_text("ui.errores.regla_negocio_probable"),
+            recommended_action=copy_text("ui.errores.corregir_datos_reintentar"),
             severity="warning",
             incident_id=resolved_incident_id,
         )
     if isinstance(error, InfraError):
         return UiErrorMessage(
-            title="No se pudo completar la operación",
-            probable_cause="No fue posible acceder a los datos o al servicio externo.",
-            recommended_action="Reintenta. Si persiste, revisa la configuración o contacta soporte.",
+            title=copy_text("ui.errores.no_se_pudo_completar_operacion"),
+            probable_cause=copy_text("ui.errores.no_fue_posible_acceder_datos"),
+            recommended_action=copy_text("ui.errores.reintenta_revision_config_soporte"),
             severity="blocking",
             incident_id=resolved_incident_id,
         )
     return UiErrorMessage(
-        title="Ocurrió un error inesperado.",
-        probable_cause="Se produjo un fallo técnico no identificado.",
-        recommended_action="Reintenta. Si persiste, contacta soporte.",
+        title=copy_text("ui.errores.error_inesperado"),
+        probable_cause=copy_text("ui.errores.fallo_tecnico_no_identificado"),
+        recommended_action=copy_text("ui.errores.reintenta_contacta_soporte"),
         severity="blocking",
         incident_id=resolved_incident_id,
     )
