@@ -6,6 +6,7 @@ import importlib.util
 import json
 import logging
 import os
+import subprocess
 import sys
 from argparse import ArgumentParser
 from datetime import datetime, timezone
@@ -75,6 +76,19 @@ def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
         raise SystemExit(2)
 
     if importlib.util.find_spec("pytest_cov") is None:
+        if os.getenv("HS_AUTO_INSTALL_DEPS", "") in {"1", "true", "TRUE", "yes", "YES"}:
+            LOGGER.warning("pytest-cov ausente. Intentando auto-instalación controlada...")
+            cmd = [sys.executable, "-m", "pip", "install", "pytest-cov==6.3.0"]
+            install_result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            if install_result.returncode != 0:
+                LOGGER.error(
+                    "Falló auto-instalación de pytest-cov (returncode=%s).",
+                    install_result.returncode,
+                )
+            elif importlib.util.find_spec("pytest_cov") is not None:
+                LOGGER.info("pytest-cov auto-instalado correctamente.")
+                return {"degraded_mode": False, "degraded_reason": None}
+
         if allow_missing_pytest_cov:
             LOGGER.warning(
                 "pytest-cov no disponible; ejecutado en modo degradado por bandera/env explícito."

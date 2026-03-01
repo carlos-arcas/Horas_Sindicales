@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import logging
+import os
 import platform
 import subprocess
 import sys
@@ -59,6 +60,30 @@ def _pytest_cov_available() -> bool:
     return has_plugin and has_cov_flag
 
 
+def _auto_install_enabled() -> bool:
+    return os.getenv("HS_AUTO_INSTALL_DEPS", "") in {"1", "true", "TRUE", "yes", "YES"}
+
+
+def _ensure_pytest_cov() -> bool:
+    if _pytest_cov_available():
+        return True
+    if not _auto_install_enabled():
+        return False
+
+    _log(logging.WARNING, "auto_install_dependency", "Intentando instalar pytest-cov")
+    cmd = [sys.executable, "-m", "pip", "install", "pytest-cov==6.3.0"]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        _log(
+            logging.ERROR,
+            "auto_install_failed",
+            f"pytest-cov install failed returncode={result.returncode}",
+        )
+        return False
+
+    return _pytest_cov_available()
+
+
 def run_preflight(require_radon: bool = False) -> PreflightResult:
     _log(logging.INFO, "python_version", platform.python_version())
 
@@ -74,7 +99,7 @@ def run_preflight(require_radon: bool = False) -> PreflightResult:
         _log(logging.ERROR, "dependency_missing", "pytest")
         return PreflightResult(ok=False, exit_code=EXIT_MISSING_DEPS)
 
-    if not _pytest_cov_available():
+    if not _ensure_pytest_cov():
         _log(logging.ERROR, "dependency_missing", "pytest-cov")
         return PreflightResult(ok=False, exit_code=EXIT_MISSING_DEPS)
 
