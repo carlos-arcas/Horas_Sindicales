@@ -10,7 +10,8 @@ except Exception:  # pragma: no cover - habilita import en CI sin Qt
     Qt = object
 
 from app.domain.sync_models import SyncSummary
-from app.ui import dialogos_comunes; from app.ui.copy_catalog import copy_text
+from app.ui import dialogos_comunes
+from app.ui.copy_catalog import copy_text
 from app.ui.patterns import STATUS_PATTERNS, apply_modal_behavior, status_badge
 from app.ui.sync_reporting import list_sync_history, load_sync_report, persist_report, to_markdown
 from app.ui.toast_helpers import toast_success

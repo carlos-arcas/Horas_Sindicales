@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.core.errors import BusinessError, InfraError
-from app.core.observability import get_correlation_id; from app.ui.copy_catalog import copy_text
+from app.core.observability import get_correlation_id
+from app.ui.copy_catalog import copy_text
 
 
 @dataclass(frozen=True)
