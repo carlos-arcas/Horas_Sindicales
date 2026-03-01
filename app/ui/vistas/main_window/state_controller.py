@@ -500,6 +500,12 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _on_persona_changed(self) -> None:
         return acciones_personas.on_persona_changed(self)
 
+    def _on_fecha_changed(self, nueva_fecha) -> None:
+        _ = nueva_fecha
+        update_preview = getattr(self, "_update_solicitud_preview", None)
+        if callable(update_preview):
+            update_preview()
+
     def _on_add_persona(self) -> None:
         return acciones_personas.on_add_persona(self)
 
