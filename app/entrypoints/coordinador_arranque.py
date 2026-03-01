@@ -6,7 +6,9 @@ from typing import Callable
 
 from aplicacion.casos_de_uso.onboarding import ReiniciarOnboarding
 
-from PySide6.QtCore import QObject, Slot
+from PySide6.QtCore import QObject, QTimer, Slot
+
+from app.ui.qt_safe_ops import es_objeto_qt_valido, safe_hide, safe_quit_thread
 
 LOGGER = logging.getLogger(__name__)
 
@@ -50,17 +52,7 @@ class CoordinadorArranque(QObject):
         self.watchdog_timer.start()
 
     def _qt_is_alive(self, obj) -> bool:
-        if obj is None:
-            return False
-        try:
-            from shiboken6 import isValid
-
-            return bool(isValid(obj))
-        except Exception:
-            try:
-                return bool(obj)
-            except RuntimeError:
-                return False
+        return es_objeto_qt_valido(obj)
 
     def _detalles_con_etapa(self, detalles: str) -> str:
         if not self.ultima_etapa:
@@ -82,24 +74,10 @@ class CoordinadorArranque(QObject):
         if self._splash_cerrado:
             return
         self._splash_cerrado = True
-        if not self._qt_is_alive(self.splash):
-            return
-        try:
-            if hasattr(self.splash, "request_close"):
-                self.splash.request_close()
-            else:
-                self.splash.hide()
-                self.splash.close()
-        except RuntimeError:
-            return
+        safe_hide(self.splash)
 
     def _solicitar_cierre_thread(self) -> None:
-        if not self._qt_is_alive(self.thread) or not hasattr(self.thread, "quit"):
-            return
-        try:
-            self.thread.quit()
-        except RuntimeError:
-            return
+        safe_quit_thread(self.thread)
 
     def _reportar_fallo_arranque(self, **kwargs) -> None:
         if self._fallo_arranque_reportado:
@@ -152,7 +130,8 @@ class CoordinadorArranque(QObject):
     @Slot(object)
     def on_finished(self, startup_payload) -> None:
         self.terminado = True
-        try:
+
+        def _aplicar_resultado_ui() -> None:
             self._detener_watchdog_idempotente()
             self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
@@ -177,6 +156,9 @@ class CoordinadorArranque(QObject):
                 window.showMaximized()
             else:
                 window.show()
+
+        try:
+            QTimer.singleShot(0, _aplicar_resultado_ui)
         except Exception as exc:  # noqa: BLE001
             self._reportar_fallo_arranque(
                 exc=exc,
@@ -192,19 +174,23 @@ class CoordinadorArranque(QObject):
     def on_failed(self, incident_id: str, mensaje_usuario: str, detalles: str) -> None:
         self.terminado = True
         self.incident_id = incident_id
-        self._detener_watchdog_idempotente()
-        self._cerrar_splash_idempotente()
-        self._solicitar_cierre_thread()
-        self._reportar_fallo_arranque(
-            exc=None,
-            trace_info=None,
-            i18n=self.i18n,
-            splash=self.splash,
-            startup_thread=self.thread,
-            app=self.app,
-            mensaje_usuario=mensaje_usuario,
-            dialogo_factory=None,
-            incident_id=incident_id,
-            detalles=self._detalles_con_etapa(detalles),
-            watchdog_timer=self.watchdog_timer,
-        )
+
+        def _fallar_en_ui() -> None:
+            self._detener_watchdog_idempotente()
+            self._cerrar_splash_idempotente()
+            self._solicitar_cierre_thread()
+            self._reportar_fallo_arranque(
+                exc=None,
+                trace_info=None,
+                i18n=self.i18n,
+                splash=self.splash,
+                startup_thread=self.thread,
+                app=self.app,
+                mensaje_usuario=mensaje_usuario,
+                dialogo_factory=None,
+                incident_id=incident_id,
+                detalles=self._detalles_con_etapa(detalles),
+                watchdog_timer=self.watchdog_timer,
+            )
+
+        QTimer.singleShot(0, _fallar_en_ui)
