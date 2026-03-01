@@ -56,6 +56,27 @@ class RepositorioPreferenciasQSettings(IRepositorioPreferencias):
             )
             raise
 
+    def obtener_texto(self, clave: str, por_defecto: str) -> str:
+        if not self._settings.contains(clave):
+            return por_defecto
+        raw = self._settings.value(clave, por_defecto)
+        if raw is None:
+            return por_defecto
+        return str(raw)
+
+    def guardar_texto(self, clave: str, valor: str) -> None:
+        try:
+            self._settings.setValue(clave, str(valor))
+            self._settings.sync()
+        except Exception as exc:  # pragma: no cover - error de plataforma/IO
+            log_operational_error(
+                LOGGER,
+                "Error guardando preferencia de texto en QSettings.",
+                exc=exc,
+                extra={"clave": clave},
+            )
+            raise
+
 
 def _coerce_bool(value: Any) -> bool | None:
     if isinstance(value, bool):
