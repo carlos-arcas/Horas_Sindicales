@@ -3,10 +3,17 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncLogEntry, SyncReport, SyncSummary
+
+
+def _parse_iso_to_utc_aware(value: str) -> datetime:
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def build_sync_report(
@@ -273,7 +280,7 @@ def build_simulation_report(
         conflicts=[item.reason for item in plan.conflicts],
         errors=list(plan.potential_errors),
         entries=entries,
-        duration_ms=max(0, int((datetime.fromisoformat(now) - datetime.fromisoformat(plan.generated_at)).total_seconds() * 1000)),
+        duration_ms=max(0, int((_parse_iso_to_utc_aware(now) - _parse_iso_to_utc_aware(plan.generated_at)).total_seconds() * 1000)),
         rows_scanned_remote=len(plan.values_matrix),
         retry_count=max(0, len(attempt_history) - 1),
         conflicts_count=len(plan.conflicts),
