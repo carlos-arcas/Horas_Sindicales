@@ -78,3 +78,10 @@ Un cambio se considera **DONE** si cumple TODO lo siguiente:
 - [DONE] Nuevo módulo creado: `app/application/use_cases/sync_sheets/servicio_escritura_lotes.py`.
 - [DONE] Cobertura de comportamiento del servicio nuevo con casos unitarios de éxito, error propagado y lote vacío.
 - [DONE] Objetivo de complejidad en extracción: métodos del servicio en funciones acotadas (sin ramas profundas, wrappers mínimos en `use_case.py`).
+
+## Registro de progreso de esta PR (refactor builders main window)
+
+- [DONE] Refactor incremental de `app/ui/vistas/builders/main_window_builders.py` a fachada con delegación por secciones.
+- [DONE] Extracción en módulos por zona (`builders_barra_superior`, `builders_formulario_solicitud`, `builders_tablas`, `builders_sync_panel`) manteniendo wiring UI.
+- [DONE] Reducción de LOC del hotspot: **937 -> 131** en `main_window_builders.py`.
+- [DONE] Smoke test UI actualizado para validar widgets clave y conexión de `fecha_input.dateChanged`.

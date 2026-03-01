@@ -36,6 +36,11 @@ def test_main_window_build_ui_smoke_no_exception() -> None:
     assert callable(getattr(window, "_on_sync_with_confirmation", None))
     assert callable(getattr(window, "_clear_form", None))
     assert callable(getattr(window, "_on_export_historico_pdf", None))
+    assert hasattr(window, "fecha_input")
+    assert hasattr(window, "pendientes_table")
+    assert hasattr(window, "sync_button")
+    assert callable(getattr(window, "_on_fecha_changed", None))
+    assert window.fecha_input.receivers(window.fecha_input.dateChanged) > 0
 
     window.close()
     app.processEvents()
