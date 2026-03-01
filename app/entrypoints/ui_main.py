@@ -78,7 +78,11 @@ def _manejar_fallo_arranque(
     mensaje_usuario: str | None = None,
     incident_id: str | None = None,
     detalles: str | None = None,
+    watchdog_timer=None,
 ) -> str:
+    from PySide6.QtCore import QTimer, Qt
+    from PySide6.QtWidgets import QApplication
+
     resolved_incident_id = incident_id or _resolver_incident_id(exc, trace_info)
     resolved_detalles = detalles or ""
     if not resolved_detalles:
@@ -93,8 +97,13 @@ def _manejar_fallo_arranque(
         exc=exc,
         extra={"incident_id": resolved_incident_id},
     )
-    startup_thread.quit()
-    splash.close()
+    if watchdog_timer is not None and hasattr(watchdog_timer, "stop"):
+        watchdog_timer.stop()
+    if startup_thread is not None and hasattr(startup_thread, "quit"):
+        startup_thread.quit()
+    if splash is not None:
+        splash.hide()
+        splash.close()
 
     if dialogo_factory is None:
         from app.ui.dialogos.dialogo_error_arranque import DialogoErrorArranque
@@ -107,10 +116,27 @@ def _manejar_fallo_arranque(
         mensaje_usuario=mensaje_usuario or i18n.t("startup_error_dialog_message"),
         incident_id=resolved_incident_id,
         detalles=resolved_detalles,
+        parent=None,
     )
-    if hasattr(dialogo, "exec"):
+
+    def _exit_con_codigo() -> None:
+        QTimer.singleShot(0, lambda: QApplication.exit(2))
+
+    if hasattr(dialogo, "setWindowModality"):
+        dialogo.setWindowModality(Qt.ApplicationModal)
+    if hasattr(dialogo, "setWindowFlag"):
+        dialogo.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+    if hasattr(dialogo, "finished"):
+        dialogo.finished.connect(_exit_con_codigo)
+    if hasattr(dialogo, "show"):
+        dialogo.show()
+    if hasattr(dialogo, "raise_"):
+        dialogo.raise_()
+    if hasattr(dialogo, "activateWindow"):
+        dialogo.activateWindow()
+    if not hasattr(dialogo, "finished") and hasattr(dialogo, "exec"):
         dialogo.exec()
-    app.exit(2)
+        _exit_con_codigo()
     return resolved_incident_id
 
 
@@ -272,6 +298,7 @@ def run_ui(container=None) -> int:
                 mensaje_usuario=self.i18n.t("startup_timeout_message"),
                 incident_id=self.incident_id,
                 detalles=self._detalles_con_etapa(self.i18n.t("startup_timeout_message")),
+                watchdog_timer=self.watchdog_timer,
             )
 
         @Slot(object)
@@ -325,6 +352,7 @@ def run_ui(container=None) -> int:
                     splash=self.splash,
                     startup_thread=self.thread,
                     app=self.app,
+                    watchdog_timer=self.watchdog_timer,
                 )
 
         @Slot(str, str, str)
@@ -343,6 +371,7 @@ def run_ui(container=None) -> int:
                 dialogo_factory=None,
                 incident_id=incident_id,
                 detalles=self._detalles_con_etapa(detalles),
+                watchdog_timer=self.watchdog_timer,
             )
 
     startup_timeout_ms = _resolver_startup_timeout_ms()
@@ -392,5 +421,6 @@ def run_ui(container=None) -> int:
             splash=splash,
             startup_thread=startup_thread,
             app=app,
+            watchdog_timer=None,
         )
         return 2

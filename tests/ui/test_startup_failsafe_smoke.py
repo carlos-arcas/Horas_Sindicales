@@ -34,7 +34,16 @@ class _DummyOrquestador:
 class _DialogSpy:
     invocaciones: list[dict[str, str]] = []
 
-    def __init__(self, _i18n, *, titulo: str, mensaje_usuario: str, incident_id: str, detalles: str | None = None) -> None:
+    def __init__(
+        self,
+        _i18n,
+        *,
+        titulo: str,
+        mensaje_usuario: str,
+        incident_id: str,
+        detalles: str | None = None,
+        parent=None,
+    ) -> None:
         self.__class__.invocaciones.append(
             {
                 "titulo": titulo,
@@ -43,6 +52,7 @@ class _DialogSpy:
                 "detalles": detalles or "",
             }
         )
+        self._parent = parent
 
     def exec(self) -> int:
         return 0
@@ -141,3 +151,78 @@ def test_startup_watchdog_timeout_muestra_dialogo_y_no_wait(monkeypatch) -> None
     assert _DialogSpy.invocaciones
     assert _DialogSpy.invocaciones[-1]["mensaje_usuario"]
     assert wait_calls["calls"] == 0
+
+
+def test_manejar_fallo_arranque_difiere_exit_hasta_cerrar_dialogo(monkeypatch, qtbot) -> None:
+    qt_widgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
+    qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+
+    class _I18nDummy:
+        def t(self, key: str, **kwargs) -> str:
+            valores = {
+                "splash_error_mensaje": "Error {incident_id}",
+                "splash_error_titulo": "Error inesperado",
+                "startup_error_dialog_message": "Ha ocurrido un error inesperado.",
+            }
+            return valores.get(key, key).format(**kwargs)
+
+    class _SplashDummy:
+        def hide(self) -> None:
+            return None
+
+        def close(self) -> None:
+            return None
+
+    class _ThreadDummy:
+        quit_calls = 0
+
+        def quit(self) -> None:
+            self.quit_calls += 1
+
+    class _WatchdogDummy:
+        stop_calls = 0
+
+        def stop(self) -> None:
+            self.stop_calls += 1
+
+    class _DialogControl(qt_widgets.QDialog):
+        last = None
+
+        def __init__(self, _i18n, **_kwargs) -> None:
+            super().__init__(None)
+            self.__class__.last = self
+
+    exit_codes: list[int] = []
+    real_exit = qt_widgets.QApplication.exit
+
+    def _exit_spy(code: int = 0) -> None:
+        exit_codes.append(code)
+
+    monkeypatch.setattr(qt_widgets.QApplication, "exit", _exit_spy)
+
+    app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+    thread = _ThreadDummy()
+    watchdog = _WatchdogDummy()
+
+    ui_main._manejar_fallo_arranque(
+        exc=RuntimeError("boom"),
+        trace_info=None,
+        i18n=_I18nDummy(),
+        splash=_SplashDummy(),
+        startup_thread=thread,
+        app=app,
+        dialogo_factory=_DialogControl,
+        watchdog_timer=watchdog,
+    )
+
+    assert _DialogControl.last is not None
+    assert exit_codes == []
+
+    qtbot.addWidget(_DialogControl.last)
+    qt_core.QTimer.singleShot(0, _DialogControl.last.accept)
+    qtbot.waitUntil(lambda: exit_codes == [2], timeout=1000)
+    assert thread.quit_calls == 1
+    assert watchdog.stop_calls == 1
+
+    monkeypatch.setattr(qt_widgets.QApplication, "exit", real_exit)
