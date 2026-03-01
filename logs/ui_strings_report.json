@@ -1,0 +1,5319 @@
+{
+  "estado": "WARN",
+  "total_offenders": 759,
+  "offenders": [
+    {
+      "offender_id": "app/ui/componentes/badge_estado.py:8:Pendiente",
+      "archivo": "app/ui/componentes/badge_estado.py",
+      "linea": 8,
+      "columna": 8,
+      "literal": "Pendiente"
+    },
+    {
+      "offender_id": "app/ui/componentes/badge_estado.py:9:Confirmada",
+      "archivo": "app/ui/componentes/badge_estado.py",
+      "linea": 9,
+      "columna": 8,
+      "literal": "Confirmada"
+    },
+    {
+      "offender_id": "app/ui/componentes/badge_estado.py:10:Enviada",
+      "archivo": "app/ui/componentes/badge_estado.py",
+      "linea": 10,
+      "columna": 8,
+      "literal": "Enviada"
+    },
+    {
+      "offender_id": "app/ui/components/contexto_trabajo_widget.py:22:Contexto de trabajo",
+      "archivo": "app/ui/components/contexto_trabajo_widget.py",
+      "linea": 22,
+      "columna": 24,
+      "literal": "Contexto de trabajo"
+    },
+    {
+      "offender_id": "app/ui/components/contexto_trabajo_widget.py:26:Grupo/servicio",
+      "archivo": "app/ui/components/contexto_trabajo_widget.py",
+      "linea": 26,
+      "columna": 30,
+      "literal": "Grupo/servicio"
+    },
+    {
+      "offender_id": "app/ui/components/contexto_trabajo_widget.py:31:Sin estado",
+      "archivo": "app/ui/components/contexto_trabajo_widget.py",
+      "linea": 31,
+      "columna": 38,
+      "literal": "Sin estado"
+    },
+    {
+      "offender_id": "app/ui/components/contexto_trabajo_widget.py:35:Cambiar…",
+      "archivo": "app/ui/components/contexto_trabajo_widget.py",
+      "linea": 35,
+      "columna": 41,
+      "literal": "Cambiar…"
+    },
+    {
+      "offender_id": "app/ui/components/contexto_trabajo_widget.py:42:Selecciona una delegada para empezar.",
+      "archivo": "app/ui/components/contexto_trabajo_widget.py",
+      "linea": 42,
+      "columna": 34,
+      "literal": "Selecciona una delegada para empezar."
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:37:Saldos detallados",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 37,
+      "columna": 29,
+      "literal": "Saldos detallados"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:46:Ver detalles",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 46,
+      "columna": 49,
+      "literal": "Ver detalles"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:60:Consumidas",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 60,
+      "columna": 35,
+      "literal": "Consumidas"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:63:Restantes",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 63,
+      "columna": 34,
+      "literal": "Restantes"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:74:Mensual",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 74,
+      "columna": 42,
+      "literal": "Mensual"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:79:Anual delegada",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 79,
+      "columna": 37,
+      "literal": "Anual delegada"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:83:Anual grupo",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 83,
+      "columna": 37,
+      "literal": "Anual grupo"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:104:Bolsa mensual delegada",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 104,
+      "columna": 37,
+      "literal": "Bolsa mensual delegada"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:108:Bolsa anual delegada",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 108,
+      "columna": 37,
+      "literal": "Bolsa anual delegada"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:112:Bolsa anual grupo",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 112,
+      "columna": 37,
+      "literal": "Bolsa anual grupo"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:126:Ver detalles",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 126,
+      "columna": 30,
+      "literal": "Ver detalles"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:127:Ocultar detalles",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 127,
+      "columna": 29,
+      "literal": "Ocultar detalles"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:147:Mensual",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 147,
+      "columna": 47,
+      "literal": "Mensual"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:203:Exceso",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 203,
+      "columna": 36,
+      "literal": "Exceso"
+    },
+    {
+      "offender_id": "app/ui/components/saldos_card.py:229:Exceso",
+      "archivo": "app/ui/components/saldos_card.py",
+      "linea": 229,
+      "columna": 21,
+      "literal": "Exceso"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:12:Error de acceso",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 12,
+      "columna": 15,
+      "literal": "Error de acceso"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:14:Diferencia de saldo",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 14,
+      "columna": 15,
+      "literal": "Diferencia de saldo"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:16:Duplicado remoto",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 16,
+      "columna": 15,
+      "literal": "Duplicado remoto"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:17:Solicitud ya modificada",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 17,
+      "columna": 11,
+      "literal": "Solicitud ya modificada"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:26:No disponible",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 26,
+      "columna": 11,
+      "literal": "No disponible"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:30:Error de acceso",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 30,
+      "columna": 24,
+      "literal": "Error de acceso"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:31:Reintentar",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 31,
+      "columna": 15,
+      "literal": "Reintentar"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:32:Diferencia de saldo",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 32,
+      "columna": 24,
+      "literal": "Diferencia de saldo"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:33:Revisar manualmente",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 33,
+      "columna": 15,
+      "literal": "Revisar manualmente"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:34:Mantener local",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 34,
+      "columna": 11,
+      "literal": "Mantener local"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:40:Tipo:",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 40,
+      "columna": 10,
+      "literal": "Tipo:"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:40:Delegada afectada:",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 40,
+      "columna": 31,
+      "literal": "Delegada afectada:"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:41:Solicitud:",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 41,
+      "columna": 54,
+      "literal": "Solicitud:"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:42:Acción recomendada:",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 42,
+      "columna": 36,
+      "literal": "Acción recomendada:"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:50:Duplicado remoto",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 50,
+      "columna": 8,
+      "literal": "Duplicado remoto"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:50:La solicitud llegó dos veces desde la nube o en un reintento.",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 50,
+      "columna": 28,
+      "literal": "La solicitud llegó dos veces desde la nube o en un reintento."
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:51:Diferencia de saldo",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 51,
+      "columna": 8,
+      "literal": "Diferencia de saldo"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:51:Los minutos u horas disponibles no coinciden entre este equipo y la nube.",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 51,
+      "columna": 31,
+      "literal": "Los minutos u horas disponibles no coinciden entre este equipo y la nube."
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:52:Solicitud ya modificada",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 52,
+      "columna": 8,
+      "literal": "Solicitud ya modificada"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:52:La solicitud cambió en ambos lados antes de terminar la sincronización.",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 52,
+      "columna": 35,
+      "literal": "La solicitud cambió en ambos lados antes de terminar la sincronización."
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:53:Error de acceso",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 53,
+      "columna": 8,
+      "literal": "Error de acceso"
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:53:No fue posible validar correctamente un dato remoto por permisos o acceso.",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 53,
+      "columna": 27,
+      "literal": "No fue posible validar correctamente un dato remoto por permisos o acceso."
+    },
+    {
+      "offender_id": "app/ui/conflict_guidance.py:55:La solicitud cambió en momentos distintos y requiere decisión.",
+      "archivo": "app/ui/conflict_guidance.py",
+      "linea": 55,
+      "columna": 38,
+      "literal": "La solicitud cambió en momentos distintos y requiere decisión."
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:45:Tipo",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 45,
+      "columna": 12,
+      "literal": "Tipo"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:47:Fecha",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 47,
+      "columna": 12,
+      "literal": "Fecha"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:48:Campo clave",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 48,
+      "columna": 12,
+      "literal": "Campo clave"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:49:Última edición local",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 49,
+      "columna": 12,
+      "literal": "Última edición local"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:50:Última edición remota",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 50,
+      "columna": 12,
+      "literal": "Última edición remota"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:105:Resolver conflictos de sincronización",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 105,
+      "columna": 28,
+      "literal": "Resolver conflictos de sincronización"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:114:Conflictos detectados",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 114,
+      "columna": 23,
+      "literal": "Conflictos detectados"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:118:Sin conflictos pendientes.",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 118,
+      "columna": 36,
+      "literal": "Sin conflictos pendientes."
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:137:Qué pasó",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 137,
+      "columna": 29,
+      "literal": "Qué pasó"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:140:Por qué puede haber ocurrido",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 140,
+      "columna": 30,
+      "literal": "Por qué puede haber ocurrido"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:153:Opciones para este conflicto",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 153,
+      "columna": 31,
+      "literal": "Opciones para este conflicto"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:158:Mantener local",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 158,
+      "columna": 46,
+      "literal": "Mantener local"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:159:Aceptar remoto",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 159,
+      "columna": 47,
+      "literal": "Aceptar remoto"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:160:Revisar manualmente",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 160,
+      "columna": 49,
+      "literal": "Revisar manualmente"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:161:Reintentar",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 161,
+      "columna": 41,
+      "literal": "Reintentar"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:176:Aplicar opción seleccionada",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 176,
+      "columna": 49,
+      "literal": "Aplicar opción seleccionada"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:181:Siguiente conflicto",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 181,
+      "columna": 39,
+      "literal": "Siguiente conflicto"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:186:Resolver todos automáticamente (según política por defecto)",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 186,
+      "columna": 44,
+      "literal": "Resolver todos automáticamente (según política por defecto)"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:196:Resumen: Conflictos resueltos 0 · Pendientes 0 · Requieren revisión manual 0",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 196,
+      "columna": 47,
+      "literal": "Resumen: Conflictos resueltos 0 · Pendientes 0 · Requieren revisión manual 0"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:284:Sin conflictos.",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 284,
+      "columna": 39,
+      "literal": "Sin conflictos."
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:289:- Tipo de conflicto:",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 289,
+      "columna": 34,
+      "literal": "- Tipo de conflicto:"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:290:- Delegada afectada:",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 290,
+      "columna": 61,
+      "literal": "- Delegada afectada:"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:291:- Acción recomendada:",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 291,
+      "columna": 57,
+      "literal": "- Acción recomendada:"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:299:Resumen: Conflictos resueltos",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 299,
+      "columna": 12,
+      "literal": "Resumen: Conflictos resueltos"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:300:· Pendiente",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 300,
+      "columna": 57,
+      "literal": "· Pendiente"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:301:· Con avisos",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 301,
+      "columna": 35,
+      "literal": "· Con avisos"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:343:Reintentar",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 343,
+      "columna": 42,
+      "literal": "Reintentar"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:343:Conflicto pendiente. Reintenta la sincronización.",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 343,
+      "columna": 56,
+      "literal": "Conflicto pendiente. Reintenta la sincronización."
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:356:Aplicar a todos",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 356,
+      "columna": 12,
+      "literal": "Aplicar a todos"
+    },
+    {
+      "offender_id": "app/ui/conflicts_dialog.py:357:Se resolverán todos los conflictos con la política activa. ¿Continuar?",
+      "archivo": "app/ui/conflicts_dialog.py",
+      "linea": 357,
+      "columna": 12,
+      "literal": "Se resolverán todos los conflictos con la política activa. ¿Continuar?"
+    },
+    {
+      "offender_id": "app/ui/controllers/personas_controller.py:15:Validación",
+      "archivo": "app/ui/controllers/personas_controller.py",
+      "linea": 15,
+      "columna": 44,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:42:No se puede añadir la solicitud.",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 42,
+      "columna": 21,
+      "literal": "No se puede añadir la solicitud."
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:43:Falta seleccionar una delegada.",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 43,
+      "columna": 20,
+      "literal": "Falta seleccionar una delegada."
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:44:Selecciona una delegada en Configuración y vuelve a intentarlo.",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 44,
+      "columna": 20,
+      "literal": "Selecciona una delegada en Configuración y vuelve a intentarlo."
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:67:No se puede añadir la solicitud.",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 67,
+      "columna": 21,
+      "literal": "No se puede añadir la solicitud."
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:69:Revisa fecha/tramo y corrige los campos marcados.",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 69,
+      "columna": 20,
+      "literal": "Revisa fecha/tramo y corrige los campos marcados."
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:117:No se pudo guardar la solicitud.",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 117,
+      "columna": 91,
+      "literal": "No se pudo guardar la solicitud."
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:120:No se pudo guardar la solicitud.",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 120,
+      "columna": 44,
+      "literal": "No se pudo guardar la solicitud."
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:122:Solicitud registrada con advertencias",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 122,
+      "columna": 70,
+      "literal": "Solicitud registrada con advertencias"
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:127:No se guardó la solicitud.",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 127,
+      "columna": 21,
+      "literal": "No se guardó la solicitud."
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:129:Corrige el formulario y vuelve a pulsar 'Añadir pendiente'.",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 129,
+      "columna": 20,
+      "literal": "Corrige el formulario y vuelve a pulsar 'Añadir pendiente'."
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:152:Pendiente actualizada",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 152,
+      "columna": 35,
+      "literal": "Pendiente actualizada"
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:152:Operación completada",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 152,
+      "columna": 66,
+      "literal": "Operación completada"
+    },
+    {
+      "offender_id": "app/ui/controllers/solicitudes_controller.py:168:pdf_path es obligatorio cuando generar_pdf=True",
+      "archivo": "app/ui/controllers/solicitudes_controller.py",
+      "linea": 168,
+      "columna": 33,
+      "literal": "pdf_path es obligatorio cuando generar_pdf=True"
+    },
+    {
+      "offender_id": "app/ui/controllers/sync_button_state_rules.py:120:Revisar conflictos",
+      "archivo": "app/ui/controllers/sync_button_state_rules.py",
+      "linea": 120,
+      "columna": 15,
+      "literal": "Revisar conflictos"
+    },
+    {
+      "offender_id": "app/ui/controllers/sync_button_state_rules.py:121:Revisar conflictos (sin pendientes)",
+      "archivo": "app/ui/controllers/sync_button_state_rules.py",
+      "linea": 121,
+      "columna": 11,
+      "literal": "Revisar conflictos (sin pendientes)"
+    },
+    {
+      "offender_id": "app/ui/controllers/sync_controller.py:36:Sync failed",
+      "archivo": "app/ui/controllers/sync_controller.py",
+      "linea": 36,
+      "columna": 16,
+      "literal": "Sync failed"
+    },
+    {
+      "offender_id": "app/ui/controllers/sync_controller.py:69:Sin plan",
+      "archivo": "app/ui/controllers/sync_controller.py",
+      "linea": 69,
+      "columna": 91,
+      "literal": "Sin plan"
+    },
+    {
+      "offender_id": "app/ui/controllers/sync_controller.py:72:Sincronización",
+      "archivo": "app/ui/controllers/sync_controller.py",
+      "linea": 72,
+      "columna": 61,
+      "literal": "Sincronización"
+    },
+    {
+      "offender_id": "app/ui/controllers/sync_controller.py:86:Sin configuración",
+      "archivo": "app/ui/controllers/sync_controller.py",
+      "linea": 86,
+      "columna": 204,
+      "literal": "Sin configuración"
+    },
+    {
+      "offender_id": "app/ui/controllers/sync_controller.py:145:Estado: Pendiente",
+      "archivo": "app/ui/controllers/sync_controller.py",
+      "linea": 145,
+      "columna": 40,
+      "literal": "Estado: Pendiente"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:55:<b>",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 55,
+      "columna": 26,
+      "literal": "<b>"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:55:</b><br>",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 55,
+      "columna": 68,
+      "literal": "</b><br>"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:59:<b>",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 59,
+      "columna": 26,
+      "literal": "<b>"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:59:</b>",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 59,
+      "columna": 68,
+      "literal": "</b>"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:68:Spreadsheet URL/ID",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 68,
+      "columna": 27,
+      "literal": "Spreadsheet URL/ID"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:81:Credenciales",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 81,
+      "columna": 27,
+      "literal": "Credenciales"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:84:<b>",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 84,
+      "columna": 26,
+      "literal": "<b>"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:84:</b>",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 84,
+      "columna": 68,
+      "literal": "</b>"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:101:Cerrar",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 101,
+      "columna": 41,
+      "literal": "Cerrar"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:111:<b>",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 111,
+      "columna": 34,
+      "literal": "<b>"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:111:</b>",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 111,
+      "columna": 76,
+      "literal": "</b>"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:126:Seleccionar credenciales JSON",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 126,
+      "columna": 52,
+      "literal": "Seleccionar credenciales JSON"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:126:JSON (*.json)",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 126,
+      "columna": 89,
+      "literal": "JSON (*.json)"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:151:Configuración",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 151,
+      "columna": 38,
+      "literal": "Configuración"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:198:Conexión OK",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 198,
+      "columna": 38,
+      "literal": "Conexión OK"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:198:Spreadsheet:",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 198,
+      "columna": 56,
+      "literal": "Spreadsheet:"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:198:ID:",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 198,
+      "columna": 95,
+      "literal": "ID:"
+    },
+    {
+      "offender_id": "app/ui/dialog_opciones.py:207:Qué hacer ahora:",
+      "archivo": "app/ui/dialog_opciones.py",
+      "linea": 207,
+      "columna": 34,
+      "literal": "Qué hacer ahora:"
+    },
+    {
+      "offender_id": "app/ui/dialogos_comunes.py:31:Ver detalles",
+      "archivo": "app/ui/dialogos_comunes.py",
+      "linea": 31,
+      "columna": 42,
+      "literal": "Ver detalles"
+    },
+    {
+      "offender_id": "app/ui/dialogos_comunes.py:32:Cerrar",
+      "archivo": "app/ui/dialogos_comunes.py",
+      "linea": 32,
+      "columna": 21,
+      "literal": "Cerrar"
+    },
+    {
+      "offender_id": "app/ui/dialogos_comunes.py:51:Cerrar",
+      "archivo": "app/ui/dialogos_comunes.py",
+      "linea": 51,
+      "columna": 31,
+      "literal": "Cerrar"
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:20:Causa probable:",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 20,
+      "columna": 26,
+      "literal": "Causa probable:"
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:21:Acción recomendada:",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 21,
+      "columna": 51,
+      "literal": "Acción recomendada:"
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:25:ID de incidente:",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 25,
+      "columna": 27,
+      "literal": "ID de incidente:"
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:32:No se pudo completar la operación",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 32,
+      "columna": 40,
+      "literal": "No se pudo completar la operación"
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:35:Los datos ingresados no cumplen una regla de negocio.",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 35,
+      "columna": 27,
+      "literal": "Los datos ingresados no cumplen una regla de negocio."
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:36:Corrige los datos marcados y reintenta.",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 36,
+      "columna": 31,
+      "literal": "Corrige los datos marcados y reintenta."
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:42:No se pudo completar la operación",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 42,
+      "columna": 18,
+      "literal": "No se pudo completar la operación"
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:43:No fue posible acceder a los datos o al servicio externo.",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 43,
+      "columna": 27,
+      "literal": "No fue posible acceder a los datos o al servicio externo."
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:44:Reintenta. Si persiste, revisa la configuración o contacta soporte.",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 44,
+      "columna": 31,
+      "literal": "Reintenta. Si persiste, revisa la configuración o contacta soporte."
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:49:Ocurrió un error inesperado.",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 49,
+      "columna": 14,
+      "literal": "Ocurrió un error inesperado."
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:50:Se produjo un fallo técnico no identificado.",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 50,
+      "columna": 23,
+      "literal": "Se produjo un fallo técnico no identificado."
+    },
+    {
+      "offender_id": "app/ui/error_mapping.py:51:Reintenta. Si persiste, contacta soporte.",
+      "archivo": "app/ui/error_mapping.py",
+      "linea": 51,
+      "columna": 27,
+      "literal": "Reintenta. Si persiste, contacta soporte."
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:41:Editar grupo",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 41,
+      "columna": 28,
+      "literal": "Editar grupo"
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:62:Horas anuales del grupo",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 62,
+      "columna": 27,
+      "literal": "Horas anuales del grupo"
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:69:Cancelar",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 69,
+      "columna": 41,
+      "literal": "Cancelar"
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:74:Guardar",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 74,
+      "columna": 39,
+      "literal": "Guardar"
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:129:Opciones PDF",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 129,
+      "columna": 28,
+      "literal": "Opciones PDF"
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:138:Opciones PDF",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 138,
+      "columna": 23,
+      "literal": "Opciones PDF"
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:147:Cambiar logo…",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 147,
+      "columna": 39,
+      "literal": "Cambiar logo…"
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:153:Texto legal del PDF (se usa literalmente en el PDF)",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 153,
+      "columna": 29,
+      "literal": "Texto legal del PDF (se usa literalmente en el PDF)"
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:164:Cancelar",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 164,
+      "columna": 41,
+      "literal": "Cancelar"
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:169:Guardar",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 169,
+      "columna": 39,
+      "literal": "Guardar"
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:193:Seleccionar logo",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 193,
+      "columna": 12,
+      "literal": "Seleccionar logo"
+    },
+    {
+      "offender_id": "app/ui/group_dialog.py:195:Imágenes (*.png *.jpg *.jpeg *.bmp *.svg)",
+      "archivo": "app/ui/group_dialog.py",
+      "linea": 195,
+      "columna": 12,
+      "literal": "Imágenes (*.png *.jpg *.jpeg *.bmp *.svg)"
+    },
+    {
+      "offender_id": "app/ui/historico_view.py:23:Pendiente",
+      "archivo": "app/ui/historico_view.py",
+      "linea": 23,
+      "columna": 46,
+      "literal": "Pendiente"
+    },
+    {
+      "offender_id": "app/ui/historico_view.py:24:Confirmada",
+      "archivo": "app/ui/historico_view.py",
+      "linea": 24,
+      "columna": 48,
+      "literal": "Confirmada"
+    },
+    {
+      "offender_id": "app/ui/historico_view.py:200:%d/%m/%Y",
+      "archivo": "app/ui/historico_view.py",
+      "linea": 200,
+      "columna": 20,
+      "literal": "%d/%m/%Y"
+    },
+    {
+      "offender_id": "app/ui/historico_view.py:200:%Y-%m-%d",
+      "archivo": "app/ui/historico_view.py",
+      "linea": 200,
+      "columna": 32,
+      "literal": "%Y-%m-%d"
+    },
+    {
+      "offender_id": "app/ui/historico_view.py:245:%Y-%m-%d %H:%M",
+      "archivo": "app/ui/historico_view.py",
+      "linea": 245,
+      "columna": 57,
+      "literal": "%Y-%m-%d %H:%M"
+    },
+    {
+      "offender_id": "app/ui/main_window.py:39:Eliminar (",
+      "archivo": "app/ui/main_window.py",
+      "linea": 39,
+      "columna": 39,
+      "literal": "Eliminar ("
+    },
+    {
+      "offender_id": "app/ui/main_window.py:40:Exportar histórico PDF (",
+      "archivo": "app/ui/main_window.py",
+      "linea": 40,
+      "columna": 42,
+      "literal": "Exportar histórico PDF ("
+    },
+    {
+      "offender_id": "app/ui/main_window.py:60:Completa la solicitud para poder añadirla",
+      "archivo": "app/ui/main_window.py",
+      "linea": 60,
+      "columna": 66,
+      "literal": "Completa la solicitud para poder añadirla"
+    },
+    {
+      "offender_id": "app/ui/models/solicitudes_table_presenter.py:9:✅ Confirmada",
+      "archivo": "app/ui/models/solicitudes_table_presenter.py",
+      "linea": 9,
+      "columna": 17,
+      "literal": "✅ Confirmada"
+    },
+    {
+      "offender_id": "app/ui/models/solicitudes_table_presenter.py:10:🕒 Pendiente",
+      "archivo": "app/ui/models/solicitudes_table_presenter.py",
+      "linea": 10,
+      "columna": 15,
+      "literal": "🕒 Pendiente"
+    },
+    {
+      "offender_id": "app/ui/models/solicitudes_table_presenter.py:11:🗑 Eliminada",
+      "archivo": "app/ui/models/solicitudes_table_presenter.py",
+      "linea": 11,
+      "columna": 15,
+      "literal": "🗑 Eliminada"
+    },
+    {
+      "offender_id": "app/ui/models/solicitudes_table_presenter.py:92:(sin delegada)",
+      "archivo": "app/ui/models/solicitudes_table_presenter.py",
+      "linea": 92,
+      "columna": 41,
+      "literal": "(sin delegada)"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:28:Nombre",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 28,
+      "columna": 12,
+      "literal": "Nombre"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:29:Género",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 29,
+      "columna": 12,
+      "literal": "Género"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:30:Horas mes",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 30,
+      "columna": 12,
+      "literal": "Horas mes"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:31:Horas año",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 31,
+      "columna": 12,
+      "literal": "Horas año"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:83:Fecha pedida",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 83,
+      "columna": 12,
+      "literal": "Fecha pedida"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:84:Desde",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 84,
+      "columna": 12,
+      "literal": "Desde"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:85:Hasta",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 85,
+      "columna": 12,
+      "literal": "Hasta"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:86:Completo",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 86,
+      "columna": 12,
+      "literal": "Completo"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:87:Horas",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 87,
+      "columna": 12,
+      "literal": "Horas"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:88:Notas",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 88,
+      "columna": 12,
+      "literal": "Notas"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:99:Estado",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 99,
+      "columna": 27,
+      "literal": "Estado"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:101:Delegada",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 101,
+      "columna": 27,
+      "literal": "Delegada"
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:149:⚠ Horario solapado con otra petición pendiente del mismo día.",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 149,
+      "columna": 19,
+      "literal": "⚠ Horario solapado con otra petición pendiente del mismo día."
+    },
+    {
+      "offender_id": "app/ui/models_qt.py:214:%Y-%m-%d",
+      "archivo": "app/ui/models_qt.py",
+      "linea": 214,
+      "columna": 44,
+      "literal": "%Y-%m-%d"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:74:Cerrar",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 74,
+      "columna": 35,
+      "literal": "Cerrar"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:90:OP-",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 90,
+      "columna": 17,
+      "literal": "OP-"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:104:%d/%m/%Y %H:%M:%S",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 104,
+      "columna": 68,
+      "literal": "%d/%m/%Y %H:%M:%S"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:120:- Solicitudes afectadas:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 120,
+      "columna": 14,
+      "literal": "- Solicitudes afectadas:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:121:- Incidencias:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 121,
+      "columna": 14,
+      "literal": "- Incidencias:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:122:- Siguiente paso:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 122,
+      "columna": 14,
+      "literal": "- Siguiente paso:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:138:Solicitudes afectadas:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 138,
+      "columna": 14,
+      "literal": "Solicitudes afectadas:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:139:Incidencias:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 139,
+      "columna": 14,
+      "literal": "Incidencias:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:140:Siguiente paso:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 140,
+      "columna": 14,
+      "literal": "Siguiente paso:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:141:Fecha y hora:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 141,
+      "columna": 14,
+      "literal": "Fecha y hora:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:142:Identificador:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 142,
+      "columna": 14,
+      "literal": "Identificador:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:158:Solicitud añadida a pendientes",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 158,
+      "columna": 22,
+      "literal": "Solicitud añadida a pendientes"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:160:Solicitud guardada:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 160,
+      "columna": 22,
+      "literal": "Solicitud guardada:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:164:Sin incidencias.",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 164,
+      "columna": 26,
+      "literal": "Sin incidencias."
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:165:Revisar pendientes o añadir otra solicitud.",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 165,
+      "columna": 26,
+      "literal": "Revisar pendientes o añadir otra solicitud."
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:170:Revisa el formulario",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 170,
+      "columna": 57,
+      "literal": "Revisa el formulario"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:184:No disponible",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 184,
+      "columna": 29,
+      "literal": "No disponible"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:187:%d/%m/%Y %H:%M:%S",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 187,
+      "columna": 46,
+      "literal": "%d/%m/%Y %H:%M:%S"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:195:Confirmada",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 195,
+      "columna": 23,
+      "literal": "Confirmada"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:196:Con avisos",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 196,
+      "columna": 23,
+      "literal": "Con avisos"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:197:Error",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 197,
+      "columna": 21,
+      "literal": "Error"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:200:Resultado",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 200,
+      "columna": 66,
+      "literal": "Resultado"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:213:Estado:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 213,
+      "columna": 14,
+      "literal": "Estado:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:214:Solicitudes confirmadas:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 214,
+      "columna": 14,
+      "literal": "Solicitudes confirmadas:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:215:Delegadas:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 215,
+      "columna": 14,
+      "literal": "Delegadas:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:215:Sin delegadas",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 215,
+      "columna": 81,
+      "literal": "Sin delegadas"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:216:Horas confirmadas:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 216,
+      "columna": 14,
+      "literal": "Horas confirmadas:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:217:Saldo disponible:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 217,
+      "columna": 14,
+      "literal": "Saldo disponible:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:218:Confirmado:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 218,
+      "columna": 14,
+      "literal": "Confirmado:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:219:Referencia:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 219,
+      "columna": 14,
+      "literal": "Referencia:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:220:ID de incidente:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 220,
+      "columna": 14,
+      "literal": "ID de incidente:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:220:No disponible",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 220,
+      "columna": 58,
+      "literal": "No disponible"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:228:Avisos:",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 228,
+      "columna": 36,
+      "literal": "Avisos:"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:238:Ver en histórico",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 238,
+      "columna": 38,
+      "literal": "Ver en histórico"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:243:Sincronizar ahora",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 243,
+      "columna": 38,
+      "literal": "Sincronizar ahora"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:248:Deshacer (",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 248,
+      "columna": 40,
+      "literal": "Deshacer ("
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:254:Deshacer no disponible",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 254,
+      "columna": 40,
+      "literal": "Deshacer no disponible"
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:258:Deshacer (",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 258,
+      "columna": 38,
+      "literal": "Deshacer ("
+    },
+    {
+      "offender_id": "app/ui/notification_service.py:271:Volver a operativa",
+      "archivo": "app/ui/notification_service.py",
+      "linea": 271,
+      "columna": 35,
+      "literal": "Volver a operativa"
+    },
+    {
+      "offender_id": "app/ui/patterns.py:24:Confirmada",
+      "archivo": "app/ui/patterns.py",
+      "linea": 24,
+      "columna": 33,
+      "literal": "Confirmada"
+    },
+    {
+      "offender_id": "app/ui/patterns.py:25:Pendiente",
+      "archivo": "app/ui/patterns.py",
+      "linea": 25,
+      "columna": 31,
+      "literal": "Pendiente"
+    },
+    {
+      "offender_id": "app/ui/patterns.py:26:Error",
+      "archivo": "app/ui/patterns.py",
+      "linea": 26,
+      "columna": 29,
+      "literal": "Error"
+    },
+    {
+      "offender_id": "app/ui/patterns.py:27:Con avisos",
+      "archivo": "app/ui/patterns.py",
+      "linea": 27,
+      "columna": 31,
+      "literal": "Con avisos"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:28:Editar delegado",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 28,
+      "columna": 28,
+      "literal": "Editar delegado"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:28:Nuevo delegado",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 28,
+      "columna": 62,
+      "literal": "Nuevo delegado"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:47:Nombre",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 47,
+      "columna": 22,
+      "literal": "Nombre"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:48:Género",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 48,
+      "columna": 22,
+      "literal": "Género"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:49:Horas mes",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 49,
+      "columna": 22,
+      "literal": "Horas mes"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:50:Horas año",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 50,
+      "columna": 22,
+      "literal": "Horas año"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:56:Mismo cuadrante todos los días",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 56,
+      "columna": 42,
+      "literal": "Mismo cuadrante todos los días"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:57:Horarios distintos por día",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 57,
+      "columna": 41,
+      "literal": "Horarios distintos por día"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:64:Modo cuadrante L-V",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 64,
+      "columna": 22,
+      "literal": "Modo cuadrante L-V"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:66:Cuadrante base L-V",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 66,
+      "columna": 47,
+      "literal": "Cuadrante base L-V"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:67:Cuadrante L-V",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 67,
+      "columna": 22,
+      "literal": "Cuadrante L-V"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:69:Trabaja fines de semana",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 69,
+      "columna": 45,
+      "literal": "Trabaja fines de semana"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:70:Fines de semana",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 70,
+      "columna": 22,
+      "literal": "Fines de semana"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:81:Lunes",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 81,
+      "columna": 13,
+      "literal": "Lunes"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:82:Martes",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 82,
+      "columna": 13,
+      "literal": "Martes"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:83:Miércoles",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 83,
+      "columna": 13,
+      "literal": "Miércoles"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:84:Jueves",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 84,
+      "columna": 13,
+      "literal": "Jueves"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:85:Viernes",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 85,
+      "columna": 13,
+      "literal": "Viernes"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:91:Cuadrante por día",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 91,
+      "columna": 22,
+      "literal": "Cuadrante por día"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:98:Cuadrante fin de semana",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 98,
+      "columna": 31,
+      "literal": "Cuadrante fin de semana"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:106:Sábado",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 106,
+      "columna": 36,
+      "literal": "Sábado"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:106:Domingo",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 106,
+      "columna": 61,
+      "literal": "Domingo"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:136:Mañana",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 136,
+      "columna": 27,
+      "literal": "Mañana"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:139:Tarde",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 139,
+      "columna": 27,
+      "literal": "Tarde"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:142:Total: 00:00",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 142,
+      "columna": 29,
+      "literal": "Total: 00:00"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:246:Total:",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 246,
+      "columna": 30,
+      "literal": "Total:"
+    },
+    {
+      "offender_id": "app/ui/person_dialog.py:250:Total:",
+      "archivo": "app/ui/person_dialog.py",
+      "linea": 250,
+      "columna": 40,
+      "literal": "Total:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:31:solicitudes ya existían y no cambiaron.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 31,
+      "columna": 54,
+      "literal": "solicitudes ya existían y no cambiaron."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:33:filas omitidas por filtro de delegada.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 33,
+      "columna": 55,
+      "literal": "filas omitidas por filtro de delegada."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:37:Error en",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 37,
+      "columna": 24,
+      "literal": "Error en"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:37:solicitudes durante la sincronización.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 37,
+      "columna": 49,
+      "literal": "solicitudes durante la sincronización."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:41:Se detectaron",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 41,
+      "columna": 27,
+      "literal": "Se detectaron"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:59:Una solicitud por delegada, fecha y tramo.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 59,
+      "columna": 29,
+      "literal": "Una solicitud por delegada, fecha y tramo."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:72:Local: +",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 72,
+      "columna": 14,
+      "literal": "Local: +"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:73:Sheets: +",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 73,
+      "columna": 14,
+      "literal": "Sheets: +"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:116:Operación",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 116,
+      "columna": 24,
+      "literal": "Operación"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:117:Config",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 117,
+      "columna": 23,
+      "literal": "Config"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:118:Falta configuración de Google Sheets (Spreadsheet ID o credenciales).",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 118,
+      "columna": 24,
+      "literal": "Falta configuración de Google Sheets (Spreadsheet ID o credenciales)."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:119:Ir a configuración y completar los campos obligatorios.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 119,
+      "columna": 33,
+      "literal": "Ir a configuración y completar los campos obligatorios."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:122:Configuración incompleta.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 122,
+      "columna": 16,
+      "literal": "Configuración incompleta."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:151:Una solicitud por delegada, fecha y tramo.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 151,
+      "columna": 29,
+      "literal": "Una solicitud por delegada, fecha y tramo."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:159:Errores",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 159,
+      "columna": 24,
+      "literal": "Errores"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:160:Red",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 160,
+      "columna": 23,
+      "literal": "Red"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:162:Revisa configuración o red. Reintenta solo fallidos.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 162,
+      "columna": 33,
+      "literal": "Revisa configuración o red. Reintenta solo fallidos."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:167:Operación",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 167,
+      "columna": 24,
+      "literal": "Operación"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:168:Sync",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 168,
+      "columna": 23,
+      "literal": "Sync"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:169:Sin detalle adicional.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 169,
+      "columna": 35,
+      "literal": "Sin detalle adicional."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:196:Creaciones",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 196,
+      "columna": 24,
+      "literal": "Creaciones"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:197:Solicitud",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 197,
+      "columna": 23,
+      "literal": "Solicitud"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:198:: Solicitud nueva",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 198,
+      "columna": 37,
+      "literal": ": Solicitud nueva"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:206:Actualizaciones",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 206,
+      "columna": 24,
+      "literal": "Actualizaciones"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:207:Solicitud",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 207,
+      "columna": 23,
+      "literal": "Solicitud"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:208:campo(s) con cambios.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 208,
+      "columna": 56,
+      "literal": "campo(s) con cambios."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:216:Diff",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 216,
+      "columna": 28,
+      "literal": "Diff"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:217:Solicitud",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 217,
+      "columna": 27,
+      "literal": "Solicitud"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:218:| actual:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 218,
+      "columna": 56,
+      "literal": "| actual:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:218:| nuevo:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 218,
+      "columna": 87,
+      "literal": "| nuevo:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:226:Conflictos",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 226,
+      "columna": 24,
+      "literal": "Conflictos"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:227:Solicitud",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 227,
+      "columna": 23,
+      "literal": "Solicitud"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:229:Revisa el conflicto y vuelve a sincronizar.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 229,
+      "columna": 33,
+      "literal": "Revisa el conflicto y vuelve a sincronizar."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:237:Validaciones",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 237,
+      "columna": 24,
+      "literal": "Validaciones"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:240:Corregir dato y volver a simular.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 240,
+      "columna": 33,
+      "literal": "Corregir dato y volver a simular."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:248:Operación",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 248,
+      "columna": 24,
+      "literal": "Operación"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:250:No hay cambios que aplicar.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 250,
+      "columna": 24,
+      "literal": "No hay cambios que aplicar."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:263:Plan inmutable generado por SyncPlanner antes de ejecutar SyncExecutor.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 263,
+      "columna": 29,
+      "literal": "Plan inmutable generado por SyncPlanner antes de ejecutar SyncExecutor."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:272:Simulación sin escritura en Google Sheets.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 272,
+      "columna": 18,
+      "literal": "Simulación sin escritura en Google Sheets."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:305:%Y%m%d_%H%M%S",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 305,
+      "columna": 36,
+      "literal": "%Y%m%d_%H%M%S"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:317:# Informe de sincronización",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 317,
+      "columna": 8,
+      "literal": "# Informe de sincronización"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:318:- Estado: **",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 318,
+      "columna": 10,
+      "literal": "- Estado: **"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:319:- Inicio:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 319,
+      "columna": 10,
+      "literal": "- Inicio:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:320:- Fin:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 320,
+      "columna": 10,
+      "literal": "- Fin:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:321:- Duración:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 321,
+      "columna": 10,
+      "literal": "- Duración:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:322:- Actor:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 322,
+      "columna": 10,
+      "literal": "- Actor:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:323:- Fuente:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 323,
+      "columna": 10,
+      "literal": "- Fuente:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:324:- Alcance:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 324,
+      "columna": 10,
+      "literal": "- Alcance:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:325:- Idempotencia:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 325,
+      "columna": 10,
+      "literal": "- Idempotencia:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:327:## Resumen",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 327,
+      "columna": 8,
+      "literal": "## Resumen"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:328:- Solicitudes creadas:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 328,
+      "columna": 10,
+      "literal": "- Solicitudes creadas:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:329:- Solicitudes actualizadas:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 329,
+      "columna": 10,
+      "literal": "- Solicitudes actualizadas:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:330:- Solicitudes omitidas (sin cambios):",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 330,
+      "columna": 10,
+      "literal": "- Solicitudes omitidas (sin cambios):"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:331:- Conflictos detectados:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 331,
+      "columna": 10,
+      "literal": "- Conflictos detectados:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:332:- Errores:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 332,
+      "columna": 10,
+      "literal": "- Errores:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:333:- Solicitudes locales totales:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 333,
+      "columna": 10,
+      "literal": "- Solicitudes locales totales:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:334:- Solicitudes remotas revisadas:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 334,
+      "columna": 10,
+      "literal": "- Solicitudes remotas revisadas:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:335:- Llamadas API:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 335,
+      "columna": 10,
+      "literal": "- Llamadas API:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:336:- Reintentos:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 336,
+      "columna": 10,
+      "literal": "- Reintentos:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:337:- Conflictos (métrica):",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 337,
+      "columna": 10,
+      "literal": "- Conflictos (métrica):"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:338:- Errores (métrica):",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 338,
+      "columna": 10,
+      "literal": "- Errores (métrica):"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:339:- Tasa de éxito:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 339,
+      "columna": 10,
+      "literal": "- Tasa de éxito:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:341:## Detalle",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 341,
+      "columna": 8,
+      "literal": "## Detalle"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:346:. Acción:",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 346,
+      "columna": 17,
+      "literal": ". Acción:"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:352:*.json",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 352,
+      "columna": 36,
+      "literal": "*.json"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:363:*.json",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 363,
+      "columna": 35,
+      "literal": "*.json"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:380:N/D",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 380,
+      "columna": 32,
+      "literal": "N/D"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:412:Operación",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 412,
+      "columna": 20,
+      "literal": "Operación"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:413:Sync",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 413,
+      "columna": 19,
+      "literal": "Sync"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:414:Sincronización finalizada.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 414,
+      "columna": 20,
+      "literal": "Sincronización finalizada."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:419:Cambios aplicados",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 419,
+      "columna": 20,
+      "literal": "Cambios aplicados"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:420:Solicitud",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 420,
+      "columna": 19,
+      "literal": "Solicitud"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:422:Local +",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 422,
+      "columna": 18,
+      "literal": "Local +"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:431:Cambios aplicados",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 431,
+      "columna": 20,
+      "literal": "Cambios aplicados"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:432:Solicitud",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 432,
+      "columna": 19,
+      "literal": "Solicitud"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:434:Revisar filtros y confirmar si el comportamiento era esperado.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 434,
+      "columna": 29,
+      "literal": "Revisar filtros y confirmar si el comportamiento era esperado."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:442:Conflictos",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 442,
+      "columna": 20,
+      "literal": "Conflictos"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:443:Solicitud",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 443,
+      "columna": 19,
+      "literal": "Solicitud"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:445:Abre las solicitudes afectadas y revísalas.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 445,
+      "columna": 29,
+      "literal": "Abre las solicitudes afectadas y revísalas."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:453:Errores",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 453,
+      "columna": 20,
+      "literal": "Errores"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:454:Sync",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 454,
+      "columna": 19,
+      "literal": "Sync"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:456:Reintentar solo fallidos.",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 456,
+      "columna": 29,
+      "literal": "Reintentar solo fallidos."
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:465:Operación",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 465,
+      "columna": 24,
+      "literal": "Operación"
+    },
+    {
+      "offender_id": "app/ui/sync_reporting.py:466:Red",
+      "archivo": "app/ui/sync_reporting.py",
+      "linea": 466,
+      "columna": 23,
+      "literal": "Red"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:75:Completa la solicitud y confirma solo cuando estés lista.",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 75,
+      "columna": 28,
+      "literal": "Completa la solicitud y confirma solo cuando estés lista."
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:79:Saldos",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 79,
+      "columna": 50,
+      "literal": "Saldos"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:119:Ir a la existente",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 119,
+      "columna": 46,
+      "literal": "Ir a la existente"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:148:HH:mm",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 148,
+      "columna": 40,
+      "literal": "HH:mm"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:163:HH:mm",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 163,
+      "columna": 40,
+      "literal": "HH:mm"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:177:Completo",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 177,
+      "columna": 38,
+      "literal": "Completo"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:181:Saldo reservado",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 181,
+      "columna": 40,
+      "literal": "Saldo reservado"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:243:Estado",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 243,
+      "columna": 45,
+      "literal": "Estado"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:283:Pendientes de confirmar",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 283,
+      "columna": 61,
+      "literal": "Pendientes de confirmar"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:287:Ver peticiones de todas las delegadas",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 287,
+      "columna": 51,
+      "literal": "Ver peticiones de todas las delegadas"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:291:Revisar pendientes ocultas",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 291,
+      "columna": 48,
+      "literal": "Revisar pendientes ocultas"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:321:Reparar · Pendientes huérfanas",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 321,
+      "columna": 36,
+      "literal": "Reparar · Pendientes huérfanas"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:349:Eliminar selección",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 349,
+      "columna": 51,
+      "literal": "Eliminar selección"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:355:Eliminar huérfana",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 355,
+      "columna": 50,
+      "literal": "Eliminar huérfana"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:371:Total: 00:00",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 371,
+      "columna": 43,
+      "literal": "Total: 00:00"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:375:Abrir PDF",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 375,
+      "columna": 39,
+      "literal": "Abrir PDF"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:398:Solicitudes",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 398,
+      "columna": 43,
+      "literal": "Solicitudes"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:404:Consulta y filtra solicitudes confirmadas. Si no hay registros, crea la primera solicitud.",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 404,
+      "columna": 28,
+      "literal": "Consulta y filtra solicitudes confirmadas. Si no hay registros, crea la primera solicitud."
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:409:Histórico",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 409,
+      "columna": 59,
+      "literal": "Histórico"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:415:Aún no hay histórico",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 415,
+      "columna": 25,
+      "literal": "Aún no hay histórico"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:418:Cuando confirmes solicitudes aparecerán aquí con filtros por texto, estado y fechas.",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 418,
+      "columna": 24,
+      "literal": "Cuando confirmes solicitudes aparecerán aquí con filtros por texto, estado y fechas."
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:422:Crear primera solicitud",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 422,
+      "columna": 48,
+      "literal": "Crear primera solicitud"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:439:Buscar",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 439,
+      "columna": 53,
+      "literal": "Buscar"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:442:Todos",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 442,
+      "columna": 42,
+      "literal": "Todos"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:448:Buscar",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 448,
+      "columna": 40,
+      "literal": "Buscar"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:450:Estado",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 450,
+      "columna": 40,
+      "literal": "Estado"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:456:Delegada",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 456,
+      "columna": 35,
+      "literal": "Delegada"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:458:Todas las delegadas (todos los registros)",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 458,
+      "columna": 55,
+      "literal": "Todas las delegadas (todos los registros)"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:463:Todas",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 463,
+      "columna": 44,
+      "literal": "Todas"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:471:Año completo",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 471,
+      "columna": 56,
+      "literal": "Año completo"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:478:Año/mes",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 478,
+      "columna": 54,
+      "literal": "Año/mes"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:490:Rango fechas",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 490,
+      "columna": 56,
+      "literal": "Rango fechas"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:496:yyyy-MM-dd",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 496,
+      "columna": 49,
+      "literal": "yyyy-MM-dd"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:497:Desde",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 497,
+      "columna": 35,
+      "literal": "Desde"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:502:yyyy-MM-dd",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 502,
+      "columna": 49,
+      "literal": "yyyy-MM-dd"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:503:Hasta",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 503,
+      "columna": 35,
+      "literal": "Hasta"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:507:Aplicar",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 507,
+      "columna": 56,
+      "literal": "Aplicar"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:540:Para exportar, selecciona los registros que quieras exportar.",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 540,
+      "columna": 48,
+      "literal": "Para exportar, selecciona los registros que quieras exportar."
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:548:Eliminar (0)",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 548,
+      "columna": 41,
+      "literal": "Eliminar (0)"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:554:Exportar histórico PDF (0)",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 554,
+      "columna": 44,
+      "literal": "Exportar histórico PDF (0)"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:559:Seleccionar todo (visible)",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 559,
+      "columna": 58,
+      "literal": "Seleccionar todo (visible)"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:565:Sincronizar con Google Sheets",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 565,
+      "columna": 47,
+      "literal": "Sincronizar con Google Sheets"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:577:Histórico",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 577,
+      "columna": 43,
+      "literal": "Histórico"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:596:Define la configuración principal de la app: delegada, grupo/PDF y credenciales.",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 596,
+      "columna": 25,
+      "literal": "Define la configuración principal de la app: delegada, grupo/PDF y credenciales."
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:603:Configuración delegada",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 603,
+      "columna": 55,
+      "literal": "Configuración delegada"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:611:Editar",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 611,
+      "columna": 45,
+      "literal": "Editar"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:616:Eliminar",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 616,
+      "columna": 47,
+      "literal": "Eliminar"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:623:Nueva delegada",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 623,
+      "columna": 44,
+      "literal": "Nueva delegada"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:630:Grupo",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 630,
+      "columna": 51,
+      "literal": "Grupo"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:633:Configurar grupo",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 633,
+      "columna": 43,
+      "literal": "Configurar grupo"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:644:Configurar PDF",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 644,
+      "columna": 43,
+      "literal": "Configurar PDF"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:652:Google Sheets",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 652,
+      "columna": 65,
+      "literal": "Google Sheets"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:653:Fuente: --",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 653,
+      "columna": 38,
+      "literal": "Fuente: --"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:656:Rango: --",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 656,
+      "columna": 37,
+      "literal": "Rango: --"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:661:Configurar conexión Google Sheets",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 661,
+      "columna": 41,
+      "literal": "Configurar conexión Google Sheets"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:666:Probar conexión",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 666,
+      "columna": 55,
+      "literal": "Probar conexión"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:671:Sincronizar ahora",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 671,
+      "columna": 44,
+      "literal": "Sincronizar ahora"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:679:Configuración",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 679,
+      "columna": 40,
+      "literal": "Configuración"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:685:Resumen de sincronización con acciones rápidas. El detalle técnico está en modo avanzado.",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 685,
+      "columna": 23,
+      "literal": "Resumen de sincronización con acciones rápidas. El detalle técnico está en modo avanzado."
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:690:Estado",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 690,
+      "columna": 61,
+      "literal": "Estado"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:691:Última sync: --",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 691,
+      "columna": 36,
+      "literal": "Última sync: --"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:694:Estado: Pendiente",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 694,
+      "columna": 38,
+      "literal": "Estado: Pendiente"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:703:Acciones",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 703,
+      "columna": 49,
+      "literal": "Acciones"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:704:Google Sheets",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 704,
+      "columna": 26,
+      "literal": "Google Sheets"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:709:Sincronizar ahora",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 709,
+      "columna": 37,
+      "literal": "Sincronizar ahora"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:714:Simular sincronización",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 714,
+      "columna": 46,
+      "literal": "Simular sincronización"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:719:Sincronizar ahora",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 719,
+      "columna": 45,
+      "literal": "Sincronizar ahora"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:725:Reintentar solo fallidos",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 725,
+      "columna": 45,
+      "literal": "Reintentar solo fallidos"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:731:Ver detalles",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 731,
+      "columna": 45,
+      "literal": "Ver detalles"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:736:Copiar informe",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 736,
+      "columna": 49,
+      "literal": "Copiar informe"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:741:Abrir carpeta de logs",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 741,
+      "columna": 47,
+      "literal": "Abrir carpeta de logs"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:745:Ver historial",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 745,
+      "columna": 45,
+      "literal": "Ver historial"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:749:Revisar conflictos",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 749,
+      "columna": 49,
+      "literal": "Revisar conflictos"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:756:Duración: -- · Cambios: -- · Conflictos: -- · Errores: --",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 756,
+      "columna": 44,
+      "literal": "Duración: -- · Cambios: -- · Conflictos: -- · Errores: --"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:760:Tendencia (5): --",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 760,
+      "columna": 37,
+      "literal": "Tendencia (5): --"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:763:Evita duplicados: --",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 763,
+      "columna": 43,
+      "literal": "Evita duplicados: --"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:766:Resumen: creadas 0 · actualizadas 0 · omitidas 0 · conflictos 0 · errores 0",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 766,
+      "columna": 38,
+      "literal": "Resumen: creadas 0 · actualizadas 0 · omitidas 0 · conflictos 0 · errores 0"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:770:Ir a configuración",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 770,
+      "columna": 50,
+      "literal": "Ir a configuración"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:776:Sincronizando con Google Sheets…",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 776,
+      "columna": 38,
+      "literal": "Sincronizando con Google Sheets…"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:789:Alertas: sin alertas activas.",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 789,
+      "columna": 39,
+      "literal": "Alertas: sin alertas activas."
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:793:Hay 0 conflictos pendientes de revisión.",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 793,
+      "columna": 45,
+      "literal": "Hay 0 conflictos pendientes de revisión."
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:800:Resultado resumido",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 800,
+      "columna": 55,
+      "literal": "Resultado resumido"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:805:Panel avanzado",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 805,
+      "columna": 63,
+      "literal": "Panel avanzado"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:807:Detalles técnicos",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 807,
+      "columna": 43,
+      "literal": "Detalles técnicos"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:827:Salud del sistema",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 827,
+      "columna": 53,
+      "literal": "Salud del sistema"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:828:Estado general: pendiente de comprobación",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 828,
+      "columna": 41,
+      "literal": "Estado general: pendiente de comprobación"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:833:Estado",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 833,
+      "columna": 47,
+      "literal": "Estado"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:833:Categoría",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 833,
+      "columna": 57,
+      "literal": "Categoría"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:833:Mensaje",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 833,
+      "columna": 71,
+      "literal": "Mensaje"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:833:Acción",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 833,
+      "columna": 82,
+      "literal": "Acción"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:837:Actualizar salud",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 837,
+      "columna": 47,
+      "literal": "Actualizar salud"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:841:No mostrar hoy",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 841,
+      "columna": 46,
+      "literal": "No mostrar hoy"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:853:Sincronización",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 853,
+      "columna": 55,
+      "literal": "Sincronización"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:917:Sincronizando con Google Sheets…",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 917,
+      "columna": 38,
+      "literal": "Sincronizando con Google Sheets…"
+    },
+    {
+      "offender_id": "app/ui/vistas/builders/main_window_builders.py:923:Pendiente: 00:00",
+      "archivo": "app/ui/vistas/builders/main_window_builders.py",
+      "linea": 923,
+      "columna": 41,
+      "literal": "Pendiente: 00:00"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:32:Validación",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 32,
+      "columna": 45,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:40:Guardar PDF",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 40,
+      "columna": 54,
+      "literal": "Guardar PDF"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:40:PDF (*.pdf)",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 40,
+      "columna": 83,
+      "literal": "PDF (*.pdf)"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:83:File export failed during confirm+PDF",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 83,
+      "columna": 16,
+      "literal": "File export failed during confirm+PDF"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:125:PDF generado correctamente",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 125,
+      "columna": 30,
+      "literal": "PDF generado correctamente"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:125:Confirmación",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 125,
+      "columna": 66,
+      "literal": "Confirmación"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:142:PDF generado",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 142,
+      "columna": 26,
+      "literal": "PDF generado"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:143:PDF generado correctamente",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 143,
+      "columna": 19,
+      "literal": "PDF generado correctamente"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:144:Abrir PDF",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 144,
+      "columna": 39,
+      "literal": "Abrir PDF"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:145:Abrir carpeta",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 145,
+      "columna": 42,
+      "literal": "Abrir carpeta"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:146:Cerrar",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 146,
+      "columna": 36,
+      "literal": "Cerrar"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:212:%d/%m/%Y %H:%M:%S",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 212,
+      "columna": 42,
+      "literal": "%d/%m/%Y %H:%M:%S"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:213:CFM-",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 213,
+      "columna": 20,
+      "literal": "CFM-"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:213:%y%m%d%H%M%S",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 213,
+      "columna": 49,
+      "literal": "%y%m%d%H%M%S"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:225:Deshacer no disponible",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 225,
+      "columna": 101,
+      "literal": "Deshacer no disponible"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:239:Se deshicieron",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 239,
+      "columna": 38,
+      "literal": "Se deshicieron"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:244:PDF generado",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 244,
+      "columna": 26,
+      "literal": "PDF generado"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:245:PDF generado. ¿Quieres sincronizar ahora con Google Sheets?",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 245,
+      "columna": 19,
+      "literal": "PDF generado. ¿Quieres sincronizar ahora con Google Sheets?"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:246:Subir ahora",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 246,
+      "columna": 36,
+      "literal": "Subir ahora"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:247:Más tarde",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 247,
+      "columna": 21,
+      "literal": "Más tarde"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:267:Selección requerida",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 267,
+      "columna": 52,
+      "literal": "Selección requerida"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:274:Conflictos detectados",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 274,
+      "columna": 18,
+      "literal": "Conflictos detectados"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:328:yyyy-MM-dd",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 328,
+      "columna": 56,
+      "literal": "yyyy-MM-dd"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:329:HH:mm",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 329,
+      "columna": 56,
+      "literal": "HH:mm"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:330:HH:mm",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 330,
+      "columna": 56,
+      "literal": "HH:mm"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_actions.py:418:Validación",
+      "archivo": "app/ui/vistas/confirmacion_actions.py",
+      "linea": 418,
+      "columna": 67,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_presenter.py:40:No hay pendientes",
+      "archivo": "app/ui/vistas/confirmacion_presenter.py",
+      "linea": 40,
+      "columna": 30,
+      "literal": "No hay pendientes"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_presenter.py:41:Sin pendientes",
+      "archivo": "app/ui/vistas/confirmacion_presenter.py",
+      "linea": 41,
+      "columna": 28,
+      "literal": "Sin pendientes"
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_presenter.py:42:Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
+      "archivo": "app/ui/vistas/confirmacion_presenter.py",
+      "linea": 42,
+      "columna": 28,
+      "literal": "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar."
+    },
+    {
+      "offender_id": "app/ui/vistas/confirmacion_presenter.py:43:Conflictos detectados",
+      "archivo": "app/ui/vistas/confirmacion_presenter.py",
+      "linea": 43,
+      "columna": 26,
+      "literal": "Conflictos detectados"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:34:Rango ajustado",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 34,
+      "columna": 12,
+      "literal": "Rango ajustado"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:35:La fecha 'Desde' era posterior a 'Hasta'. Se corrigió automáticamente el rango.",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 35,
+      "columna": 12,
+      "literal": "La fecha 'Desde' era posterior a 'Hasta'. Se corrigió automáticamente el rango."
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:48:historico/delegada",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 48,
+      "columna": 30,
+      "literal": "historico/delegada"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:85:yyyy-MM-dd",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 85,
+      "columna": 52,
+      "literal": "yyyy-MM-dd"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:86:yyyy-MM-dd",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 86,
+      "columna": 52,
+      "literal": "yyyy-MM-dd"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:212:confirmaciones/no_visible_filtros",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 212,
+      "columna": 8,
+      "literal": "confirmaciones/no_visible_filtros"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:213:Solicitud confirmada",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 213,
+      "columna": 8,
+      "literal": "Solicitud confirmada"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:214:Solicitud confirmada. Ajusta filtros para verla en Histórico.",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 214,
+      "columna": 8,
+      "literal": "Solicitud confirmada. Ajusta filtros para verla en Histórico."
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:224:Exportación",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 224,
+      "columna": 36,
+      "literal": "Exportación"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:224:Función no disponible",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 224,
+      "columna": 52,
+      "literal": "Función no disponible"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:233:Histórico",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 233,
+      "columna": 69,
+      "literal": "Histórico"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:238:Validación",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 238,
+      "columna": 45,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:263:Validación",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 263,
+      "columna": 45,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:269:File export failed during PDF preview",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 269,
+      "columna": 16,
+      "literal": "File export failed during PDF preview"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:279:confirmaciones/export_pdf_ok",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 279,
+      "columna": 12,
+      "literal": "confirmaciones/export_pdf_ok"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:280:Exportación",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 280,
+      "columna": 12,
+      "literal": "Exportación"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:281:Exportación PDF OK",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 281,
+      "columna": 12,
+      "literal": "Exportación PDF OK"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:292:Delegada",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 292,
+      "columna": 8,
+      "literal": "Delegada"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:293:Fecha solicitada",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 293,
+      "columna": 8,
+      "literal": "Fecha solicitada"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:294:Fecha pedida",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 294,
+      "columna": 8,
+      "literal": "Fecha pedida"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:295:Desde",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 295,
+      "columna": 8,
+      "literal": "Desde"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:296:Hasta",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 296,
+      "columna": 8,
+      "literal": "Hasta"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:297:Completo",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 297,
+      "columna": 8,
+      "literal": "Completo"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:298:Horas",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 298,
+      "columna": 8,
+      "literal": "Horas"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:299:Estado",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 299,
+      "columna": 8,
+      "literal": "Estado"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:300:Observaciones",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 300,
+      "columna": 8,
+      "literal": "Observaciones"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:301:Notas",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 301,
+      "columna": 8,
+      "literal": "Notas"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:321:Validación",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 321,
+      "columna": 45,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:334:Solicitudes eliminadas",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 334,
+      "columna": 18,
+      "literal": "Solicitudes eliminadas"
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:335:Las solicitudes seleccionadas se eliminaron del histórico.",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 335,
+      "columna": 21,
+      "literal": "Las solicitudes seleccionadas se eliminaron del histórico."
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:337:Sin incidencias.",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 337,
+      "columna": 22,
+      "literal": "Sin incidencias."
+    },
+    {
+      "offender_id": "app/ui/vistas/historico_actions.py:338:Puedes continuar o revisar histórico.",
+      "archivo": "app/ui/vistas/historico_actions.py",
+      "linea": 338,
+      "columna": 22,
+      "literal": "Puedes continuar o revisar histórico."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:79:Total:",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 79,
+      "columna": 44,
+      "literal": "Total:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:81:Pendiente:",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 81,
+      "columna": 46,
+      "literal": "Pendiente:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:82:Pendiente:",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 82,
+      "columna": 37,
+      "literal": "Pendiente:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:100:Conflictos detectados",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 100,
+      "columna": 18,
+      "literal": "Conflictos detectados"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:180:Pendiente duplicada",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 180,
+      "columna": 26,
+      "literal": "Pendiente duplicada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:181:Ya existe una pendiente igual para esta delegada, fecha y tramo horario.",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 181,
+      "columna": 19,
+      "literal": "Ya existe una pendiente igual para esta delegada, fecha y tramo horario."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:182:Puedes ir a la existente o crear igualmente.",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 182,
+      "columna": 30,
+      "literal": "Puedes ir a la existente o crear igualmente."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:183:Ir a la pendiente existente",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 183,
+      "columna": 35,
+      "literal": "Ir a la pendiente existente"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:184:Crear igualmente",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 184,
+      "columna": 37,
+      "literal": "Crear igualmente"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:185:Cancelar",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 185,
+      "columna": 37,
+      "literal": "Cancelar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:187:No permitido por la regla de negocio de duplicados.",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 187,
+      "columna": 29,
+      "literal": "No permitido por la regla de negocio de duplicados."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:209:Hay horas parciales. ¿Sustituirlas por COMPLETO?",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 209,
+      "columna": 8,
+      "literal": "Hay horas parciales. ¿Sustituirlas por COMPLETO?"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:211:Ya existe un COMPLETO. ¿Sustituirlo por esta franja?",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 211,
+      "columna": 13,
+      "literal": "Ya existe un COMPLETO. ¿Sustituirlo por esta franja?"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:227:%Y-%m-%d",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 227,
+      "columna": 58,
+      "literal": "%Y-%m-%d"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:271:Validación",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 271,
+      "columna": 45,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:283:Pendientes eliminadas",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 283,
+      "columna": 18,
+      "literal": "Pendientes eliminadas"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:284:Las solicitudes pendientes seleccionadas se eliminaron.",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 284,
+      "columna": 21,
+      "literal": "Las solicitudes pendientes seleccionadas se eliminaron."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:286:Sin incidencias.",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 286,
+      "columna": 22,
+      "literal": "Sin incidencias."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_pendientes.py:287:Puedes añadir nuevas solicitudes o confirmar otras pendientes.",
+      "archivo": "app/ui/vistas/main_window/acciones_pendientes.py",
+      "linea": 287,
+      "columna": 22,
+      "literal": "Puedes añadir nuevas solicitudes o confirmar otras pendientes."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:31:Cambiar delegada",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 31,
+      "columna": 8,
+      "literal": "Cambiar delegada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:32:Cambiar delegada descartará el formulario actual. ¿Continuar?",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 32,
+      "columna": 8,
+      "literal": "Cambiar delegada descartará el formulario actual. ¿Continuar?"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:94:contexto/delegada_seleccionada_id",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 94,
+      "columna": 53,
+      "literal": "contexto/delegada_seleccionada_id"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:179:Delegada requerida",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 179,
+      "columna": 83,
+      "literal": "Delegada requerida"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:188:Confirmar cambios",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 188,
+      "columna": 8,
+      "literal": "Confirmar cambios"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:189:¿Confirmas los cambios? Esto afectará a cálculos futuros.",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 189,
+      "columna": 8,
+      "literal": "¿Confirmas los cambios? Esto afectará a cálculos futuros."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:196:Validación",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 196,
+      "columna": 45,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:208:Delegada requerida",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 208,
+      "columna": 85,
+      "literal": "Delegada requerida"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:213:Eliminar delegado",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 213,
+      "columna": 8,
+      "literal": "Eliminar delegado"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:214:¿Deseas deshabilitar a",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 214,
+      "columna": 10,
+      "literal": "¿Deseas deshabilitar a"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:214:? El histórico se conservará.",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 214,
+      "columna": 50,
+      "literal": "? El histórico se conservará."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:221:Validación",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 221,
+      "columna": 45,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:239:contexto/delegada_activa",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 239,
+      "columna": 30,
+      "literal": "contexto/delegada_activa"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:240:contexto/delegada_seleccionada_id",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 240,
+      "columna": 30,
+      "literal": "contexto/delegada_seleccionada_id"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:250:contexto/delegada_seleccionada_id",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 250,
+      "columna": 41,
+      "literal": "contexto/delegada_seleccionada_id"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_personas.py:251:historico/delegada",
+      "archivo": "app/ui/vistas/main_window/acciones_personas.py",
+      "linea": 251,
+      "columna": 42,
+      "literal": "historico/delegada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:25:Sync no disponible",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 25,
+      "columna": 117,
+      "literal": "Sync no disponible"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:41:Sincronización bloqueada",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 41,
+      "columna": 74,
+      "literal": "Sincronización bloqueada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:49:Reintento no disponible",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 49,
+      "columna": 18,
+      "literal": "Reintento no disponible"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:50:No hay un plan fallido que se pueda reintentar.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 50,
+      "columna": 21,
+      "literal": "No hay un plan fallido que se pueda reintentar."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:52:No hay incidencias nuevas.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 52,
+      "columna": 22,
+      "literal": "No hay incidencias nuevas."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:53:Ejecuta una sincronización y revisa conflictos si aparecen.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 53,
+      "columna": 22,
+      "literal": "Ejecuta una sincronización y revisa conflictos si aparecen."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:64:Reintento preparado",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 64,
+      "columna": 14,
+      "literal": "Reintento preparado"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:65:Se reconstruyó el plan con los elementos en conflicto o error.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 65,
+      "columna": 17,
+      "literal": "Se reconstruyó el plan con los elementos en conflicto o error."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:67:Pendiente de ejecución.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 67,
+      "columna": 18,
+      "literal": "Pendiente de ejecución."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:68:Pulsa sincronizar para completar el reintento.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 68,
+      "columna": 18,
+      "literal": "Pulsa sincronizar para completar el reintento."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:75:Sincronización",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 75,
+      "columna": 81,
+      "literal": "Sincronización"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:84:Informe copiado al portapapeles.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 84,
+      "columna": 27,
+      "literal": "Informe copiado al portapapeles."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:84:Sincronización",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 84,
+      "columna": 69,
+      "literal": "Sincronización"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:205:Confirmar sincronización",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 205,
+      "columna": 8,
+      "literal": "Confirmar sincronización"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:206:¿Deseas iniciar la sincronización con Google Sheets ahora?",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 206,
+      "columna": 8,
+      "literal": "¿Deseas iniciar la sincronización con Google Sheets ahora?"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:217:Sincronización",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 217,
+      "columna": 37,
+      "literal": "Sincronización"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:217:La sincronización aún no está disponible en esta pantalla.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 217,
+      "columna": 56,
+      "literal": "La sincronización aún no está disponible en esta pantalla."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:223:Confirmar sincronización",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 223,
+      "columna": 8,
+      "literal": "Confirmar sincronización"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:224:¿Deseas iniciar la sincronización con Google Sheets ahora?",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 224,
+      "columna": 8,
+      "literal": "¿Deseas iniciar la sincronización con Google Sheets ahora?"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:238:Sincronización",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 238,
+      "columna": 41,
+      "literal": "Sincronización"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:238:Función no disponible",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 238,
+      "columna": 60,
+      "literal": "Función no disponible"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:242:Sync failed: no se pudo iniciar desde UI",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 242,
+      "columna": 12,
+      "literal": "Sync failed: no se pudo iniciar desde UI"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion.py:246:No se pudo iniciar la sincronización.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion.py",
+      "linea": 246,
+      "columna": 59,
+      "literal": "No se pudo iniciar la sincronización."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:58:Sin incidencias.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 58,
+      "columna": 16,
+      "literal": "Sin incidencias."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:61:conflictos y",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 61,
+      "columna": 50,
+      "literal": "conflictos y"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:64:La sincronización no se pudo completar.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 64,
+      "columna": 20,
+      "literal": "La sincronización no se pudo completar."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:66:Resultado de sincronización:",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 66,
+      "columna": 16,
+      "literal": "Resultado de sincronización:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:67:Se actualizó el estado del panel con el resumen persistente.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 67,
+      "columna": 17,
+      "literal": "Se actualizó el estado del panel con el resumen persistente."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:70:Revisa conflictos o continúa operando según el estado mostrado.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 70,
+      "columna": 18,
+      "literal": "Revisa conflictos o continúa operando según el estado mostrado."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:73:Resultado:",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 73,
+      "columna": 64,
+      "literal": "Resultado:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:93:Se crearán:",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 93,
+      "columna": 29,
+      "literal": "Se crearán:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:93:· Se actualizarán:",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 93,
+      "columna": 63,
+      "literal": "· Se actualizarán:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:93:· Sin cambios:",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 93,
+      "columna": 106,
+      "literal": "· Sin cambios:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:93:· Conflictos detectados:",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 93,
+      "columna": 144,
+      "literal": "· Conflictos detectados:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:93:Simulación completada",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 93,
+      "columna": 201,
+      "literal": "Simulación completada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:95:Simulación completada",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 95,
+      "columna": 63,
+      "literal": "Simulación completada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:108:Sincronización",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 108,
+      "columna": 111,
+      "literal": "Sincronización"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:118:Sync failed",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 118,
+      "columna": 38,
+      "literal": "Sync failed"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:130:Sincronización con fallo",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 130,
+      "columna": 67,
+      "literal": "Sincronización con fallo"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:130:No se pudo completar la sincronización.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 130,
+      "columna": 105,
+      "literal": "No se pudo completar la sincronización."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:130:Se detectó un error durante el proceso.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 130,
+      "columna": 177,
+      "literal": "Se detectó un error durante el proceso."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:130:Revisa el detalle y vuelve a intentar.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 130,
+      "columna": 231,
+      "literal": "Revisa el detalle y vuelve a intentar."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:136:Sin configuración",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 136,
+      "columna": 112,
+      "literal": "Sin configuración"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:159:Sincronización completada",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 159,
+      "columna": 62,
+      "literal": "Sincronización completada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:179:Hay",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 179,
+      "columna": 51,
+      "literal": "Hay"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:179:conflictos pendientes. Revisa antes de sincronizar.",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 179,
+      "columna": 62,
+      "literal": "conflictos pendientes. Revisa antes de sincronizar."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:219:Sincronizando con Google Sheets…",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 219,
+      "columna": 40,
+      "literal": "Sincronizando con Google Sheets…"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py:227:Estado: Pendiente · Sincronizando",
+      "archivo": "app/ui/vistas/main_window/acciones_sincronizacion_resultados.py",
+      "linea": 227,
+      "columna": 42,
+      "literal": "Estado: Pendiente · Sincronizando"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/data_refresh.py:24:yyyy-MM-dd",
+      "archivo": "app/ui/vistas/main_window/data_refresh.py",
+      "linea": 24,
+      "columna": 58,
+      "literal": "yyyy-MM-dd"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/data_refresh.py:25:yyyy-MM-dd",
+      "archivo": "app/ui/vistas/main_window/data_refresh.py",
+      "linea": 25,
+      "columna": 58,
+      "literal": "yyyy-MM-dd"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/data_refresh.py:84:Validación",
+      "archivo": "app/ui/vistas/main_window/data_refresh.py",
+      "linea": 84,
+      "columna": 45,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/data_refresh.py:111:Hay pendientes en otras delegadas:",
+      "archivo": "app/ui/vistas/main_window/data_refresh.py",
+      "linea": 111,
+      "columna": 48,
+      "literal": "Hay pendientes en otras delegadas:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/data_refresh.py:112:Revisar pendientes ocultas (",
+      "archivo": "app/ui/vistas/main_window/data_refresh.py",
+      "linea": 112,
+      "columna": 48,
+      "literal": "Revisar pendientes ocultas ("
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:24:Fuente:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 24,
+      "columna": 40,
+      "literal": "Fuente:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:25:Rango:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 25,
+      "columna": 39,
+      "literal": "Rango:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:26:Evita duplicados:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 26,
+      "columna": 45,
+      "literal": "Evita duplicados:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:28:Resumen: Filas creadas:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 28,
+      "columna": 8,
+      "literal": "Resumen: Filas creadas:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:29:· Filas actualizadas:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 29,
+      "columna": 51,
+      "literal": "· Filas actualizadas:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:30:· Filas omitidas:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 30,
+      "columna": 56,
+      "literal": "· Filas omitidas:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:31:· Conflictos:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 31,
+      "columna": 52,
+      "literal": "· Conflictos:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:32:· Errores:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 32,
+      "columna": 50,
+      "literal": "· Errores:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:36:Estado: intento #",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 36,
+      "columna": 10,
+      "literal": "Estado: intento #"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:36:· actual",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 36,
+      "columna": 56,
+      "literal": "· actual"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:36:· final",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 36,
+      "columna": 99,
+      "literal": "· final"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:39:Duración:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 39,
+      "columna": 10,
+      "literal": "Duración:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:39:ms · Cambios:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 39,
+      "columna": 41,
+      "literal": "ms · Cambios:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:39:· Conflictos:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 39,
+      "columna": 110,
+      "literal": "· Conflictos:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:40:· Errores:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 40,
+      "columna": 46,
+      "literal": "· Errores:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:47:Revisar conflictos",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 47,
+      "columna": 44,
+      "literal": "Revisar conflictos"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:47:Revisar conflictos (sin pendientes)",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 47,
+      "columna": 100,
+      "literal": "Revisar conflictos (sin pendientes)"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:56:Histórico",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 56,
+      "columna": 85,
+      "literal": "Histórico"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:59:Histórico de sincronizaciones",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 59,
+      "columna": 26,
+      "literal": "Histórico de sincronizaciones"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:64:Archivo",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 64,
+      "columna": 27,
+      "literal": "Archivo"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:64:Sync ID",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 64,
+      "columna": 38,
+      "literal": "Sync ID"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:64:Estado",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 64,
+      "columna": 49,
+      "literal": "Estado"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:64:Intentos",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 64,
+      "columna": 59,
+      "literal": "Intentos"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:81:Abrir detalle",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 81,
+      "columna": 27,
+      "literal": "Abrir detalle"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:83:Copiar informe",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 83,
+      "columna": 27,
+      "literal": "Copiar informe"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:100:Detalles de sincronización",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 100,
+      "columna": 26,
+      "literal": "Detalles de sincronización"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:106:Timestamp",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 106,
+      "columna": 27,
+      "literal": "Timestamp"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:106:Sev",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 106,
+      "columna": 40,
+      "literal": "Sev"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:106:Entidad",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 106,
+      "columna": 47,
+      "literal": "Entidad"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:106:Mensaje",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 106,
+      "columna": 58,
+      "literal": "Mensaje"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:106:Acción sugerida",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 106,
+      "columna": 69,
+      "literal": "Acción sugerida"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:106:Sección",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 106,
+      "columna": 89,
+      "literal": "Sección"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:114:Abrir solicitud afectada",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 114,
+      "columna": 32,
+      "literal": "Abrir solicitud afectada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:120:Marcar para revisión",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 120,
+      "columna": 30,
+      "literal": "Marcar para revisión"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:126:Reintentar solo fallidos",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 126,
+      "columna": 31,
+      "literal": "Reintentar solo fallidos"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:132:Exportar detalle",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 132,
+      "columna": 32,
+      "literal": "Exportar detalle"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:137:Cerrar",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 137,
+      "columna": 31,
+      "literal": "Cerrar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:173:⏸ En espera",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 173,
+      "columna": 16,
+      "literal": "⏸ En espera"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:174:🕒 Pendiente · Sincronizando",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 174,
+      "columna": 19,
+      "literal": "🕒 Pendiente · Sincronizando"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:178:⛔ Error · Configuración incompleta",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 178,
+      "columna": 29,
+      "literal": "⛔ Error · Configuración incompleta"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:185:Error: configura credenciales de Google Sheets",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 185,
+      "columna": 15,
+      "literal": "Error: configura credenciales de Google Sheets"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:186:sin archivo",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 186,
+      "columna": 90,
+      "literal": "sin archivo"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:188:Spreadsheet",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 188,
+      "columna": 13,
+      "literal": "Spreadsheet"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:188:· credencial",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 188,
+      "columna": 38,
+      "literal": "· credencial"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:192:Sincronización completa de delegadas y solicitudes.",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 192,
+      "columna": 11,
+      "literal": "Sincronización completa de delegadas y solicitudes."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:197:Delegada no seleccionada",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 197,
+      "columna": 54,
+      "literal": "Delegada no seleccionada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:202:Nunca",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 202,
+      "columna": 76,
+      "literal": "Nunca"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:204:Insertadas en local:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 204,
+      "columna": 10,
+      "literal": "Insertadas en local:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:204:Actualizadas en local:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 204,
+      "columna": 55,
+      "literal": "Actualizadas en local:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:205:Insertadas en Sheets:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 205,
+      "columna": 56,
+      "literal": "Insertadas en Sheets:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:206:Actualizadas en Sheets:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 206,
+      "columna": 57,
+      "literal": "Actualizadas en Sheets:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:207:Duplicados omitidos:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 207,
+      "columna": 58,
+      "literal": "Duplicados omitidos:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:208:Omitidas por delegada:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 208,
+      "columna": 59,
+      "literal": "Omitidas por delegada:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:209:Conflictos:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 209,
+      "columna": 62,
+      "literal": "Conflictos:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:210:Errores:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 210,
+      "columna": 50,
+      "literal": "Errores:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/dialogos_sincronizacion.py:211:Última sincronización:",
+      "archivo": "app/ui/vistas/main_window/dialogos_sincronizacion.py",
+      "linea": 211,
+      "columna": 35,
+      "literal": "Última sincronización:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/form_handlers.py:97:yyyy-MM-dd",
+      "archivo": "app/ui/vistas/main_window/form_handlers.py",
+      "linea": 97,
+      "columna": 54,
+      "literal": "yyyy-MM-dd"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/form_handlers.py:98:HH:mm",
+      "archivo": "app/ui/vistas/main_window/form_handlers.py",
+      "linea": 98,
+      "columna": 69,
+      "literal": "HH:mm"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/form_handlers.py:99:HH:mm",
+      "archivo": "app/ui/vistas/main_window/form_handlers.py",
+      "linea": 99,
+      "columna": 69,
+      "literal": "HH:mm"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/form_handlers.py:105:%Y-%m-%d",
+      "archivo": "app/ui/vistas/main_window/form_handlers.py",
+      "linea": 105,
+      "columna": 48,
+      "literal": "%Y-%m-%d"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:49:No mostrar de nuevo",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 49,
+      "columna": 41,
+      "literal": "No mostrar de nuevo"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:52:Cancelar",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 52,
+      "columna": 36,
+      "literal": "Cancelar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:55:Aceptar",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 55,
+      "columna": 25,
+      "literal": "Aceptar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:69:Previsualización PDF",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 69,
+      "columna": 28,
+      "literal": "Previsualización PDF"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:76:Genera una vista previa antes de guardar.",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 76,
+      "columna": 33,
+      "literal": "Genera una vista previa antes de guardar."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:98:Generar/Actualizar vista",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 98,
+      "columna": 30,
+      "literal": "Generar/Actualizar vista"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:103:Guardar como…",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 103,
+      "columna": 30,
+      "literal": "Guardar como…"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:108:Cerrar",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 108,
+      "columna": 35,
+      "literal": "Cerrar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:121:Vista previa lista:",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 121,
+      "columna": 34,
+      "literal": "Vista previa lista:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:131:Guardar PDF",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 131,
+      "columna": 59,
+      "literal": "Guardar PDF"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:131:PDF (*.pdf)",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 131,
+      "columna": 88,
+      "literal": "PDF (*.pdf)"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:145:Detalle de solicitud",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 145,
+      "columna": 28,
+      "literal": "Detalle de solicitud"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/layout_builder.py:161:QDialogButtonBox.Close debe existir para mantener foco principal",
+      "archivo": "app/ui/vistas/main_window/layout_builder.py",
+      "linea": 161,
+      "columna": 41,
+      "literal": "QDialogButtonBox.Close debe existir para mantener foco principal"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:100:UI no disponible: falta instalación de Qt/PySide6",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 100,
+      "columna": 27,
+      "literal": "UI no disponible: falta instalación de Qt/PySide6"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:145:Procesando…",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 145,
+      "columna": 39,
+      "literal": "Procesando…"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:312:Horas Sindicales",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 312,
+      "columna": 28,
+      "literal": "Horas Sindicales"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:321:Fuente:",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 321,
+      "columna": 41,
+      "literal": "Fuente:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:322:Rango:",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 322,
+      "columna": 40,
+      "literal": "Rango:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:323:Evita duplicados: misma delegada, fecha y tramo",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 323,
+      "columna": 44,
+      "literal": "Evita duplicados: misma delegada, fecha y tramo"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:379:MainWindow mal inicializada. Falta widget requerido:",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 379,
+      "columna": 37,
+      "literal": "MainWindow mal inicializada. Falta widget requerido:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:406:Ver detalles",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 406,
+      "columna": 30,
+      "literal": "Ver detalles"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:407:Ocultar detalles",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 407,
+      "columna": 29,
+      "literal": "Ocultar detalles"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:543:ux/mostrar_ayuda",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 543,
+      "columna": 37,
+      "literal": "ux/mostrar_ayuda"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:550:ux/mostrar_ayuda",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 550,
+      "columna": 32,
+      "literal": "ux/mostrar_ayuda"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:633:Saldos detallados",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 633,
+      "columna": 30,
+      "literal": "Saldos detallados"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:654:Cerrar",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 654,
+      "columna": 35,
+      "literal": "Cerrar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:906:solicitudes confirmadas",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 906,
+      "columna": 62,
+      "literal": "solicitudes confirmadas"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:906:Confirmación",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 906,
+      "columna": 95,
+      "literal": "Confirmación"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:908:Confirmación",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 908,
+      "columna": 68,
+      "literal": "Confirmación"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:910:Confirmación",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 910,
+      "columna": 79,
+      "literal": "Confirmación"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:951:Validación preventiva",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 951,
+      "columna": 89,
+      "literal": "Validación preventiva"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:982:Solicitud duplicada",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 982,
+      "columna": 30,
+      "literal": "Solicitud duplicada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:984:Ya existe una solicitud pendiente igual.",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 984,
+      "columna": 27,
+      "literal": "Ya existe una solicitud pendiente igual."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:985:Puedes ir a la pendiente existente para gestionarla.",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 985,
+      "columna": 38,
+      "literal": "Puedes ir a la pendiente existente para gestionarla."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:986:Ir a la pendiente existente",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 986,
+      "columna": 43,
+      "literal": "Ir a la pendiente existente"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:988:La solicitud ya está confirmada en histórico.",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 988,
+      "columna": 27,
+      "literal": "La solicitud ya está confirmada en histórico."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:989:Puedes abrir el histórico para revisarla.",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 989,
+      "columna": 38,
+      "literal": "Puedes abrir el histórico para revisarla."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:990:Ir al histórico",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 990,
+      "columna": 43,
+      "literal": "Ir al histórico"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:991:Cancelar",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 991,
+      "columna": 25,
+      "literal": "Cancelar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1017:Validación",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1017,
+      "columna": 47,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1022:Hay horas parciales. ¿Sustituirlas por COMPLETO?",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1022,
+      "columna": 12,
+      "literal": "Hay horas parciales. ¿Sustituirlas por COMPLETO?"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1024:Ya existe un COMPLETO. ¿Sustituirlo por esta franja?",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1024,
+      "columna": 17,
+      "literal": "Ya existe un COMPLETO. ¿Sustituirlo por esta franja?"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1045:Validación",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1045,
+      "columna": 47,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1184:Error",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1184,
+      "columna": 22,
+      "literal": "Error"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1186:Reintentar. Si persiste, contactar con soporte.",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1186,
+      "columna": 35,
+      "literal": "Reintentar. Si persiste, contactar con soporte."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1192:Validación",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1192,
+      "columna": 31,
+      "literal": "Validación"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1194:Corrige el dato indicado y vuelve a intentarlo.",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1194,
+      "columna": 44,
+      "literal": "Corrige el dato indicado y vuelve a intentarlo."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1205:Error",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1205,
+      "columna": 18,
+      "literal": "Error"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1220:N/D",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1220,
+      "columna": 42,
+      "literal": "N/D"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1221:N/D",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1221,
+      "columna": 48,
+      "literal": "N/D"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1222:Sin detalle técnico",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1222,
+      "columna": 32,
+      "literal": "Sin detalle técnico"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1263:Mensual",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1263,
+      "columna": 46,
+      "literal": "Mensual"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/state_controller.py:1305:Conflicto",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 1305,
+      "columna": 39,
+      "literal": "Conflicto"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:25:%Y-%m-%d",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 25,
+      "columna": 39,
+      "literal": "%Y-%m-%d"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:76:yyyy-MM-dd",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 76,
+      "columna": 54,
+      "literal": "yyyy-MM-dd"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:82:HH:mm",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 82,
+      "columna": 65,
+      "literal": "HH:mm"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:83:HH:mm",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 83,
+      "columna": 65,
+      "literal": "HH:mm"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:101:Saldo insuficiente. La petición se ha registrado igualmente.",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 101,
+      "columna": 28,
+      "literal": "Saldo insuficiente. La petición se ha registrado igualmente."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:106:Posibles similares:",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 106,
+      "columna": 32,
+      "literal": "Posibles similares:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:115:⚠ El cuadrante no está configurado y puede alterar el cálculo final.",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 115,
+      "columna": 32,
+      "literal": "⚠ El cuadrante no está configurado y puede alterar el cálculo final."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:122:Hay duplicados en pendientes.",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 122,
+      "columna": 40,
+      "literal": "Hay duplicados en pendientes."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:143:DB locked during preventive validation",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 143,
+      "columna": 16,
+      "literal": "DB locked during preventive validation"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:150:Validación parcial temporal: base de datos ocupada. Vuelve a intentar en unos segundos.",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 150,
+      "columna": 29,
+      "literal": "Validación parcial temporal: base de datos ocupada. Vuelve a intentar en unos segundos."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:208:Validación preventiva",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 208,
+      "columna": 87,
+      "literal": "Validación preventiva"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:213:Se detectaron advertencias no bloqueantes:",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 213,
+      "columna": 14,
+      "literal": "Se detectaron advertencias no bloqueantes:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:214:Advertencias",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 214,
+      "columna": 18,
+      "literal": "Advertencias"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:228:configura el cuadrante",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 228,
+      "columna": 41,
+      "literal": "configura el cuadrante"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:240:Cuadrante no configurado",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 240,
+      "columna": 43,
+      "literal": "Cuadrante no configurado"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:250:Selecciona una persona para crear la solicitud.",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 250,
+      "columna": 22,
+      "literal": "Selecciona una persona para crear la solicitud."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:253:HH:mm",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 253,
+      "columna": 65,
+      "literal": "HH:mm"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window/validacion_preventiva.py:254:HH:mm",
+      "archivo": "app/ui/vistas/main_window/validacion_preventiva.py",
+      "linea": 254,
+      "columna": 65,
+      "literal": "HH:mm"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:20:Estado general: monitorización no configurada",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 20,
+      "columna": 46,
+      "literal": "Estado general: monitorización no configurada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:21:Alertas: monitorización no disponible.",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 21,
+      "columna": 44,
+      "literal": "Alertas: monitorización no disponible."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:43:Solucionar",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 43,
+      "columna": 81,
+      "literal": "Solucionar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:46:Estado general:",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 46,
+      "columna": 44,
+      "literal": "Estado general:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:46:· actualizado",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 46,
+      "columna": 67,
+      "literal": "· actualizado"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:50:Alertas: sin alertas activas.",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 50,
+      "columna": 44,
+      "literal": "Alertas: sin alertas activas."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:53:Alerta",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 53,
+      "columna": 42,
+      "literal": "Alerta"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:53:· Acción:",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 53,
+      "columna": 78,
+      "literal": "· Acción:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:70:Conectividad",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 70,
+      "columna": 42,
+      "literal": "Conectividad"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:70:Revisa tu conexión de red o VPN y vuelve a intentar.",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 70,
+      "columna": 58,
+      "literal": "Revisa tu conexión de red o VPN y vuelve a intentar."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:73:Base de datos",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 73,
+      "columna": 42,
+      "literal": "Base de datos"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:73:Reinicia la aplicación y ejecuta migraciones si procede.",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 73,
+      "columna": 59,
+      "literal": "Reinicia la aplicación y ejecuta migraciones si procede."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:84:Tendencia (5): --",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 84,
+      "columna": 42,
+      "literal": "Tendencia (5): --"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:87:Tendencia (5):",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 87,
+      "columna": 38,
+      "literal": "Tendencia (5):"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:92:Última sync: Nunca",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 92,
+      "columna": 41,
+      "literal": "Última sync: Nunca"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:95:Última sync:",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 95,
+      "columna": 39,
+      "literal": "Última sync:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:95:· Delegada:",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 95,
+      "columna": 64,
+      "literal": "· Delegada:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:95:· Alcance:",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 95,
+      "columna": 103,
+      "literal": "· Alcance:"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_health_mixin.py:103:%Y-%m-%d %H:%M",
+      "archivo": "app/ui/vistas/main_window_health_mixin.py",
+      "linea": 103,
+      "columna": 31,
+      "literal": "%Y-%m-%d %H:%M"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:102:Error de sincronización",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 102,
+      "columna": 12,
+      "literal": "Error de sincronización"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:113:Ir a configuración",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 113,
+      "columna": 29,
+      "literal": "Ir a configuración"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:113:Reintentar",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 113,
+      "columna": 77,
+      "literal": "Reintentar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:117:la cuenta de servicio",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 117,
+      "columna": 78,
+      "literal": "la cuenta de servicio"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:125:Abrir configuración de Google Sheets",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 125,
+      "columna": 29,
+      "literal": "Abrir configuración de Google Sheets"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:125:Reintentar",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 125,
+      "columna": 133,
+      "literal": "Reintentar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:136:Ir a configuración",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 136,
+      "columna": 29,
+      "literal": "Ir a configuración"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:147:Ir a configuración",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 147,
+      "columna": 29,
+      "literal": "Ir a configuración"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:152:Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta.",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 152,
+      "columna": 12,
+      "literal": "Límite de Google Sheets alcanzado. Espera 1 minuto y reintenta."
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:153:Sincronización pausada",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 153,
+      "columna": 12,
+      "literal": "Sincronización pausada"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:163:Reintentar",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 163,
+      "columna": 29,
+      "literal": "Reintentar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:174:Ir a configuración",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 174,
+      "columna": 29,
+      "literal": "Ir a configuración"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:184:Reintentar",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 184,
+      "columna": 25,
+      "literal": "Reintentar"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_helpers.py:237:No se pudo renderizar el histórico (ver logs)",
+      "archivo": "app/ui/vistas/main_window_helpers.py",
+      "linea": 237,
+      "columna": 29,
+      "literal": "No se pudo renderizar el histórico (ver logs)"
+    },
+    {
+      "offender_id": "app/ui/vistas/main_window_vista.py:36:Error",
+      "archivo": "app/ui/vistas/main_window_vista.py",
+      "linea": 36,
+      "columna": 57,
+      "literal": "Error"
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_configuracion.py:18:Ajustes de la aplicación",
+      "archivo": "app/ui/vistas/paginas/pagina_configuracion.py",
+      "linea": 18,
+      "columna": 19,
+      "literal": "Ajustes de la aplicación"
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_configuracion.py:19:Centraliza la configuración de uso diario sin exponer opciones técnicas innecesarias.",
+      "archivo": "app/ui/vistas/paginas/pagina_configuracion.py",
+      "linea": 19,
+      "columna": 24,
+      "literal": "Centraliza la configuración de uso diario sin exponer opciones técnicas innecesarias."
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_configuracion.py:20:Editar grupo",
+      "archivo": "app/ui/vistas/paginas/pagina_configuracion.py",
+      "linea": 20,
+      "columna": 34,
+      "literal": "Editar grupo"
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_configuracion.py:22:Nueva solicitud",
+      "archivo": "app/ui/vistas/paginas/pagina_configuracion.py",
+      "linea": 22,
+      "columna": 36,
+      "literal": "Nueva solicitud"
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_historico.py:19:No hay historial todavía",
+      "archivo": "app/ui/vistas/paginas/pagina_historico.py",
+      "linea": 19,
+      "columna": 19,
+      "literal": "No hay historial todavía"
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_historico.py:20:Cuando confirmes solicitudes podrás revisar aquí la trazabilidad completa.",
+      "archivo": "app/ui/vistas/paginas/pagina_historico.py",
+      "linea": 20,
+      "columna": 24,
+      "literal": "Cuando confirmes solicitudes podrás revisar aquí la trazabilidad completa."
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_historico.py:21:Crear primera solicitud",
+      "archivo": "app/ui/vistas/paginas/pagina_historico.py",
+      "linea": 21,
+      "columna": 34,
+      "literal": "Crear primera solicitud"
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_historico.py:23:Sincronizar",
+      "archivo": "app/ui/vistas/paginas/pagina_historico.py",
+      "linea": 23,
+      "columna": 36,
+      "literal": "Sincronizar"
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_personas.py:10:Personas",
+      "archivo": "app/ui/vistas/paginas/pagina_personas.py",
+      "linea": 10,
+      "columna": 32,
+      "literal": "Personas"
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_sincronizacion.py:19:Aún no has sincronizado",
+      "archivo": "app/ui/vistas/paginas/pagina_sincronizacion.py",
+      "linea": 19,
+      "columna": 19,
+      "literal": "Aún no has sincronizado"
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_sincronizacion.py:20:Conecta Google Sheets para empezar a sincronizar solicitudes y detectar conflictos.",
+      "archivo": "app/ui/vistas/paginas/pagina_sincronizacion.py",
+      "linea": 20,
+      "columna": 24,
+      "literal": "Conecta Google Sheets para empezar a sincronizar solicitudes y detectar conflictos."
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_sincronizacion.py:21:Sincronizar ahora",
+      "archivo": "app/ui/vistas/paginas/pagina_sincronizacion.py",
+      "linea": 21,
+      "columna": 34,
+      "literal": "Sincronizar ahora"
+    },
+    {
+      "offender_id": "app/ui/vistas/paginas/pagina_sincronizacion.py:23:Configurar credenciales",
+      "archivo": "app/ui/vistas/paginas/pagina_sincronizacion.py",
+      "linea": 23,
+      "columna": 36,
+      "literal": "Configurar credenciales"
+    },
+    {
+      "offender_id": "app/ui/vistas/pending_duplicate_presenter.py:49:duplicate_key=",
+      "archivo": "app/ui/vistas/pending_duplicate_presenter.py",
+      "linea": 49,
+      "columna": 30,
+      "literal": "duplicate_key="
+    },
+    {
+      "offender_id": "app/ui/vistas/personas_presenter.py:66:Todas",
+      "archivo": "app/ui/vistas/personas_presenter.py",
+      "linea": 66,
+      "columna": 24,
+      "literal": "Todas"
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_presenter.py:103:Actualizar pendiente",
+      "archivo": "app/ui/vistas/solicitudes_presenter.py",
+      "linea": 103,
+      "columna": 21,
+      "literal": "Actualizar pendiente"
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_presenter.py:103:Añadir pendiente",
+      "archivo": "app/ui/vistas/solicitudes_presenter.py",
+      "linea": 103,
+      "columna": 76,
+      "literal": "Añadir pendiente"
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_presenter.py:111:Eliminar (",
+      "archivo": "app/ui/vistas/solicitudes_presenter.py",
+      "linea": 111,
+      "columna": 24,
+      "literal": "Eliminar ("
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_presenter.py:113:Exportar histórico PDF (",
+      "archivo": "app/ui/vistas/solicitudes_presenter.py",
+      "linea": 113,
+      "columna": 27,
+      "literal": "Exportar histórico PDF ("
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_ux_rules.py:37:Error",
+      "archivo": "app/ui/vistas/solicitudes_ux_rules.py",
+      "linea": 37,
+      "columna": 45,
+      "literal": "Error"
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_ux_rules.py:37:Revisa los campos marcados para continuar.",
+      "archivo": "app/ui/vistas/solicitudes_ux_rules.py",
+      "linea": 37,
+      "columna": 59,
+      "literal": "Revisa los campos marcados para continuar."
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_ux_rules.py:40:Pendiente de sync",
+      "archivo": "app/ui/vistas/solicitudes_ux_rules.py",
+      "linea": 40,
+      "columna": 18,
+      "literal": "Pendiente de sync"
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_ux_rules.py:41:Hay cambios guardados localmente que aún no se han enviado a Google Sheets.",
+      "archivo": "app/ui/vistas/solicitudes_ux_rules.py",
+      "linea": 41,
+      "columna": 17,
+      "literal": "Hay cambios guardados localmente que aún no se han enviado a Google Sheets."
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_ux_rules.py:44:Guardado",
+      "archivo": "app/ui/vistas/solicitudes_ux_rules.py",
+      "linea": 44,
+      "columna": 45,
+      "literal": "Guardado"
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_ux_rules.py:44:Los cambios de la solicitud se guardaron correctamente.",
+      "archivo": "app/ui/vistas/solicitudes_ux_rules.py",
+      "linea": 44,
+      "columna": 62,
+      "literal": "Los cambios de la solicitud se guardaron correctamente."
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_ux_rules.py:45:Listo",
+      "archivo": "app/ui/vistas/solicitudes_ux_rules.py",
+      "linea": 45,
+      "columna": 41,
+      "literal": "Listo"
+    },
+    {
+      "offender_id": "app/ui/vistas/solicitudes_ux_rules.py:45:Puedes completar una nueva solicitud.",
+      "archivo": "app/ui/vistas/solicitudes_ux_rules.py",
+      "linea": 45,
+      "columna": 55,
+      "literal": "Puedes completar una nueva solicitud."
+    }
+  ]
+}
