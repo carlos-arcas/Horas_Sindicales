@@ -2,12 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
 from app.domain.models import Persona
-from app.domain.services import BusinessRuleError
 from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
 
 
@@ -145,7 +142,7 @@ def test_confirmar_pdf_por_filtro_sin_pendientes_devuelve_warning(connection, tm
     assert "Sin pendientes" in resumen
 
 
-def test_confirmar_lote_colision_pdf_reporta_error_con_sugerencia(connection, tmp_path: Path) -> None:
+def test_confirmar_lote_colision_pdf_renombra_destino_sin_error(connection, tmp_path: Path) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona = persona_repo.create(
@@ -192,10 +189,11 @@ def test_confirmar_lote_colision_pdf_reporta_error_con_sugerencia(connection, tm
 
     (tmp_path / "solicitud.pdf").write_bytes(b"existing")
 
-    with pytest.raises(BusinessRuleError, match=r"Colisión de ruta destino") as exc:
-        use_case.confirmar_lote_y_generar_pdf(
-            [solicitud],
-            tmp_path / "solicitud.pdf",
-        )
+    _, _, errores, ruta_pdf = use_case.confirmar_lote_y_generar_pdf(
+        [solicitud],
+        tmp_path / "solicitud.pdf",
+    )
 
-    assert "Sugerencia:" in str(exc.value)
+    assert errores == []
+    assert ruta_pdf is not None
+    assert str(ruta_pdf).endswith("solicitud (1).pdf")

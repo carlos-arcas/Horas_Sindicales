@@ -9,7 +9,6 @@ from app.application.use_cases.solicitudes.servicio_preverificacion_pdf import (
     ServicioPreverificacionPdf,
 )
 from app.application.use_cases.solicitudes.use_case import SolicitudUseCases
-from app.domain.services import BusinessRuleError
 
 
 class FakeSistemaArchivos:
@@ -99,11 +98,11 @@ def test_construir_nombre_pdf_falla_sin_generador() -> None:
         servicio.construir_nombre_pdf(EntradaNombrePdf(nombre_persona="Ana", rango=("2025-01-01",)))
 
 
-def test_use_case_colision_pdf_incluye_sugerencia_sin_io_real(tmp_path: Path) -> None:
+def test_use_case_colision_pdf_resuelve_ruta_alternativa_sin_io_real(tmp_path: Path) -> None:
     destino = tmp_path / "colision.pdf"
     existentes = {
         str(destino.resolve(strict=False)),
-        str((tmp_path / "colision(1).pdf").resolve(strict=False)),
+        str((tmp_path / "colision (1).pdf").resolve(strict=False)),
     }
 
     use_case = SolicitudUseCases(
@@ -113,8 +112,7 @@ def test_use_case_colision_pdf_incluye_sugerencia_sin_io_real(tmp_path: Path) ->
         fs=FakeSistemaArchivos(existentes),
     )
 
-    with pytest.raises(BusinessRuleError, match=r"Colisión de ruta destino") as exc:
-        use_case._validar_preverificacion_destino_pdf(destino)
+    resolucion = use_case.resolver_destino_pdf(destino, overwrite=False, auto_rename=True)
 
-    assert "Sugerencia:" in str(exc.value)
-    assert "colision(2).pdf" in str(exc.value)
+    assert resolucion.colision_detectada is True
+    assert str(resolucion.ruta_destino).endswith("colision (2).pdf")

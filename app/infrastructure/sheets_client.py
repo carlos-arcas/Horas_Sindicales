@@ -76,7 +76,9 @@ class SheetsClient(SheetsClientPort):
         ) as exc:
             mapped_error = map_gspread_exception(exc)
             if isinstance(mapped_error, SheetsPermissionError):
-                mapped_error = mapped_error.with_service_account_email(self._service_account_email)
+                mapped_error = mapped_error.enriquecer_email_cuenta_servicio(self._service_account_email).with_context(
+                    spreadsheet_id=spreadsheet_id
+                )
                 self._log_permission_error(
                     mapped_error,
                     spreadsheet_id=spreadsheet_id,
@@ -212,7 +214,10 @@ class SheetsClient(SheetsClientPort):
                 mapped_error = map_gspread_exception(exc)
                 if not isinstance(mapped_error, SheetsRateLimitError):
                     if isinstance(mapped_error, SheetsPermissionError):
-                        mapped_error = mapped_error.with_service_account_email(self._service_account_email)
+                        mapped_error = mapped_error.enriquecer_email_cuenta_servicio(self._service_account_email).with_context(
+                            spreadsheet_id=spreadsheet_id or getattr(self._spreadsheet, "id", None),
+                            worksheet=self._worksheet_from_operation_name(operation_name),
+                        )
                         self._log_permission_error(
                             mapped_error,
                             spreadsheet_id=spreadsheet_id or getattr(self._spreadsheet, "id", None),
@@ -271,13 +276,18 @@ class SheetsClient(SheetsClientPort):
     ) -> None:
         if not isinstance(mapped_error, SheetsPermissionError):
             return
-        mapped_error = mapped_error.with_service_account_email(self._service_account_email)
+        mapped_error = mapped_error.enriquecer_email_cuenta_servicio(self._service_account_email)
         resolved_spreadsheet_id = self._resolve_spreadsheet_id(spreadsheet_id=spreadsheet_id)
+        worksheet_name = self._worksheet_from_operation_name(operation_name)
+        mapped_error = mapped_error.with_context(
+            spreadsheet_id=resolved_spreadsheet_id,
+            worksheet=worksheet_name,
+        )
         try:
             self._log_permission_error(
                 mapped_error,
                 spreadsheet_id=resolved_spreadsheet_id,
-                worksheet_name=self._worksheet_from_operation_name(operation_name),
+                worksheet_name=worksheet_name,
             )
         except Exception:  # pragma: no cover - logging should never break sync flows
             logger.exception("No se pudo registrar un error de permisos de Google Sheets")
@@ -333,5 +343,6 @@ class SheetsClient(SheetsClientPort):
                 "operation": "sheets_permission_check",
                 "spreadsheet_id": spreadsheet_id,
                 "worksheet": worksheet_name,
+                "service_account_email": error.service_account_email,
             },
         )
