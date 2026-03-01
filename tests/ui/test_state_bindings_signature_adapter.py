@@ -69,3 +69,11 @@ def test_invocador_relanza_type_error_real() -> None:
 
     with pytest.raises(TypeError, match="boom"):
         _invocar_handler_compatible(fboom, Dummy(), (), {})
+
+
+def test_invocador_no_oculta_type_error_interno_que_parece_de_firma() -> None:
+    def fboom(self, valor):
+        raise TypeError("required positional argument")
+
+    with pytest.raises(TypeError, match="required positional argument"):
+        _invocar_handler_compatible(fboom, Dummy(), ("dato",), {})

@@ -44,6 +44,7 @@
     "app/ui/vistas/confirmacion_presenter.py",
     "app/ui/vistas/main_window/layout_helpers.py",
     "app/ui/vistas/main_window/state_controller.py",
+    "app/ui/vistas/main_window/ui_layout_helpers.py",
     "app/ui/vistas/main_window/wiring_helpers.py",
     "app/ui/vistas/main_window_helpers.py",
     "app/ui/vistas/pendientes_iter_presenter.py",

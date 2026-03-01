@@ -54,6 +54,7 @@ def _switch_sidebar_page(window, index: int) -> None:
 
 
 def test_resolve_section_title_usa_estado_actual() -> None:
+    assert resolve_section_title(0) == "Sincronización"
     assert resolve_section_title(1) == "Solicitudes"
     assert resolve_section_title(2) == "Histórico"
     assert resolve_section_title(3) == "Configuración"
