@@ -45,36 +45,46 @@ class ServicioPreflightPdf:
 
     def construir_ruta_destino(self, entrada: EntradaNombrePdf, carpeta: str) -> str:
         nombre_pdf = self.construir_nombre_pdf(entrada)
-        base = Path(carpeta).expanduser()
-        return str((base / nombre_pdf).resolve(strict=False))
+        return _normalizar_ruta(Path(carpeta).expanduser() / nombre_pdf)
 
     def validar_colision(self, ruta: str) -> ResultadoPreflightPdf:
-        destino = Path(ruta)
-        destino_normalizado = destino.resolve(strict=False)
-        if not self._fs.existe(destino_normalizado):
+        destino = _normalizar_ruta(Path(ruta).expanduser())
+        if not self._existe_ruta(destino):
             return ResultadoPreflightPdf(
-                ruta_destino=str(destino_normalizado),
+                ruta_destino=destino,
                 colision=False,
                 ruta_sugerida=None,
                 motivos=(),
             )
-        ruta_sugerida = self._proponer_ruta_alternativa(destino_normalizado)
+        sugerida = self.sugerir_ruta_alternativa(destino)
         return ResultadoPreflightPdf(
-            ruta_destino=str(destino_normalizado),
+            ruta_destino=destino,
             colision=True,
-            ruta_sugerida=ruta_sugerida,
-            motivos=(f"Colisión de ruta destino: {destino_normalizado}",),
+            ruta_sugerida=sugerida,
+            motivos=(f"Colisión de ruta destino: {destino}",),
         )
 
-    def _proponer_ruta_alternativa(self, destino: Path) -> str | None:
+    def sugerir_ruta_alternativa(self, ruta: str, *, limite: int = 9_999) -> str | None:
+        destino = Path(_normalizar_ruta(Path(ruta)))
         stem = destino.stem
         suffix = destino.suffix or ".pdf"
-        parent = destino.parent
-        for index in range(1, 10_000):
-            candidate = parent / f"{stem}({index}){suffix}"
-            if not self._fs.existe(candidate):
-                return str(candidate)
+        for indice in range(1, limite + 1):
+            candidata = destino.parent / f"{stem}({indice}){suffix}"
+            candidata_str = _normalizar_ruta(candidata)
+            if not self._existe_ruta(candidata_str):
+                return candidata_str
         return None
+
+    def _existe_ruta(self, ruta: str) -> bool:
+        path = Path(ruta)
+        existe_ruta = getattr(self._fs, "existe_ruta", None)
+        if callable(existe_ruta):
+            return bool(existe_ruta(path))
+        return bool(self._fs.existe(path))
+
+
+def _normalizar_ruta(ruta: Path) -> str:
+    return str(ruta.resolve(strict=False))
 
 
 def _normalizar_nombre_pdf(nombre: str) -> str:

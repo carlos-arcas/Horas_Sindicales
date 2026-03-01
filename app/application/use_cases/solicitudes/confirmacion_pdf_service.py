@@ -12,8 +12,11 @@ from app.domain.ports import SolicitudRepository
 
 
 class PathFileSystem(SistemaArchivosPuerto):
-    def existe(self, ruta: Path) -> bool:
+    def existe_ruta(self, ruta: Path) -> bool:
         return ruta.exists()
+
+    def existe(self, ruta: Path) -> bool:
+        return self.existe_ruta(ruta)
 
     def leer_texto(self, ruta: Path) -> str:
         return ruta.read_text(encoding="utf-8")
