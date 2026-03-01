@@ -26,7 +26,7 @@ from app.application.use_cases.sync_sheets import payloads_puros
 from app.application.use_cases.sync_sheets.pull_planner import PullAction, PullPlannerSignals, plan_pull_actions
 from app.application.use_cases.sync_sheets.pull_runner import run_pull_actions, run_with_savepoint
 from app.application.use_cases.sync_sheets.push_builder import build_push_solicitudes_payloads
-from app.application.use_cases.sync_sheets.push_helpers import push_config, push_delegadas, push_pdf_log
+from app.application.use_cases.sync_sheets.ayudantes_push import push_config, push_delegadas, push_pdf_log
 from app.application.use_cases.sync_sheets.push_runner import run_push_values_update
 from app.application.use_cases.sync_sheets.sync_reporting_rules import (
     accumulate_write_result,

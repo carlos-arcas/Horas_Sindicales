@@ -7,7 +7,7 @@ from app.application.dto import PeriodoFiltro, SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
 from app.domain.models import Persona
 from app.infrastructure.migrations import run_migrations
-from app.infrastructure.repos_sqlite import PersonaRepositorySQLite, SolicitudRepositorySQLite
+from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
 
 
 class SolicitudesHistoricoRulesTests(unittest.TestCase):
@@ -15,7 +15,7 @@ class SolicitudesHistoricoRulesTests(unittest.TestCase):
         self.connection = sqlite3.connect(":memory:")
         self.connection.row_factory = sqlite3.Row
         run_migrations(self.connection)
-        self.persona_repo = PersonaRepositorySQLite(self.connection)
+        self.persona_repo = RepositorioPersonasSQLite(self.connection)
         self.solicitud_repo = SolicitudRepositorySQLite(self.connection)
         self.use_cases = SolicitudUseCases(self.solicitud_repo, self.persona_repo)
         persona = self.persona_repo.create(

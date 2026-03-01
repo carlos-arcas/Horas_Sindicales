@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from app.entrypoints.cli_doctor import EXIT_OK, main
+from app.entrypoints.diagnostico_cli import EXIT_OK, main
 
 
 def test_cli_doctor_main_ok_with_minimal_local_setup(monkeypatch, tmp_path, capsys) -> None:

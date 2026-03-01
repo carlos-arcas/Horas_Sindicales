@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from app.application.use_cases.sync_sheets.push_helpers import push_config
+from app.application.use_cases.sync_sheets.ayudantes_push import push_config
 
 
 class _StubService:

@@ -6,10 +6,10 @@ from app.application.dto import PeriodoFiltro, SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError
-from app.infrastructure.repos_sqlite import PersonaRepositorySQLite, SolicitudRepositorySQLite
+from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
 
 
-def _crear_persona(persona_repo: PersonaRepositorySQLite, *, horas_mes: int = 600, horas_ano: int = 7200) -> int:
+def _crear_persona(persona_repo: RepositorioPersonasSQLite, *, horas_mes: int = 600, horas_ano: int = 7200) -> int:
     persona = persona_repo.create(
         Persona(
             id=None,
@@ -55,7 +55,7 @@ def _dto_valido(persona_id: int, *, desde: str = "09:00", hasta: str = "11:00", 
 
 
 def test_calcular_minutos_solicitud_ok(connection) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
     use_case = SolicitudUseCases(solicitud_repo, persona_repo)
@@ -66,7 +66,7 @@ def test_calcular_minutos_solicitud_ok(connection) -> None:
 
 
 def test_calcular_minutos_solicitud_error_persona_inexistente(connection) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     use_case = SolicitudUseCases(solicitud_repo, persona_repo)
 
@@ -75,7 +75,7 @@ def test_calcular_minutos_solicitud_error_persona_inexistente(connection) -> Non
 
 
 def test_calcular_minutos_solicitud_error_horas_negativas(connection) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
     use_case = SolicitudUseCases(solicitud_repo, persona_repo)
@@ -85,7 +85,7 @@ def test_calcular_minutos_solicitud_error_horas_negativas(connection) -> None:
 
 
 def test_calcular_saldos_por_periodo_sin_solicitudes(connection) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo, horas_mes=300, horas_ano=4000)
     use_case = SolicitudUseCases(solicitud_repo, persona_repo)
@@ -99,7 +99,7 @@ def test_calcular_saldos_por_periodo_sin_solicitudes(connection) -> None:
 
 
 def test_calcular_saldos_por_periodo_con_solicitudes(connection) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo, horas_mes=300, horas_ano=4000)
     use_case = SolicitudUseCases(solicitud_repo, persona_repo)
@@ -115,7 +115,7 @@ def test_calcular_saldos_por_periodo_con_solicitudes(connection) -> None:
 
 
 def test_calcular_saldos_por_periodo_propaga_error_de_repo(connection, monkeypatch: pytest.MonkeyPatch) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
     use_case = SolicitudUseCases(solicitud_repo, persona_repo)

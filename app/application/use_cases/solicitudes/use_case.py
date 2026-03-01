@@ -75,7 +75,7 @@ from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
     plan_pdf_confirmadas,
 )
 from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
-from app.application.use_cases.solicitudes.saldos_service import (
+from app.application.use_cases.solicitudes.servicio_saldos import (
     acumular_consumo_anual_por_personas as _acumular_consumo_anual_por_personas,
     calcular_totales_globales as _calcular_totales_globales,
     construir_resumen_saldos as _construir_resumen_saldos,

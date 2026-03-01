@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from app.infrastructure.sqlite_connection_config import configurar_conexion
+from app.infrastructure.configuracion_conexion_sqlite import configurar_conexion
 
 
 def test_configurar_conexion_habilita_foreign_keys() -> None:

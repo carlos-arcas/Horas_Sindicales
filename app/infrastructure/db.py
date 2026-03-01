@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from app.infrastructure.sqlite_connection_config import configurar_conexion
+from app.infrastructure.configuracion_conexion_sqlite import configurar_conexion
 
 DB_FILENAME = "horas_sindicales.db"
 DB_RUNTIME_DIR = Path("logs") / "runtime"

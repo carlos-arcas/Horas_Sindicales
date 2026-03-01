@@ -9,7 +9,7 @@ from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
 from app.domain.models import Persona
 from app.infrastructure.migrations import run_migrations
-from app.infrastructure.repos_sqlite import PersonaRepositorySQLite, SolicitudRepositorySQLite
+from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
 
 
 def _build_persona() -> Persona:
@@ -65,7 +65,7 @@ def test_crear_solicitud_incrementa_count_en_repo() -> None:
     connection = sqlite3.connect(":memory:")
     connection.row_factory = sqlite3.Row
     run_migrations(connection)
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     use_cases = SolicitudUseCases(solicitud_repo, persona_repo)
 

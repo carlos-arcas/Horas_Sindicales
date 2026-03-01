@@ -15,7 +15,7 @@ from app.infrastructure.repos_sqlite_builders import (
     persona_update_params,
     row_to_persona,
 )
-from app.infrastructure.sqlite_connection_config import configurar_conexion
+from app.infrastructure.configuracion_conexion_sqlite import configurar_conexion
 from app.infrastructure.sqlite_uow import transaccion
 
 
@@ -85,7 +85,7 @@ def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: Iterable[
     cursor.execute(sql, tuple(params_list))
 
 
-class PersonaRepositorySQLite(PersonaRepository):
+class RepositorioPersonasSQLite(PersonaRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
         _configure_connection_for_runtime(self._connection)

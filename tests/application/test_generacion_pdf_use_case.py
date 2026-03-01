@@ -5,7 +5,7 @@ from pathlib import Path
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
 from app.domain.models import Persona
-from app.infrastructure.repos_sqlite import PersonaRepositorySQLite, SolicitudRepositorySQLite
+from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
 
 
 class FakeGeneradorPdf:
@@ -41,7 +41,7 @@ def test_confirmar_lote_llama_puerto_pdf_con_datos_esperados(
     connection,
     tmp_path: Path,
 ) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona = persona_repo.create(
         Persona(
@@ -105,7 +105,7 @@ def test_confirmar_lote_llama_puerto_pdf_con_datos_esperados(
 
 
 def test_confirmar_pdf_por_filtro_none_incluye_varias_delegadas(connection, tmp_path: Path) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     p1 = persona_repo.create(Persona(id=None,nombre="A",genero="F",horas_mes_min=600,horas_ano_min=7200,is_active=True,cuad_lun_man_min=240,cuad_lun_tar_min=240,cuad_mar_man_min=240,cuad_mar_tar_min=240,cuad_mie_man_min=240,cuad_mie_tar_min=240,cuad_jue_man_min=240,cuad_jue_tar_min=240,cuad_vie_man_min=240,cuad_vie_tar_min=240,cuad_sab_man_min=0,cuad_sab_tar_min=0,cuad_dom_man_min=0,cuad_dom_tar_min=0))
     p2 = persona_repo.create(Persona(id=None,nombre="B",genero="F",horas_mes_min=600,horas_ano_min=7200,is_active=True,cuad_lun_man_min=240,cuad_lun_tar_min=240,cuad_mar_man_min=240,cuad_mar_tar_min=240,cuad_mie_man_min=240,cuad_mie_tar_min=240,cuad_jue_man_min=240,cuad_jue_tar_min=240,cuad_vie_man_min=240,cuad_vie_tar_min=240,cuad_sab_man_min=0,cuad_sab_tar_min=0,cuad_dom_man_min=0,cuad_dom_tar_min=0))
@@ -120,7 +120,7 @@ def test_confirmar_pdf_por_filtro_none_incluye_varias_delegadas(connection, tmp_
 
 
 def test_confirmar_pdf_por_filtro_delegada_aplica_subset(connection, tmp_path: Path) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona = persona_repo.create(Persona(id=None,nombre="A",genero="F",horas_mes_min=600,horas_ano_min=7200,is_active=True,cuad_lun_man_min=240,cuad_lun_tar_min=240,cuad_mar_man_min=240,cuad_mar_tar_min=240,cuad_mie_man_min=240,cuad_mie_tar_min=240,cuad_jue_man_min=240,cuad_jue_tar_min=240,cuad_vie_man_min=240,cuad_vie_tar_min=240,cuad_sab_man_min=0,cuad_sab_tar_min=0,cuad_dom_man_min=0,cuad_dom_tar_min=0))
     fake_pdf = FakeGeneradorPdf()
@@ -132,7 +132,7 @@ def test_confirmar_pdf_por_filtro_delegada_aplica_subset(connection, tmp_path: P
 
 
 def test_confirmar_pdf_por_filtro_sin_pendientes_devuelve_warning(connection, tmp_path: Path) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     fake_pdf = FakeGeneradorPdf()
     use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf)
@@ -143,7 +143,7 @@ def test_confirmar_pdf_por_filtro_sin_pendientes_devuelve_warning(connection, tm
 
 
 def test_confirmar_lote_resuelve_colision_pdf_con_sufijo_incremental(connection, tmp_path: Path) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona = persona_repo.create(
         Persona(
