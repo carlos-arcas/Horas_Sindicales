@@ -10,6 +10,7 @@ from app.ui.widgets.dialogo_detalles_toast import DialogoDetallesToast
 from app.ui.widgets.toast_models import ToastDTO
 from app.ui.widgets.toast_overlay import ToastOverlay
 from app.ui.widgets.toast_widget import ToastWidget
+from app.ui.copy_catalog import copy_text
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class ToastManager(QObject):
             return
         dto = ToastDTO(
             id=str(id(message) + len(self._queue) + len(self._visibles)),
-            titulo=title or "Notificación",
+            titulo=title or copy_text("ui.toast.notificacion"),
             mensaje=message,
             nivel=level,
             detalles=opts.get("details") if isinstance(opts.get("details"), str) else None,

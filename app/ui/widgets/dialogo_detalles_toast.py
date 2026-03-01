@@ -4,13 +4,14 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QTextEdit, QVBoxLayout, QWidget
 
 from app.ui.widgets.toast_models import ToastDTO
+from app.ui.copy_catalog import copy_text
 
 
 class DialogoDetallesToast(QDialog):
     def __init__(self, dto: ToastDTO, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._dto = dto
-        self.setWindowTitle("Detalles de notificación")
+        self.setWindowTitle(copy_text("ui.toast.detalles_notificacion"))
         self.setModal(True)
         self.resize(560, 420)
 
@@ -26,8 +27,8 @@ class DialogoDetallesToast(QDialog):
         root.addWidget(self._detalles, 1)
 
         actions = QHBoxLayout()
-        self._btn_copiar = QPushButton("Copiar")
-        self._btn_cerrar = QPushButton("Cerrar")
+        self._btn_copiar = QPushButton(copy_text("ui.toast.copiar"))
+        self._btn_cerrar = QPushButton(copy_text("ui.preferencias.cerrar"))
         self._btn_copiar.clicked.connect(self._copiar_al_portapapeles)
         self._btn_cerrar.clicked.connect(self.accept)
         actions.addStretch(1)
@@ -37,21 +38,21 @@ class DialogoDetallesToast(QDialog):
 
     def _summary_lines(self) -> list[str]:
         return [
-            f"Título: {self._dto.titulo}",
-            f"Mensaje: {self._dto.mensaje}",
-            f"Código: {self._dto.codigo or 'No disponible'}",
-            f"Correlación: {self._dto.correlacion_id or 'No disponible'}",
-            f"Fecha y hora: {self._dto.timestamp}",
+            f"{copy_text('ui.toast.titulo')} {self._dto.titulo}",
+            f"{copy_text('ui.toast.mensaje')} {self._dto.mensaje}",
+            f"{copy_text('ui.toast.codigo')} {self._dto.codigo or copy_text('ui.toast.no_disponible')}",
+            f"{copy_text('ui.toast.correlacion')} {self._dto.correlacion_id or copy_text('ui.toast.no_disponible')}",
+            f"{copy_text('ui.toast.fecha_hora')} {self._dto.timestamp}",
         ]
 
     def _build_copy_text(self) -> str:
         bloques = [
-            f"Título: {self._dto.titulo}",
-            f"Mensaje: {self._dto.mensaje}",
-            f"Detalles: {self._dto.detalles or 'No disponible'}",
-            f"Código: {self._dto.codigo or 'No disponible'}",
-            f"Correlación: {self._dto.correlacion_id or 'No disponible'}",
-            f"Timestamp: {self._dto.timestamp}",
+            f"{copy_text('ui.toast.titulo')} {self._dto.titulo}",
+            f"{copy_text('ui.toast.mensaje')} {self._dto.mensaje}",
+            f"{copy_text('ui.toast.detalles')} {self._dto.detalles or copy_text('ui.toast.no_disponible')}",
+            f"{copy_text('ui.toast.codigo')} {self._dto.codigo or copy_text('ui.toast.no_disponible')}",
+            f"{copy_text('ui.toast.correlacion')} {self._dto.correlacion_id or copy_text('ui.toast.no_disponible')}",
+            f"{copy_text('ui.toast.timestamp')} {self._dto.timestamp}",
         ]
         return "\n".join(bloques)
 

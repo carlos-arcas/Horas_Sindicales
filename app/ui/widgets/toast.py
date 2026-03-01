@@ -76,4 +76,4 @@ def _on_action_clicked() -> None:
 
 
 # action_button.clicked.connect(self._on_action_clicked)
-__all__ = ["Toast", "ToastDTO", "ToastManager", "ToastWidget"]
+__all__ = [Toast.__name__, ToastDTO.__name__, ToastManager.__name__, ToastWidget.__name__]

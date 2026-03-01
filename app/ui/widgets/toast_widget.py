@@ -5,6 +5,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
 from app.ui.widgets.toast_models import ToastDTO
+from app.ui.copy_catalog import copy_text
 
 _TOAST_LEVEL_ACCENTS = {
     "success": "#3FAF6A",
@@ -50,14 +51,14 @@ class ToastWidget(QFrame):
         actions = QHBoxLayout()
         actions.addStretch(1)
 
-        self._btn_detalles = QPushButton("Ver detalles")
+        self._btn_detalles = QPushButton(copy_text("ui.sync.ver_detalles"))
         self._btn_detalles.setObjectName("toastDetailsButton")
         self._btn_detalles.clicked.connect(self._on_ver_detalles)
         visible = bool(self.dto.detalles or self.dto.correlacion_id)
         self._btn_detalles.setVisible(visible)
         actions.addWidget(self._btn_detalles)
 
-        self._btn_cerrar = QPushButton("Cerrar")
+        self._btn_cerrar = QPushButton(copy_text("ui.preferencias.cerrar"))
         self._btn_cerrar.setObjectName("toastCloseButton")
         self._btn_cerrar.clicked.connect(lambda: self.cerrado.emit(self.dto.id))
         actions.addWidget(self._btn_cerrar)

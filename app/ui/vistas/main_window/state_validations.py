@@ -10,6 +10,7 @@ except Exception:  # pragma: no cover
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.ui.error_mapping import UiErrorMessage, map_error_to_ui_message
 from app.ui.notification_service import ConfirmationSummaryPayload
+from app.ui.copy_catalog import copy_text
 from app.ui.toast_helpers import toast_error, toast_success
 from app.core.observability import OperationContext
 from app.application.dto import SolicitudDTO
@@ -35,16 +36,16 @@ class MainWindowStateValidationMixin:
     def _handle_duplicate_detected(self, duplicate: SolicitudDTO) -> bool:
         is_pending = not duplicate.generated
         dialog = QMessageBox(self)
-        dialog.setWindowTitle("Solicitud duplicada")
+        dialog.setWindowTitle(copy_text("ui.validacion.solicitud_duplicada"))
         if is_pending:
-            dialog.setText("Ya existe una solicitud pendiente igual.")
-            dialog.setInformativeText("Puedes ir a la pendiente existente para gestionarla.")
-            goto_button = dialog.addButton("Ir a la pendiente existente", QMessageBox.AcceptRole)
+            dialog.setText(copy_text("ui.validacion.duplicada_pendiente"))
+            dialog.setInformativeText(copy_text("ui.validacion.duplicada_pendiente_info"))
+            goto_button = dialog.addButton(copy_text("ui.validacion.ir_pendiente"), QMessageBox.AcceptRole)
         else:
-            dialog.setText("La solicitud ya está confirmada en histórico.")
-            dialog.setInformativeText("Puedes abrir el histórico para revisarla.")
-            goto_button = dialog.addButton("Ir al histórico", QMessageBox.AcceptRole)
-        dialog.addButton("Cancelar", QMessageBox.RejectRole)
+            dialog.setText(copy_text("ui.validacion.duplicada_historico"))
+            dialog.setInformativeText(copy_text("ui.validacion.duplicada_historico_info"))
+            goto_button = dialog.addButton(copy_text("ui.validacion.ir_historico"), QMessageBox.AcceptRole)
+        dialog.addButton(copy_text("ui.validacion.cancelar"), QMessageBox.RejectRole)
         dialog.exec()
         if dialog.clickedButton() is not goto_button:
             return False
@@ -63,11 +64,11 @@ class MainWindowStateValidationMixin:
         try:
             conflicto = self._solicitud_use_cases.validar_conflicto_dia(persona_id, solicitud.fecha_pedida, solicitud.completo)
         except BusinessRuleError as exc:
-            self.toast.warning(str(exc), title="Validación")
+            self.toast.warning(str(exc), title=copy_text("ui.validacion.validacion"))
             return False
         if conflicto.ok:
             return True
-        mensaje = "Hay horas parciales. ¿Sustituirlas por COMPLETO?" if solicitud.completo else "Ya existe un COMPLETO. ¿Sustituirlo por esta franja?"
+        mensaje = copy_text("ui.validacion.sustituir_por_completo") if solicitud.completo else copy_text("ui.validacion.sustituir_por_franja")
         if not self._confirm_conflicto(mensaje):
             return False
         try:
@@ -75,7 +76,7 @@ class MainWindowStateValidationMixin:
                 method = self._solicitud_use_cases.sustituir_por_completo if solicitud.completo else self._solicitud_use_cases.sustituir_por_parcial
                 method(persona_id, solicitud.fecha_pedida, solicitud, correlation_id=operation.correlation_id)
         except (ValidacionError, BusinessRuleError) as exc:
-            self.toast.warning(str(exc), title="Validación")
+            self.toast.warning(str(exc), title=copy_text("ui.validacion.validacion"))
             return False
         except Exception as exc:
             logger.exception("Error sustituyendo solicitud")
@@ -130,21 +131,21 @@ class MainWindowStateValidationMixin:
         ask_push_after_pdf(self)
 
     def _show_critical_error(self, error: Exception | str) -> None:
-        mapped = UiErrorMessage(title="Error", probable_cause=error, recommended_action="Reintentar. Si persiste, contactar con soporte.", severity="blocking") if isinstance(error, str) else map_error_to_ui_message(error)
+        mapped = UiErrorMessage(title=copy_text("ui.validacion.error"), probable_cause=error, recommended_action=copy_text("ui.validacion.reintentar_soporte"), severity="blocking") if isinstance(error, str) else map_error_to_ui_message(error)
         if isinstance(error, BusinessRuleError):
-            mapped.title = "Validación"
+            mapped.title = copy_text("ui.validacion.validacion")
             mapped.probable_cause = str(error)
-            mapped.recommended_action = "Corrige el dato indicado y vuelve a intentarlo."
+            mapped.recommended_action = copy_text("ui.validacion.corrige_dato")
         if not isinstance(error, str):
             logger.exception("Error técnico capturado en UI", exc_info=error, extra={"correlation_id": mapped.incident_id})
         message = mapped.as_text()
         self._solicitudes_runtime_error = True
         self._update_solicitudes_status_panel()
-        self._toast_error(message, title="Error")
+        self._toast_error(message, title=copy_text("ui.validacion.error"))
         QMessageBox.critical(self, mapped.title, message)
 
     def _show_error_detail(self, *, titulo: str, mensaje: str, incident_id: str | None = None, correlation_id: str | None = None, stack: str | None = None) -> None:
-        payload = {"mensaje": mensaje, "incident_id": incident_id or "N/D", "correlation_id": correlation_id or "N/D", "resumen": stack or "Sin detalle técnico"}
+        payload = {"mensaje": mensaje, "incident_id": incident_id or copy_text("ui.validacion.no_disponible_abrev"), "correlation_id": correlation_id or copy_text("ui.validacion.no_disponible_abrev"), "resumen": stack or copy_text("ui.validacion.sin_detalle_tecnico")}
         dialog = self._historico_detalle_dialog_class(payload, self)
         dialog.setWindowTitle(titulo)
         dialog.exec()
@@ -160,4 +161,4 @@ class MainWindowStateValidationMixin:
         self.toast.info(message, title=title)
 
     def _confirm_conflicto(self, mensaje: str) -> bool:
-        return QMessageBox.question(self, "Conflicto", mensaje, QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes
+        return QMessageBox.question(self, copy_text("ui.validacion.conflicto"), mensaje, QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes
