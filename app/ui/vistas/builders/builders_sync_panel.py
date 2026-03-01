@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.ui.copy_catalog import copy_text
+from app.ui.vistas.main_window.wiring_helpers import conectar_signal
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow
@@ -52,24 +53,44 @@ def create_sync_panel(window: "MainWindow") -> None:
     persona_actions = QHBoxLayout()
     persona_actions.setSpacing(8)
     window.config_delegada_combo = QComboBox()
-    window.config_delegada_combo.currentIndexChanged.connect(window._on_config_delegada_changed)
+    conectar_signal(
+        window,
+        window.config_delegada_combo.currentIndexChanged,
+        "_on_config_delegada_changed",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     persona_actions.addWidget(window.config_delegada_combo, 1)
 
     window.edit_persona_button = QPushButton(copy_text("ui.config.editar"))
     window.edit_persona_button.setProperty("variant", "success")
-    window.edit_persona_button.clicked.connect(window._on_edit_persona)
+    conectar_signal(
+        window,
+        window.edit_persona_button.clicked,
+        "_on_edit_persona",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     persona_actions.addWidget(window.edit_persona_button)
 
     window.delete_persona_button = QPushButton(copy_text("ui.config.eliminar"))
     window.delete_persona_button.setProperty("variant", "primary")
     window.delete_persona_button.setProperty("intent", "destructive")
-    window.delete_persona_button.clicked.connect(window._on_delete_persona)
+    conectar_signal(
+        window,
+        window.delete_persona_button.clicked,
+        "_on_delete_persona",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     persona_actions.addWidget(window.delete_persona_button)
 
     persona_actions.addStretch(1)
     window.add_persona_button = QPushButton(copy_text("ui.config.nueva_delegada"))
     window.add_persona_button.setProperty("variant", "secondary")
-    window.add_persona_button.clicked.connect(window._on_add_persona)
+    conectar_signal(
+        window,
+        window.add_persona_button.clicked,
+        "_on_add_persona",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     persona_actions.addWidget(window.add_persona_button)
     persona_layout.addLayout(persona_actions)
     config_layout.addWidget(persona_card)
@@ -79,7 +100,12 @@ def create_sync_panel(window: "MainWindow") -> None:
     grupo_actions.setSpacing(8)
     window.edit_grupo_button = QPushButton(copy_text("ui.config.configurar_grupo"))
     window.edit_grupo_button.setProperty("variant", "secondary")
-    window.edit_grupo_button.clicked.connect(window._on_edit_grupo)
+    conectar_signal(
+        window,
+        window.edit_grupo_button.clicked,
+        "_on_edit_grupo",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     grupo_actions.addWidget(window.edit_grupo_button)
     grupo_actions.addStretch(1)
     grupo_layout.addLayout(grupo_actions)
@@ -90,7 +116,12 @@ def create_sync_panel(window: "MainWindow") -> None:
     pdf_actions.setSpacing(8)
     window.editar_pdf_button = QPushButton(copy_text("ui.config.configurar_pdf"))
     window.editar_pdf_button.setProperty("variant", "secondary")
-    window.editar_pdf_button.clicked.connect(window._on_edit_pdf)
+    conectar_signal(
+        window,
+        window.editar_pdf_button.clicked,
+        "_on_edit_pdf",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     pdf_actions.addWidget(window.editar_pdf_button)
     pdf_actions.addStretch(1)
     pdf_layout.addLayout(pdf_actions)
@@ -98,7 +129,12 @@ def create_sync_panel(window: "MainWindow") -> None:
 
     preferencias_card, preferencias_layout = window._create_card(copy_text("ui.sync.preferencias"))
     window.preferencia_pantalla_completa_check = QCheckBox(copy_text("ui.sync.maximizada_por_defecto"))
-    window.preferencia_pantalla_completa_check.toggled.connect(window._on_toggle_preferencia_pantalla_completa)
+    conectar_signal(
+        window,
+        window.preferencia_pantalla_completa_check.toggled,
+        "_on_toggle_preferencia_pantalla_completa",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     preferencias_layout.addWidget(window.preferencia_pantalla_completa_check)
     config_layout.addWidget(preferencias_card)
 
@@ -113,17 +149,32 @@ def create_sync_panel(window: "MainWindow") -> None:
     sync_actions.setSpacing(8)
     window.opciones_button = QPushButton(copy_text("ui.sync.configurar_conexion"))
     window.opciones_button.setProperty("variant", "secondary")
-    window.opciones_button.clicked.connect(window._on_open_opciones)
+    conectar_signal(
+        window,
+        window.opciones_button.clicked,
+        "_on_open_opciones",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     sync_actions.addWidget(window.opciones_button)
 
     window.config_test_connection_button = QPushButton(copy_text("ui.sync.probar_conexion"))
     window.config_test_connection_button.setProperty("variant", "secondary")
-    window.config_test_connection_button.clicked.connect(window._on_simulate_sync)
+    conectar_signal(
+        window,
+        window.config_test_connection_button.clicked,
+        "_on_simulate_sync",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     sync_actions.addWidget(window.config_test_connection_button)
 
     window.config_sync_button = QPushButton(copy_text("ui.sync.sincronizar_ahora"))
     window.config_sync_button.setProperty("variant", "success")
-    window.config_sync_button.clicked.connect(window._on_sync)
+    conectar_signal(
+        window,
+        window.config_sync_button.clicked,
+        "_on_sync",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     sync_actions.addWidget(window.config_sync_button)
     sync_actions.addStretch(1)
     credenciales_layout.addLayout(sync_actions)
@@ -161,48 +212,93 @@ def create_sync_panel(window: "MainWindow") -> None:
     sync_actions.setSpacing(8)
     window.sync_button = QPushButton(copy_text("ui.sync.sincronizar_ahora"))
     window.sync_button.setProperty("variant", "primary")
-    window.sync_button.clicked.connect(window._on_sync)
+    conectar_signal(
+        window,
+        window.sync_button.clicked,
+        "_on_sync",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     sync_actions.addWidget(window.sync_button)
 
     window.simulate_sync_button = QPushButton(copy_text("ui.sync.simular"))
     window.simulate_sync_button.setProperty("variant", "secondary")
-    window.simulate_sync_button.clicked.connect(window._on_simulate_sync)
+    conectar_signal(
+        window,
+        window.simulate_sync_button.clicked,
+        "_on_simulate_sync",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     sync_actions.addWidget(window.simulate_sync_button)
 
     window.confirm_sync_button = QPushButton(copy_text("ui.sync.sincronizar_ahora"))
     window.confirm_sync_button.setProperty("variant", "primary")
     window.confirm_sync_button.setEnabled(False)
-    window.confirm_sync_button.clicked.connect(window._on_confirm_sync)
+    conectar_signal(
+        window,
+        window.confirm_sync_button.clicked,
+        "_on_confirm_sync",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     sync_actions.addWidget(window.confirm_sync_button)
 
     window.retry_failed_button = QPushButton(copy_text("ui.sync.reintentar_fallidos"))
     window.retry_failed_button.setProperty("variant", "secondary")
     window.retry_failed_button.setEnabled(False)
-    window.retry_failed_button.clicked.connect(window._on_retry_failed)
+    conectar_signal(
+        window,
+        window.retry_failed_button.clicked,
+        "_on_retry_failed",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     sync_actions.addWidget(window.retry_failed_button)
 
     window.sync_details_button = QPushButton(copy_text("ui.sync.ver_detalles"))
     window.sync_details_button.setProperty("variant", "secondary")
     window.sync_details_button.setEnabled(False)
-    window.sync_details_button.clicked.connect(window._on_show_sync_details)
+    conectar_signal(
+        window,
+        window.sync_details_button.clicked,
+        "_on_show_sync_details",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
 
     window.copy_sync_report_button = QPushButton(copy_text("ui.sync.copiar_informe"))
     window.copy_sync_report_button.setProperty("variant", "secondary")
     window.copy_sync_report_button.setEnabled(False)
-    window.copy_sync_report_button.clicked.connect(window._on_copy_sync_report)
+    conectar_signal(
+        window,
+        window.copy_sync_report_button.clicked,
+        "_on_copy_sync_report",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
 
     window.open_sync_logs_button = QPushButton(copy_text("ui.sync.abrir_logs"))
     window.open_sync_logs_button.setProperty("variant", "secondary")
-    window.open_sync_logs_button.clicked.connect(window._on_open_sync_logs)
+    conectar_signal(
+        window,
+        window.open_sync_logs_button.clicked,
+        "_on_open_sync_logs",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
 
     window.sync_history_button = QPushButton(copy_text("ui.sync.ver_historial"))
     window.sync_history_button.setProperty("variant", "secondary")
-    window.sync_history_button.clicked.connect(window._on_show_sync_history)
+    conectar_signal(
+        window,
+        window.sync_history_button.clicked,
+        "_on_show_sync_history",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
 
     window.review_conflicts_button = QPushButton(copy_text("ui.sync.revisar_conflictos"))
     window.review_conflicts_button.setProperty("variant", "secondary")
     window.review_conflicts_button.setEnabled(False)
-    window.review_conflicts_button.clicked.connect(window._on_review_conflicts)
+    conectar_signal(
+        window,
+        window.review_conflicts_button.clicked,
+        "_on_review_conflicts",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     sync_actions.addWidget(window.review_conflicts_button)
     sync_layout.addLayout(sync_actions)
 
@@ -223,7 +319,12 @@ def create_sync_panel(window: "MainWindow") -> None:
     window.go_to_sync_config_button = QPushButton(copy_text("ui.sync.ir_configuracion"))
     window.go_to_sync_config_button.setProperty("variant", "secondary")
     window.go_to_sync_config_button.setVisible(False)
-    window.go_to_sync_config_button.clicked.connect(window._on_open_opciones)
+    conectar_signal(
+        window,
+        window.go_to_sync_config_button.clicked,
+        "_on_open_opciones",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     sync_layout.addWidget(window.go_to_sync_config_button, alignment=Qt.AlignLeft)
 
     window.sync_status_label = QLabel(copy_text("ui.sync.sincronizando"))
@@ -294,11 +395,21 @@ def create_sync_panel(window: "MainWindow") -> None:
     health_actions = QHBoxLayout()
     window.refresh_health_button = QPushButton(copy_text("ui.sync.actualizar_salud"))
     window.refresh_health_button.setProperty("variant", "secondary")
-    window.refresh_health_button.clicked.connect(window._refresh_health_and_alerts)
+    conectar_signal(
+        window,
+        window.refresh_health_button.clicked,
+        "_refresh_health_and_alerts",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     health_actions.addWidget(window.refresh_health_button)
     window.snooze_alerts_button = QPushButton(copy_text("ui.sync.no_mostrar_hoy"))
     window.snooze_alerts_button.setProperty("variant", "secondary")
-    window.snooze_alerts_button.clicked.connect(window._on_snooze_alerts_today)
+    conectar_signal(
+        window,
+        window.snooze_alerts_button.clicked,
+        "_on_snooze_alerts_today",
+        contexto="builders_sync_panel:create_sync_panel",
+    )
     health_actions.addWidget(window.snooze_alerts_button)
     health_actions.addStretch(1)
     health_layout.addLayout(health_actions)
