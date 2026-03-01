@@ -210,8 +210,140 @@ def run_ui(container=None) -> int:
     from presentacion.i18n import I18nManager
     from presentacion.orquestador_arranque import OrquestadorArranqueUI
 
-    from PySide6.QtCore import QThread, QTimer, Qt, Slot
+    from PySide6.QtCore import QObject, QThread, QTimer, Qt, Slot
     from PySide6.QtWidgets import QApplication
+
+    class ControladorArranque(QObject):
+        def __init__(self, *, app, i18n, splash, startup_timeout_ms: int, startup_thread, startup_worker) -> None:
+            super().__init__()
+            self.app = app
+            self.i18n = i18n
+            self.splash = splash
+            self.startup_timeout_ms = startup_timeout_ms
+            self.thread = startup_thread
+            self.worker = startup_worker
+            self.watchdog_timer = QTimer(self)
+            self.watchdog_timer.setSingleShot(True)
+            self.watchdog_timer.setInterval(startup_timeout_ms)
+            self.incident_id = ""
+            self.ultima_etapa = ""
+            self.terminado = False
+            self.watchdog_disparado = False
+
+        def _detalles_con_etapa(self, detalles: str) -> str:
+            if not self.ultima_etapa:
+                return detalles
+            etiqueta = self.i18n.t("startup_last_stage", etapa=self.i18n.t(self.ultima_etapa))
+            return f"{etiqueta}\n{detalles}" if detalles else etiqueta
+
+        def iniciar(self) -> None:
+            self.watchdog_timer.start()
+
+        @Slot(str)
+        def on_progreso(self, etapa: str) -> None:
+            self.ultima_etapa = etapa
+            self.splash.set_status(etapa)
+
+        @Slot()
+        def on_timeout(self) -> None:
+            if self.terminado:
+                return
+            self.watchdog_disparado = True
+            self.terminado = True
+            if not self.incident_id:
+                self.incident_id = f"INC-UI-{uuid.uuid4().hex[:12].upper()}"
+            LOGGER.warning(
+                "STARTUP_TIMEOUT",
+                extra={
+                    "extra": {
+                        "incident_id": self.incident_id,
+                        "etapa": self.ultima_etapa,
+                        "timeout_ms": self.startup_timeout_ms,
+                    }
+                },
+            )
+            _manejar_fallo_arranque(
+                exc=None,
+                trace_info=None,
+                i18n=self.i18n,
+                splash=self.splash,
+                startup_thread=self.thread,
+                app=self.app,
+                mensaje_usuario=self.i18n.t("startup_timeout_message"),
+                incident_id=self.incident_id,
+                detalles=self._detalles_con_etapa(self.i18n.t("startup_timeout_message")),
+            )
+
+        @Slot(object)
+        def on_finished(self, startup_payload) -> None:
+            if __debug__:
+                app_thread = QApplication.instance().thread()
+                assert QThread.currentThread() == app_thread
+            try:
+                self.terminado = True
+                self.watchdog_timer.stop()
+                resolved_container, deps_arranque, idioma = startup_payload
+                self.i18n.set_idioma(idioma)
+                orquestador = OrquestadorArranqueUI(deps_arranque, self.i18n)
+
+                if not orquestador.resolver_onboarding():
+                    self.splash.close()
+                    self.app.exit(0)
+                    return
+
+                window = MainWindow(
+                    resolved_container.persona_use_cases,
+                    resolved_container.solicitud_use_cases,
+                    resolved_container.grupo_use_cases,
+                    resolved_container.sheets_service,
+                    resolved_container.sync_service,
+                    resolved_container.conflicts_service,
+                    resolved_container.health_check_use_case,
+                    resolved_container.alert_engine,
+                    resolved_container.validacion_preventiva_lock_use_case,
+                    guardar_preferencia_pantalla_completa=deps_arranque.guardar_preferencia_pantalla_completa,
+                    obtener_preferencia_pantalla_completa=deps_arranque.obtener_preferencia_pantalla_completa,
+                )
+                self.app.setProperty("_main_window_ref", window)
+                _instalar_menu_ayuda(
+                    window,
+                    self.i18n,
+                    ReiniciarOnboarding(resolved_container.repositorio_preferencias),
+                    resolved_container.cargar_datos_demo_caso_uso,
+                )
+                if orquestador.debe_iniciar_maximizada():
+                    window.showMaximized()
+                else:
+                    window.show()
+                self.splash.close()
+            except Exception as exc:  # noqa: BLE001
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                _manejar_fallo_arranque(
+                    exc=exc,
+                    trace_info=(exc_type, exc_value, exc_traceback),
+                    i18n=self.i18n,
+                    splash=self.splash,
+                    startup_thread=self.thread,
+                    app=self.app,
+                )
+
+        @Slot(str, str, str)
+        def on_failed(self, incident_id: str, mensaje_usuario: str, detalles: str) -> None:
+            self.terminado = True
+            self.watchdog_timer.stop()
+            self.incident_id = incident_id
+            _manejar_fallo_arranque(
+                exc=None,
+                trace_info=None,
+                i18n=self.i18n,
+                splash=self.splash,
+                startup_thread=self.thread,
+                app=self.app,
+                mensaje_usuario=mensaje_usuario,
+                dialogo_factory=None,
+                incident_id=incident_id,
+                detalles=self._detalles_con_etapa(detalles),
+            )
 
     startup_timeout_ms = _resolver_startup_timeout_ms()
 
@@ -224,136 +356,22 @@ def run_ui(container=None) -> int:
     startup_worker = TrabajadorArranque(container, i18n)
     startup_worker.moveToThread(startup_thread)
     splash.registrar_arranque(startup_thread, startup_worker)
-    startup_context = {
-        "incident_id": "",
-        "ultima_etapa": "",
-        "terminado": False,
-        "watchdog_disparado": False,
-    }
-    watchdog = QTimer()
-    watchdog.setSingleShot(True)
-    watchdog.setInterval(startup_timeout_ms)
 
-    def _detalles_con_etapa(detalles: str) -> str:
-        ultima_etapa = startup_context["ultima_etapa"]
-        if not ultima_etapa:
-            return detalles
-        etiqueta = i18n.t("startup_last_stage", etapa=i18n.t(ultima_etapa))
-        return f"{etiqueta}\n{detalles}" if detalles else etiqueta
+    controlador = ControladorArranque(
+        app=app,
+        i18n=i18n,
+        splash=splash,
+        startup_timeout_ms=startup_timeout_ms,
+        startup_thread=startup_thread,
+        startup_worker=startup_worker,
+    )
 
-    @Slot()
-    def _on_startup_timeout() -> None:
-        if startup_context["terminado"]:
-            return
-        startup_context["watchdog_disparado"] = True
-        startup_context["terminado"] = True
-        if not startup_context["incident_id"]:
-            startup_context["incident_id"] = f"INC-UI-{uuid.uuid4().hex[:12].upper()}"
-        LOGGER.warning(
-            "STARTUP_TIMEOUT",
-            extra={
-                "extra": {
-                    "incident_id": startup_context["incident_id"],
-                    "etapa": startup_context["ultima_etapa"],
-                    "timeout_ms": startup_timeout_ms,
-                }
-            },
-        )
-        _manejar_fallo_arranque(
-            exc=None,
-            trace_info=None,
-            i18n=i18n,
-            splash=splash,
-            startup_thread=startup_thread,
-            app=app,
-            mensaje_usuario=i18n.t("startup_timeout_message"),
-            incident_id=startup_context["incident_id"],
-            detalles=_detalles_con_etapa(i18n.t("startup_timeout_message")),
-        )
-
-    watchdog.timeout.connect(_on_startup_timeout, Qt.ConnectionType.QueuedConnection)
-
-    def _abrir_ventana_principal(startup_payload) -> None:
-        try:
-            startup_context["terminado"] = True
-            watchdog.stop()
-            resolved_container, deps_arranque, idioma = startup_payload
-            i18n.set_idioma(idioma)
-            orquestador = OrquestadorArranqueUI(deps_arranque, i18n)
-
-            if not orquestador.resolver_onboarding():
-                splash.close()
-                app.exit(0)
-                return
-
-            window = MainWindow(
-                resolved_container.persona_use_cases,
-                resolved_container.solicitud_use_cases,
-                resolved_container.grupo_use_cases,
-                resolved_container.sheets_service,
-                resolved_container.sync_service,
-                resolved_container.conflicts_service,
-                resolved_container.health_check_use_case,
-                resolved_container.alert_engine,
-                resolved_container.validacion_preventiva_lock_use_case,
-                guardar_preferencia_pantalla_completa=deps_arranque.guardar_preferencia_pantalla_completa,
-                obtener_preferencia_pantalla_completa=deps_arranque.obtener_preferencia_pantalla_completa,
-            )
-            app.setProperty("_main_window_ref", window)
-            _instalar_menu_ayuda(
-                window,
-                i18n,
-                ReiniciarOnboarding(resolved_container.repositorio_preferencias),
-                resolved_container.cargar_datos_demo_caso_uso,
-            )
-            if orquestador.debe_iniciar_maximizada():
-                window.showMaximized()
-            else:
-                window.show()
-            splash.close()
-        except Exception as exc:  # noqa: BLE001
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            _manejar_fallo_arranque(
-                exc=exc,
-                trace_info=(exc_type, exc_value, exc_traceback),
-                i18n=i18n,
-                splash=splash,
-                startup_thread=startup_thread,
-                app=app,
-            )
-
-    @Slot(object)
-    def _on_startup_finished(startup_payload) -> None:
-        _abrir_ventana_principal(startup_payload)
-
-    @Slot(str)
-    def _on_startup_progreso(etapa: str) -> None:
-        startup_context["ultima_etapa"] = etapa
-        splash.set_status(etapa)
-
-    @Slot(str, str, str)
-    def _on_startup_failed(incident_id: str, mensaje_usuario: str, detalles: str) -> None:
-        startup_context["terminado"] = True
-        watchdog.stop()
-        startup_context["incident_id"] = incident_id
-        _manejar_fallo_arranque(
-            exc=None,
-            trace_info=None,
-            i18n=i18n,
-            splash=splash,
-            startup_thread=startup_thread,
-            app=app,
-            mensaje_usuario=mensaje_usuario,
-            dialogo_factory=None,
-            incident_id=incident_id,
-            detalles=_detalles_con_etapa(detalles),
-        )
-
+    controlador.watchdog_timer.timeout.connect(controlador.on_timeout, Qt.ConnectionType.QueuedConnection)
     startup_worker.finished.connect(startup_thread.quit)
-    startup_worker.progreso.connect(_on_startup_progreso, Qt.ConnectionType.QueuedConnection)
-    startup_worker.finished.connect(_on_startup_finished, Qt.ConnectionType.QueuedConnection)
+    startup_worker.progreso.connect(controlador.on_progreso, Qt.ConnectionType.QueuedConnection)
+    startup_worker.finished.connect(controlador.on_finished, Qt.ConnectionType.QueuedConnection)
     startup_worker.failed.connect(startup_thread.quit)
-    startup_worker.failed.connect(_on_startup_failed, Qt.ConnectionType.QueuedConnection)
+    startup_worker.failed.connect(controlador.on_failed, Qt.ConnectionType.QueuedConnection)
     startup_thread.finished.connect(startup_worker.deleteLater)
     startup_thread.finished.connect(startup_thread.deleteLater)
     startup_thread.started.connect(startup_worker.run)
@@ -363,7 +381,7 @@ def run_ui(container=None) -> int:
             aplicar_tema(app)
         except OSError:
             app.setStyleSheet(build_stylesheet())
-        watchdog.start()
+        controlador.iniciar()
         QTimer.singleShot(0, startup_thread.start)
         return app.exec()
     except Exception as exc:  # noqa: BLE001

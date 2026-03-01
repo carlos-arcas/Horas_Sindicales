@@ -64,7 +64,11 @@ class AppContainer:
 ConnectionFactory = Callable[[], object]
 
 
-def build_container(connection_factory: ConnectionFactory = get_connection) -> AppContainer:
+def build_container(
+    connection_factory: ConnectionFactory = get_connection,
+    *,
+    preferencias_headless: bool = False,
+) -> AppContainer:
     connection = connection_factory()
     run_migrations(connection)
     seed_if_empty(connection)
@@ -98,7 +102,7 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
     alert_engine = AlertEngine()
     validacion_preventiva_lock_use_case = ValidacionPreventivaLockUseCase(SQLiteLockErrorClassifier())
 
-    repositorio_preferencias = _build_repositorio_preferencias()
+    repositorio_preferencias = _build_repositorio_preferencias(preferencias_headless=preferencias_headless)
 
     conflicts_repository = SQLiteConflictsRepository(connection)
     conflicts_service = ConflictsService(
@@ -131,7 +135,9 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
     )
 
 
-def _build_repositorio_preferencias() -> IRepositorioPreferencias:
+def _build_repositorio_preferencias(*, preferencias_headless: bool = False) -> IRepositorioPreferencias:
+    if preferencias_headless:
+        return RepositorioPreferenciasIni()
     try:
         modulo = importlib.import_module("infraestructura.repositorio_preferencias_qsettings")
         repositorio_cls = modulo.RepositorioPreferenciasQSettings
