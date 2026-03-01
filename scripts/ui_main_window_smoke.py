@@ -33,6 +33,7 @@ WIRING_TYPE_ERROR_HINTS = (
     "positional argument",
     "unexpected keyword",
 )
+QT_THREAD_PARENT_WARNING = "Cannot create children for a parent that is in a different thread"
 
 
 def _validar_handlers_por_ast() -> int:
@@ -102,7 +103,15 @@ def main() -> int:
 
     try:
         qt_widgets = importlib.import_module("PySide6.QtWidgets")
+        qt_core = importlib.import_module("PySide6.QtCore")
         app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+        qt_messages: list[str] = []
+
+        def _qt_message_handler(_msg_type, _context, message) -> None:
+            if QT_THREAD_PARENT_WARNING in message:
+                qt_messages.append(message)
+
+        previous_handler = qt_core.qInstallMessageHandler(_qt_message_handler)
         module = importlib.import_module("app.ui.main_window")
         main_window_cls = getattr(module, "MainWindow", None)
         if main_window_cls is None:
@@ -140,6 +149,11 @@ def main() -> int:
         internal_headers = search_root.findChildren(header_widget_cls)
         if internal_headers:
             raise AssertionError("Se detectó HeaderWidget interno en la zona de contenido")
+        if qt_messages:
+            raise AssertionError(
+                "Se detectó warning Qt de parent en hilo distinto: "
+                + " | ".join(qt_messages)
+            )
     except Exception as exc:  # pragma: no cover - fallo defensivo
         if "libGL.so.1" in str(exc):
             logger.warning("ui_import_fallback_ast: %s", exc)
@@ -155,6 +169,9 @@ def main() -> int:
             return 1
         logger.warning("SMOKE_UI_WARN: %s %s", type(exc).__name__, exc)
         return 0
+    finally:
+        if "qt_core" in locals() and "previous_handler" in locals():
+            qt_core.qInstallMessageHandler(previous_handler)
 
     missing = [name for name in REQUIRED_HANDLERS if not callable(getattr(type(window), name, None))]
     if missing:
