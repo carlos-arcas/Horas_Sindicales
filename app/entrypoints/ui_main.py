@@ -21,7 +21,7 @@ from app.bootstrap.logging import log_operational_error
 LOGGER = logging.getLogger(__name__)
 
 
-def _es_objeto_qt_valido(obj) -> bool:
+def _qt_is_alive(obj) -> bool:
     if obj is None:
         return False
     try:
@@ -35,6 +35,10 @@ def _es_objeto_qt_valido(obj) -> bool:
         return _is_valid_qobject(obj)
     except RuntimeError:
         return False
+
+
+def _es_objeto_qt_valido(obj) -> bool:
+    return _qt_is_alive(obj)
 
 
 def _resolver_startup_timeout_ms() -> int:
@@ -104,17 +108,21 @@ def _manejar_fallo_arranque(
     app._fallo_arranque_reportado = True
 
     def _cerrar_splash() -> None:
-        if not _es_objeto_qt_valido(splash):
+        if not _qt_is_alive(splash):
             return
         try:
-            splash.hide()
-            splash.close()
-            QTimer.singleShot(0, splash.deleteLater)
+            if hasattr(splash, "request_close"):
+                splash.request_close()
+            else:
+                splash.hide()
+                splash.close()
+            if hasattr(splash, "deleteLater"):
+                QTimer.singleShot(0, splash.deleteLater)
         except RuntimeError:
             return
 
     def _safe_quit_thread() -> None:
-        if not _es_objeto_qt_valido(startup_thread) or not hasattr(startup_thread, "quit"):
+        if not _qt_is_alive(startup_thread) or not hasattr(startup_thread, "quit"):
             return
         try:
             startup_thread.quit()
@@ -135,7 +143,7 @@ def _manejar_fallo_arranque(
         exc=exc,
         extra={"incident_id": resolved_incident_id},
     )
-    if _es_objeto_qt_valido(watchdog_timer) and hasattr(watchdog_timer, "stop"):
+    if _qt_is_alive(watchdog_timer) and hasattr(watchdog_timer, "stop"):
         try:
             watchdog_timer.stop()
         except RuntimeError:
@@ -286,7 +294,7 @@ def run_ui(container=None) -> int:
             self.startup_timeout_ms = startup_timeout_ms
             self.thread = startup_thread
             self.worker = startup_worker
-            self.watchdog_timer = QTimer(self)
+            self.watchdog_timer = QTimer(self.splash)
             self.watchdog_timer.setSingleShot(True)
             self.watchdog_timer.setInterval(startup_timeout_ms)
             self.incident_id = ""
@@ -296,12 +304,19 @@ def run_ui(container=None) -> int:
             self._fallo_arranque_reportado = False
 
         def _cerrar_splash(self) -> None:
-            if not _es_objeto_qt_valido(self.splash):
+            if not _qt_is_alive(self.splash) or not hasattr(self.splash, "request_close"):
                 return
             try:
-                self.splash.hide()
-                self.splash.close()
+                self.splash.request_close()
                 QTimer.singleShot(0, self.splash.deleteLater)
+            except RuntimeError:
+                return
+
+        def _solicitar_cierre_thread(self) -> None:
+            if not _qt_is_alive(self.thread) or not hasattr(self.thread, "quit"):
+                return
+            try:
+                self.thread.quit()
             except RuntimeError:
                 return
 
@@ -363,8 +378,9 @@ def run_ui(container=None) -> int:
                 assert QThread.currentThread() == app_thread
             try:
                 self._cerrar_splash()
+                self._solicitar_cierre_thread()
                 self.terminado = True
-                if _es_objeto_qt_valido(self.watchdog_timer):
+                if _qt_is_alive(self.watchdog_timer):
                     try:
                         self.watchdog_timer.stop()
                     except RuntimeError:
@@ -416,13 +432,13 @@ def run_ui(container=None) -> int:
         @Slot(str, str, str)
         def on_failed(self, incident_id: str, mensaje_usuario: str, detalles: str) -> None:
             self.terminado = True
-            if _es_objeto_qt_valido(self.watchdog_timer):
+            if _qt_is_alive(self.watchdog_timer):
                 try:
                     self.watchdog_timer.stop()
                 except RuntimeError:
                     pass
             self.incident_id = incident_id
-            self._cerrar_splash()
+            self._solicitar_cierre_thread()
             self._reportar_fallo_arranque(
                 exc=None,
                 trace_info=None,
@@ -444,7 +460,7 @@ def run_ui(container=None) -> int:
     splash = SplashWindow(i18n)
     splash.show()
 
-    startup_thread = QThread()
+    startup_thread = QThread(splash)
     startup_worker = TrabajadorArranque(container, i18n)
     startup_worker.moveToThread(startup_thread)
     splash.registrar_arranque(startup_thread, startup_worker)
@@ -458,11 +474,13 @@ def run_ui(container=None) -> int:
         startup_worker=startup_worker,
     )
 
+    splash.registrar_watchdog(controlador.watchdog_timer)
+
     controlador.watchdog_timer.timeout.connect(controlador.on_timeout, Qt.ConnectionType.QueuedConnection)
-    startup_worker.finished.connect(startup_thread.quit)
+    startup_worker.finished.connect(startup_thread.quit, Qt.ConnectionType.QueuedConnection)
     startup_worker.progreso.connect(controlador.on_progreso, Qt.ConnectionType.QueuedConnection)
     startup_worker.finished.connect(controlador.on_finished, Qt.ConnectionType.QueuedConnection)
-    startup_worker.failed.connect(startup_thread.quit)
+    startup_worker.failed.connect(startup_thread.quit, Qt.ConnectionType.QueuedConnection)
     startup_worker.failed.connect(controlador.on_failed, Qt.ConnectionType.QueuedConnection)
     startup_thread.finished.connect(startup_worker.deleteLater)
     startup_thread.finished.connect(startup_thread.deleteLater)
