@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 from app.ui.copy_catalog import copy_text
 from app.ui.historico_view import ESTADOS_HISTORICO, HistoricalViewModel
 from app.ui.components.saldos_card import SaldosCard
+from app.ui.vistas.main_window.wiring_helpers import conectar_signal
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow
@@ -159,8 +160,18 @@ def create_tablas(window: "MainWindow") -> None:
     window.historico_table.setModel(window.historico_proxy_model)
     window.historico_table.setSelectionBehavior(QAbstractItemView.SelectRows)
     window.historico_table.setSelectionMode(QAbstractItemView.MultiSelection)
-    window.historico_table.selectionModel().selectionChanged.connect(window._on_historico_selection_changed)
-    window.historico_table.doubleClicked.connect(window._on_open_historico_detalle)
+    conectar_signal(
+        window,
+        window.historico_table.selectionModel().selectionChanged,
+        "_on_historico_selection_changed",
+        contexto="builders_tablas:create_tablas",
+    )
+    conectar_signal(
+        window,
+        window.historico_table.doubleClicked,
+        "_on_open_historico_detalle",
+        contexto="builders_tablas:create_tablas",
+    )
     window.historico_table.setShowGrid(False)
     window.historico_table.setAlternatingRowColors(True)
     window.historico_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -182,16 +193,31 @@ def create_tablas(window: "MainWindow") -> None:
     window.eliminar_button = QPushButton(copy_text("ui.historico.eliminar_cero"))
     window.eliminar_button.setProperty("variant", "primary")
     window.eliminar_button.setProperty("intent", "destructive")
-    window.eliminar_button.clicked.connect(window._on_eliminar)
+    conectar_signal(
+        window,
+        window.eliminar_button.clicked,
+        "_on_eliminar",
+        contexto="builders_tablas:create_tablas",
+    )
     historico_actions.addWidget(window.eliminar_button)
 
     window.generar_pdf_button = QPushButton(copy_text("ui.historico.exportar_pdf_cero"))
     window.generar_pdf_button.setProperty("variant", "secondary")
-    window.generar_pdf_button.clicked.connect(window._on_generar_pdf_historico)
+    conectar_signal(
+        window,
+        window.generar_pdf_button.clicked,
+        "_on_generar_pdf_historico",
+        contexto="builders_tablas:create_tablas",
+    )
     historico_actions.addWidget(window.generar_pdf_button)
 
     window.historico_select_all_visible_check = QCheckBox(copy_text("ui.historico.select_visible"))
-    window.historico_select_all_visible_check.toggled.connect(window._on_historico_select_all_visible_toggled)
+    conectar_signal(
+        window,
+        window.historico_select_all_visible_check.toggled,
+        "_on_historico_select_all_visible_toggled",
+        contexto="builders_tablas:create_tablas",
+    )
     historico_actions.addWidget(window.historico_select_all_visible_check)
 
     historico_actions.addStretch(1)
@@ -199,7 +225,12 @@ def create_tablas(window: "MainWindow") -> None:
     window.historico_sync_button = QPushButton(copy_text("ui.historico.sync"))
     window.historico_sync_button.setProperty("variant", "success")
     window.historico_sync_button.setIcon(window.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
-    window.historico_sync_button.clicked.connect(window._on_sync)
+    conectar_signal(
+        window,
+        window.historico_sync_button.clicked,
+        "_on_sync",
+        contexto="builders_tablas:create_tablas",
+    )
     historico_actions.addWidget(window.historico_sync_button)
 
     historico_details_layout.addLayout(historico_actions)

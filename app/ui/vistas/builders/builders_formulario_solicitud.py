@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QDate, QTime, Qt
@@ -23,12 +22,10 @@ from PySide6.QtWidgets import (
 
 from app.ui.copy_catalog import copy_text
 from app.ui.models_qt import SolicitudesTableModel
+from app.ui.vistas.main_window.wiring_helpers import conectar_signal
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow
-
-
-logger = logging.getLogger(__name__)
 
 
 def create_formulario_solicitud(window: "MainWindow") -> None:
@@ -48,7 +45,12 @@ def create_formulario_solicitud(window: "MainWindow") -> None:
     pending_errors_layout.addWidget(window.pending_errors_summary)
     window.goto_existing_button = QPushButton(copy_text("ui.solicitudes.ir_existente"))
     window.goto_existing_button.setProperty("variant", "ghost")
-    window.goto_existing_button.clicked.connect(window._on_go_to_existing_duplicate)
+    conectar_signal(
+        window,
+        window.goto_existing_button.clicked,
+        "_on_go_to_existing_duplicate",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     window.goto_existing_button.setVisible(False)
     pending_errors_layout.addWidget(window.goto_existing_button)
     window.pending_errors_frame.setVisible(False)
@@ -62,7 +64,12 @@ def create_formulario_solicitud(window: "MainWindow") -> None:
     persona_label = QLabel(copy_text("solicitudes.label_delegada"))
     persona_label.setProperty("role", "sectionTitle")
     persona_row.addWidget(persona_label)
-    window.persona_combo.currentIndexChanged.connect(window._on_persona_changed)
+    conectar_signal(
+        window,
+        window.persona_combo.currentIndexChanged,
+        "_on_persona_changed",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     persona_row.addWidget(window.persona_combo, 1)
     solicitud_layout.addLayout(persona_row)
 
@@ -71,12 +78,22 @@ def create_formulario_solicitud(window: "MainWindow") -> None:
     solicitud_row.addWidget(QLabel(copy_text("solicitudes.label_fecha")))
     window.fecha_input = QDateEdit(QDate.currentDate())
     window.fecha_input.setCalendarPopup(True)
-    window.fecha_input.dateChanged.connect(window._on_fecha_changed)
+    conectar_signal(
+        window,
+        window.fecha_input.dateChanged,
+        "_on_fecha_changed",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     solicitud_row.addWidget(window.fecha_input)
 
     window.desde_input = QTimeEdit(QTime(9, 0))
     window.desde_input.setDisplayFormat(copy_text("ui.solicitudes.formato_hora"))
-    window.desde_input.timeChanged.connect(window._update_solicitud_preview)
+    conectar_signal(
+        window,
+        window.desde_input.timeChanged,
+        "_update_solicitud_preview",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     window.desde_container = QWidget()
     desde_layout = QHBoxLayout(window.desde_container)
     desde_layout.setContentsMargins(0, 0, 0, 0)
@@ -91,7 +108,12 @@ def create_formulario_solicitud(window: "MainWindow") -> None:
 
     window.hasta_input = QTimeEdit(QTime(17, 0))
     window.hasta_input.setDisplayFormat(copy_text("ui.solicitudes.formato_hora"))
-    window.hasta_input.timeChanged.connect(window._update_solicitud_preview)
+    conectar_signal(
+        window,
+        window.hasta_input.timeChanged,
+        "_update_solicitud_preview",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     window.hasta_container = QWidget()
     hasta_layout = QHBoxLayout(window.hasta_container)
     hasta_layout.setContentsMargins(0, 0, 0, 0)
@@ -105,7 +127,12 @@ def create_formulario_solicitud(window: "MainWindow") -> None:
     solicitud_row.addWidget(window.hasta_placeholder)
 
     window.completo_check = QCheckBox(copy_text("ui.solicitudes.completo"))
-    window.completo_check.toggled.connect(window._on_completo_changed)
+    conectar_signal(
+        window,
+        window.completo_check.toggled,
+        "_on_completo_changed",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     solicitud_row.addWidget(window.completo_check)
 
     window.total_preview_label = QLabel(copy_text("ui.solicitudes.saldo_reservado"))
@@ -125,9 +152,11 @@ def create_formulario_solicitud(window: "MainWindow") -> None:
 
     window.agregar_button = QPushButton(copy_text("solicitudes.button_add_pending"))
     window.agregar_button.setProperty("variant", "secondary")
-    window.agregar_button.clicked.connect(
-        window._on_add_pendiente,
-        Qt.ConnectionType.UniqueConnection,
+    conectar_signal(
+        window,
+        window.agregar_button.clicked,
+        "_on_add_pendiente",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
     )
     solicitud_row.addWidget(window.agregar_button)
     solicitud_row.addStretch(1)
@@ -216,12 +245,22 @@ def create_formulario_solicitud(window: "MainWindow") -> None:
     pending_tools.setSpacing(8)
     window.ver_todas_pendientes_button = QCheckBox(copy_text("ui.solicitudes.ver_todas"))
     window.ver_todas_pendientes_button.setCursor(Qt.CursorShape.PointingHandCursor)
-    window.ver_todas_pendientes_button.toggled.connect(window._on_toggle_ver_todas_pendientes)
+    conectar_signal(
+        window,
+        window.ver_todas_pendientes_button.toggled,
+        "_on_toggle_ver_todas_pendientes",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     pending_tools.addWidget(window.ver_todas_pendientes_button)
     window.revisar_ocultas_button = QPushButton(copy_text("ui.solicitudes.revisar_ocultas"))
     window.revisar_ocultas_button.setProperty("variant", "ghost")
     window.revisar_ocultas_button.setVisible(False)
-    window.revisar_ocultas_button.clicked.connect(window._on_review_hidden_pendientes)
+    conectar_signal(
+        window,
+        window.revisar_ocultas_button.clicked,
+        "_on_review_hidden_pendientes",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     pending_tools.addWidget(window.revisar_ocultas_button)
     window.pending_filter_warning = QLabel("")
     window.pending_filter_warning.setProperty("role", "secondary")
@@ -240,7 +279,12 @@ def create_formulario_solicitud(window: "MainWindow") -> None:
     window.pendientes_table.setModel(window.pendientes_model)
     window.pendientes_table.setSelectionBehavior(QAbstractItemView.SelectRows)
     window.pendientes_table.setSelectionMode(QAbstractItemView.MultiSelection)
-    window.pendientes_table.selectionModel().selectionChanged.connect(window._on_pending_selection_changed)
+    conectar_signal(
+        window,
+        window.pendientes_table.selectionModel().selectionChanged,
+        "_on_pending_selection_changed",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     window.pendientes_table.setShowGrid(False)
     window.pendientes_table.setAlternatingRowColors(True)
     window.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -279,18 +323,33 @@ def create_formulario_solicitud(window: "MainWindow") -> None:
     window.eliminar_pendiente_button = QPushButton(copy_text("solicitudes.button_pending_delete"))
     window.eliminar_pendiente_button.setProperty("variant", "primary")
     window.eliminar_pendiente_button.setProperty("intent", "destructive")
-    window.eliminar_pendiente_button.clicked.connect(window._on_remove_pendiente)
+    conectar_signal(
+        window,
+        window.eliminar_pendiente_button.clicked,
+        "_on_remove_pendiente",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     left_actions.addWidget(window.eliminar_pendiente_button)
 
     window.eliminar_huerfana_button = QPushButton(copy_text("ui.solicitudes.eliminar_huerfana"))
     window.eliminar_huerfana_button.setProperty("variant", "ghost")
-    window.eliminar_huerfana_button.clicked.connect(window._on_remove_huerfana)
+    conectar_signal(
+        window,
+        window.eliminar_huerfana_button.clicked,
+        "_on_remove_huerfana",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     window.eliminar_huerfana_button.setVisible(False)
     left_actions.addWidget(window.eliminar_huerfana_button)
 
     window.insertar_sin_pdf_button = QPushButton(copy_text("solicitudes.button_confirm_without_pdf"))
     window.insertar_sin_pdf_button.setProperty("variant", "success")
-    window.insertar_sin_pdf_button.clicked.connect(window._on_insertar_sin_pdf)
+    conectar_signal(
+        window,
+        window.insertar_sin_pdf_button.clicked,
+        "_on_insertar_sin_pdf",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     left_actions.addWidget(window.insertar_sin_pdf_button)
     pendientes_footer.addLayout(left_actions)
 
@@ -308,11 +367,12 @@ def create_formulario_solicitud(window: "MainWindow") -> None:
 
     window.confirmar_button = QPushButton(copy_text("solicitudes.button_confirm_with_pdf"))
     window.confirmar_button.setProperty("variant", "success")
-    confirmar_handler = getattr(window, "_on_confirmar", None)
-    if callable(confirmar_handler):
-        window.confirmar_button.clicked.connect(confirmar_handler)
-    else:
-        logger.warning("UI_CONFIRMAR_PDF_BUTTON_NOT_WIRED")
+    conectar_signal(
+        window,
+        window.confirmar_button.clicked,
+        "_on_confirmar",
+        contexto="builders_formulario_solicitud:create_formulario_solicitud",
+    )
     right_actions.addWidget(window.confirmar_button)
 
     pendientes_footer.addLayout(right_actions)
