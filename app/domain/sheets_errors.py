@@ -12,7 +12,14 @@ class SheetsApiDisabledError(SheetsConfigError):
 
 
 class SheetsPermissionError(SheetsConfigError):
-    pass
+    def __init__(self, message: str, *, service_account_email: str | None = None) -> None:
+        super().__init__(message)
+        self.service_account_email = service_account_email
+
+    def with_service_account_email(self, service_account_email: str | None) -> "SheetsPermissionError":
+        if not service_account_email or self.service_account_email == service_account_email:
+            return self
+        return SheetsPermissionError(str(self), service_account_email=service_account_email)
 
 
 class SheetsNotFoundError(SheetsConfigError):

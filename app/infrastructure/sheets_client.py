@@ -44,9 +44,11 @@ class SheetsClient(SheetsClientPort):
         self._avoided_requests_count = 0
         self._write_calls_count = 0
         self._sheets_api_calls_count = 0
+        self._service_account_email: str | None = None
 
     def open_spreadsheet(self, credentials_path: Path, spreadsheet_id: str) -> gspread.Spreadsheet:
         logger.info("Conectando a Google Sheets con credenciales: %s", "credentials.json")
+        self._service_account_email = self._read_service_account_email(credentials_path)
         try:
             client = gspread.service_account(filename=str(credentials_path))
             self._client = client
@@ -74,6 +76,7 @@ class SheetsClient(SheetsClientPort):
         ) as exc:
             mapped_error = map_gspread_exception(exc)
             if isinstance(mapped_error, SheetsPermissionError):
+                mapped_error = mapped_error.with_service_account_email(self._service_account_email)
                 self._log_permission_error(
                     mapped_error,
                     spreadsheet_id=spreadsheet_id,
@@ -209,6 +212,7 @@ class SheetsClient(SheetsClientPort):
                 mapped_error = map_gspread_exception(exc)
                 if not isinstance(mapped_error, SheetsRateLimitError):
                     if isinstance(mapped_error, SheetsPermissionError):
+                        mapped_error = mapped_error.with_service_account_email(self._service_account_email)
                         self._log_permission_error(
                             mapped_error,
                             spreadsheet_id=spreadsheet_id or getattr(self._spreadsheet, "id", None),
@@ -267,6 +271,7 @@ class SheetsClient(SheetsClientPort):
     ) -> None:
         if not isinstance(mapped_error, SheetsPermissionError):
             return
+        mapped_error = mapped_error.with_service_account_email(self._service_account_email)
         resolved_spreadsheet_id = self._resolve_spreadsheet_id(spreadsheet_id=spreadsheet_id)
         try:
             self._log_permission_error(
@@ -299,6 +304,17 @@ class SheetsClient(SheetsClientPort):
         self._sheets_api_calls_count += 1
         metrics_registry.incrementar("sheets_api_calls")
         logger.debug("Sheets API call #%s operation=%s", self._sheets_api_calls_count, operation_name)
+
+    @staticmethod
+    def _read_service_account_email(credentials_path: Path) -> str | None:
+        try:
+            payload = json.loads(credentials_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        email = payload.get("client_email")
+        if isinstance(email, str) and email.strip():
+            return email.strip()
+        return None
 
     @staticmethod
     def _log_permission_error(

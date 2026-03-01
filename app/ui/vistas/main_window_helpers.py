@@ -12,6 +12,7 @@ from app.application.use_cases.solicitudes.validaciones import (
     detectar_duplicados_en_pendientes,
 )
 from app.ui.error_mapping import map_error_to_ui_message
+from app.ui.sync_permission_message import build_sync_permission_blocked_message
 from app.domain.sheets_errors import (
     SheetsApiDisabledError,
     SheetsConfigError,
@@ -85,6 +86,25 @@ def build_estado_pendientes_debug_payload(
     }
 
 
+def _copy_service_account_email(
+    *,
+    service_account_email: str | None,
+    clipboard_setter: Callable[[str], None] | None,
+    toast_warning: Callable[[str, str, int], None],
+) -> None:
+    if clipboard_setter is None or not service_account_email:
+        return
+    try:
+        clipboard_setter(service_account_email)
+    except Exception as exc:  # pragma: no cover - defensivo para entornos sin clipboard
+        logger.warning(
+            "sync_permission_email_copy_failed",
+            extra={"event": "sync_permission_email_copy_failed", "error": str(exc)},
+        )
+        toast_warning("No se pudo copiar el email automáticamente.", "Copiado no disponible", 5000)
+
+
+
 def show_sync_error_dialog_from_exception(
     *,
     error: Exception,
@@ -95,6 +115,7 @@ def show_sync_error_dialog_from_exception(
     retry_callback: Callable[[], None],
     open_google_sheets_config_callback: Callable[[], None] | None = None,
     toast_warning: Callable[[str, str, int], None],
+    clipboard_setter: Callable[[str], None] | None = None,
 ) -> None:
     """Extraído para desacoplar mapeo de errores y permitir testear rutas sin la MainWindow."""
     if details:
@@ -114,15 +135,22 @@ def show_sync_error_dialog_from_exception(
         )
         return
     if isinstance(error, SheetsPermissionError):
-        email_hint = f"{service_account_email}" if service_account_email else "la cuenta de servicio"
+        email_hint = error.service_account_email or service_account_email
+        message = build_sync_permission_blocked_message(service_account_email=email_hint)
         show_message_with_details(
             title,
-            "No se pudo sincronizar.\n"
-            f"Causa probable: La hoja no está compartida con {email_hint}.\n"
-            f"Acción recomendada: Comparte el spreadsheet con la cuenta de servicio: {email_hint}.",
+            message,
             None,
             icon,
-            action_buttons=(("Abrir configuración de Google Sheets", open_google_sheets_config_callback or open_options_callback), ("Reintentar", retry_callback)),
+            action_buttons=(
+                ("Abrir configuración de Google Sheets", open_google_sheets_config_callback or open_options_callback),
+                ("Copiar email de service account", lambda: _copy_service_account_email(
+                    service_account_email=email_hint,
+                    clipboard_setter=clipboard_setter,
+                    toast_warning=toast_warning,
+                )),
+                ("Reintentar", retry_callback),
+            ),
         )
         return
     if isinstance(error, SheetsNotFoundError):
