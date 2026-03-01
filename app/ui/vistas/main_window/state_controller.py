@@ -104,7 +104,7 @@ try:
     from app.ui.vistas.solicitudes_presenter import ActionStateInput, build_action_state
 except Exception:  # pragma: no cover - habilita import parcial sin dependencias de UI/Qt
     def _qt_unavailable(*args, **kwargs):
-        raise RuntimeError("UI no disponible: falta instalación de Qt/PySide6")
+        raise RuntimeError(copy_text("ui.sync.qt_no_disponible"))
 
     ConflictsDialog = GrupoConfigDialog = PdfConfigDialog = ToastManager = object
     ActionStateInput = object
@@ -136,6 +136,7 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     handle_historico_render_mismatch = log_estado_pendientes = show_sync_error_dialog_from_exception = _qt_unavailable
 from . import layout_builder, wiring
 from app.bootstrap.logging import log_operational_error
+from app.ui.copy_catalog import copy_text
 
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 try:
@@ -296,7 +297,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._pdf_preview_dialog_class = PdfPreviewDialog
         self._historico_detalle_dialog_class = HistoricoDetalleDialog
         self._optional_confirm_dialog_class = OptionalConfirmDialog
-        self.setWindowTitle("Horas Sindicales")
+        self.setWindowTitle(copy_text("ui.sync.window_title"))
         self._build_ui()
         self._inicializar_preferencia_pantalla_completa()
         self._apply_help_preferences()
@@ -306,9 +307,9 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._load_personas()
         self._reload_pending_views()
         self._update_global_context()
-        self.sync_source_label.setText(f"Fuente: {self._sync_source_text()}")
-        self.sync_scope_label.setText(f"Rango: {self._sync_scope_text()}")
-        self.sync_idempotency_label.setText("Evita duplicados: misma delegada, fecha y tramo")
+        self.sync_source_label.setText(f"{copy_text('ui.sync.fuente_prefix')} {self._sync_source_text()}")
+        self.sync_scope_label.setText(f"{copy_text('ui.sync.rango_prefix')} {self._sync_scope_text()}")
+        self.sync_idempotency_label.setText(copy_text("ui.sync.idempotencia_regla"))
         if not self._sync_service.is_configured():
             self._set_config_incomplete_state()
         self._refresh_last_sync_label()
@@ -380,7 +381,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         )
         for widget_name in required_widgets:
             if not hasattr(self, widget_name):
-                raise RuntimeError(f"MainWindow mal inicializada. Falta widget requerido: {widget_name}")
+                raise RuntimeError(f"{copy_text('ui.sync.mainwindow_incompleta')} {widget_name}")
 
     def _create_card(self, title: str) -> tuple[QFrame, QVBoxLayout]:
         card = QFrame()
@@ -407,8 +408,8 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         button: QPushButton,
         content: QWidget,
         *,
-        collapsed_text: str = "Ver detalles",
-        expanded_text: str = "Ocultar detalles",
+        collapsed_text: str = copy_text("ui.sync.ver_detalles"),
+        expanded_text: str = copy_text("ui.sync.ocultar_detalles"),
         expandido_por_defecto: bool = False,
     ) -> None:
         button.setCheckable(True)

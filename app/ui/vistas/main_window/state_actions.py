@@ -24,14 +24,14 @@ class MainWindowStateActionsMixin:
         return
 
     def _apply_help_preferences(self) -> None:
-        saved = self._settings.value("ux/mostrar_ayuda", True, type=bool)
+        saved = self._settings.value(copy_text("ui.preferencias.settings_show_help_key"), True, type=bool)
         if self.show_help_toggle is not None:
             self.show_help_toggle.setChecked(bool(saved))
             self.show_help_toggle.toggled.connect(self._on_toggle_help)
         self._set_help_visibility(bool(saved))
 
     def _on_toggle_help(self, checked: bool) -> None:
-        self._settings.setValue("ux/mostrar_ayuda", checked)
+        self._settings.setValue(copy_text("ui.preferencias.settings_show_help_key"), checked)
         self._set_help_visibility(bool(checked))
 
     def _set_help_visibility(self, visible: bool) -> None:
@@ -54,7 +54,7 @@ class MainWindowStateActionsMixin:
     def _on_open_saldos_modal(self) -> None:
         logger.info("UI_SALDOS_MODAL_OPEN")
         dialog = QDialog(self)
-        dialog.setWindowTitle("Saldos detallados")
+        dialog.setWindowTitle(copy_text("ui.preferencias.saldos_detallados"))
         dialog.resize(800, 500)
         layout = QVBoxLayout(dialog)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -73,7 +73,7 @@ class MainWindowStateActionsMixin:
         saldos_widget.exceso_badge.setVisible(self.saldos_card.exceso_badge.isVisible())
         saldos_widget.saldos_details_button.setChecked(True)
         layout.addWidget(saldos_widget, 1)
-        close_button = QPushButton("Cerrar")
+        close_button = QPushButton(copy_text("ui.preferencias.cerrar"))
         close_button.setProperty("variant", "secondary")
         close_button.clicked.connect(dialog.accept)
         close_row = QHBoxLayout()
@@ -162,7 +162,7 @@ class MainWindowStateActionsMixin:
             return
         self._reload_pending_views()
         self._refresh_saldos()
-        self.toast.info("Pendiente deshecha")
+        self.toast.info(copy_text("pendientes.toast_undo"))
 
     def _reconstruir_tabla_pendientes(self) -> None:
         self._refresh_pending_ui_state()
@@ -188,11 +188,11 @@ class MainWindowStateActionsMixin:
         if confirmadas_ids:
             self._post_confirm_success(confirmadas_ids, pendientes_restantes)
             self._refresh_saldos()
-            toast_success(self.toast, f"{len(confirmadas_ids)} solicitudes confirmadas", title="Confirmación")
+            toast_success(self.toast, f"{len(confirmadas_ids)} {copy_text('ui.preferencias.solicitudes_confirmadas')}", title=copy_text('ui.preferencias.confirmacion'))
             if errores:
-                self.toast.warning(f"{len(errores)} errores", title="Confirmación")
+                self.toast.warning(f"{len(errores)} {copy_text('ui.preferencias.errores')}", title=copy_text('ui.preferencias.confirmacion'))
         elif errores:
-            self.toast.warning("No se pudo confirmar ninguna solicitud", title="Confirmación")
+            self.toast.warning(copy_text('ui.preferencias.no_confirmada'), title=copy_text('ui.preferencias.confirmacion'))
 
     def _on_add_pendiente(self) -> None:
         logger.info("CLICK add_or_update_pendiente handler=_on_add_pendiente")
@@ -204,12 +204,12 @@ class MainWindowStateActionsMixin:
         self._run_preventive_validation()
         if self._blocking_errors:
             logger.info("_on_add_pendiente early_return motivo=blocking_errors")
-            self.toast.warning("Corrige los errores pendientes antes de añadir.", title="Validación preventiva")
+            self.toast.warning(copy_text("ui.preferencias.corregir_errores"), title=copy_text("ui.preferencias.validacion_preventiva"))
             return
         self._solicitudes_controller.on_add_pendiente()
 
     def _update_periodo_label(self) -> None:
-        self.saldos_card.update_periodo_label("Mensual")
+        self.saldos_card.update_periodo_label(copy_text("ui.preferencias.mensual"))
 
     def _set_saldos_labels(self, resumen, pendientes_periodo: int = 0, pendientes_ano: int = 0) -> None:
         self.saldos_card.update_saldos(resumen, pendientes_periodo, pendientes_ano)

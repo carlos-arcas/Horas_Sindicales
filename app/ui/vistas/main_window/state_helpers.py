@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.ui.vistas.personas_presenter import resolve_active_delegada_id as resolve_active_delegada_id_presenter
 from app.ui.vistas.confirmar_pdf_state import debe_habilitar_confirmar_pdf
 from app.ui.vistas.solicitudes_presenter import ActionStateInput, build_action_state
+from app.ui.copy_catalog import copy_text
 
 
 def set_processing_state(window, in_progress: bool) -> None:
@@ -11,7 +12,7 @@ def set_processing_state(window, in_progress: bool) -> None:
     window.eliminar_button.setEnabled(not in_progress)
     window.eliminar_pendiente_button.setEnabled(not in_progress)
     if in_progress:
-        window.statusBar().showMessage("Procesando…")
+        window.statusBar().showMessage(copy_text("ui.validacion.procesando"))
     elif not window._sync_in_progress:
         window.statusBar().clearMessage()
 
