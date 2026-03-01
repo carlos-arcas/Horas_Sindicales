@@ -1169,19 +1169,6 @@ class MainWindow(MainWindowHealthMixin, QMainWindow):
     def _show_sync_summary_dialog(self, title: str, summary: SyncSummary) -> None:
         return acciones_sincronizacion.show_sync_summary_dialog(self, title, summary)
 
-    def _show_message_with_details(
-        self,
-        title: str,
-        message: str,
-        details: str | None,
-        icon: QMessageBox.Icon,
-        action_buttons: tuple[tuple[str, object], ...] = (),
-    ) -> None:
-        return acciones_sincronizacion.show_message_with_details(self, title, message, details, icon, action_buttons)
-
-    def _show_details_dialog(self, title: str, details: str) -> None:
-        return acciones_sincronizacion.show_details_dialog(self, title, details)
-
     def _normalize_sync_error(self, payload: object) -> tuple[Exception, str | None]:
         return acciones_sincronizacion.normalize_sync_error(payload)
 
