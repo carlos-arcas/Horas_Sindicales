@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from app.application.dto import SolicitudDTO
+from datetime import datetime
+
+from app.application.dto import FilaReportePdf, ReportePdf, SolicitudDTO, TotalesReportePdf
 from app.domain.models import Solicitud
 from app.domain.request_time import minutes_to_hours_float
-from app.domain.time_utils import minutes_to_hhmm, parse_hhmm
+from app.domain.time_utils import horas_decimales_a_minutos, minutes_to_hhmm, parse_hhmm
 
 
 def minutes_to_hours(minutos: int) -> float:
@@ -11,7 +13,7 @@ def minutes_to_hours(minutos: int) -> float:
 
 
 def hours_to_minutes(horas: float) -> int:
-    return int(round(horas * 60))
+    return horas_decimales_a_minutos(horas)
 
 
 def solicitud_to_dto(solicitud: Solicitud) -> SolicitudDTO:
@@ -53,4 +55,27 @@ def dto_to_solicitud(dto: SolicitudDTO) -> Solicitud:
         pdf_path=dto.pdf_path,
         pdf_hash=dto.pdf_hash,
         generated=dto.generated,
+    )
+
+
+def construir_reporte_pdf(solicitudes: list[SolicitudDTO], nombre_persona: str, genero: str) -> ReportePdf:
+    prefijo = "Dª" if genero.upper() == "F" else "D."
+    nombre = f"{prefijo} {nombre_persona}"
+    filas: list[FilaReportePdf] = []
+    for solicitud in sorted(solicitudes, key=lambda item: item.fecha_pedida):
+        minutos_fila = max(horas_decimales_a_minutos(solicitud.horas), 0)
+        horario = "COMPLETO" if solicitud.completo else f"{solicitud.desde or '--:--'} - {solicitud.hasta or '--:--'}"
+        filas.append(
+            FilaReportePdf(
+                nombre=nombre,
+                fecha=datetime.strptime(solicitud.fecha_pedida, "%Y-%m-%d").strftime("%d/%m/%y"),
+                horario=horario,
+                horas_hhmm=minutes_to_hhmm(minutos_fila),
+                minutos_totales_fila=minutos_fila,
+            )
+        )
+    total_minutos = sum(fila.minutos_totales_fila for fila in filas)
+    return ReportePdf(
+        filas=filas,
+        totales=TotalesReportePdf(total_horas_hhmm=minutes_to_hhmm(total_minutos), total_minutos=total_minutos),
     )

@@ -12,6 +12,29 @@ def hm_to_minutes(horas: int, minutos: int) -> int:
     return horas * 60 + minutos
 
 
+def horas_decimales_a_minutos(horas: int | float | str | None) -> int:
+    """Convierte horas decimales a minutos con redondeo al minuto más cercano.
+
+    Política de redondeo: se aplica ``int(round(horas * 60))``. Por tanto,
+    fracciones equivalentes a 30 segundos o más se redondean al alza.
+    """
+    if horas is None:
+        return 0
+    if isinstance(horas, str):
+        valor = horas.strip()
+        if not re.fullmatch(r"[-+]?\d+(?:\.\d+)?", valor):
+            raise ValueError("'horas' debe ser un número válido (int, float o string numérica).")
+        horas = float(valor)
+    if isinstance(horas, bool) or not isinstance(horas, Real):
+        raise ValueError("'horas' debe ser un número válido (int, float o string numérica).")
+    horas_float = float(horas)
+    if math.isnan(horas_float):
+        return 0
+    if horas_float < 0:
+        raise ValueError("Las horas deben ser no negativas.")
+    return int(round(horas_float * 60))
+
+
 def minutes_to_hm(minutos: int) -> tuple[int, int]:
     if minutos < 0:
         raise ValueError("Los minutos deben ser no negativos.")

@@ -78,9 +78,10 @@
 - Si era pendiente, su eliminación no modifica saldos consumidos (porque aún no contabilizaba).
 
 ## 8) Cómo se calcula el total en PDF
-- En el PDF se muestran las peticiones con su columna de horas en formato HH:MM.
-- El total del PDF se calcula sumando los minutos de todas las filas impresas y convirtiendo el resultado final a HH:MM.
-- El documento siempre añade una fila final “TOTAL”.
+- En el PDF se muestran las peticiones con dos columnas temporales por fila: `Horas` (formato HH:MM) y `Total (min)` (entero).
+- `Total (min)` se obtiene a partir de la duración en horas decimales con la fórmula `int(round(horas * 60))`.
+- Criterio de redondeo: al minuto más cercano; fracciones equivalentes a 30 segundos o más redondean al alza.
+- El bloque/fila de totales muestra tanto el acumulado en HH:MM como `Total minutos` (suma de todos los `Total (min)`).
 - Para filas completas, el horario mostrado es “COMPLETO”; para parciales se muestra “desde - hasta”.
 
 ## 9) Reglas de sincronización con Google Sheets

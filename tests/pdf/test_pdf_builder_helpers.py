@@ -1,16 +1,9 @@
 from __future__ import annotations
 
 from app.application.dto import SolicitudDTO
+from app.application.use_cases.solicitudes.mapping_service import construir_reporte_pdf
 from app.domain.models import Persona
-from app.pdf.pdf_builder import (
-    _build_rows,
-    _build_table_data,
-    _format_horario,
-    _minutos_impresos,
-    build_nombre_archivo,
-    minutes_to_hhmm,
-    parse_hhmm_to_minutes,
-)
+from app.pdf.pdf_builder import _build_table_data, build_nombre_archivo
 
 
 def _persona(genero: str = "F") -> Persona:
@@ -38,7 +31,14 @@ def _persona(genero: str = "F") -> Persona:
     )
 
 
-def _solicitud(fecha_pedida: str, horas: float, *, completo: bool = False, desde: str | None = "09:00", hasta: str | None = "10:00") -> SolicitudDTO:
+def _solicitud(
+    fecha_pedida: str,
+    horas: float,
+    *,
+    completo: bool = False,
+    desde: str | None = "09:00",
+    hasta: str | None = "10:00",
+) -> SolicitudDTO:
     return SolicitudDTO(
         id=None,
         persona_id=1,
@@ -54,48 +54,29 @@ def _solicitud(fecha_pedida: str, horas: float, *, completo: bool = False, desde
     )
 
 
-def test_parse_hhmm_to_minutes_handles_empty_and_spaces() -> None:
-    assert parse_hhmm_to_minutes("   ") == 0
-    assert parse_hhmm_to_minutes(" 01:05 ") == 65
-
-
-def test_minutes_to_hhmm_handles_zero_negative_and_conversion() -> None:
-    assert minutes_to_hhmm(0) == "00:00"
-    assert minutes_to_hhmm(-10) == "00:00"
-    assert minutes_to_hhmm(61) == "01:01"
-    assert minutes_to_hhmm(61.6) == "01:02"
-
-
-def test_minutos_impresos_rounds_and_limits_non_positive() -> None:
-    assert _minutos_impresos(_solicitud("2025-01-01", 1.26)) == 76
-    assert _minutos_impresos(_solicitud("2025-01-01", -0.2)) == 0
-
-
-def test_format_horario_handles_completo_and_none_values() -> None:
-    assert _format_horario(_solicitud("2025-01-01", 1.0, completo=True)) == "COMPLETO"
-    assert _format_horario(_solicitud("2025-01-01", 1.0, desde=None, hasta=None)) == "--:-- - --:--"
-
-
-def test_build_rows_sorts_by_date_and_formats_fields() -> None:
-    persona = _persona("M")
-    rows = _build_rows(
+def test_construir_reporte_pdf_arma_filas_ordenadas_y_minutos_totales() -> None:
+    reporte = construir_reporte_pdf(
         [
             _solicitud("2025-01-20", 1.5, desde="10:00", hasta="11:30"),
             _solicitud("2025-01-05", 2.0, completo=True),
         ],
-        persona,
+        nombre_persona=_persona("M").nombre,
+        genero="M",
     )
 
-    assert [row.fecha for row in rows] == ["05/01/25", "20/01/25"]
-    assert rows[0].nombre == "D. Ana / López"
-    assert rows[0].horario == "COMPLETO"
-    assert rows[1].horas == "01:30"
+    assert [fila.fecha for fila in reporte.filas] == ["05/01/25", "20/01/25"]
+    assert reporte.filas[0].nombre == "D. Ana / López"
+    assert reporte.filas[0].horario == "COMPLETO"
+    assert reporte.filas[1].horas_hhmm == "01:30"
+    assert reporte.filas[1].minutos_totales_fila == 90
+    assert reporte.totales.total_minutos == 210
 
 
 def test_build_table_data_includes_header_and_total_for_empty_rows() -> None:
-    data = _build_table_data([])
-    assert data[0] == ["Nombre", "Fecha", "Horario", "Horas"]
-    assert data[-1] == ["TOTAL", "", "", "00:00"]
+    reporte = construir_reporte_pdf([], nombre_persona=_persona().nombre, genero=_persona().genero)
+    data = _build_table_data(reporte)
+    assert data[0] == ["Nombre", "Fecha", "Horario", "Horas", "Total (min)"]
+    assert data[-1] == ["TOTAL", "", "", "00:00", "0"]
 
 
 def test_build_nombre_archivo_sanitizes_and_formats_multiple_days_same_month() -> None:
