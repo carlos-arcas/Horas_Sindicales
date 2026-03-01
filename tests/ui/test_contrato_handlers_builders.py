@@ -26,14 +26,9 @@ def _extract_window_handlers_from_ast(tree: ast.AST) -> set[str]:
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
-        if _is_window_handler_attr(node.func):
-            handlers.add(node.func.attr)
-        for arg in node.args:
-            if _is_window_handler_attr(arg):
-                handlers.add(arg.attr)
-        for keyword in node.keywords:
-            if _is_window_handler_attr(keyword.value):
-                handlers.add(keyword.value.attr)
+        for child in ast.walk(node):
+            if _is_window_handler_attr(child):
+                handlers.add(child.attr)
     return handlers
 
 
@@ -57,3 +52,16 @@ def test_builders_referencian_handlers_presentes_y_callables_en_main_window() ->
         "Handlers faltantes/no callables en MainWindow detectados desde builders "
         f"(calls/callbacks): {', '.join(faltantes)}"
     )
+
+
+def test_extractor_detecta_llamadas_y_callbacks_status_to_label() -> None:
+    tree = ast.parse(
+        """
+window._status_to_label("IDLE")
+button.clicked.connect(window._status_to_label)
+"""
+    )
+
+    handlers = _extract_window_handlers_from_ast(tree)
+
+    assert "_status_to_label" in handlers
