@@ -21,6 +21,92 @@ from app.ui.qt_safe import is_qt_valid, safe_call
 LOGGER = logging.getLogger(__name__)
 
 
+def _cerrar_splash_seguro(splash) -> None:
+    if splash is None:
+        return
+    try:
+        if hasattr(splash, "request_close"):
+            splash.request_close()
+            return
+        if hasattr(splash, "hide"):
+            splash.hide()
+        if hasattr(splash, "close"):
+            splash.close()
+    except RuntimeError:
+        return
+
+
+def _stop_watchdog_en_main_thread(watchdog_timer) -> None:
+    if watchdog_timer is None or not hasattr(watchdog_timer, "stop"):
+        return
+    try:
+        from PySide6.QtCore import QTimer
+    except Exception:
+        watchdog_timer.stop()
+        return
+    QTimer.singleShot(0, watchdog_timer.stop)
+
+
+class _CoordinadorArranqueConCierreDeterminista:
+    def _detener_watchdog_idempotente(self) -> None:
+        if not self._qt_is_alive(self.watchdog_timer):
+            return
+        try:
+            _stop_watchdog_en_main_thread(self.watchdog_timer)
+        except RuntimeError:
+            return
+
+    def _cerrar_splash_idempotente(self) -> None:
+        if self._splash_cerrado:
+            return
+        self._splash_cerrado = True
+        if not self._qt_is_alive(self.splash):
+            return
+        _cerrar_splash_seguro(self.splash)
+
+    def on_finished(self, startup_payload) -> None:
+        self.terminado = True
+        try:
+            self._detener_watchdog_idempotente()
+            self._cerrar_splash_idempotente()
+            self._solicitar_cierre_thread()
+            resolved_container, deps_arranque, idioma = startup_payload
+            self.i18n.set_idioma(idioma)
+            orquestador = self.orquestador_factory(deps_arranque, self.i18n)
+            self._cerrar_splash_idempotente()
+            if not orquestador.resolver_onboarding():
+                self.app.exit(0)
+                return
+            self._cerrar_splash_idempotente()
+            window = self.main_window_factory(
+                resolved_container,
+                deps_arranque,
+            )
+            self.app.setProperty("_main_window_ref", window)
+            self.instalar_menu_ayuda(
+                window,
+                self.i18n,
+                ReiniciarOnboarding(resolved_container.repositorio_preferencias),
+                resolved_container.cargar_datos_demo_caso_uso,
+            )
+            if orquestador.debe_iniciar_maximizada():
+                window.showMaximized()
+            else:
+                window.show()
+        except Exception as exc:  # noqa: BLE001
+            import sys
+
+            self._reportar_fallo_arranque(
+                exc=exc,
+                trace_info=sys.exc_info(),
+                i18n=self.i18n,
+                splash=self.splash,
+                startup_thread=self.thread,
+                app=self.app,
+                watchdog_timer=self.watchdog_timer,
+            )
+
+
 
 def _resolver_startup_timeout_ms() -> int:
     import os
@@ -109,15 +195,6 @@ def _manejar_fallo_arranque(
         },
     )
 
-    def _cerrar_splash() -> None:
-        if hasattr(splash, "request_close"):
-            safe_call(splash, "request_close")
-        else:
-            safe_call(splash, "hide")
-            safe_call(splash, "close")
-        if is_qt_valid(splash) and hasattr(splash, "deleteLater"):
-            QTimer.singleShot(0, splash.deleteLater)
-
     def _safe_quit_thread() -> None:
         safe_call(startup_thread, "quit")
 
@@ -157,9 +234,11 @@ def _manejar_fallo_arranque(
             _exit_con_codigo()
 
     def _do_fail_safe() -> None:
-        safe_call(watchdog_timer, "stop")
+        _stop_watchdog_en_main_thread(watchdog_timer)
         _safe_quit_thread()
-        _cerrar_splash()
+        _cerrar_splash_seguro(splash)
+        if is_qt_valid(splash) and hasattr(splash, "deleteLater"):
+            QTimer.singleShot(0, splash.deleteLater)
         _mostrar_dialogo_error()
 
     app_thread = app.thread() if is_qt_valid(app) and hasattr(app, "thread") else None
@@ -286,7 +365,10 @@ def run_ui(container=None) -> int:
     watchdog_timer.setSingleShot(True)
     watchdog_timer.setInterval(startup_timeout_ms)
 
-    controlador = CoordinadorArranque(
+    class CoordinadorArranquePrincipal(_CoordinadorArranqueConCierreDeterminista, CoordinadorArranque):
+        pass
+
+    controlador = CoordinadorArranquePrincipal(
         app=app,
         i18n=i18n,
         splash=splash,
