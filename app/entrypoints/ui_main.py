@@ -16,28 +16,10 @@ from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
 from app.application.use_cases.cargar_datos_demo_caso_uso import CargarDatosDemoCasoUso
 from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
+from app.ui.qt_safe import is_qt_valid, safe_call
 
 LOGGER = logging.getLogger(__name__)
 
-
-def _qt_is_alive(obj) -> bool:
-    if obj is None:
-        return False
-    try:
-        from shiboken6 import isValid as _is_valid_qobject
-    except Exception:  # pragma: no cover - fallback defensivo
-        try:
-            return bool(obj)
-        except RuntimeError:
-            return False
-    try:
-        return _is_valid_qobject(obj)
-    except RuntimeError:
-        return False
-
-
-def _es_objeto_qt_valido(obj) -> bool:
-    return _qt_is_alive(obj)
 
 
 def _resolver_startup_timeout_ms() -> int:
@@ -99,36 +81,17 @@ def _manejar_fallo_arranque(
     detalles: str | None = None,
     watchdog_timer=None,
 ) -> str:
-    from PySide6.QtCore import QTimer, Qt
+    from PySide6.QtCore import QThread, QTimer, Qt
     from PySide6.QtWidgets import QApplication
 
-    if getattr(app, "_fallo_arranque_reportado", False):
-        return incident_id or ""
-    app._fallo_arranque_reportado = True
+    if getattr(app, "_fallo_arranque_en_progreso", False):
+        return str(getattr(app, "_fallo_arranque_incident_id", "") or incident_id or "")
 
-    def _cerrar_splash() -> None:
-        if not _qt_is_alive(splash):
-            return
-        try:
-            if hasattr(splash, "request_close"):
-                splash.request_close()
-            else:
-                splash.hide()
-                splash.close()
-            if hasattr(splash, "deleteLater"):
-                QTimer.singleShot(0, splash.deleteLater)
-        except RuntimeError:
-            return
-
-    def _safe_quit_thread() -> None:
-        if not _qt_is_alive(startup_thread) or not hasattr(startup_thread, "quit"):
-            return
-        try:
-            startup_thread.quit()
-        except RuntimeError:
-            return
-
+    app._fallo_arranque_en_progreso = True
+    app._fallo_arranque_correlation_id = str(uuid.uuid4())
     resolved_incident_id = incident_id or _resolver_incident_id(exc, trace_info)
+    app._fallo_arranque_incident_id = resolved_incident_id
+
     resolved_detalles = detalles or ""
     if not resolved_detalles:
         if trace_info is not None and all(trace_info):
@@ -140,48 +103,70 @@ def _manejar_fallo_arranque(
         LOGGER,
         i18n.t("splash_error_mensaje", incident_id=resolved_incident_id),
         exc=exc,
-        extra={"incident_id": resolved_incident_id},
-    )
-    if _qt_is_alive(watchdog_timer) and hasattr(watchdog_timer, "stop"):
-        try:
-            watchdog_timer.stop()
-        except RuntimeError:
-            pass
-    _safe_quit_thread()
-    _cerrar_splash()
-
-    if dialogo_factory is None:
-        from app.ui.dialogos.dialogo_error_arranque import DialogoErrorArranque
-
-        dialogo_factory = DialogoErrorArranque
-
-    dialogo = dialogo_factory(
-        i18n,
-        titulo=i18n.t("splash_error_titulo"),
-        mensaje_usuario=mensaje_usuario or i18n.t("startup_error_dialog_message"),
-        incident_id=resolved_incident_id,
-        detalles=resolved_detalles,
-        parent=None,
+        extra={
+            "incident_id": resolved_incident_id,
+            "correlation_id": app._fallo_arranque_correlation_id,
+        },
     )
 
-    def _exit_con_codigo() -> None:
-        QTimer.singleShot(0, lambda: QApplication.exit(2))
+    def _cerrar_splash() -> None:
+        if hasattr(splash, "request_close"):
+            safe_call(splash, "request_close")
+        else:
+            safe_call(splash, "hide")
+            safe_call(splash, "close")
+        if is_qt_valid(splash) and hasattr(splash, "deleteLater"):
+            QTimer.singleShot(0, splash.deleteLater)
 
-    if hasattr(dialogo, "setWindowModality"):
-        dialogo.setWindowModality(Qt.ApplicationModal)
-    if hasattr(dialogo, "setWindowFlag"):
-        dialogo.setWindowFlag(Qt.WindowStaysOnTopHint, True)
-    if hasattr(dialogo, "finished"):
-        dialogo.finished.connect(_exit_con_codigo)
-    if hasattr(dialogo, "show"):
-        dialogo.show()
-    if hasattr(dialogo, "raise_"):
-        dialogo.raise_()
-    if hasattr(dialogo, "activateWindow"):
-        dialogo.activateWindow()
-    if not hasattr(dialogo, "finished") and hasattr(dialogo, "exec"):
-        dialogo.exec()
-        _exit_con_codigo()
+    def _safe_quit_thread() -> None:
+        safe_call(startup_thread, "quit")
+
+    def _mostrar_dialogo_error() -> None:
+        if getattr(app, "_fallo_arranque_dialogo_mostrado", False):
+            return
+        app._fallo_arranque_dialogo_mostrado = True
+
+        if dialogo_factory is None:
+            from app.ui.dialogos.dialogo_error_arranque import DialogoErrorArranque
+
+            resolved_dialogo_factory = DialogoErrorArranque
+        else:
+            resolved_dialogo_factory = dialogo_factory
+
+        dialogo = resolved_dialogo_factory(
+            i18n,
+            titulo=i18n.t("splash_error_titulo"),
+            mensaje_usuario=mensaje_usuario or i18n.t("startup_error_dialog_message"),
+            incident_id=resolved_incident_id,
+            detalles=resolved_detalles,
+            parent=None,
+        )
+
+        def _exit_con_codigo() -> None:
+            QTimer.singleShot(0, lambda: QApplication.exit(2))
+
+        safe_call(dialogo, "setWindowModality", Qt.ApplicationModal)
+        safe_call(dialogo, "setWindowFlag", Qt.WindowStaysOnTopHint, True)
+        if hasattr(dialogo, "finished"):
+            dialogo.finished.connect(_exit_con_codigo)
+        safe_call(dialogo, "show")
+        safe_call(dialogo, "raise_")
+        safe_call(dialogo, "activateWindow")
+        if not hasattr(dialogo, "finished") and hasattr(dialogo, "exec"):
+            safe_call(dialogo, "exec")
+            _exit_con_codigo()
+
+    def _do_fail_safe() -> None:
+        safe_call(watchdog_timer, "stop")
+        _safe_quit_thread()
+        _cerrar_splash()
+        _mostrar_dialogo_error()
+
+    app_thread = app.thread() if is_qt_valid(app) and hasattr(app, "thread") else None
+    if app_thread is not None and QThread.currentThread() is not app_thread:
+        QTimer.singleShot(0, app, _do_fail_safe)
+    else:
+        _do_fail_safe()
     return resolved_incident_id
 
 
