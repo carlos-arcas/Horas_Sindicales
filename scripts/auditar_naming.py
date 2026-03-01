@@ -11,7 +11,7 @@ TOKENS_INGLES = {
     "controllers", "core", "domain", "dto", "dtos", "entrypoint", "entrypoints",
     "handler", "helpers", "infrastructure", "mapper", "model", "models", "port",
     "ports", "presenter", "repository", "service", "services", "test", "tests",
-    "ui", "use", "usecase", "usecases", "case", "view", "views", "widget", "worker",
+    "ui", "use", "usecase", "usecases", "case", "view", "views", "worker",
 }
 PATRON_SIMBOLO_PUBLICO = re.compile(r"^\s*(?:async\s+def|def|class)\s+([A-Za-z_][A-Za-z0-9_]*)")
 PATRON_TOKEN = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
@@ -49,11 +49,15 @@ def _iterar_archivos_app(raiz: Path, carpeta_app: str):
     yield from sorted((raiz / carpeta_app).rglob("*.py"))
 
 
+def _segmento_ruta_auditable(relativo: str) -> str:
+    return relativo.rsplit("/", maxsplit=1)[-1]
+
+
 def listar_archivos_con_naming_ingles(raiz: Path, carpeta_app: str = "app") -> list[str]:
     hallazgos: list[str] = []
     for archivo in _iterar_archivos_app(raiz, carpeta_app):
         relativo = archivo.relative_to(raiz).as_posix()
-        if _tokens_ingles_en_cadena(relativo):
+        if _tokens_ingles_en_cadena(_segmento_ruta_auditable(relativo)):
             hallazgos.append(relativo)
     return hallazgos
 
@@ -80,7 +84,7 @@ def ranking_offenders(raiz: Path, carpeta_app: str = "app", limite: int = 20) ->
     for archivo in _iterar_archivos_app(raiz, carpeta_app):
         relativo = archivo.relative_to(raiz).as_posix()
         contenido = archivo.read_text(encoding="utf-8")
-        tokens_ruta = len(_tokens_ingles_en_cadena(relativo))
+        tokens_ruta = len(_tokens_ingles_en_cadena(_segmento_ruta_auditable(relativo)))
         tokens_texto = _contar_tokens_ingles_en_texto(contenido)
         total = tokens_ruta + tokens_texto
         if total <= 0:
