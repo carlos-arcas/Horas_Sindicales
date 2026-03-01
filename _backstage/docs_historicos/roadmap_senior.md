@@ -70,3 +70,11 @@ Un cambio se considera **DONE** si cumple TODO lo siguiente:
 - [DONE] Reporte automatizado de calidad por paquete.
 - [DONE] Actualización de documentación de calidad para portfolio.
 - [DOING] Preparar siguiente PR: estabilización de suite `UI_SMOKE` (Sprint 1).
+
+## Registro de progreso de esta PR (refactor sync_sheets lote escritura)
+
+- [DONE] Extracción del servicio `ServicioEscrituraLotes` para centralizar flush de lotes y colas de append/update/backfill.
+- [DONE] `app/application/use_cases/sync_sheets/use_case.py` reduce LOC en hotspot de sincronización: **1147 -> 1102** (`logs/quality_before.txt` vs `logs/quality_after.txt`).
+- [DONE] Nuevo módulo creado: `app/application/use_cases/sync_sheets/servicio_escritura_lotes.py`.
+- [DONE] Cobertura de comportamiento del servicio nuevo con casos unitarios de éxito, error propagado y lote vacío.
+- [DONE] Objetivo de complejidad en extracción: métodos del servicio en funciones acotadas (sin ramas profundas, wrappers mínimos en `use_case.py`).
