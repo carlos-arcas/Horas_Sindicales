@@ -83,6 +83,28 @@ def _manejar_fallo_arranque(
     from PySide6.QtCore import QTimer, Qt
     from PySide6.QtWidgets import QApplication
 
+    try:
+        from shiboken6 import isValid as _is_valid_qobject
+    except Exception:  # pragma: no cover - fallback defensivo
+        _is_valid_qobject = None
+
+    def _cerrar_splash() -> None:
+        if splash is None:
+            return
+        splash.hide()
+        splash.close()
+        QTimer.singleShot(0, splash.deleteLater)
+
+    def _safe_quit_thread() -> None:
+        if startup_thread is None or not hasattr(startup_thread, "quit"):
+            return
+        if _is_valid_qobject is not None and not _is_valid_qobject(startup_thread):
+            return
+        try:
+            startup_thread.quit()
+        except RuntimeError as exc:
+            LOGGER.warning("STARTUP_THREAD_ALREADY_DESTROYED", exc_info=exc)
+
     resolved_incident_id = incident_id or _resolver_incident_id(exc, trace_info)
     resolved_detalles = detalles or ""
     if not resolved_detalles:
@@ -99,11 +121,8 @@ def _manejar_fallo_arranque(
     )
     if watchdog_timer is not None and hasattr(watchdog_timer, "stop"):
         watchdog_timer.stop()
-    if startup_thread is not None and hasattr(startup_thread, "quit"):
-        startup_thread.quit()
-    if splash is not None:
-        splash.hide()
-        splash.close()
+    _safe_quit_thread()
+    _cerrar_splash()
 
     if dialogo_factory is None:
         from app.ui.dialogos.dialogo_error_arranque import DialogoErrorArranque
@@ -256,6 +275,11 @@ def run_ui(container=None) -> int:
             self.terminado = False
             self.watchdog_disparado = False
 
+        def _cerrar_splash(self) -> None:
+            self.splash.hide()
+            self.splash.close()
+            QTimer.singleShot(0, self.splash.deleteLater)
+
         def _detalles_con_etapa(self, detalles: str) -> str:
             if not self.ultima_etapa:
                 return detalles
@@ -312,9 +336,9 @@ def run_ui(container=None) -> int:
                 resolved_container, deps_arranque, idioma = startup_payload
                 self.i18n.set_idioma(idioma)
                 orquestador = OrquestadorArranqueUI(deps_arranque, self.i18n)
+                self._cerrar_splash()
 
                 if not orquestador.resolver_onboarding():
-                    self.splash.close()
                     self.app.exit(0)
                     return
 
@@ -342,7 +366,6 @@ def run_ui(container=None) -> int:
                     window.showMaximized()
                 else:
                     window.show()
-                self.splash.close()
             except Exception as exc:  # noqa: BLE001
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 _manejar_fallo_arranque(
@@ -360,6 +383,7 @@ def run_ui(container=None) -> int:
             self.terminado = True
             self.watchdog_timer.stop()
             self.incident_id = incident_id
+            self._cerrar_splash()
             _manejar_fallo_arranque(
                 exc=None,
                 trace_info=None,
