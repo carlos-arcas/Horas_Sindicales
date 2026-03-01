@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from app.domain.time_utils import horas_decimales_a_minutos
+
 
 class _FechaAlias(str):
     """Alias transitorio: compara igual contra fecha_pedida y fecha_solicitud."""
@@ -71,7 +73,7 @@ class SolicitudDTO:
     @property
     def minutos(self) -> int:
         """Duración normalizada a minutos para consumo en UI/reporting."""
-        return int(round(self.horas * 60))
+        return horas_decimales_a_minutos(self.horas)
 
 
 @dataclass(frozen=True)
@@ -163,3 +165,24 @@ class ResultadoCrearSolicitudDTO:
     errores: list[str]
     entidad: SolicitudDTO | None
     saldos: SaldosDTO | None = None
+
+
+@dataclass(frozen=True)
+class FilaReportePdf:
+    nombre: str
+    fecha: str
+    horario: str
+    horas_hhmm: str
+    minutos_totales_fila: int
+
+
+@dataclass(frozen=True)
+class TotalesReportePdf:
+    total_horas_hhmm: str
+    total_minutos: int
+
+
+@dataclass(frozen=True)
+class ReportePdf:
+    filas: list[FilaReportePdf]
+    totales: TotalesReportePdf

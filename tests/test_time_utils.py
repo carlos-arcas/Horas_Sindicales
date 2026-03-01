@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.domain.time_utils import hm_to_minutes, minutes_to_hhmm, minutes_to_hm, parse_hhmm
+from app.domain.time_utils import horas_decimales_a_minutos, hm_to_minutes, minutes_to_hhmm, minutes_to_hm, parse_hhmm
 
 
 @pytest.mark.parametrize(
@@ -66,3 +66,27 @@ def test_minutes_to_hhmm_none_returns_zero_time() -> None:
 
 def test_minutes_to_hhmm_nan_returns_zero_time() -> None:
     assert minutes_to_hhmm(float("nan")) == "00:00"
+
+
+@pytest.mark.parametrize(
+    ("horas", "esperado"),
+    [
+        (0, 0),
+        (1, 60),
+        (1.5, 90),
+        ("0.5", 30),
+        (1.999, 120),
+    ],
+)
+def test_horas_decimales_a_minutos_convierte_y_redondea(horas: int | float | str, esperado: int) -> None:
+    assert horas_decimales_a_minutos(horas) == esperado
+
+
+def test_horas_decimales_a_minutos_none_y_nan_devuelven_cero() -> None:
+    assert horas_decimales_a_minutos(None) == 0
+    assert horas_decimales_a_minutos(float("nan")) == 0
+
+
+def test_horas_decimales_a_minutos_rechaza_negativos() -> None:
+    with pytest.raises(ValueError, match="no negativas"):
+        horas_decimales_a_minutos(-0.1)
