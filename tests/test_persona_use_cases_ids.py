@@ -8,14 +8,14 @@ from app.application.dto import PersonaDTO
 from app.application.use_cases import PersonaUseCases
 from app.domain.services import BusinessRuleError
 from app.infrastructure.migrations import run_migrations
-from app.infrastructure.repos_sqlite import PersonaRepositorySQLite
+from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite
 
 
 def _build_use_cases() -> PersonaUseCases:
     connection = sqlite3.connect(":memory:")
     connection.row_factory = sqlite3.Row
     run_migrations(connection)
-    return PersonaUseCases(PersonaRepositorySQLite(connection))
+    return PersonaUseCases(RepositorioPersonasSQLite(connection))
 
 
 def _persona(nombre: str) -> PersonaDTO:

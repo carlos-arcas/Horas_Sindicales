@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import sqlite3
 
-from app.infrastructure.repos_sqlite import PersonaRepositorySQLite
+from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite
 
 
 def test_persona_repository_sets_sqlite_runtime_pragmas() -> None:
     connection = sqlite3.connect(":memory:")
     try:
-        PersonaRepositorySQLite(connection)
+        RepositorioPersonasSQLite(connection)
         busy_timeout = connection.execute("PRAGMA busy_timeout").fetchone()
         assert busy_timeout is not None
         assert int(busy_timeout[0]) == 30000

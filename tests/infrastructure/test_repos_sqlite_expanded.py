@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.infrastructure.repos_sqlite import (
-    PersonaRepositorySQLite,
+    RepositorioPersonasSQLite,
     _execute_with_validation,
     _run_with_locked_retry,
 )
@@ -22,7 +22,7 @@ def test_execute_with_validation_detects_param_mismatch() -> None:
 
 
 def test_get_or_create_uuid_handles_absent_and_existing_rows(connection: sqlite3.Connection) -> None:
-    repo = PersonaRepositorySQLite(connection)
+    repo = RepositorioPersonasSQLite(connection)
     assert repo.get_or_create_uuid(-999) is None
 
     connection.execute("INSERT INTO personas (id, uuid, nombre, genero, horas_mes_min, horas_ano_min, is_active, deleted) VALUES (1, 'already', 'Ana', 'F', 1, 1, 1, 0)")
@@ -38,7 +38,7 @@ def test_get_or_create_uuid_works_without_updated_at_column() -> None:
     conn.execute("INSERT INTO personas (id, uuid, deleted) VALUES (1, '', 0)")
     conn.commit()
 
-    repo = PersonaRepositorySQLite(conn)
+    repo = RepositorioPersonasSQLite(conn)
     generated = repo.get_or_create_uuid(1)
 
     assert generated

@@ -8,7 +8,7 @@ from app.application.dto import PersonaDTO
 from app.application.use_cases import PersonaUseCases
 from app.domain.base_cuadrantes import DEFAULT_BASE_DIAS, DEFAULT_BASE_MAN_MIN, DEFAULT_BASE_TAR_MIN
 from app.infrastructure.migrations import run_migrations
-from app.infrastructure.repos_sqlite import CuadranteRepositorySQLite, PersonaRepositorySQLite
+from app.infrastructure.repos_sqlite import CuadranteRepositorySQLite, RepositorioPersonasSQLite
 
 
 def _build_persona(nombre: str) -> PersonaDTO:
@@ -41,7 +41,7 @@ class BaseCuadrantesServiceTests(unittest.TestCase):
         self.connection = sqlite3.connect(":memory:")
         self.connection.row_factory = sqlite3.Row
         run_migrations(self.connection)
-        self.persona_repo = PersonaRepositorySQLite(self.connection)
+        self.persona_repo = RepositorioPersonasSQLite(self.connection)
         self.cuadrante_repo = CuadranteRepositorySQLite(self.connection)
         self.base_service = BaseCuadrantesService(self.persona_repo, self.cuadrante_repo)
         self.use_cases = PersonaUseCases(self.persona_repo, self.base_service)

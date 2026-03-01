@@ -19,8 +19,8 @@ from app.infrastructure.repos_sqlite_builders import (
     int_or_zero,
     solicitud_insert_params,
 )
-from app.infrastructure.repos_sqlite_personas import PersonaRepositorySQLite  # noqa: F401 - re-export for compatibility
-from app.infrastructure.sqlite_connection_config import configurar_conexion
+from app.infrastructure.repositorio_personas_sqlite import RepositorioPersonasSQLite  # noqa: F401 - re-export for compatibility
+from app.infrastructure.configuracion_conexion_sqlite import configurar_conexion
 from app.infrastructure.sqlite_uow import transaccion
 
 

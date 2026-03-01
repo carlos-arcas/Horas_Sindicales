@@ -23,7 +23,7 @@ from app.infrastructure.repos_conflicts_sqlite import SQLiteConflictsRepository
 from app.infrastructure.repos_sqlite import (
     CuadranteRepositorySQLite,
     GrupoConfigRepositorySQLite,
-    PersonaRepositorySQLite,
+    RepositorioPersonasSQLite,
     SolicitudRepositorySQLite,
 )
 from app.infrastructure.seed import seed_if_empty
@@ -54,7 +54,7 @@ def build_container(connection_factory: ConnectionFactory = get_connection) -> A
     run_migrations(connection)
     seed_if_empty(connection)
 
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     grupo_repo = GrupoConfigRepositorySQLite(connection)
     cuadrante_repo = CuadranteRepositorySQLite(connection)

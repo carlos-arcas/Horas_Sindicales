@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.application.dto import PeriodoFiltro
-from app.application.use_cases.solicitudes.saldos_service import (
+from app.application.use_cases.solicitudes.servicio_saldos import (
     acumular_consumo_anual_por_personas,
     calcular_totales_globales,
     construir_resumen_saldos,

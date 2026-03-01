@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from app.core.metrics import MetricsRegistry
-from app.infrastructure.metrics_exporter import MetricsExporter
+from app.infrastructure.exportador_metricas import MetricsExporter
 
 
 def test_exportar_snapshot_crea_archivo_en_logs_con_contenido(tmp_path) -> None:

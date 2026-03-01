@@ -7,7 +7,7 @@ from app.application.dto import PersonaDTO, SolicitudDTO
 from app.application.use_cases import PersonaUseCases, SolicitudUseCases
 from app.infrastructure.migrations import run_migrations
 from app.domain.services import BusinessRuleError
-from app.infrastructure.repos_sqlite import PersonaRepositorySQLite, SolicitudRepositorySQLite
+from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
 
 
 def _build_persona() -> PersonaDTO:
@@ -42,7 +42,7 @@ class PersonaCuadranteUniformeTests(unittest.TestCase):
         self.connection = sqlite3.connect(":memory:")
         self.connection.row_factory = sqlite3.Row
         run_migrations(self.connection)
-        self.repo = PersonaRepositorySQLite(self.connection)
+        self.repo = RepositorioPersonasSQLite(self.connection)
         self.use_cases = PersonaUseCases(self.repo)
 
     def tearDown(self) -> None:

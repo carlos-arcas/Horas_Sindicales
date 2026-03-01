@@ -9,7 +9,7 @@ from app.application.use_cases import SolicitudUseCases
 from app.application.use_cases.solicitudes.validaciones import validar_solicitud_dto_declarativo
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError, ValidacionError
-from app.infrastructure.repos_sqlite import PersonaRepositorySQLite, SolicitudRepositorySQLite
+from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
 
 
 class FakeGeneradorPdf:
@@ -36,7 +36,7 @@ class FakeGeneradorPdf:
         return destino
 
 
-def _crear_persona(persona_repo: PersonaRepositorySQLite) -> int:
+def _crear_persona(persona_repo: RepositorioPersonasSQLite) -> int:
     persona = persona_repo.create(
         Persona(
             id=None,
@@ -101,7 +101,7 @@ def test_validacion_declarativa_rechaza_intervalo_invalido() -> None:
 
 
 def test_confirmar_lote_preflight_resuelve_colision_si_pdf_ya_existe(connection, tmp_path: Path) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
     use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=FakeGeneradorPdf())
@@ -130,7 +130,7 @@ class FakeGeneradorPdfFalla(FakeGeneradorPdf):
 
 
 def test_confirmar_lote_error_pdf_incluye_incident_id(connection, tmp_path: Path) -> None:
-    persona_repo = PersonaRepositorySQLite(connection)
+    persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
     use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=FakeGeneradorPdfFalla())

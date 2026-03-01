@@ -16,4 +16,4 @@ def test_repos_sqlite_no_longer_contains_persona_repository_class() -> None:
         if isinstance(node, ast.ClassDef)
     }
 
-    assert "PersonaRepositorySQLite" not in class_names
+    assert "RepositorioPersonasSQLite" not in class_names
