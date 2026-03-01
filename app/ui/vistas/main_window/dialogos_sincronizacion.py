@@ -12,7 +12,9 @@ except Exception:  # pragma: no cover - habilita import en CI sin Qt
 from app.domain.sync_models import SyncSummary
 from app.ui import dialogos_comunes
 from app.ui.copy_catalog import copy_text
-from app.ui.patterns import STATUS_PATTERNS, apply_modal_behavior, status_badge
+from app.ui.patterns import STATUS_PATTERNS, apply_modal_behavior
+
+from .sync_status_mapping import status_to_label
 from app.ui.sync_reporting import list_sync_history, load_sync_report, persist_report, to_markdown
 from app.ui.toast_helpers import toast_success
 
@@ -192,17 +194,6 @@ def status_from_summary(summary: SyncSummary) -> str:
     if summary.conflicts_detected > 0 or summary.duplicates_skipped > 0 or summary.omitted_by_delegada > 0:
         return "OK_WARN"
     return "OK"
-
-
-def status_to_label(status: str) -> str:
-    return {
-        "IDLE": copy_text("ui.sync.estado_en_espera"),
-        "RUNNING": copy_text("ui.sync.estado_pendiente_sincronizando"),
-        "OK": status_badge("CONFIRMED"),
-        "OK_WARN": status_badge("WARNING"),
-        "ERROR": status_badge("ERROR"),
-        "CONFIG_INCOMPLETE": copy_text("ui.sync.estado_error_config_incompleta"),
-    }.get(status, status)
 
 
 def sync_source_text(ventana) -> str:

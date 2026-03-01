@@ -123,6 +123,7 @@ from app.ui.vistas.main_window.importaciones import (
 )  # noqa: F401
 
 from . import data_refresh, layout_builder, wiring
+from .sync_status_mapping import status_to_label
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
 from .init_placeholders import inicializar_placeholders
@@ -623,6 +624,9 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _on_open_opciones(self) -> None:
         return acciones_sincronizacion.on_open_opciones(self)
+
+    def _status_to_label(self, status: str) -> str:
+        return status_to_label(status)
 
     def _on_edit_grupo(self) -> None:
         return self._on_open_opciones()
