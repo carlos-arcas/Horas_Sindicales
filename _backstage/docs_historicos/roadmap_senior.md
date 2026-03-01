@@ -100,3 +100,10 @@ Un cambio se considera **DONE** si cumple TODO lo siguiente:
 - [DONE] `app/application/use_cases/solicitudes/use_case.py` conserva wrappers mínimos y delega nombre/ruta/colisión al servicio nuevo.
 - [DONE] LOC del hotspot `app/application/use_cases/solicitudes/use_case.py`: **900 -> 904** (iteración enfocada en aislamiento de lógica y cobertura de colisión, no en reducción neta de líneas).
 - [DONE] Cobertura de escenarios del servicio nuevo: caso OK, colisión con sugerencia y borde de normalización de caracteres.
+
+## Registro de progreso de esta PR (iteración 1 colisión ruta PDF accionable)
+
+- [DONE] Nueva extracción de aplicación pura en `app/application/use_cases/solicitudes/servicio_preverificacion_pdf.py` con DTOs `EntradaNombrePdf` y `ResultadoPreverificacionPdf`.
+- [DONE] Integración del caso de uso para delegar nombre/ruta/colisión en `ServicioPreverificacionPdf` y mantener `BusinessRuleError` con mensaje accionable + sugerencia.
+- [DONE] LOC de `app/application/use_cases/solicitudes/use_case.py`: **904 -> 904** (iteración enfocada en semántica y experiencia de error, no en reducción neta de líneas).
+- [DONE] Cobertura unitaria de preverificación sin IO real: colisión simple, múltiple, límite sin sugerencia y caso OK.
