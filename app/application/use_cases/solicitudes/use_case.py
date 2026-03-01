@@ -75,9 +75,9 @@ from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
     plan_pdf_confirmadas,
 )
 from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
-from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
+from app.application.use_cases.solicitudes.servicio_preverificacion_pdf import (
     EntradaNombrePdf,
-    ServicioPreflightPdf,
+    ServicioPreverificacionPdf,
 )
 from app.application.use_cases.solicitudes.servicio_saldos import (
     acumular_consumo_anual_por_personas as _acumular_consumo_anual_por_personas,
@@ -128,7 +128,7 @@ class SolicitudUseCases:
         self._config_repo = config_repo
         self._generador_pdf = generador_pdf
         self._fs = fs or PathFileSystem()
-        self._servicio_preflight_pdf = ServicioPreflightPdf(
+        self._servicio_preverificacion_pdf = ServicioPreverificacionPdf(
             fs=self._fs,
             generador_pdf=self._generador_pdf,
         )
@@ -537,18 +537,18 @@ class SolicitudUseCases:
             raise BusinessRuleError("Persona no encontrada.")
         fechas = [solicitud.fecha_pedida for solicitud in solicitudes_list]
         try:
-            return self._servicio_preflight_pdf.construir_nombre_pdf(
-                EntradaNombrePdf(nombre_persona=persona.nombre, fechas=tuple(fechas))
+            return self._servicio_preverificacion_pdf.construir_nombre_pdf(
+                EntradaNombrePdf(nombre_persona=persona.nombre, rango=tuple(fechas))
             )
         except ValueError as exc:
             raise BusinessRuleError(str(exc)) from exc
 
-    def _validar_preflight_destino_pdf(self, destino: Path) -> Path:
-        preflight = self._servicio_preflight_pdf.validar_colision(str(destino))
-        if not preflight.colision:
-            return Path(preflight.ruta_destino)
-        sugerencia = f" Sugerencia: {preflight.ruta_sugerida}" if preflight.ruta_sugerida else ""
-        raise BusinessRuleError(f"{preflight.motivos[0]}.{sugerencia}".strip())
+    def _validar_preverificacion_destino_pdf(self, destino: Path) -> Path:
+        resultado = self._servicio_preverificacion_pdf.preverificar_ruta(str(destino))
+        if not resultado.colision:
+            return Path(resultado.ruta_destino)
+        sugerencia = f" Sugerencia: {resultado.ruta_sugerida}" if resultado.ruta_sugerida else ""
+        raise BusinessRuleError(f"{resultado.motivos[0]}.{sugerencia}".strip())
 
     def confirmar_lote_y_generar_pdf(
         self,
@@ -567,7 +567,7 @@ class SolicitudUseCases:
         for solicitud in solicitudes_list:
             validar_solicitud_dto_declarativo(solicitud)
 
-        destino_resuelto = self._validar_preflight_destino_pdf(destino)
+        destino_resuelto = self._validar_preverificacion_destino_pdf(destino)
 
         preflight = ConfirmacionPdfOperacion(fs=self._fs, generador_pdf=self._generador_pdf).ejecutar(
             RequestConfirmacionPdf(
