@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 TOKENS_INGLES = {
-    "adapter", "adapters", "application", "builder", "builders", "controller",
+    "adapter", "adapters", "application", "controller",
     "controllers", "core", "domain", "dto", "dtos", "entrypoint", "entrypoints",
     "handler", "helpers", "infrastructure", "mapper", "model", "models", "port",
     "ports", "presenter", "repository", "service", "services", "test", "tests",
