@@ -40,6 +40,11 @@ pytest -q -m "not ui"
 - `python scripts/coverage_summary.py`
 - `python scripts/report_quality.py`
 
+## UI
+
+- [`ui/navigation.md`](ui/navigation.md)
+- [`ui/main_window_modular.md`](ui/main_window_modular.md)
+
 ## Sincronización con Google Sheets
 
 Resumen operativo:
