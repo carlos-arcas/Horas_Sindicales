@@ -95,7 +95,12 @@ try:
                                                    build_historico_filters_payload,
                                                    handle_historico_render_mismatch, log_estado_pendientes,
                                                    show_sync_error_dialog_from_exception)
-    from app.ui.vistas.main_window import validacion_preventiva
+    from app.ui.vistas.main_window import (
+        acciones_pendientes,
+        acciones_personas,
+        acciones_sincronizacion,
+        validacion_preventiva,
+    )
     from app.ui.vistas.solicitudes_presenter import ActionStateInput, build_action_state
 except Exception:  # pragma: no cover - habilita import parcial sin dependencias de UI/Qt
     def _qt_unavailable(*args, **kwargs):
@@ -104,7 +109,7 @@ except Exception:  # pragma: no cover - habilita import parcial sin dependencias
     ConflictsDialog = GrupoConfigDialog = PdfConfigDialog = ToastManager = object
     ActionStateInput = object
     build_action_state = _qt_unavailable
-    validacion_preventiva = object
+    acciones_pendientes = acciones_personas = acciones_sincronizacion = validacion_preventiva = object
     PersonasController = SolicitudesController = SyncController = PdfController = object
     ConfirmationSummaryPayload = NotificationService = OperationFeedback = object
     SaldosCard = PushWorker = object
@@ -459,6 +464,169 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         table.verticalHeader().setVisible(False)
         table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+    def _save_current_draft(self, persona_id: int | None) -> None:
+        return acciones_personas.save_current_draft(self, persona_id)
+
+
+    def _is_form_dirty(self) -> bool:
+        return acciones_personas.is_form_dirty(self)
+
+    def _confirmar_cambio_delegada(self, persona_id: int | None) -> bool:
+        return acciones_personas.confirmar_cambio_delegada(self, persona_id)
+
+    def _restore_draft_for_persona(self, persona_id: int | None) -> None:
+        return acciones_personas.restore_draft_for_persona(self, persona_id)
+
+    def _load_personas(self) -> None:
+        return acciones_personas.load_personas(self)
+
+    def _current_persona(self) -> PersonaDTO | None:
+        return acciones_personas.current_persona(self)
+
+    def _on_persona_changed(self) -> None:
+        return acciones_personas.on_persona_changed(self)
+
+    def _on_add_persona(self) -> None:
+        return acciones_personas.on_add_persona(self)
+
+    def _on_edit_persona(self) -> None:
+        return acciones_personas.on_edit_persona(self)
+
+    def _on_delete_persona(self) -> None:
+        return acciones_personas.on_delete_persona(self)
+
+    def _sync_config_persona_actions(self) -> None:
+        return acciones_personas.sync_config_persona_actions(self)
+
+    def _selected_config_persona(self) -> PersonaDTO | None:
+        return acciones_personas.selected_config_persona(self)
+
+    def _on_config_delegada_changed(self) -> None:
+        return acciones_personas.on_config_delegada_changed(self)
+
+    def _restaurar_contexto_guardado(self) -> None:
+        return acciones_personas.restaurar_contexto_guardado(self)
+
+    def _apply_historico_text_filter(self) -> None:
+        return historico_actions.apply_historico_text_filter(self)
+
+    def _historico_period_filter_state(self) -> tuple[str, int | None, int | None]:
+        return historico_actions.historico_period_filter_state(self)
+
+    def _update_historico_empty_state(self) -> None:
+        return historico_actions.update_historico_empty_state(self)
+
+    def _on_historico_escape(self) -> None:
+        return historico_actions.on_historico_escape(self)
+
+    def _selected_historico_solicitudes(self) -> list[SolicitudDTO]:
+        return historico_actions.selected_historico_solicitudes(self)
+
+    def _selected_historico(self) -> SolicitudDTO | None:
+        return historico_actions.selected_historico(self)
+
+    def _on_historico_select_all_visible_toggled(self, checked: bool) -> None:
+        return historico_actions.on_historico_select_all_visible_toggled(self, checked)
+
+    def _sync_historico_select_all_visible_state(self) -> None:
+        return historico_actions.sync_historico_select_all_visible_state(self)
+
+    def _notify_historico_filter_if_hidden(self, solicitudes_insertadas: list[SolicitudDTO]) -> None:
+        return historico_actions.notify_historico_filter_if_hidden(self, solicitudes_insertadas)
+
+    def _on_export_historico_pdf(self) -> None:
+        return historico_actions.on_export_historico_pdf(self)
+
+    def _on_eliminar(self) -> None:
+        return historico_actions.on_eliminar(self)
+
+    def _bind_preventive_validation_events(self) -> None:
+        return validacion_preventiva._bind_preventive_validation_events(self)
+
+    def _mark_field_touched(self, field: str) -> None:
+        return validacion_preventiva._mark_field_touched(self, field)
+
+    def _schedule_preventive_validation(self) -> None:
+        return validacion_preventiva._schedule_preventive_validation(self)
+
+    def _run_preventive_validation(self) -> None:
+        return validacion_preventiva._run_preventive_validation(self)
+
+    def _collect_base_preventive_errors(self) -> dict[str, str]:
+        return validacion_preventiva._collect_base_preventive_errors(self)
+
+    def _collect_preventive_validation(self) -> tuple[dict[str, str], dict[str, str]]:
+        return validacion_preventiva._collect_preventive_validation(self)
+
+    def _collect_preventive_business_rules(self, errors: dict[str, str], warnings: dict[str, str]) -> None:
+        return validacion_preventiva._collect_preventive_business_rules(self, errors, warnings)
+
+    def _collect_pending_duplicates_warning(self, warnings: dict[str, str]) -> None:
+        return validacion_preventiva._collect_pending_duplicates_warning(self, warnings)
+
+    def _on_go_to_existing_duplicate(self) -> None:
+        return validacion_preventiva._on_go_to_existing_duplicate(self)
+
+    def _render_preventive_validation(self) -> None:
+        return validacion_preventiva._render_preventive_validation(self)
+
+    def _run_preconfirm_checks(self) -> bool:
+        return validacion_preventiva._run_preconfirm_checks(self)
+
+    def _on_sync(self) -> None:
+        return acciones_sincronizacion.on_sync(self)
+
+    def _on_simulate_sync(self) -> None:
+        return acciones_sincronizacion.on_simulate_sync(self)
+
+    def _on_confirm_sync(self) -> None:
+        return acciones_sincronizacion.on_confirm_sync(self)
+
+    def _on_sync_finished(self, summary) -> None:
+        return acciones_sincronizacion.on_sync_finished(self, summary)
+
+    def _on_sync_failed(self, payload: object) -> None:
+        return acciones_sincronizacion.on_sync_failed(self, payload)
+
+    def _show_sync_details_dialog(self) -> None:
+        return acciones_sincronizacion.show_sync_details_dialog(self)
+
+    def _apply_sync_report(self, report) -> None:
+        return acciones_sincronizacion.apply_sync_report(self, report)
+
+    def _selected_pending_row_indexes(self) -> list[int]:
+        return acciones_pendientes.helper_selected_pending_row_indexes(self)
+
+    def _selected_pending_for_editing(self) -> SolicitudDTO | None:
+        return acciones_pendientes.helper_selected_pending_for_editing(self)
+
+    def _find_pending_row_by_id(self, solicitud_id: int | None) -> int | None:
+        return acciones_pendientes.helper_find_row_by_id(self, solicitud_id)
+
+    def _focus_pending_row(self, row: int) -> None:
+        return acciones_pendientes.helper_focus_pending_row(self, row)
+
+    def _focus_pending_by_id(self, solicitud_id: int | None) -> bool:
+        return acciones_pendientes.helper_focus_pending_by_id(self, solicitud_id)
+
+    def _update_pending_totals(self) -> None:
+        return acciones_pendientes.helper_update_pending_totals(self)
+
+    def _refresh_pending_conflicts(self) -> None:
+        return acciones_pendientes.helper_refresh_pending_conflicts(self)
+
+    def _refresh_pending_ui_state(self) -> None:
+        return acciones_pendientes.helper_refresh_pending_ui_state(self)
+
+    def _clear_pendientes(self) -> None:
+        return acciones_pendientes.on_clear_pendientes(self)
+
+    def _on_review_hidden_pendientes(self) -> None:
+        return acciones_pendientes.on_review_hidden(self)
+
+    def _on_remove_huerfana(self) -> None:
+        return acciones_pendientes.on_remove_huerfana(self)
 
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
