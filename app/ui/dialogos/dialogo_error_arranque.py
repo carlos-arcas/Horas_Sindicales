@@ -47,6 +47,7 @@ class DialogoErrorArranque(QDialog):
         buttons.addButton(self._abrir_logs_btn, QDialogButtonBox.ButtonRole.ActionRole)
         layout.addWidget(buttons)
 
+        buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         self._copiar_id_btn.clicked.connect(self._copiar_incident_id)
         self._abrir_logs_btn.clicked.connect(self._abrir_logs)
