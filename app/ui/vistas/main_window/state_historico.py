@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import QItemSelectionModel
+from PySide6.QtCore import QDate, QItemSelectionModel
+
+
+def aplicar_rango_por_defecto_historico(window: Any) -> None:
+    window.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
+    window.historico_hasta_date.setDate(QDate.currentDate())
 
 
 def aplicar_filtro_texto_historico(window: Any) -> None:

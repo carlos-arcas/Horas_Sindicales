@@ -501,6 +501,14 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _apply_historico_text_filter(self) -> None:
         return state_historico.aplicar_filtro_texto_historico(self)
 
+    def _apply_historico_default_range(self) -> None:
+        """Wrapper: aplica el rango por defecto del histórico."""
+        aplicar_ultimo_rango = getattr(self, "_apply_historico_last_30_days", None)
+        if callable(aplicar_ultimo_rango):
+            aplicar_ultimo_rango()
+            return
+        state_historico.aplicar_rango_por_defecto_historico(self)
+
     def _historico_period_filter_state(self) -> tuple[str, int | None, int | None]:
         return state_historico.estado_filtro_periodo_historico(self)
 
