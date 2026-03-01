@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import QObject, QThread, Qt, Signal, Slot
 from PySide6.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
+from app.ui.qt_hilos import assert_hilo_ui_o_log
 from presentacion.i18n import I18nManager
+
+
+logger = logging.getLogger(__name__)
 
 
 class SplashWindow(QWidget):
@@ -12,6 +18,7 @@ class SplashWindow(QWidget):
 
     def __init__(self, i18n: I18nManager) -> None:
         super().__init__()
+        assert_hilo_ui_o_log("SplashWindow.__init__", logger)
         self._i18n = i18n
         self._startup_thread: QThread | None = None
         self._startup_worker: QObject | None = None

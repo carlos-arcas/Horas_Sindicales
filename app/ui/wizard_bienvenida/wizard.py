@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import logging
 
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QMessageBox, QProgressBar, QStackedWidget, QVBoxLayout, QWidget
 
@@ -9,8 +10,12 @@ from app.ui.wizard_bienvenida.paginas.pagina_basicos import PaginaBasicos
 from app.ui.wizard_bienvenida.paginas.pagina_bienvenida import PaginaBienvenida
 from app.ui.wizard_bienvenida.paginas.pagina_preferencias import PaginaPreferencias
 from app.ui.wizard_bienvenida.paginas.pagina_sync import PaginaSync
+from app.ui.qt_hilos import assert_hilo_ui_o_log
 from app.ui.wizard_bienvenida.visor_guia_sync import VisorGuiaSyncDialog
 from presentacion.i18n import I18nManager
+
+
+logger = logging.getLogger(__name__)
 
 
 class WizardBienvenida(QDialog):
@@ -25,6 +30,7 @@ class WizardBienvenida(QDialog):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        assert_hilo_ui_o_log("WizardBienvenida.__init__", logger)
         self._i18n = i18n
         self._obtener_ruta_guia_sync = obtener_ruta_guia_sync
 
