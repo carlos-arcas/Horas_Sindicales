@@ -24,7 +24,8 @@ from app.ui.conflict_guidance import (
     classify_conflict,
     delegada_name,
     recommended_action,
-); from app.ui.copy_catalog import copy_text
+)
+from app.ui.copy_catalog import copy_text
 
 
 @dataclass(frozen=True)

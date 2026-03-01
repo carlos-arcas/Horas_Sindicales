@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from app.application.conflicts_service import ConflictRecord; from app.ui.copy_catalog import copy_text
+from app.application.conflicts_service import ConflictRecord
+from app.ui.copy_catalog import copy_text
 
 
 def classify_conflict(conflict: ConflictRecord) -> str:
