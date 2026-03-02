@@ -12,6 +12,7 @@ from app.core.observability import OperationContext, log_event
 from app.application.use_cases.solicitudes.validaciones import validar_seleccion_confirmacion
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.bootstrap.logging import log_operational_error
+from app.ui.copy_catalog import copy_text
 from app.ui.notification_service import ConfirmationSummaryPayload
 from app.ui.toast_helpers import toast_success
 from app.ui.vistas.confirmacion_presenter import ConfirmAction, ConfirmacionEntrada, plan_confirmacion
@@ -82,7 +83,7 @@ def execute_confirmar_with_pdf(
     persona: PersonaDTO,
     selected: list[SolicitudDTO],
     pdf_path: str,
-) -> tuple[str | None, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None] | None:
+) -> tuple[str | None, str, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None] | None:
     correlation_id: str | None = None
     try:
         window._set_processing_state(True)
@@ -111,7 +112,7 @@ def execute_confirmar_with_pdf(
                 {"creadas": len(creadas), "errores": len(errores), "pdf_generado": bool(generado)},
                 operation.correlation_id,
             )
-            return correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes
+            return correlation_id, pdf_path, generado, creadas, confirmadas_ids, errores, pendientes_restantes
     except Exception as exc:  # pragma: no cover - fallback
         if isinstance(exc, OSError):
             log_operational_error(
@@ -126,7 +127,7 @@ def execute_confirmar_with_pdf(
             )
         else:
             logger.exception("Error confirmando solicitudes")
-        window._show_critical_error(exc)
+        _show_pdf_write_error(window, exc, pdf_path)
         return None
     finally:
         window._set_processing_state(False)
@@ -136,6 +137,7 @@ def finalize_confirmar_with_pdf(
     window: Any,
     persona: PersonaDTO,
     correlation_id: str | None,
+    ruta_deseada_pdf: str,
     generado: Path | None,
     creadas: list[SolicitudDTO],
     confirmadas_ids: list[int],
@@ -147,6 +149,7 @@ def finalize_confirmar_with_pdf(
         logger.debug("_finalize_confirmar_with_pdf paso=intento_abrir_pdf enabled=True")
         abrir_archivo_local(generado)
     if generado and creadas:
+        _notificar_colision_renombrado(window, ruta_deseada_pdf, generado)
         pdf_hash = creadas[0].pdf_hash
         fechas = [solicitud.fecha_pedida for solicitud in creadas]
         window._sync_service.register_pdf_log(persona.id or 0, fechas, pdf_hash)
@@ -158,7 +161,7 @@ def finalize_confirmar_with_pdf(
                 correlation_id,
             )
         window._ask_push_after_pdf()
-        window._toast_success("PDF generado correctamente", title="Confirmación")
+        _mostrar_toast_pdf_guardado(window, generado)
         if generado.exists():
             window._show_pdf_actions_dialog(generado)
     window._procesar_resultado_confirmacion(confirmadas_ids, errores, pendientes_restantes)
@@ -177,8 +180,8 @@ def show_pdf_actions_dialog(window: Any, generated_path: Path) -> None:
     dialog = QMessageBox(window)
     dialog.setWindowTitle("PDF generado")
     dialog.setText("PDF generado correctamente")
-    open_pdf_button = dialog.addButton("Abrir PDF", QMessageBox.ButtonRole.ActionRole)
-    open_folder_button = dialog.addButton("Abrir carpeta", QMessageBox.ButtonRole.ActionRole)
+    open_pdf_button = dialog.addButton(copy_text("ui.solicitudes.abrir_pdf"), QMessageBox.ButtonRole.ActionRole)
+    open_folder_button = dialog.addButton(copy_text("ui.export_share.accion_abrir_carpeta"), QMessageBox.ButtonRole.ActionRole)
     close_button = dialog.addButton("Cerrar", QMessageBox.ButtonRole.RejectRole)
     dialog.exec()
     clicked = dialog.clickedButton()
@@ -458,7 +461,7 @@ def _apply_prompt_pdf(window: Any, selected: list[SolicitudDTO]) -> str | None:
     return window._prompt_confirm_pdf_path(selected)
 
 
-def _apply_confirm(window: Any, persona: PersonaDTO | None, selected: list[SolicitudDTO], pdf_path: str | None) -> tuple[str | None, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None] | None:
+def _apply_confirm(window: Any, persona: PersonaDTO | None, selected: list[SolicitudDTO], pdf_path: str | None) -> tuple[str | None, str, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None] | None:
     if persona is None or pdf_path is None:
         return None
     return window._execute_confirmar_with_pdf(persona, selected, pdf_path)
@@ -467,13 +470,57 @@ def _apply_confirm(window: Any, persona: PersonaDTO | None, selected: list[Solic
 def _apply_finalize(
     window: Any,
     persona: PersonaDTO | None,
-    outcome: tuple[str | None, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None] | None,
+    outcome: tuple[str | None, str, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None] | None,
 ) -> None:
     if persona is None or outcome is None:
         return
-    correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes = outcome
+    correlation_id, ruta_deseada_pdf, generado, creadas, confirmadas_ids, errores, pendientes_restantes = outcome
     logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(generado) if generado else None)
-    window._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes)
+    window._finalize_confirmar_with_pdf(
+        persona,
+        correlation_id,
+        ruta_deseada_pdf,
+        generado,
+        creadas,
+        confirmadas_ids,
+        errores,
+        pendientes_restantes,
+    )
+
+
+def _notificar_colision_renombrado(window: Any, ruta_deseada_pdf: str, ruta_generada_pdf: Path) -> None:
+    if str(ruta_generada_pdf) == ruta_deseada_pdf:
+        return
+    window.toast.warning(
+        copy_text("ui.solicitudes.pdf_colision_renombrado").format(nombre=ruta_generada_pdf.name),
+        title=copy_text("ui.solicitudes.confirmacion_titulo"),
+    )
+
+
+def _mostrar_toast_pdf_guardado(window: Any, ruta_pdf: Path) -> None:
+    window.toast.show(
+        copy_text("ui.solicitudes.pdf_generado_ok"),
+        level="success",
+        title=copy_text("ui.solicitudes.confirmacion_titulo"),
+        action_label=copy_text("ui.solicitudes.abrir_pdf"),
+        action_callback=lambda: abrir_archivo_local(ruta_pdf),
+    )
+
+
+def _show_pdf_write_error(window: Any, error: Exception, ruta_deseada_pdf: str) -> None:
+    ruta_destino = Path(ruta_deseada_pdf).expanduser().resolve(strict=False)
+    message = copy_text("ui.solicitudes.pdf_error_escritura")
+    window.toast.error(message, title=copy_text("ui.solicitudes.error_titulo"))
+    dialog = QMessageBox(window)
+    dialog.setIcon(QMessageBox.Icon.Critical)
+    dialog.setWindowTitle(copy_text("ui.solicitudes.error_titulo"))
+    dialog.setText(message)
+    dialog.setInformativeText(str(error))
+    abrir_carpeta_btn = dialog.addButton(copy_text("ui.solicitudes.abrir_carpeta_destino"), QMessageBox.ButtonRole.ActionRole)
+    dialog.addButton(copy_text("ui.comun.cerrar"), QMessageBox.ButtonRole.RejectRole)
+    dialog.exec()
+    if dialog.clickedButton() is abrir_carpeta_btn and ruta_destino.parent.exists():
+        abrir_carpeta_contenedora(ruta_destino)
 
 
 def iterar_pendientes_en_tabla(window: Any) -> list[dict[str, object]]:

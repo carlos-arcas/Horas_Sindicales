@@ -44,6 +44,11 @@
   Si `infraestructura.repositorio_preferencias_qsettings` no está disponible, se registra `RepositorioPreferenciasIni` (sin PySide6) y se emite WARNING estructurado para trazabilidad operativa.  
   La aplicación sigue dependiendo del puerto `IRepositorioPreferencias`; las implementaciones concretas permanecen en infraestructura, preservando inversión de dependencias y compatibilidad Windows.
 
-- **2026-03-02 — Normalización de datetimes ISO en reportes de sincronización — Vigente**  
-  Se extrae `app/ui/tiempo/parseo_iso_datetime.py` para centralizar `parsear_iso_datetime`, `normalizar_zona_horaria` y `duracion_ms_desde_iso`, evitando restas entre `datetime` naive/aware en `build_simulation_report` y demás constructores de reportes.  
-  Política aplicada: si el valor ISO llega naive se asume zona horaria local y luego se normaliza explícitamente a la zona objetivo del cálculo.
+
+## 2026-03-02 · UX de confirmación PDF con colisión resuelta
+- Se ajustó el flujo de confirmación en UI para avisar cuando la ruta final del PDF difiere de la solicitada por colisión de nombre.
+- El toast de éxito conserva acción **Abrir PDF** usando la ruta final generada.
+- Ante error real de escritura, la UI muestra error accionable y opción **Abrir carpeta destino** cuando la ruta contenedora existe.
+- Verificación sugerida:
+  - `pytest tests/ui/test_confirmacion_actions_pdf_feedback.py`
+  - `python scripts/quality_gate.py`
