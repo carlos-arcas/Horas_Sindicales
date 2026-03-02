@@ -12,6 +12,7 @@ from app.ui.notification_service import OperationFeedback
 from app.ui.sync_reporting import to_markdown
 from app.ui.vistas.main_window import acciones_sincronizacion_resultados as resultados
 from app.ui.vistas.main_window import dialogos_sincronizacion
+from app.ui.i18n_ui import ui_text, ui_text_legacy
 from app.ui.vistas.ui_helpers import abrir_archivo_local
 from app.bootstrap.logging import log_operational_error
 
@@ -22,7 +23,10 @@ def on_sync(ventana) -> None:
     if not ventana._ui_ready:
         return
     if hasattr(ventana._sync_service, "is_configured") and not ventana._sync_service.is_configured():
-        ventana.toast.warning("Falta configurar Google Sheets o compartir la hoja con la cuenta de servicio.", title="Sync no disponible")
+        ventana.toast.warning(
+            ui_text("ui.sync.panel.falta_configuracion"),
+            title=ui_text("ui.sync.panel.sync_no_disponible"),
+        )
         return
     ventana._pending_sync_plan = None
     ventana._active_sync_id = None
@@ -38,7 +42,10 @@ def on_simulate_sync(ventana) -> None:
 
 def on_confirm_sync(ventana) -> None:
     if ventana._pending_sync_plan is not None and ventana._pending_sync_plan.conflicts:
-        ventana.toast.warning("Conflictos pendientes de decisión", title="Sincronización bloqueada")
+        ventana.toast.warning(
+            ui_text("ui.sync.panel.conflictos_pendientes_decision"),
+            title=ui_text("ui.sync.panel.sincronizacion_bloqueada"),
+        )
         return
     ventana._sync_controller.on_confirm_sync()
 
@@ -61,7 +68,7 @@ def on_retry_failed(ventana) -> None:
     retry_result = ventana._retry_sync_use_case.build_retry_plan(ventana._pending_sync_plan, item_status=item_status)
     ventana._pending_sync_plan = retry_result.plan
     ventana.notifications.notify_operation(OperationFeedback(
-        title="Reintento preparado",
+            title="Reintento preparado",
         happened="Se reconstruyó el plan con los elementos en conflicto o error.",
         affected_count=len(item_status),
         incidents="Pendiente de ejecución.",
@@ -202,8 +209,8 @@ def set_config_incomplete_state(ventana) -> None:
 def sincronizar_con_confirmacion(ventana) -> None:
     result = QMessageBox.question(
         ventana,
-        "Confirmar sincronización",
-        "¿Deseas iniciar la sincronización con Google Sheets ahora?",
+        ui_text("ui.sync.panel.confirmar_sincronizacion"),
+        ui_text("ui.sync.panel.confirmar_inicio_sync"),
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         QMessageBox.StandardButton.No,
     )
@@ -214,14 +221,18 @@ def sincronizar_con_confirmacion(ventana) -> None:
         sync_handler()
         return
     logger.error("sync_handler_missing", extra={"handler": "_on_sync"})
-    QMessageBox.information(ventana, "Sincronización", "La sincronización aún no está disponible en esta pantalla.")
+    QMessageBox.information(
+        ventana,
+        ui_text("ui.sync.panel.sincronizacion"),
+        ui_text("ui.sync.panel.sync_pantalla_no_disponible"),
+    )
 
 
 def on_sync_with_confirmation(ventana) -> None:
     result = QMessageBox.question(
         ventana,
-        "Confirmar sincronización",
-        "¿Deseas iniciar la sincronización con Google Sheets ahora?",
+        ui_text("ui.sync.panel.confirmar_sincronizacion"),
+        ui_text("ui.sync.panel.confirmar_inicio_sync"),
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         QMessageBox.StandardButton.No,
     )
@@ -235,15 +246,19 @@ def on_sync_with_confirmation(ventana) -> None:
             ventana._on_sync()
             return
         logger.warning("sync_workflow_not_available")
-        QMessageBox.information(ventana, "Sincronización", "Función no disponible")
+        QMessageBox.information(ventana, ui_text("ui.sync.panel.sincronizacion"), ui_text("ui.sync.panel.funcion_no_disponible"))
     except Exception as exc:  # pragma: no cover
         log_operational_error(
             logger,
-            "Sync failed: no se pudo iniciar desde UI",
+            ui_text_legacy("app/ui/vistas/main_window/acciones_sincronizacion.py:236:Sync failed: no se pudo iniciar desde UI"),
             exc=exc,
             extra={"operation": "sync_workflow_start"},
         )
-        QMessageBox.critical(ventana, "Sincronización", f"No se pudo iniciar la sincronización.\n\n{exc}")
+        QMessageBox.critical(
+            ventana,
+            ui_text("ui.sync.panel.sincronizacion"),
+            ui_text("ui.sync.panel.no_se_pudo_iniciar") + f"\n\n{exc}",
+        )
 
 
 def show_message_with_details(ventana, title: str, message: str, details: str | None, icon, action_buttons: tuple[tuple[str, object], ...] = ()) -> None:
