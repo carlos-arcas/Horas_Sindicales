@@ -122,8 +122,7 @@ from app.ui.vistas.main_window.importaciones import (
     validacion_preventiva,
 )  # noqa: F401
 
-from . import data_refresh, layout_builder, wiring
-from .ui_layout_helpers import normalize_input_heights, update_responsive_columns
+from . import data_refresh, handlers_layout, layout_builder, wiring
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
 from app.ui.qt_hilos import assert_hilo_ui_o_log
@@ -330,14 +329,22 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _update_action_state(self) -> None:
         update_action_state(self)
 
-    def _update_solicitud_preview(self) -> None:
+    def _update_solicitud_preview(self, *_args: object) -> None:
         self._update_action_state()
         if hasattr(self, "_schedule_preventive_validation"):
             self._schedule_preventive_validation()
 
+    def _on_open_saldos_modal(self) -> None:
+        self._refresh_saldos()
+
     def _on_completo_changed(self, checked: bool) -> None:
         _ = checked
         self._update_solicitud_preview()
+
+    def _on_historico_todas_delegadas_toggled(self, checked: bool) -> None:
+        if self.historico_delegada_combo is not None:
+            self.historico_delegada_combo.setEnabled(not checked)
+        self._apply_historico_filters()
 
     def _on_add_pendiente(self) -> None:
         if hasattr(acciones_pendientes, "on_add_pendiente"):
@@ -454,35 +461,44 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _build_status_bar(self) -> None:
         layout_builder.build_status(self)
 
+    def _configure_time_placeholders(self) -> None:
+        handlers_layout.configure_time_placeholders(self)
+
     def _normalize_input_heights(self) -> None:
         try:
-            normalize_input_heights(self)
+            handlers_layout.normalize_input_heights(self)
         except Exception as exc:
             log_operational_error(
                 logger,
                 "UI_NORMALIZE_INPUT_HEIGHTS_FAILED",
                 exc=exc,
-                extra={"contexto": "MainWindow._normalize_input_heights"},
+                extra={"contexto": "mainwindow._normalize_input_heights"},
             )
 
     def _update_responsive_columns(self) -> None:
         try:
-            update_responsive_columns(self)
+            handlers_layout.update_responsive_columns(self)
         except Exception as exc:
             log_operational_error(
                 logger,
                 "UI_UPDATE_RESPONSIVE_COLUMNS_FAILED",
                 exc=exc,
-                extra={"contexto": "MainWindow._update_responsive_columns"},
+                extra={"contexto": "mainwindow._update_responsive_columns"},
+            )
+
+    def _configure_operativa_focus_order(self) -> None:
+        try:
+            handlers_layout.configure_operativa_focus_order(self)
+        except Exception as exc:
+            log_operational_error(
+                logger,
+                "UI_CONFIGURE_OPERATIVA_FOCUS_ORDER_FAILED",
+                exc=exc,
+                extra={"contexto": "mainwindow._configure_operativa_focus_order"},
             )
 
     def _status_to_label(self, status: str) -> str:
-        from app.ui.vistas.main_window import dialogos_sincronizacion
-
-        try:
-            return dialogos_sincronizacion.status_to_label(status)
-        except Exception:
-            return status
+        return handlers_layout.status_to_label(status)
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
         model = table.model()
@@ -660,7 +676,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
                 log_operational_error(
                     logger,
                     "UI_CONFIRMAR_HANDLER_NO_DISPONIBLE",
-                    extra={"handler": "on_confirmar", "contexto": "MainWindow._on_confirmar"},
+                    extra={"handler": "on_confirmar", "contexto": "mainwindow._on_confirmar"},
                 )
                 return
             confirmar_action(self)
@@ -672,7 +688,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
                 logger,
                 "UI_CONFIRMAR_HANDLER_FALLO",
                 exc=exc,
-                extra={"handler": "on_confirmar", "contexto": "MainWindow._on_confirmar"},
+                extra={"handler": "on_confirmar", "contexto": "mainwindow._on_confirmar"},
             )
 
     def _render_preventive_validation(self) -> None:

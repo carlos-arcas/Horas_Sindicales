@@ -28,6 +28,11 @@
 - **2026-03-01 — Reglas de filtrado de histórico movidas de UI a aplicación — Vigente**  
   Antes: `app/ui/vistas/historico_filter_rules.py` contenía lógica de aceptación/descartes por estado, rango y búsqueda. Después: reglas puras en `app/domain/services.py`, y el módulo UI queda como shim de compatibilidad sin negocio. Se refuerza con guard de imports entre capas.
 
+
+- **2026-03-02 — Arranque UI aislado del worker Qt para evitar cruces de hilo — Vigente**  
+  El `TrabajadorArranque` quedó restringido a tareas de arranque no-UI y ahora emite `ResultadoArranque` (dataclass) en vez de tuplas ad-hoc.  
+  La construcción y wiring de `SplashWindow`/`MainWindow` permanece en el hilo principal con conexión encolada (`QueuedConnection`), reduciendo el riesgo del warning `QObject: Cannot create children for a parent that is in a different thread` y cierres silenciosos durante splash.
+
 ## Procedimiento de actualización
 
 1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).
@@ -47,3 +52,10 @@
 - **2026-03-02 — Crash logging temprano + flush determinista en arranque — Vigente**  
   Se refuerza el entrypoint para garantizar persistencia de `crash.log` ante fallos durante splash/arranque: se mantiene `sys.excepthook` temprano y `qInstallMessageHandler` se instala antes de iniciar el hilo de arranque; adicionalmente, el entrypoint ejecuta `flush` de handlers en `finally` para minimizar pérdidas de eventos en salidas anormales.  
   Verificación rápida: forzar excepción en arranque (`HORAS_FORCE_UNHANDLED_EXCEPTION=1`) y comprobar escritura en `crash.log` y `boot_trace.log`.
+- **2026-03-02 — Normalización de datetimes ISO en reportes de sincronización — Vigente**  
+  Se extrae `app/ui/tiempo/parseo_iso_datetime.py` para centralizar `parsear_iso_datetime`, `normalizar_zona_horaria` y `duracion_ms_desde_iso`, evitando restas entre `datetime` naive/aware en `build_simulation_report` y demás constructores de reportes.  
+  Política aplicada: si el valor ISO llega naive se asume zona horaria local y luego se normaliza explícitamente a la zona objetivo del cálculo.
+
+- **2026-03-02 — `duracion_ms_desde_iso` tolera ISO inválido sin excepción — Vigente**  
+  Se protege el cálculo con manejo de `TypeError`/`ValueError` y se retorna `0` ante entradas inválidas para evitar caídas en reportes cuando llega un `generated_at` corrupto o incompleto.  
+  Verificación recomendada: `pytest -q tests/application/test_parseo_iso_datetime.py tests/application/test_sync_reporting_datetime.py` y `python scripts/quality_gate.py`.

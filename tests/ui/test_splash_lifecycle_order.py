@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.entrypoints import ui_main
+from app.entrypoints.arranque_nucleo import ResultadoArranque
 
 pytestmark = pytest.mark.headless_safe
 
@@ -49,13 +50,19 @@ class _CoordinatorFake(ui_main._CoordinadorArranqueConCierreDeterminista):
         self._splash_cerrado = False
         self.terminado = False
         self.thread = object()
-        self.i18n = SimpleNamespace(set_idioma=lambda _idioma: events.append("set_idioma"))
-        self.app = SimpleNamespace(exit=lambda _code: events.append("app_exit"), setProperty=lambda *_: None)
+        self.i18n = SimpleNamespace(
+            set_idioma=lambda _idioma: events.append("set_idioma")
+        )
+        self.app = SimpleNamespace(
+            exit=lambda _code: events.append("app_exit"), setProperty=lambda *_: None
+        )
         self.orquestador_factory = lambda _deps, _i18n: SimpleNamespace(
             resolver_onboarding=lambda: events.append("wizard") or True,
             debe_iniciar_maximizada=lambda: False,
         )
-        self.main_window_factory = lambda _container, _deps: events.append("main_window") or SimpleNamespace(show=lambda: None)
+        self.main_window_factory = lambda _container, _deps: events.append(
+            "main_window"
+        ) or SimpleNamespace(show=lambda: None)
         self.instalar_menu_ayuda = lambda *_args, **_kwargs: events.append("menu")
         self._reportar_fallo_arranque = lambda **_kwargs: events.append("error")
 
@@ -68,7 +75,9 @@ class _CoordinatorFake(ui_main._CoordinadorArranqueConCierreDeterminista):
 
 def test_on_finished_cierra_splash_antes_de_wizard_y_main(monkeypatch) -> None:
     qtimer_fake = SimpleNamespace(singleShot=lambda _ms, fn: fn())
-    monkeypatch.setitem(sys.modules, "PySide6.QtCore", SimpleNamespace(QTimer=qtimer_fake))
+    monkeypatch.setitem(
+        sys.modules, "PySide6.QtCore", SimpleNamespace(QTimer=qtimer_fake)
+    )
 
     events: list[str] = []
     splash = FakeSplash(events=events)
@@ -79,7 +88,13 @@ def test_on_finished_cierra_splash_antes_de_wizard_y_main(monkeypatch) -> None:
     deps_arranque = SimpleNamespace(
         obtener_idioma_ui=SimpleNamespace(ejecutar=lambda: "es"),
     )
-    payload = (SimpleNamespace(repositorio_preferencias=None, cargar_datos_demo_caso_uso=None), deps_arranque, "es")
+    payload = ResultadoArranque(
+        container=SimpleNamespace(
+            repositorio_preferencias=None, cargar_datos_demo_caso_uso=None
+        ),
+        deps_arranque=deps_arranque,
+        idioma="es",
+    )
     coord.on_finished(payload)
 
     assert "wizard" in events and "main_window" in events

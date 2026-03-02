@@ -79,6 +79,20 @@ class SheetsPermissionError(SheetsConfigError):
         )
 
 
+def construir_mensaje_permiso_sheets(error: SheetsPermissionError) -> str:
+    """Construye una ayuda accionable y estable para i18n sobre errores 403 de Sheets."""
+    spreadsheet_id = error.spreadsheet_id or "desconocido"
+    worksheet = error.worksheet or "desconocida"
+    service_account_email = error.service_account_email or "cuenta_de_servicio_no_disponible"
+    return (
+        "i18n_key=sync.permission_denied; "
+        f"spreadsheet_id={spreadsheet_id}; "
+        f"worksheet={worksheet}; "
+        f"service_account_email={service_account_email}; "
+        "ayuda=Comparte la hoja con la cuenta de servicio como Editor y reintenta la sincronización."
+    )
+
+
 class SheetsNotFoundError(SheetsConfigError):
     pass
 

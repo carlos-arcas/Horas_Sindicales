@@ -123,5 +123,5 @@ def test_open_spreadsheet_logs_permission_error_to_operational_log(tmp_path, mon
         for line in reversed(operational_lines)
         if json.loads(line).get("mensaje") == "Sync failed: permisos insuficientes en Google Sheets"
     )
-    assert event["extra"]["operation"] == "sheets_permission_check"
+    assert event["extra"]["operation"] == "open_spreadsheet"
     assert event["extra"]["spreadsheet_id"] == "sheet-id"

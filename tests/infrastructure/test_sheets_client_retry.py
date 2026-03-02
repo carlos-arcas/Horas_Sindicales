@@ -30,7 +30,7 @@ def test_with_write_retry_permission_error_never_raises_name_error(monkeypatch) 
 
     captured = {}
 
-    def fake_log_permission_error(error: SheetsPermissionError, *, spreadsheet_id: str | None = None, worksheet_name: str | None = None) -> None:
+    def fake_log_permission_error(error: SheetsPermissionError, *, operation: str, spreadsheet_id: str | None = None, worksheet_name: str | None = None) -> None:
         captured["error"] = error
         captured["spreadsheet_id"] = spreadsheet_id
         captured["worksheet_name"] = worksheet_name
@@ -53,7 +53,7 @@ def test_with_write_retry_preserves_context_with_inferred_spreadsheet_id(monkeyp
 
     captured: dict[str, str | None] = {}
 
-    def fake_log_permission_error(_error: SheetsPermissionError, *, spreadsheet_id: str | None = None, worksheet_name: str | None = None) -> None:
+    def fake_log_permission_error(_error: SheetsPermissionError, *, operation: str, spreadsheet_id: str | None = None, worksheet_name: str | None = None) -> None:
         captured["spreadsheet_id"] = spreadsheet_id
         captured["worksheet_name"] = worksheet_name
 
@@ -74,7 +74,7 @@ def test_with_write_retry_context_handles_missing_spreadsheet_id(monkeypatch) ->
 
     captured: dict[str, str | None] = {}
 
-    def fake_log_permission_error(_error: SheetsPermissionError, *, spreadsheet_id: str | None = None, worksheet_name: str | None = None) -> None:
+    def fake_log_permission_error(_error: SheetsPermissionError, *, operation: str, spreadsheet_id: str | None = None, worksheet_name: str | None = None) -> None:
         captured["spreadsheet_id"] = spreadsheet_id
         captured["worksheet_name"] = worksheet_name
 
@@ -95,7 +95,7 @@ def test_with_write_retry_usa_spreadsheet_id_explicito(monkeypatch) -> None:
 
     captured: dict[str, str | None] = {}
 
-    def fake_log_permission_error(_error: SheetsPermissionError, *, spreadsheet_id: str | None = None, worksheet_name: str | None = None) -> None:
+    def fake_log_permission_error(_error: SheetsPermissionError, *, operation: str, spreadsheet_id: str | None = None, worksheet_name: str | None = None) -> None:
         captured["spreadsheet_id"] = spreadsheet_id
         captured["worksheet_name"] = worksheet_name
 

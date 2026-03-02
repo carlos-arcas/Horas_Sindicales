@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor, QFont
 
 from app.application.dto import PersonaDTO, SolicitudDTO
 from app.domain.time_utils import minutes_to_hhmm
-from app.ui.models.solicitudes_table_presenter import SolicitudDisplayEntrada, build_display
+from app.ui.models.solicitudes_table_presenter import SolicitudDisplayEntrada, build_display, resumen_nota
 
 
 SOLICITUD_FECHA_ROLE = Qt.UserRole + 1
@@ -144,7 +144,7 @@ class SolicitudesTableModel(QAbstractTableModel):
     def _data_tooltip(self, index: QModelIndex):
         column = index.column()
         if column == 5:
-            return self._solicitudes[index.row()].notas or ""
+            return resumen_nota(self._solicitudes[index.row()].notas)
         if self._is_conflict_marker_column(index):
             return "⚠ Horario solapado con otra petición pendiente del mismo día."
         return None
