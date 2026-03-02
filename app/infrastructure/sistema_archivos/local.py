@@ -3,9 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.application.ports.sistema_archivos_puerto import SistemaArchivosPuerto
+from app.infrastructure.sistema_archivos.resolver_colision_archivo import (
+    resolver_colision_archivo,
+)
 
 
 class SistemaArchivosLocal(SistemaArchivosPuerto):
+    def existe_ruta(self, ruta: Path) -> bool:
+        return self.existe(ruta)
+
     def existe(self, ruta: Path) -> bool:
         return ruta.exists()
 
@@ -36,3 +42,8 @@ class SistemaArchivosLocal(SistemaArchivosPuerto):
 
     def mkdirs(self, ruta: Path) -> None:
         self.mkdir(ruta, parents=True, exist_ok=True)
+
+    def resolver_colision_archivo(
+        self, destino: Path, *, inicio: int = 2, limite: int = 9_999
+    ) -> Path:
+        return resolver_colision_archivo(destino, inicio=inicio, limite=limite)
