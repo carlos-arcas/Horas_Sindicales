@@ -10,6 +10,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
 from app.ui.copy_catalog import copy_text
+from app.ui.toasts.ejecutar_callback_seguro import ejecutar_callback_seguro
 
 logger = logging.getLogger(__name__)
 
@@ -79,20 +80,12 @@ class TarjetaToast(QFrame):
         root.addLayout(acciones)
 
     def _ejecutar_accion(self) -> None:
-        callback = self.notificacion.action_callback
-        if callback is None:
-            return
-        try:
-            callback()
-        except Exception:
-            logger.exception(
-                "toast_action_callback_failed",
-                extra={
-                    "toast_id": self.notificacion.id,
-                    "toast_level": self.notificacion.nivel,
-                    "toast_action_label": self.notificacion.action_label,
-                },
-            )
+        ejecutar_callback_seguro(
+            self.notificacion.action_callback,
+            logger=logger,
+            contexto=f"toast:{self.notificacion.nivel}:{self.notificacion.action_label or 'sin_accion'}",
+            correlation_id=self.notificacion.correlacion_id,
+        )
 
     def _apply_style(self) -> None:
         palette = QApplication.palette()
