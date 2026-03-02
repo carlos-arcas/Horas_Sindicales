@@ -52,6 +52,8 @@ def _adaptar_slot_a_senal(fn: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def _bind_handler(clase: type, nombre_metodo: str, fn: Callable[..., Any]) -> None:
+    if hasattr(clase, nombre_metodo):
+        return
     setattr(clase, nombre_metodo, _adaptar_slot_a_senal(fn))
 
 
