@@ -7,9 +7,11 @@ import pytest
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
+from app.application.use_cases.solicitudes import use_case as use_case_module
 from app.application.use_cases.solicitudes.validaciones import validar_solicitud_dto_declarativo
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError, ValidacionError
+from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
 
 
@@ -115,24 +117,64 @@ def test_confirmar_lote_preflight_colision_se_resuelve_con_ruta_alternativa(conn
     assert errores == []
     assert ruta_pdf is not None
     assert str(ruta_pdf).endswith("duplicado (1).pdf")
+    pdfs_generados = sorted(path.name for path in tmp_path.glob("*.pdf"))
+    assert pdfs_generados == ["duplicado (1).pdf", "duplicado.pdf"]
 
 
 def test_confirmar_lote_resuelve_destino_pdf_una_sola_vez(connection, tmp_path: Path) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=FakeGeneradorPdf())
+    use_case = SolicitudUseCases(
+        solicitud_repo,
+        persona_repo,
+        generador_pdf=FakeGeneradorPdf(),
+        fs=SistemaArchivosLocal(),
+    )
 
     destino = tmp_path / "duplicado.pdf"
     destino.write_bytes(b"contenido previo")
 
-    with patch.object(use_case, "resolver_destino_pdf", wraps=use_case.resolver_destino_pdf) as spy:
+    with (
+        patch.object(use_case, "resolver_destino_pdf", wraps=use_case.resolver_destino_pdf) as spy_use_case,
+        patch.object(
+            use_case_module,
+            "resolver_colision_pdf",
+            wraps=use_case_module.resolver_colision_pdf,
+        ) as spy_policy,
+        patch.object(
+            use_case._fs,
+            "resolver_colision_archivo",
+            wraps=use_case._fs.resolver_colision_archivo,
+        ) as spy_fs,
+    ):
         _, _, errores, ruta_pdf = use_case.confirmar_lote_y_generar_pdf([_solicitud(persona_id)], destino)
 
     assert errores == []
     assert ruta_pdf is not None
     assert str(ruta_pdf).endswith("duplicado (1).pdf")
-    assert spy.call_count == 1
+    assert spy_use_case.call_count == 1
+    assert spy_policy.call_count == 1
+    assert spy_fs.call_count == 1
+
+
+def test_confirmar_lote_preflight_colision_si_existen_base_y_1_devuelve_2(connection, tmp_path: Path) -> None:
+    persona_repo = RepositorioPersonasSQLite(connection)
+    solicitud_repo = SolicitudRepositorySQLite(connection)
+    persona_id = _crear_persona(persona_repo)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=FakeGeneradorPdf())
+
+    (tmp_path / "duplicado.pdf").write_bytes(b"base")
+    (tmp_path / "duplicado (1).pdf").write_bytes(b"alternativa 1")
+
+    _, _, errores, ruta_pdf = use_case.confirmar_lote_y_generar_pdf(
+        [_solicitud(persona_id)],
+        tmp_path / "duplicado.pdf",
+    )
+
+    assert errores == []
+    assert ruta_pdf is not None
+    assert str(ruta_pdf).endswith("duplicado (2).pdf")
 
 
 class FakeGeneradorPdfFalla(FakeGeneradorPdf):
