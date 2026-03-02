@@ -43,3 +43,8 @@
   `build_container()` deja de importar `QSettings` en import-time y resuelve el adaptador en runtime para evitar fallos en colección de tests UI en CI sin backend Qt completo.  
   Si `infraestructura.repositorio_preferencias_qsettings` no está disponible, se registra `RepositorioPreferenciasIni` (sin PySide6) y se emite WARNING estructurado para trazabilidad operativa.  
   La aplicación sigue dependiendo del puerto `IRepositorioPreferencias`; las implementaciones concretas permanecen en infraestructura, preservando inversión de dependencias y compatibilidad Windows.
+
+
+- **2026-03-02 — Navegación del header unificada en `_on_main_tab_changed` — Vigente**  
+  Se elimina el doble wiring sobre `main_tabs.currentChanged` y se deja una sola fuente de verdad para actualizar `_active_sidebar_index`, refrescar el título del header y disparar cargas por pestaña.  
+  Además, los radios de período de Histórico aceptan explícitamente el `bool` emitido por `toggled`, evitando `TypeError` por firmas incompatibles en conexiones Qt.

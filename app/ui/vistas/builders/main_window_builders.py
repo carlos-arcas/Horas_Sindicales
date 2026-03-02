@@ -22,6 +22,7 @@ from app.ui.vistas.builders.builders_barra_superior import create_barra_superior
 from app.ui.vistas.builders.builders_formulario_solicitud import create_formulario_solicitud
 from app.ui.vistas.builders.builders_sync_panel import create_sync_panel
 from app.ui.vistas.builders.builders_tablas import create_tablas
+from app.ui.vistas.main_window.wiring_helpers import conectar_signal
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow
@@ -81,14 +82,48 @@ def build_main_window_widgets(window: "MainWindow") -> None:
     window._historico_search_timer.setSingleShot(True)
     window._historico_search_timer.setInterval(250)
     window._historico_search_timer.timeout.connect(window._apply_historico_text_filter)
-    window.historico_todas_delegadas_check.toggled.connect(window._on_historico_todas_delegadas_toggled)
-    window.historico_periodo_anual_radio.toggled.connect(window._on_historico_periodo_mode_changed)
-    window.historico_periodo_mes_radio.toggled.connect(window._on_historico_periodo_mode_changed)
-    window.historico_periodo_rango_radio.toggled.connect(window._on_historico_periodo_mode_changed)
-    window.historico_apply_filters_button.clicked.connect(window._on_historico_apply_filters)
-    window.open_saldos_modal_button.clicked.connect(window._on_open_saldos_modal)
-    window.main_tabs.currentChanged.connect(window._on_main_tab_changed)
-    window.main_tabs.currentChanged.connect(lambda index: _on_tab_index_changed(window, index))
+    conectar_signal(
+        window,
+        window.historico_todas_delegadas_check.toggled,
+        "_on_historico_todas_delegadas_toggled",
+        contexto="main_window_builders.historico_todas_delegadas_toggled",
+    )
+    conectar_signal(
+        window,
+        window.historico_periodo_anual_radio.toggled,
+        "_on_historico_periodo_mode_changed",
+        contexto="main_window_builders.historico_periodo_anual_toggled",
+    )
+    conectar_signal(
+        window,
+        window.historico_periodo_mes_radio.toggled,
+        "_on_historico_periodo_mode_changed",
+        contexto="main_window_builders.historico_periodo_mes_toggled",
+    )
+    conectar_signal(
+        window,
+        window.historico_periodo_rango_radio.toggled,
+        "_on_historico_periodo_mode_changed",
+        contexto="main_window_builders.historico_periodo_rango_toggled",
+    )
+    conectar_signal(
+        window,
+        window.historico_apply_filters_button.clicked,
+        "_on_historico_apply_filters",
+        contexto="main_window_builders.historico_apply_filters_clicked",
+    )
+    conectar_signal(
+        window,
+        window.open_saldos_modal_button.clicked,
+        "_on_open_saldos_modal",
+        contexto="main_window_builders.open_saldos_modal_clicked",
+    )
+    conectar_signal(
+        window,
+        window.main_tabs.currentChanged,
+        "_on_main_tab_changed",
+        contexto="main_window_builders.main_tabs_current_changed",
+    )
     window._restaurar_contexto_guardado()
     window._on_historico_todas_delegadas_toggled(window.historico_todas_delegadas_check.isChecked())
     window._on_historico_periodo_mode_changed()
@@ -110,24 +145,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
 
 def build_shell_layout(window: "MainWindow") -> None:
     window.setCentralWidget(window._scroll_area)
-
-
-def _on_tab_index_changed(window: "MainWindow", index: int) -> None:
-    tab_to_sidebar_index = {0: 1, 1: 2, 2: 3}
-    if index in tab_to_sidebar_index:
-        window._active_sidebar_index = tab_to_sidebar_index[index]
-    window._refresh_header_title()
-
-    if index == 0:
-        persona = window._current_persona()
-        window._restore_draft_for_persona(persona.id if persona is not None else None)
-        window.fecha_input.setFocus()
-        return
-    if index == 1:
-        window._refresh_historico()
-        return
-    if index == 2:
-        window._refresh_saldos()
 
 
 def build_status_bar(window: "MainWindow") -> None:

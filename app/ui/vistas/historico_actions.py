@@ -61,7 +61,13 @@ def apply_historico_last_30_days(window: Any) -> None:
     window._apply_historico_filters()
 
 
-def on_historico_periodo_mode_changed(window: Any) -> None:
+def on_historico_periodo_mode_changed(window: Any, valor: bool | None = None, *_: object, **__: object) -> None:
+    """Sincroniza el estado de los controles de período.
+
+    Parámetros:
+        valor: bool emitido por `QRadioButton.toggled` (puede ser None en invocaciones programáticas).
+    """
+    _ = valor
     anual_activo = window.historico_periodo_anual_radio.isChecked()
     mes_activo = window.historico_periodo_mes_radio.isChecked()
     rango_activo = window.historico_periodo_rango_radio.isChecked()
