@@ -132,7 +132,7 @@ from .init_placeholders import inicializar_placeholders
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 from . import state_historico, state_pendientes
 from .header_state import resolve_section_title, resolve_sidebar_tab_index
-from app.infrastructure.i18n import ServicioI18nEstable
+from aplicacion.puertos.proveedor_i18n import ProveedorI18N
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase | None = None,
         guardar_preferencia_pantalla_completa: GuardarPreferenciaPantallaCompleta | None = None,
         obtener_preferencia_pantalla_completa: ObtenerPreferenciaPantallaCompleta | None = None,
-        servicio_i18n: ServicioI18nEstable | None = None,
+        servicio_i18n: ProveedorI18N | None = None,
     ) -> None:
         super().__init__()
         assert_hilo_ui_o_log("MainWindow.__init__", logger)

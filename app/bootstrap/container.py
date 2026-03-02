@@ -42,6 +42,7 @@ from app.infrastructure.sheets_gateway_gspread import SheetsGatewayGspread
 from app.infrastructure.sheets_repository import SheetsRepository
 from app.infrastructure.sqlite_lock_error_classifier import SQLiteLockErrorClassifier
 from app.infrastructure.sync_sheets_adapter import SyncSheetsAdapter
+from aplicacion.puertos.proveedor_i18n import ProveedorI18N
 from aplicacion.puertos.repositorio_preferencias import IRepositorioPreferencias
 
 LOGGER = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ class AppContainer:
     repositorio_preferencias: IRepositorioPreferencias
     cargar_datos_demo_caso_uso: CargarDatosDemoCasoUso
     exportar_compartir_periodo_caso_uso: ExportarCompartirPeriodoCasoUso
-    servicio_i18n: ServicioI18nEstable
+    servicio_i18n: ProveedorI18N
 
 
 ConnectionFactory = Callable[[], object]
