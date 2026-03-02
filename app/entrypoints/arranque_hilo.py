@@ -18,10 +18,9 @@ class TrabajadorArranque(QObject):
     finished = Signal(object)
     failed = Signal(str, str, str)
 
-    def __init__(self, container_seed: Any, i18n) -> None:
+    def __init__(self, container_seed: Any) -> None:
         super().__init__()
         self._container_seed = container_seed
-        self._i18n = i18n
 
     def _emitir_progreso(self, etapa: str) -> None:
         self.progreso.emit(etapa)
@@ -43,7 +42,7 @@ class TrabajadorArranque(QObject):
 
             etapa_actual = "bootstrap.crear_mainwindow_deps"
             self._emitir_progreso(etapa_actual)
-            self.finished.emit((resultado.container, resultado.deps_arranque, resultado.idioma))
+            self.finished.emit(resultado)
             resultado_emitido = True
         except Exception as exc:  # noqa: BLE001
             incident_id = f"INC-BOOT-{uuid.uuid4().hex[:12].upper()}"
@@ -54,20 +53,21 @@ class TrabajadorArranque(QObject):
             )
             self.failed.emit(
                 incident_id,
-                self._i18n.t("startup_error_dialog_message"),
+                "startup_error_dialog_message",
                 detalles or repr(exc),
             )
             resultado_emitido = True
         finally:
             if not resultado_emitido:
                 incident_id = f"INC-BOOT-{uuid.uuid4().hex[:12].upper()}"
-                detalles = self._i18n.t("startup_worker_no_terminal_signal", etapa=etapa_actual)
                 LOGGER.error(
                     "STARTUP_WORKER_NO_TERMINAL_SIGNAL",
-                    extra={"extra": {"incident_id": incident_id, "etapa": etapa_actual}},
+                    extra={
+                        "extra": {"incident_id": incident_id, "etapa": etapa_actual}
+                    },
                 )
                 self.failed.emit(
                     incident_id,
-                    self._i18n.t("startup_error_dialog_message"),
-                    detalles,
+                    "startup_error_dialog_message",
+                    f"startup_worker_no_terminal_signal:{etapa_actual}",
                 )
