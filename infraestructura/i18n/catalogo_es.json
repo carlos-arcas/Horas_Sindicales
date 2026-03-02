@@ -61,5 +61,8 @@
   "sync.configuracion_faltante_titulo": "Sin configuración",
   "sync.estado_pendiente": "Estado: Pendiente",
   "sync.permisos_google_sheets": "Permisos de Google Sheets",
-  "sync.email_no_disponible": "<email no disponible>"
+  "sync.email_no_disponible": "<email no disponible>",
+  "sync.error_operacion_log": "Sync failed",
+  "sync.permisos_bloqueados_log": "Sincronización bloqueada por permisos en Google Sheets",
+  "ui.texto_no_disponible": "(texto no disponible)"
 }

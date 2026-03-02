@@ -4,14 +4,15 @@ import logging
 from typing import Callable
 
 from aplicacion.puertos.proveedor_i18n import ProveedorI18N
+from presentacion.i18n import CATALOGO
 
 LOGGER = logging.getLogger(__name__)
-_FALLBACK_TEXTO = "(texto no disponible)"
+_FALLBACK_TEXTO_KEY = "ui.texto_no_disponible"
 
 
 class _ProveedorI18NNull:
     def t(self, key: str, fallback: str | None = None, **vars: object) -> str:
-        return fallback if fallback is not None else f"[MISSING:{key}]"
+        return fallback if fallback is not None else ""
 
 
 class RegistroIdiomaInterfaz:
@@ -67,8 +68,18 @@ def texto_interfaz_heredado(legacy: str, **params: object) -> str:
 
 
 def _resolver_texto(key: str, **params: object) -> str:
-    traducido = _REGISTRO_IDIOMA.servicio.t(key, **params)
-    if traducido.startswith("[MISSING"):
-        LOGGER.warning("i18n_missing_ui_key", extra={"extra": {"key": key, "idioma": idioma_actual_interfaz()}})
-        return _FALLBACK_TEXTO
-    return traducido
+    fallback = _fallback_texto_ui()
+    traducido = _REGISTRO_IDIOMA.servicio.t(key, fallback=fallback, **params)
+    if isinstance(traducido, str) and traducido.strip():
+        return traducido
+    LOGGER.warning("i18n_missing_ui_key", extra={"extra": {"key": key, "idioma": idioma_actual_interfaz()}})
+    return fallback
+
+
+def _fallback_texto_ui() -> str:
+    catalogo_es = CATALOGO.get("es", {}) if isinstance(CATALOGO, dict) else {}
+    if isinstance(catalogo_es, dict):
+        fallback = catalogo_es.get(_FALLBACK_TEXTO_KEY)
+        if isinstance(fallback, str) and fallback.strip():
+            return fallback
+    return _FALLBACK_TEXTO_KEY
