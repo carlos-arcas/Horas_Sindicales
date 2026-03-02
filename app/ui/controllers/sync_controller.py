@@ -12,7 +12,20 @@ from app.ui.sync_permission_message import build_sync_permission_blocked_message
 from app.ui.controllers.sync_button_state_rules import EstadoBotonSyncEntrada, decidir_estado_botones_sync
 
 
+try:
+    from presentacion.i18n import CATALOGO, I18nManager
+except ImportError:  # pragma: no cover - fallback for headless/unit-test environments
+    CATALOGO = {}
+    I18nManager = None
+
+
 logger = logging.getLogger(__name__)
+
+if I18nManager is None:
+    logger.warning(
+        "I18N_FALLBACK_ACTIVE_SYNC_CONTROLLER",
+        extra={"event": "I18N_FALLBACK_ACTIVE_SYNC_CONTROLLER"},
+    )
 
 
 class _SyncWorker(QObject):
@@ -68,10 +81,20 @@ class SyncController:
     def on_confirm_sync(self) -> None:
         w = self.window
         if w._pending_sync_plan is None:
-            w.toast.warning("Primero ejecuta una simulación para generar el plan.", title="Sin plan")
+            w.toast.warning(
+                _tr(
+                    w,
+                    "sync_first_run_simulation_warning",
+                    "Primero ejecuta una simulación para generar el plan.",
+                ),
+                title=_tr(w, "sync_no_plan_title", "Sin plan"),
+            )
             return
         if not w._pending_sync_plan.has_changes:
-            w.toast.info("No hay cambios que aplicar", title="Sincronización")
+            w.toast.info(
+                _tr(w, "sync_no_changes_to_apply", "No hay cambios que aplicar"),
+                title=_tr(w, "sync_title", "Sincronización"),
+            )
             return
         self._run_background_operation(
             operation=lambda: w._sync_service.execute_sync_plan(w._pending_sync_plan),
@@ -85,7 +108,14 @@ class SyncController:
             return
         if not w._sync_service.is_configured():
             w._set_config_incomplete_state()
-            w.toast.warning("No se pudo iniciar la sincronización.\nCausa probable: Falta configurar Google Sheets.\nAcción recomendada: Pulsa Ir a configuración, guarda los datos y reintenta.", title="Sin configuración")
+            w.toast.warning(
+                _tr(
+                    w,
+                    "sync_missing_config_warning",
+                    "No se pudo iniciar la sincronización.\nCausa probable: Falta configurar Google Sheets.\nAcción recomendada: Pulsa Ir a configuración, guarda los datos y reintenta.",
+                ),
+                title=_tr(w, "sync_missing_config_title", "Sin configuración"),
+            )
             return
         w._set_sync_in_progress(True)
         w._sync_thread = QThread()
@@ -225,3 +255,22 @@ def _resolve_service_account_email(window) -> str:
             return account_email.strip()
     logger.warning("SHEETS_SERVICE_EMAIL_MISSING", extra={"event": "SHEETS_SERVICE_EMAIL_MISSING"})
     return "<email no disponible>"
+
+
+def _tr(window, key: str, default_text: str) -> str:
+    """Resuelve textos i18n con fallback estático para pruebas unitarias/headless."""
+
+    i18n = getattr(window, "i18n", None)
+    if I18nManager is not None and isinstance(i18n, I18nManager) and hasattr(i18n, "t"):
+        try:
+            translated = i18n.t(key)
+        except Exception:  # pragma: no cover - programming errors should not break UI fallback
+            translated = None
+        if isinstance(translated, str) and translated.strip():
+            return translated
+    lang_catalog = CATALOGO.get("es", {})
+    if isinstance(lang_catalog, dict):
+        fallback_text = lang_catalog.get(key)
+        if isinstance(fallback_text, str) and fallback_text.strip():
+            return fallback_text
+    return default_text
