@@ -11,13 +11,21 @@ def _zona_horaria_local() -> tzinfo:
     return datetime.now().astimezone().tzinfo or UTC
 
 
-def parsear_iso_datetime(iso: str) -> datetime:
+def parsear_iso_datetime(
+    iso: str,
+    *,
+    evento: str = "iso_datetime_invalido",
+    contexto_evento: dict[str, str] | None = None,
+) -> datetime:
     try:
         return datetime.fromisoformat(iso)
     except ValueError:
+        extra = {"evento": evento, "iso": iso[:128]}
+        if contexto_evento:
+            extra.update(contexto_evento)
         logger.warning(
-            "iso_datetime_invalido",
-            extra={"evento": "iso_datetime_invalido", "iso": iso[:128]},
+            evento,
+            extra=extra,
         )
         raise
 
@@ -38,12 +46,31 @@ def normalizar_zona_horaria(dt: datetime, tz_objetivo: tzinfo) -> datetime:
 
 
 def duracion_ms_desde_iso(
-    inicio_iso: str, fin_iso: str, *, tz_objetivo: tzinfo | None = None
+    inicio_iso: str,
+    fin_iso: str,
+    *,
+    tz_objetivo: tzinfo | None = None,
+    evento_iso_invalido: str = "iso_datetime_invalido",
+    contexto_evento: dict[str, str] | None = None,
 ) -> int:
     zona_objetivo = tz_objetivo or _zona_horaria_local()
     try:
-        inicio = normalizar_zona_horaria(parsear_iso_datetime(inicio_iso), zona_objetivo)
-        fin = normalizar_zona_horaria(parsear_iso_datetime(fin_iso), zona_objetivo)
+        inicio = normalizar_zona_horaria(
+            parsear_iso_datetime(
+                inicio_iso,
+                evento=evento_iso_invalido,
+                contexto_evento=contexto_evento,
+            ),
+            zona_objetivo,
+        )
+        fin = normalizar_zona_horaria(
+            parsear_iso_datetime(
+                fin_iso,
+                evento=evento_iso_invalido,
+                contexto_evento=contexto_evento,
+            ),
+            zona_objetivo,
+        )
     except (TypeError, ValueError):
         return 0
     return max(0, int((fin - inicio).total_seconds() * 1000))

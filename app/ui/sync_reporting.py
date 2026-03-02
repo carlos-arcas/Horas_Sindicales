@@ -45,18 +45,16 @@ def _duracion_ms_entre_isos(inicio_iso: str, fin_iso: str) -> int:
 
 
 def _duracion_ms_simulacion(generated_at: str, now: str) -> int:
-    try:
-        return duracion_ms_desde_iso(generated_at, now, tz_objetivo=UTC)
-    except ValueError:
-        logger.warning(
-            "sync_simulacion_iso_invalido",
-            extra={
-                "evento": "sync_simulacion_iso_invalido",
-                "generated_at": generated_at,
-                "now": now,
-            },
-        )
-        return 0
+    return duracion_ms_desde_iso(
+        generated_at,
+        now,
+        tz_objetivo=UTC,
+        evento_iso_invalido="sync_simulacion_iso_invalido",
+        contexto_evento={
+            "generated_at": generated_at,
+            "now": now,
+        },
+    )
 
 
 def build_sync_report(
