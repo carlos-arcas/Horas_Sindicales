@@ -64,3 +64,15 @@ def test_simulation_report_duration_handles_aware_offsets(monkeypatch) -> None:
         generated_at="2026-01-01T09:59:30+00:00",
     )
     assert duration_ms >= 0
+
+
+def test_simulation_report_duration_invalid_generated_at_uses_fallback(monkeypatch, caplog) -> None:
+    caplog.set_level("WARNING")
+    duration_ms = _run_simulation_report_with_now(
+        monkeypatch,
+        now_iso="2026-01-01T10:01:00+00:00",
+        generated_at="fecha-invalida",
+    )
+
+    assert duration_ms == 0
+    assert "fallback a 0 ms" in caplog.text

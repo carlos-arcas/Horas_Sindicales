@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -8,6 +9,8 @@ from pathlib import Path
 
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncLogEntry, SyncReport, SyncSummary
 from app.ui.copy_catalog import copy_text
+
+logger = logging.getLogger(__name__)
 
 
 def _txt(key: str, **kwargs: object) -> str:
@@ -31,6 +34,17 @@ def _duracion_ms_entre_isos(inicio_iso: str, fin_iso: str) -> int:
     inicio = _parsear_iso_utc_aware(inicio_iso)
     fin = _parsear_iso_utc_aware(fin_iso)
     return max(0, int((fin - inicio).total_seconds() * 1000))
+
+
+def duracion_ms_desde_iso(inicio_iso: str, fin_iso: str) -> int:
+    try:
+        return _duracion_ms_entre_isos(inicio_iso, fin_iso)
+    except (TypeError, ValueError):
+        logger.warning(
+            "No se pudo calcular duración desde ISO; se aplica fallback a 0 ms",
+            extra={"inicio_iso": inicio_iso, "fin_iso": fin_iso},
+        )
+        return 0
 
 
 def build_sync_report(
@@ -280,9 +294,7 @@ def build_simulation_report(
             )
         )
     status = "OK" if plan.has_changes else "IDLE"
-    inicio = _parsear_iso_utc_aware(plan.generated_at)
-    fin = _parsear_iso_utc_aware(now)
-    duration_ms = max(0, int((fin - inicio).total_seconds() * 1000))
+    duration_ms = duracion_ms_desde_iso(plan.generated_at, now)
 
     return SyncReport(
         sync_id=sync_id or str(uuid.uuid4()),
