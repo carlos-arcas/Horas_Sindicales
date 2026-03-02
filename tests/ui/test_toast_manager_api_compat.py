@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import importlib.util
+import inspect
 from pathlib import Path
 import sys
 from types import ModuleType
@@ -80,6 +81,34 @@ def test_error_acepta_action_label_action_callback() -> None:
     assert gestor.ultima_carga is not None
     assert gestor.ultima_carga["action_label"] == "Ver"
     assert callable(gestor.ultima_carga["action_callback"])
+
+
+def test_success_y_error_exponen_firma_compatible_con_acciones() -> None:
+    modulo = _cargar_modulo_toast()
+    firma_success = inspect.signature(modulo.ToastManager.success)
+    firma_error = inspect.signature(modulo.ToastManager.error)
+
+    for firma in (firma_success, firma_error):
+        assert "action_label" in firma.parameters
+        assert "action_callback" in firma.parameters
+        assert firma.parameters["action_label"].default is None
+        assert firma.parameters["action_callback"].default is None
+
+
+def test_success_rechaza_action_callback_no_callable() -> None:
+    modulo = _cargar_modulo_toast()
+    gestor = modulo.ToastManager()
+
+    with pytest.raises(ValueError, match="toast_action_callback_invalido"):
+        gestor.success("ok", action_label="Abrir", action_callback="no-callable")
+
+
+def test_error_rechaza_action_callback_no_callable() -> None:
+    modulo = _cargar_modulo_toast()
+    gestor = modulo.ToastManager()
+
+    with pytest.raises(ValueError, match="toast_action_callback_invalido"):
+        gestor.error("boom", action_label="Ver", action_callback=object())
 
 
 def test_success_rechaza_kwargs_desconocidos_con_value_error() -> None:

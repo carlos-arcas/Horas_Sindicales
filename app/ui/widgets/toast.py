@@ -56,6 +56,10 @@ class GestorToasts(_GestorToastsBase):
         if action_callback is None and callable(alias_callback):
             action_callback = alias_callback
 
+        if action_callback is not None and not callable(action_callback):
+            logger.error("toast_action_callback_invalido", extra={"callback_type": type(action_callback).__name__})
+            raise ValueError("toast_action_callback_invalido")
+
         return action_label, action_callback
 
     def success(

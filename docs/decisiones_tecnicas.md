@@ -28,6 +28,9 @@
 - **2026-03-01 — Reglas de filtrado de histórico movidas de UI a aplicación — Vigente**  
   Antes: `app/ui/vistas/historico_filter_rules.py` contenía lógica de aceptación/descartes por estado, rango y búsqueda. Después: reglas puras en `app/domain/services.py`, y el módulo UI queda como shim de compatibilidad sin negocio. Se refuerza con guard de imports entre capas.
 
+- **2026-03-02 — Validación explícita de `action_callback` en `ToastManager` — Vigente**  
+  Se endurece la compatibilidad de kwargs en toasts: `success/error` mantienen soporte para `action_label/action_callback`, pero ahora rechazan callbacks no invocables con `ValueError` y logging estructurado (`toast_action_callback_invalido`). Esto evita errores silenciosos y asegura contratos de firma con tests unitarios puros (`inspect.signature`).
+
 ## Procedimiento de actualización
 
 1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).
