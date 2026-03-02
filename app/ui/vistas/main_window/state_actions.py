@@ -58,3 +58,20 @@ class MainWindowStateActionsMixin:
             if hasattr(fecha, "isValid") and fecha.isValid():
                 return PeriodoFiltro.mensual(fecha.year(), fecha.month())
         return PeriodoFiltro.anual(date.today().year)
+
+    def _update_periodo_label(self) -> None:
+        saldos_card = getattr(self, "saldos_card", None)
+        if saldos_card is None or not hasattr(saldos_card, "update_periodo_label"):
+            return
+
+        filtro = self._current_saldo_filtro()
+        if filtro.modo == "MENSUAL" and filtro.month is not None:
+            saldos_card.update_periodo_label(f"Mensual ({filtro.month:02d}/{filtro.year})")
+            return
+        saldos_card.update_periodo_label(f"Anual ({filtro.year})")
+
+    def _set_saldos_labels(self, resumen) -> None:
+        saldos_card = getattr(self, "saldos_card", None)
+        if saldos_card is None or not hasattr(saldos_card, "update_saldos"):
+            return
+        saldos_card.update_saldos(resumen)
