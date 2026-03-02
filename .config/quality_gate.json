@@ -18,5 +18,31 @@
     "app/application/use_cases/solicitudes/confirmar_sin_pdf_planner.py:plan_confirmar_sin_pdf": 8,
     "app/application/use_cases/solicitudes/use_case.py:SolicitudUseCases._generar_pdf_confirmadas": 10,
     "app/application/use_cases/solicitudes/pdf_confirmadas_builder.py:plan_pdf_confirmadas": 8
+  },
+  "i18n_hardcode_check": {
+    "rutas_objetivo": [
+      "presentacion",
+      "app/ui"
+    ],
+    "rutas_excluidas": [
+      "tests",
+      "docs",
+      "migrations",
+      "__pycache__"
+    ],
+    "archivos_excluidos": [
+      "presentacion/i18n/**",
+      "app/ui/i18n/**",
+      "infraestructura/i18n/**",
+      "app/ui/copy_catalog.py"
+    ],
+    "patron_clave_i18n": "^[a-z0-9_]+(\\.[a-z0-9_]+)+$",
+    "patrones_tecnicos_permitidos": [
+      "^%[YmdHMS:\\-_/ ]+$",
+      "^(utf-8|ascii|latin-1)$"
+    ],
+    "wrappers_logger_permitidos": [
+      "log_operational_error"
+    ]
   }
 }

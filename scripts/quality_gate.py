@@ -19,6 +19,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts.i18n.check_hardcode_i18n import (
+    ConfigCheck,
+    analizar_rutas,
+    renderizar_hallazgos,
+)
+
 CONFIG_PATH = ROOT / ".config" / "quality_gate.json"
 BASELINE_NAMING_PATH = ROOT / ".config" / "naming_baseline.json"
 LOGS_DIR = ROOT / "logs"
@@ -182,6 +188,38 @@ def run_contractual_test(
     return _make_result(status, detail, exit_code=exit_code)
 
 
+def _load_i18n_check_config(config: dict[str, object]) -> ConfigCheck:
+    raw = config.get("i18n_hardcode_check", {})
+    defaults = ConfigCheck()
+    if not isinstance(raw, dict):
+        return defaults
+    return ConfigCheck(
+        rutas_objetivo=tuple(raw.get("rutas_objetivo", defaults.rutas_objetivo)),
+        rutas_excluidas=tuple(raw.get("rutas_excluidas", defaults.rutas_excluidas)),
+        archivos_excluidos=tuple(raw.get("archivos_excluidos", defaults.archivos_excluidos)),
+        patron_clave_i18n=str(raw.get("patron_clave_i18n", defaults.patron_clave_i18n)),
+        patrones_tecnicos_permitidos=tuple(
+            raw.get("patrones_tecnicos_permitidos", defaults.patrones_tecnicos_permitidos)
+        ),
+        wrappers_logger_permitidos=tuple(
+            raw.get("wrappers_logger_permitidos", defaults.wrappers_logger_permitidos)
+        ),
+    )
+
+
+def run_i18n_hardcode_guard(config: dict[str, object], records: list[dict[str, str]]) -> dict[str, Any]:
+    check = _load_i18n_check_config(config)
+    rutas = [ROOT / ruta for ruta in check.rutas_objetivo if (ROOT / ruta).exists()]
+    hallazgos = analizar_rutas(rutas, check)
+    if hallazgos:
+        print(renderizar_hallazgos(hallazgos))
+
+    status = "FAIL" if hallazgos else "PASS"
+    detail = f"hallazgos={len(hallazgos)}"
+    _record(records, "i18n_hardcode", status, detail)
+    return _make_result(status, detail, total_hallazgos=len(hallazgos))
+
+
 def _load_naming_baseline() -> dict[str, set[str]]:
     if not BASELINE_NAMING_PATH.exists():
         raise SystemExit("Falta .config/naming_baseline.json para controlar regresión de naming debt.")
@@ -278,6 +316,7 @@ def build_report(
         "secrets", "tests/test_no_secrets_committed.py", records, runner
     )
     results["naming"] = run_naming_guard(records)
+    results["i18n_hardcode"] = run_i18n_hardcode_guard(config, records)
     results["release_contract"] = run_contractual_test(
         "release_contract", "tests/test_release_build_contract.py", records, runner
     )
@@ -300,7 +339,15 @@ def build_report(
 
 def print_human_summary(results: dict[str, Any]) -> None:
     print("\n=== QUALITY GATE UNIFICADO ===")
-    for area in ["coverage", "cc_budget", "architecture", "secrets", "naming", "release_contract"]:
+    for area in [
+        "coverage",
+        "cc_budget",
+        "architecture",
+        "secrets",
+        "naming",
+        "i18n_hardcode",
+        "release_contract",
+    ]:
         area_result = results[area]
         print(f"- {area}: {area_result['status']} | {area_result['detail']}")
     if results.get("degraded_mode"):
