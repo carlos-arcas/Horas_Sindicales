@@ -2,24 +2,22 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.application.use_cases.sync_sheets.pull_planner import PullAction, PullPlannerSignals, plan_pull_actions
-from app.application.use_cases.sync_sheets.pull_runner import run_pull_actions, run_with_savepoint
+from app.application.use_cases.sync_sheets.pull_planner import PullAction
 from app.application.use_cases.sync_sheets.sync_snapshots import (
     PullContext,
     PullSignals,
     RemoteSolicitudRowDTO,
-    build_local_solicitud_payload,
-    build_pull_signals_snapshot,
-    normalize_dia,
-    parse_remote_solicitud_row,
+    build_pdf_log_payload,
+    pdf_log_insert_values,
+    pdf_log_update_values,
 )
-from app.application.use_cases.sync_sheets.sync_reporting_rules import accumulate_write_result, apply_stat_counter, pull_stats_tuple, reason_text
+from app.application.use_cases.sync_sheets.sync_reporting_rules import accumulate_write_result, pull_stats_tuple
 from app.application.use_cases.sync_sheets.helpers import sync_local_cuadrantes_from_personas
 from app.application.use_cases.sync_sheets import payloads_puros
 from app.domain.sheets_errors import SheetsConfigError
 from app.application.use_cases import sync_sheets_core
-from app.application.use_cases.sync_sheets.normalization_rules import normalize_remote_solicitud_row, normalize_remote_uuid
-from app.application.use_cases.sync_sheets.orquestacion_modelos import HEADER_CANONICO_SOLICITUDES, PullApplyContext
+from app.application.use_cases.sync_sheets.normalization_rules import normalize_remote_solicitud_row
+from app.application.use_cases.sync_sheets.orquestacion_modelos import PullApplyContext
 from app.domain.sync_models import SyncSummary
 import logging
 
@@ -201,6 +199,7 @@ class OrquestadorPullSheets:
                 )
             )
 
+
         @staticmethod
         def parse_remote_solicitud_row(row: dict[str, Any]) -> RemoteSolicitudRowDTO:
             import app.application.use_cases.sync_sheets.use_case as uc
@@ -261,9 +260,9 @@ class OrquestadorPullSheets:
                 self._pull_apply_context = None
 
         def _apply_skip_action(self, action: PullAction) -> None:
-            import app.application.use_cases.sync_sheets.use_case as uc
             context = self._pull_apply_context
             counter = str(action.payload.get("counter") or "")
+            import app.application.use_cases.sync_sheets.use_case as uc
             logger.debug("Pull action SKIP: reason_code=%s detail=%s", action.reason_code, uc.reason_text(action.reason_code))
             if context and counter:
                 context.stats.update(uc.apply_stat_counter(context.stats, counter=counter))

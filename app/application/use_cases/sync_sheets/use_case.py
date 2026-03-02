@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.application.dtos.sync_preflight_result import SyncPreflightResult
 from app.application.use_cases.sync_sheets.executor import execute_plan
 from app.application.use_cases.sync_sheets.orquestador_persistencia import OrquestadorPersistenciaSync
 from app.application.use_cases.sync_sheets.orquestador_preflight import OrquestadorPreflightSync
@@ -12,13 +11,13 @@ from app.application.use_cases.sync_sheets.orquestacion_modelos import (
     HEADER_CANONICO_SOLICITUDES,
     PullApplyContext,
 )
-from app.application.use_cases.sync_sheets.pull_planner import PullPlannerSignals, plan_pull_actions
-from app.application.use_cases.sync_sheets.pull_runner import run_pull_actions, run_with_savepoint
 from app.application.use_cases.sync_sheets.planner import build_plan
 from app.application.use_cases.sync_sheets.servicio_escritura_lotes import ServicioEscrituraLotes
+from app.application.use_cases.sync_sheets.pull_planner import PullPlannerSignals, plan_pull_actions
+from app.application.use_cases.sync_sheets.pull_runner import run_pull_actions, run_with_savepoint
 from app.application.use_cases import sync_sheets_core
-from app.application.delegada_resolution import get_or_resolve_delegada_uuid
 from app.application.use_cases.sync_sheets.normalization_rules import normalize_remote_uuid
+from app.application.delegada_resolution import get_or_resolve_delegada_uuid
 from app.application.use_cases.sync_sheets.push_builder import build_push_solicitudes_payloads
 from app.application.use_cases.sync_sheets.push_runner import run_push_values_update
 from app.application.use_cases.sync_sheets.sync_reporting_rules import (
@@ -123,4 +122,24 @@ class SheetsSyncService(
         self._ensure_connection_ready()
 
 
-__all__ = ["SheetsSyncService"]
+__all__ = [
+    "HEADER_CANONICO_SOLICITUDES",
+    "PullContext",
+    "PullPlannerSignals",
+    "PullSignals",
+    "RemoteSolicitudRowDTO",
+    "SheetsSyncService",
+    "apply_stat_counter",
+    "build_pull_signals_snapshot",
+    "build_push_solicitudes_payloads",
+    "get_or_resolve_delegada_uuid",
+    "normalize_remote_uuid",
+    "parse_remote_solicitud_row",
+    "plan_pull_actions",
+    "pull_stats_tuple",
+    "reason_text",
+    "run_pull_actions",
+    "run_push_values_update",
+    "run_with_savepoint",
+    "sync_sheets_core",
+]
