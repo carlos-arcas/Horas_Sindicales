@@ -501,8 +501,42 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
                 input_widget.setPlaceholderText("HH:MM")
 
     def _normalize_input_heights(self) -> None:
+        """Unifica la altura de los campos del formulario de solicitud."""
+        input_names = ("persona_combo", "fecha_input", "desde_input", "hasta_input", "notas_input")
+        single_line_class_names = {
+            "QComboBox",
+            "QDateEdit",
+            "QTimeEdit",
+            "QLineEdit",
+            "QSpinBox",
+            "QDoubleSpinBox",
+        }
+
+        def _size_hint_height(widget: object) -> int | None:
+            size_hint = getattr(widget, "sizeHint", None)
+            if not callable(size_hint):
+                return None
+            hint = size_hint()
+            height_getter = getattr(hint, "height", None)
+            if not callable(height_getter):
+                return None
+            height = height_getter()
+            if isinstance(height, int) and height > 0:
+                return height
+            return None
+
         try:
-            handlers_layout.normalize_input_heights(self)
+            widgets = [widget for name in input_names if (widget := getattr(self, name, None)) is not None]
+            single_line_widgets = [widget for widget in widgets if type(widget).__name__ in single_line_class_names]
+            heights = [height for widget in single_line_widgets if (height := _size_hint_height(widget)) is not None]
+            if not heights:
+                return
+
+            target_height = max(heights)
+            for widget in single_line_widgets:
+                set_fixed_height = getattr(widget, "setFixedHeight", None)
+                if callable(set_fixed_height):
+                    set_fixed_height(target_height)
         except Exception as exc:
             log_operational_error(
                 logger,
