@@ -36,6 +36,9 @@ class CuadranteRepository(Protocol):
 
 
 class SolicitudRepository(Protocol):
+    def list_historico_batch(self, *, limit: int, offset: int) -> Iterable[Solicitud]:
+        ...
+
     def list_by_persona(self, persona_id: int) -> Iterable[Solicitud]:
         ...
 

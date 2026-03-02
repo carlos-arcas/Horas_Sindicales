@@ -168,6 +168,22 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         )
         return [self._row_to_solicitud(row) for row in cursor.fetchall()]
 
+    def list_historico_batch(self, *, limit: int, offset: int) -> Iterable[Solicitud]:
+        cursor = self._connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, persona_id, fecha_solicitud, fecha_pedida, desde_min, hasta_min, completo,
+                   horas_solicitadas_min, observaciones, notas, pdf_path, pdf_hash, generated
+            FROM solicitudes
+            WHERE generated = 1
+              AND (deleted = 0 OR deleted IS NULL)
+            ORDER BY fecha_pedida DESC, id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset),
+        )
+        return [self._row_to_solicitud(row) for row in cursor.fetchall()]
+
     def list_pendientes_by_persona(self, persona_id: int) -> Iterable[Solicitud]:
         cursor = self._connection.cursor()
         cursor.execute(
