@@ -5,6 +5,7 @@ import sys
 from typing import Callable
 
 from aplicacion.casos_de_uso.onboarding import ReiniciarOnboarding
+from app.entrypoints.arranque_nucleo import ResultadoArranque
 
 from PySide6.QtCore import QObject, QTimer, Slot
 
@@ -57,7 +58,9 @@ class CoordinadorArranque(QObject):
     def _detalles_con_etapa(self, detalles: str) -> str:
         if not self.ultima_etapa:
             return detalles
-        etiqueta = self.i18n.t("startup_last_stage", etapa=self.i18n.t(self.ultima_etapa))
+        etiqueta = self.i18n.t(
+            "startup_last_stage", etapa=self.i18n.t(self.ultima_etapa)
+        )
         if not detalles:
             return etiqueta
         return f"{etiqueta}\n{detalles}"
@@ -128,14 +131,16 @@ class CoordinadorArranque(QObject):
         )
 
     @Slot(object)
-    def on_finished(self, startup_payload) -> None:
+    def on_finished(self, startup_payload: ResultadoArranque) -> None:
         self.terminado = True
 
         def _aplicar_resultado_ui() -> None:
             self._detener_watchdog_idempotente()
             self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
-            resolved_container, deps_arranque, idioma = startup_payload
+            resolved_container = startup_payload.container
+            deps_arranque = startup_payload.deps_arranque
+            idioma = startup_payload.idioma
             self.i18n.set_idioma(idioma)
             orquestador = self.orquestador_factory(deps_arranque, self.i18n)
             if not orquestador.resolver_onboarding():
@@ -174,6 +179,11 @@ class CoordinadorArranque(QObject):
     def on_failed(self, incident_id: str, mensaje_usuario: str, detalles: str) -> None:
         self.terminado = True
         self.incident_id = incident_id
+        mensaje_ui = self.i18n.t(mensaje_usuario)
+        detalles_ui = detalles
+        if detalles.startswith("startup_worker_no_terminal_signal:"):
+            etapa = detalles.split(":", maxsplit=1)[1]
+            detalles_ui = self.i18n.t("startup_worker_no_terminal_signal", etapa=etapa)
 
         def _fallar_en_ui() -> None:
             self._detener_watchdog_idempotente()
@@ -186,10 +196,10 @@ class CoordinadorArranque(QObject):
                 splash=self.splash,
                 startup_thread=self.thread,
                 app=self.app,
-                mensaje_usuario=mensaje_usuario,
+                mensaje_usuario=mensaje_ui,
                 dialogo_factory=None,
                 incident_id=incident_id,
-                detalles=self._detalles_con_etapa(detalles),
+                detalles=self._detalles_con_etapa(detalles_ui),
                 watchdog_timer=self.watchdog_timer,
             )
 
