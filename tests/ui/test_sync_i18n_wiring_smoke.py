@@ -8,7 +8,7 @@ from tests.ui.conftest import require_qt
 QApplication = require_qt()
 
 from app.bootstrap.container import build_container
-from app.ui.i18n_ui import ui_text
+from app.ui.i18n_interfaz import texto_interfaz
 from app.ui.vistas.main_window import MainWindow
 
 
@@ -34,7 +34,7 @@ def test_cambio_idioma_refresca_textos_sync_panel() -> None:
     )
 
     window.conflicts_reminder_label.setVisible(True)
-    window.conflicts_reminder_label.setText(ui_text("ui.sync.panel.conflictos_pendientes", cantidad=2))
+    window.conflicts_reminder_label.setText(texto_interfaz("ui.sync.panel.conflictos_pendientes", cantidad=2))
     base_estado = window.sync_panel_status.text()
     base_run = window.sync_status_label.text()
     base_conflictos = window.conflicts_reminder_label.text()
@@ -52,7 +52,7 @@ def test_cambio_idioma_refresca_textos_sync_panel() -> None:
 def test_missing_key_muestra_fallback_y_log_warning(caplog) -> None:
     caplog.set_level(logging.WARNING)
 
-    texto = ui_text("ui.sync.panel.esta_key_no_existe")
+    texto = texto_interfaz("ui.sync.panel.esta_key_no_existe")
 
     assert texto == "(texto no disponible)"
     assert any("i18n_missing_ui_key" in record.message for record in caplog.records)

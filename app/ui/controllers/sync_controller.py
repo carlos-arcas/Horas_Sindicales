@@ -10,7 +10,7 @@ from app.core.observability import OperationContext, log_event
 from app.domain.sheets_errors import SheetsPermissionError
 from app.ui.sync_permission_message import build_sync_permission_blocked_message
 from app.ui.controllers.sync_button_state_rules import EstadoBotonSyncEntrada, decidir_estado_botones_sync
-from app.ui.vistas.helpers_i18n_compat import resolver_texto_i18n
+from app.ui.vistas.ayudas_i18n_compat import resolver_texto_i18n
 
 
 try:

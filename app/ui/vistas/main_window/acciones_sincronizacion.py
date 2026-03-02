@@ -12,7 +12,7 @@ from app.ui.notification_service import OperationFeedback
 from app.ui.sync_reporting import to_markdown
 from app.ui.vistas.main_window import acciones_sincronizacion_resultados as resultados
 from app.ui.vistas.main_window import dialogos_sincronizacion
-from app.ui.i18n_ui import ui_text, ui_text_legacy
+from app.ui.i18n_interfaz import texto_interfaz, texto_interfaz_legacy
 from app.ui.vistas.ui_helpers import abrir_archivo_local
 from app.bootstrap.logging import log_operational_error
 
@@ -24,8 +24,8 @@ def on_sync(ventana) -> None:
         return
     if hasattr(ventana._sync_service, "is_configured") and not ventana._sync_service.is_configured():
         ventana.toast.warning(
-            ui_text("ui.sync.panel.falta_configuracion"),
-            title=ui_text("ui.sync.panel.sync_no_disponible"),
+            texto_interfaz("ui.sync.panel.falta_configuracion"),
+            title=texto_interfaz("ui.sync.panel.sync_no_disponible"),
         )
         return
     ventana._pending_sync_plan = None
@@ -43,8 +43,8 @@ def on_simulate_sync(ventana) -> None:
 def on_confirm_sync(ventana) -> None:
     if ventana._pending_sync_plan is not None and ventana._pending_sync_plan.conflicts:
         ventana.toast.warning(
-            ui_text("ui.sync.panel.conflictos_pendientes_decision"),
-            title=ui_text("ui.sync.panel.sincronizacion_bloqueada"),
+            texto_interfaz("ui.sync.panel.conflictos_pendientes_decision"),
+            title=texto_interfaz("ui.sync.panel.sincronizacion_bloqueada"),
         )
         return
     ventana._sync_controller.on_confirm_sync()
@@ -209,8 +209,8 @@ def set_config_incomplete_state(ventana) -> None:
 def sincronizar_con_confirmacion(ventana) -> None:
     result = QMessageBox.question(
         ventana,
-        ui_text("ui.sync.panel.confirmar_sincronizacion"),
-        ui_text("ui.sync.panel.confirmar_inicio_sync"),
+        texto_interfaz("ui.sync.panel.confirmar_sincronizacion"),
+        texto_interfaz("ui.sync.panel.confirmar_inicio_sync"),
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         QMessageBox.StandardButton.No,
     )
@@ -223,16 +223,16 @@ def sincronizar_con_confirmacion(ventana) -> None:
     logger.error("sync_handler_missing", extra={"handler": "_on_sync"})
     QMessageBox.information(
         ventana,
-        ui_text("ui.sync.panel.sincronizacion"),
-        ui_text("ui.sync.panel.sync_pantalla_no_disponible"),
+        texto_interfaz("ui.sync.panel.sincronizacion"),
+        texto_interfaz("ui.sync.panel.sync_pantalla_no_disponible"),
     )
 
 
 def on_sync_with_confirmation(ventana) -> None:
     result = QMessageBox.question(
         ventana,
-        ui_text("ui.sync.panel.confirmar_sincronizacion"),
-        ui_text("ui.sync.panel.confirmar_inicio_sync"),
+        texto_interfaz("ui.sync.panel.confirmar_sincronizacion"),
+        texto_interfaz("ui.sync.panel.confirmar_inicio_sync"),
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         QMessageBox.StandardButton.No,
     )
@@ -246,18 +246,18 @@ def on_sync_with_confirmation(ventana) -> None:
             ventana._on_sync()
             return
         logger.warning("sync_workflow_not_available")
-        QMessageBox.information(ventana, ui_text("ui.sync.panel.sincronizacion"), ui_text("ui.sync.panel.funcion_no_disponible"))
+        QMessageBox.information(ventana, texto_interfaz("ui.sync.panel.sincronizacion"), texto_interfaz("ui.sync.panel.funcion_no_disponible"))
     except Exception as exc:  # pragma: no cover
         log_operational_error(
             logger,
-            ui_text_legacy("app/ui/vistas/main_window/acciones_sincronizacion.py:236:Sync failed: no se pudo iniciar desde UI"),
+            texto_interfaz_legacy("app/ui/vistas/main_window/acciones_sincronizacion.py:236:Sync failed: no se pudo iniciar desde UI"),
             exc=exc,
             extra={"operation": "sync_workflow_start"},
         )
         QMessageBox.critical(
             ventana,
-            ui_text("ui.sync.panel.sincronizacion"),
-            ui_text("ui.sync.panel.no_se_pudo_iniciar") + f"\n\n{exc}",
+            texto_interfaz("ui.sync.panel.sincronizacion"),
+            texto_interfaz("ui.sync.panel.no_se_pudo_iniciar") + f"\n\n{exc}",
         )
 
 
