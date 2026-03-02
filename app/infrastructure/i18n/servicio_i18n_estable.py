@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import inspect
 import json
 import logging
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Callable
 
@@ -91,12 +91,20 @@ class ServicioI18nEstable(ProveedorI18N):
 
     @staticmethod
     def _resolver_caller() -> str:
-        stack = inspect.stack()
-        if len(stack) < 4:
+        frame = _obtener_frame(4)
+        if frame is None:
             return "desconocido"
-        frame = stack[3]
-        filename = _normalizar_filename(frame.filename)
-        return f"{filename}:{frame.function}:{frame.lineno}"
+        filename = _normalizar_filename(frame.f_code.co_filename)
+        return f"{filename}:{frame.f_code.co_name}:{frame.f_lineno}"
+
+
+def _obtener_frame(profundidad: int) -> object | None:
+    if not hasattr(sys, "_getframe"):
+        return None
+    try:
+        return sys._getframe(profundidad)
+    except ValueError:
+        return None
 
 
 def _normalizar_filename(filename: object) -> str:
