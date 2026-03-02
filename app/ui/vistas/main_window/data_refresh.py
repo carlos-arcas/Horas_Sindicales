@@ -28,7 +28,7 @@ def refresh_historico(window, *, force: bool = False) -> None:
         tab_index=window.main_tabs.currentIndex() if window.main_tabs is not None else None,
     )
     logger.info(
-        "UI_HISTORICO_REFRESH_START persona_id=%s filtros=%s",
+        "UI_HISTORICO_REFRESH_START action=historico_refresh reason_code=user_or_system_refresh persona_id=%s filtros=%s",
         persona.id if persona is not None else None,
         historico_filters,
     )

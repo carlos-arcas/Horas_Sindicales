@@ -22,7 +22,7 @@ class SolicitudDisplayEntrada:
     - `is_deleted` tiene precedencia para columna Estado: si es `True`, se muestra
       estado eliminado aunque `generated` también sea `True`.
     - Valores vacíos en `desde`/`hasta` usan placeholder `-`.
-    - Valores vacíos en `notas` se renderizan como string vacío.
+    - Valores vacíos en `notas` se renderizan como `—`.
     """
 
     column: int
@@ -65,6 +65,14 @@ def _status_text(*, generated: bool, is_deleted: bool) -> str:
     return STATUS_BADGES["CONFIRMED"] if generated else STATUS_BADGES["PENDING"]
 
 
+
+
+def resumen_nota(notas: str | None) -> str:
+    texto = (notas or '').strip()
+    if not texto:
+        return '—'
+    return f'🔒 {len(texto)}'
+
 def _base_column_text(entrada: SolicitudDisplayEntrada) -> str | None:
     if entrada.column == 0:
         return entrada.fecha_pedida
@@ -77,7 +85,7 @@ def _base_column_text(entrada: SolicitudDisplayEntrada) -> str | None:
     if entrada.column == 4:
         return _format_minutes(int(round(entrada.horas * 60)))
     if entrada.column == 5:
-        return entrada.notas or ""
+        return resumen_nota(entrada.notas)
     return None
 
 
@@ -89,7 +97,7 @@ def _dynamic_column_text(entrada: SolicitudDisplayEntrada) -> str | None:
         dynamic_column += 1
 
     if entrada.show_delegada and entrada.column == dynamic_column:
-        return entrada.persona_nombre or "(sin delegada)"
+        return entrada.persona_nombre or "—"
     return None
 
 

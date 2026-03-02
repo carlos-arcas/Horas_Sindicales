@@ -184,7 +184,7 @@ def test_solicitudes_table_model_display_and_dynamic_columns() -> None:
     assert model.data(model.index(0, 1), Qt.DisplayRole) == "09:00"
     assert model.data(model.index(0, 3), Qt.DisplayRole) == "No"
     assert model.data(model.index(0, 4), Qt.DisplayRole) == "01:30"
-    assert model.data(model.index(0, 5), Qt.DisplayRole) == "nota"
+    assert model.data(model.index(0, 5), Qt.DisplayRole) == "🔒 4"
     assert model.data(model.index(0, 6), Qt.DisplayRole) == "✅ Confirmada"
 
     role_value = model.data(model.index(0, 0), models_qt.SOLICITUD_FECHA_ROLE)
@@ -213,7 +213,7 @@ def test_solicitudes_table_model_roles_and_mutations() -> None:
     index_fecha = model.index(0, 0)
     index_notas = model.index(0, 5)
 
-    assert model.data(index_notas, Qt.ToolTipRole) == ""
+    assert model.data(index_notas, Qt.ToolTipRole) == "—"
     assert "solapado" in model.data(index_fecha, Qt.ToolTipRole)
     color = model.data(index_fecha, Qt.ForegroundRole)
     assert color.value == "#c62828"
@@ -226,7 +226,7 @@ def test_solicitudes_table_model_roles_and_mutations() -> None:
 
     pending = _solicitud(2, generated=False)
     model.set_solicitudes([pending])
-    assert model.data(model.index(0, 5), Qt.DisplayRole) == "nota"
+    assert model.data(model.index(0, 5), Qt.DisplayRole) == "🔒 4"
 
     assert model.persona_name_for_id(999) == ""
     model.set_persona_nombres({1: "Delegada"})
