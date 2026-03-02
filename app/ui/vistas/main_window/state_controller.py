@@ -943,6 +943,20 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _focus_pending_by_id(self, solicitud_id: int | None) -> bool:
         return state_pendientes.enfocar_pendiente_por_id(self, solicitud_id)
 
+    def _dump_estado_pendientes(self, motivo: str) -> None:
+        try:
+            estado = build_estado_pendientes_debug_payload(
+                editing_pending=self._selected_pending_for_editing(),
+                selected_rows=self._selected_pending_row_indexes(),
+                solicitud_form=self._build_preview_solicitud(),
+                pending_solicitudes=self._pending_solicitudes,
+                agregar_button_text=self.agregar_button.text(),
+                agregar_button_enabled=self.agregar_button.isEnabled(),
+            )
+            log_estado_pendientes(motivo, estado)
+        except Exception:
+            logger.exception("estado_pendientes_dump_failed", extra={"motivo": motivo})
+
     def _update_pending_totals(self) -> None:
         return acciones_pendientes.helper_update_pending_totals(self)
 
