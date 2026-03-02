@@ -360,6 +360,7 @@
     "app/ui/vistas/main_window/state_controller.py:178:MainWindow.__init__",
     "app/ui/vistas/main_window/state_controller.py:179:MainWindow.__init__",
     "app/ui/vistas/main_window/state_controller.py:195:MainWindow.__init__",
+    "app/ui/vistas/main_window/state_controller.py:196:MainWindow.__init__",
     "app/ui/vistas/main_window/state_controller.py:465:MainWindow._normalize_input_heights",
     "app/ui/vistas/main_window/state_controller.py:476:MainWindow._update_responsive_columns",
     "app/ui/vistas/main_window/state_controller.py:663:MainWindow._on_confirmar",

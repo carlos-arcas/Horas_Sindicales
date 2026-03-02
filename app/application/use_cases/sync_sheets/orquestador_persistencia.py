@@ -11,9 +11,9 @@ from app.application.use_cases.sync_sheets.helpers import (
     extraer_datos_delegada,
     normalizar_fechas_solicitud,
 )
-from app.application.sheets_service import SHEETS_SCHEMA
 
 from app.application.use_cases.sync_sheets.sync_sheets_helpers import execute_with_validation, rows_with_index
+from app.application.use_cases.sync_sheets.sync_snapshots import normalize_dia
 from app.domain.sheets_errors import SheetsRateLimitError
 import logging
 

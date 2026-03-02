@@ -18,10 +18,7 @@ from app.domain.sheets_errors import (
 from app.application.dtos.sync_preflight_result import SyncPreflightResult
 from app.domain.sync_models import SyncSummary
 from app.application.use_cases.sync_sheets.sync_snapshots import (
-    build_pdf_log_payload,
     format_rango_fechas,
-    pdf_log_insert_values,
-    pdf_log_update_values,
 )
 
 logger = logging.getLogger(__name__)

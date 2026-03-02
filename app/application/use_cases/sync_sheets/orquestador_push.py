@@ -1,23 +1,17 @@
 from __future__ import annotations
 
-from pathlib import Path
 from app.application.sheets_service import SHEETS_SCHEMA
 from typing import Any
 
 from app.application.use_cases.sync_sheets.ayudantes_push import push_config, push_delegadas, push_pdf_log
 from app.application.use_cases.sync_sheets import persistence_ops
-from app.application.use_cases.sync_sheets.push_builder import build_push_solicitudes_payloads
-from app.application.use_cases.sync_sheets.push_runner import run_push_values_update
 from app.application.use_cases.sync_sheets.helpers import build_solicitudes_sync_plan
 from app.application.use_cases.sync_sheets.persona_resolution_rules import build_persona_resolution_plan
-from app.application.use_cases.sync_sheets.normalization_rules import normalize_remote_solicitud_row, normalize_remote_uuid
 from app.application.use_cases.sync_sheets.orquestacion_modelos import HEADER_CANONICO_SOLICITUDES
-from app.application.delegada_resolution import get_or_resolve_delegada_uuid
-from app.application.use_cases.sync_sheets.sync_reporting_rules import accumulate_write_result
 from app.application.use_cases.sync_sheets.sync_snapshots import build_local_solicitud_payload
 from app.application.use_cases.sync_sheets import payloads_puros
 from app.application.use_cases import sync_sheets_core
-from app.domain.sync_models import SyncSummary
+from app.domain.sync_models import SyncExecutionPlan, SyncSummary
 import logging
 
 logger = logging.getLogger(__name__)
