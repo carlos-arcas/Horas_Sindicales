@@ -9,6 +9,7 @@ def test_build_sync_permission_message_with_email() -> None:
 
     assert "sync-bot@example.iam.gserviceaccount.com" in message
     assert "Editor" in message
+    assert "La hoja no está compartida con la cuenta de servicio" in message
 
 
 def test_build_sync_permission_message_without_email() -> None:

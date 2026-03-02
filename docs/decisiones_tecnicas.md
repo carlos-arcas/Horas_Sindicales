@@ -49,6 +49,9 @@
   Si `infraestructura.repositorio_preferencias_qsettings` no está disponible, se registra `RepositorioPreferenciasIni` (sin PySide6) y se emite WARNING estructurado para trazabilidad operativa.  
   La aplicación sigue dependiendo del puerto `IRepositorioPreferencias`; las implementaciones concretas permanecen en infraestructura, preservando inversión de dependencias y compatibilidad Windows.
 
+- **2026-03-02 — Error accionable para permisos de Google Sheets en UI de sincronización — Vigente**  
+  Ante `SheetsPermissionError`, la UI marca estado `CONFIG_INCOMPLETE` y muestra mensaje accionable indicando que la hoja no está compartida con la cuenta de servicio.  
+  Se evita ofrecer reintento directo para este caso (error de configuración 403) y se exponen acciones contextuales: copiar email de servicio (si existe) y abrir guía de sincronización (si existe callback en la ventana).
 - **2026-03-02 — Normalización de datetimes ISO en reportes de sincronización — Vigente**  
   Se extrae `app/ui/tiempo/parseo_iso_datetime.py` para centralizar `parsear_iso_datetime`, `normalizar_zona_horaria` y `duracion_ms_desde_iso`, evitando restas entre `datetime` naive/aware en `build_simulation_report` y demás constructores de reportes.  
   Política aplicada: si el valor ISO llega naive se asume zona horaria local y luego se normaliza explícitamente a la zona objetivo del cálculo.

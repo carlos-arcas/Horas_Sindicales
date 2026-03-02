@@ -200,6 +200,7 @@ def show_sync_error_dialog(ventana, error: Exception, details: str | None) -> No
         open_options_callback=ventana._on_open_opciones,
         retry_callback=ventana._sync_controller.on_sync,
         open_google_sheets_config_callback=ventana._open_google_sheets_config,
+        open_sync_guide_callback=_resolve_sync_guide_callback(ventana),
         toast_warning=lambda message, title, duration_ms: ventana.toast.warning(message, title=title, duration_ms=duration_ms),
         clipboard_setter=_set_clipboard_text,
     )
@@ -212,6 +213,13 @@ def _set_clipboard_text(value: str) -> None:
     if clipboard is None:
         raise RuntimeError("Clipboard no disponible")
     clipboard.setText(value)
+
+
+def _resolve_sync_guide_callback(ventana):
+    callback = getattr(ventana, "_open_sync_guide", None)
+    if callable(callback):
+        return callback
+    return None
 
 
 

@@ -4,7 +4,13 @@ import json
 import logging
 from typing import Callable
 
-from PySide6.QtWidgets import QMessageBox
+try:
+    from PySide6.QtWidgets import QMessageBox
+except Exception:  # pragma: no cover - soporte CI/headless sin Qt
+    class QMessageBox:  # type: ignore[override]
+        Critical = "critical"
+        Warning = "warning"
+
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases.solicitudes.validaciones import (
@@ -114,6 +120,7 @@ def show_sync_error_dialog_from_exception(
     open_options_callback: Callable[[], None],
     retry_callback: Callable[[], None],
     open_google_sheets_config_callback: Callable[[], None] | None = None,
+    open_sync_guide_callback: Callable[[], None] | None = None,
     toast_warning: Callable[[str, str, int], None],
     clipboard_setter: Callable[[str], None] | None = None,
 ) -> None:
@@ -137,20 +144,26 @@ def show_sync_error_dialog_from_exception(
     if isinstance(error, SheetsPermissionError):
         email_hint = error.service_account_email or service_account_email
         message = build_sync_permission_blocked_message(service_account_email=email_hint)
+        action_buttons: list[tuple[str, Callable[[], None] | None]] = [
+            ("Abrir configuración de Google Sheets", open_google_sheets_config_callback or open_options_callback),
+        ]
+        if email_hint:
+            action_buttons.append((
+                "Copiar email de servicio",
+                lambda: _copy_service_account_email(
+                    service_account_email=email_hint,
+                    clipboard_setter=clipboard_setter,
+                    toast_warning=toast_warning,
+                ),
+            ))
+        if open_sync_guide_callback is not None:
+            action_buttons.append(("Abrir guía de sincronización", open_sync_guide_callback))
         show_message_with_details(
             title,
             message,
             None,
             icon,
-            action_buttons=(
-                ("Abrir configuración de Google Sheets", open_google_sheets_config_callback or open_options_callback),
-                ("Copiar email de service account", lambda: _copy_service_account_email(
-                    service_account_email=email_hint,
-                    clipboard_setter=clipboard_setter,
-                    toast_warning=toast_warning,
-                )),
-                ("Reintentar", retry_callback),
-            ),
+            action_buttons=tuple((label, callback) for label, callback in action_buttons if callback is not None),
         )
         return
     if isinstance(error, SheetsNotFoundError):
