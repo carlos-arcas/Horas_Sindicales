@@ -10,6 +10,7 @@ from app.core.observability import OperationContext, log_event
 from app.domain.sheets_errors import SheetsPermissionError
 from app.ui.sync_permission_message import build_sync_permission_blocked_message
 from app.ui.controllers.sync_button_state_rules import EstadoBotonSyncEntrada, decidir_estado_botones_sync
+from app.ui.vistas.helpers_i18n_compat import resolver_texto_i18n
 
 
 try:
@@ -84,16 +85,16 @@ class SyncController:
             w.toast.warning(
                 _tr(
                     w,
-                    "sync_first_run_simulation_warning",
+                    "sync.primero_simular_aviso",
                     "Primero ejecuta una simulación para generar el plan.",
                 ),
-                title=_tr(w, "sync_no_plan_title", "Sin plan"),
+                title=_tr(w, "sync.sin_plan_titulo", "Sin plan"),
             )
             return
         if not w._pending_sync_plan.has_changes:
             w.toast.info(
-                _tr(w, "sync_no_changes_to_apply", "No hay cambios que aplicar"),
-                title=_tr(w, "sync_title", "Sincronización"),
+                _tr(w, "sync.sin_cambios_aplicar", "No hay cambios que aplicar"),
+                title=_tr(w, "sync.titulo", "Sincronización"),
             )
             return
         self._run_background_operation(
@@ -111,10 +112,10 @@ class SyncController:
             w.toast.warning(
                 _tr(
                     w,
-                    "sync_missing_config_warning",
+                    "sync.configuracion_faltante_aviso",
                     "No se pudo iniciar la sincronización.\nCausa probable: Falta configurar Google Sheets.\nAcción recomendada: Pulsa Ir a configuración, guarda los datos y reintenta.",
                 ),
-                title=_tr(w, "sync_missing_config_title", "Sin configuración"),
+                title=_tr(w, "sync.configuracion_faltante_titulo", "Sin configuración"),
             )
             return
         w._set_sync_in_progress(True)
@@ -174,7 +175,7 @@ class SyncController:
         if w._sync_service.is_configured():
             w.go_to_sync_config_button.setVisible(False)
             w._set_sync_status_badge("IDLE")
-            w.sync_panel_status.setText("Estado: Pendiente")
+            w.sync_panel_status.setText(_tr(w, "sync.estado_pendiente", "Estado: Pendiente"))
         self.update_sync_button_state()
 
     def _on_sync_failed(self, payload: object) -> None:
@@ -200,7 +201,7 @@ class SyncController:
         if hasattr(self.window, "toast"):
             self.window.toast.warning(
                 build_sync_permission_blocked_message(service_account_email=service_email),
-                title="Permisos de Google Sheets",
+                title=_tr(self.window, "sync.permisos_google_sheets", "Permisos de Google Sheets"),
                 duration_ms=7000,
             )
 
@@ -254,23 +255,11 @@ def _resolve_service_account_email(window) -> str:
         if isinstance(account_email, str) and account_email.strip():
             return account_email.strip()
     logger.warning("SHEETS_SERVICE_EMAIL_MISSING", extra={"event": "SHEETS_SERVICE_EMAIL_MISSING"})
-    return "<email no disponible>"
+    return _tr(window, "sync.email_no_disponible", "<email no disponible>")
 
 
-def _tr(window, key: str, default_text: str) -> str:
+def _tr(window, key: str, fallback: str, **params: object) -> str:
     """Resuelve textos i18n con fallback estático para pruebas unitarias/headless."""
 
     i18n = getattr(window, "i18n", None)
-    if I18nManager is not None and isinstance(i18n, I18nManager) and hasattr(i18n, "t"):
-        try:
-            translated = i18n.t(key)
-        except Exception:  # pragma: no cover - programming errors should not break UI fallback
-            translated = None
-        if isinstance(translated, str) and translated.strip():
-            return translated
-    lang_catalog = CATALOGO.get("es", {})
-    if isinstance(lang_catalog, dict):
-        fallback_text = lang_catalog.get(key)
-        if isinstance(fallback_text, str) and fallback_text.strip():
-            return fallback_text
-    return default_text
+    return resolver_texto_i18n(i18n=i18n, key=key, fallback=fallback, catalogo=CATALOGO, **params)

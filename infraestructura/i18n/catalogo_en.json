@@ -52,5 +52,14 @@
   "wizard_sync_dialog_error": "Unable to load Sync guide.",
   "wizard_sync_dialog_titulo": "Sync guide",
   "wizard_sync_texto": "Sync is needed to keep the delegates group coordinated and to share access credentials.",
-  "wizard_titulo": "Welcome wizard"
+  "wizard_titulo": "Welcome wizard",
+  "sync.primero_simular_aviso": "Run a simulation first to generate the plan.",
+  "sync.sin_plan_titulo": "No plan",
+  "sync.sin_cambios_aplicar": "There are no changes to apply",
+  "sync.titulo": "Synchronization",
+  "sync.configuracion_faltante_aviso": "Could not start synchronization.\nLikely cause: Google Sheets is not configured.\nRecommended action: Click Go to settings, save the data, and retry.",
+  "sync.configuracion_faltante_titulo": "Missing configuration",
+  "sync.estado_pendiente": "Status: Pending",
+  "sync.permisos_google_sheets": "Google Sheets permissions",
+  "sync.email_no_disponible": "<email unavailable>"
 }

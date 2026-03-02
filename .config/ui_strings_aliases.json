@@ -1,0 +1,49 @@
+{
+  "alias_legacy_sin_linea": {
+    "legacy_3eeaf3abf8ae": {
+      "ruta": "app/ui/controllers/sync_controller.py",
+      "texto": "Primero ejecuta una simulación para generar el plan.",
+      "key_semantica": "sync.primero_simular_aviso"
+    },
+    "legacy_9b975168a73d": {
+      "ruta": "app/ui/controllers/sync_controller.py",
+      "texto": "Sin plan",
+      "key_semantica": "sync.sin_plan_titulo"
+    },
+    "legacy_96bd4e1abf4c": {
+      "ruta": "app/ui/controllers/sync_controller.py",
+      "texto": "No hay cambios que aplicar",
+      "key_semantica": "sync.sin_cambios_aplicar"
+    },
+    "legacy_137229657227": {
+      "ruta": "app/ui/controllers/sync_controller.py",
+      "texto": "Sincronización",
+      "key_semantica": "sync.titulo"
+    },
+    "legacy_89051c4fce36": {
+      "ruta": "app/ui/controllers/sync_controller.py",
+      "texto": "No se pudo iniciar la sincronización.\nCausa probable: Falta configurar Google Sheets.\nAcción recomendada: Pulsa Ir a configuración, guarda los datos y reintenta.",
+      "key_semantica": "sync.configuracion_faltante_aviso"
+    },
+    "legacy_134729573ee4": {
+      "ruta": "app/ui/controllers/sync_controller.py",
+      "texto": "Sin configuración",
+      "key_semantica": "sync.configuracion_faltante_titulo"
+    },
+    "legacy_8bb4ebb7d432": {
+      "ruta": "app/ui/controllers/sync_controller.py",
+      "texto": "Estado: Pendiente",
+      "key_semantica": "sync.estado_pendiente"
+    },
+    "legacy_b0fd14837892": {
+      "ruta": "app/ui/controllers/sync_controller.py",
+      "texto": "Permisos de Google Sheets",
+      "key_semantica": "sync.permisos_google_sheets"
+    },
+    "legacy_41859c9d26cc": {
+      "ruta": "app/ui/controllers/sync_controller.py",
+      "texto": "<email no disponible>",
+      "key_semantica": "sync.email_no_disponible"
+    }
+  }
+}
