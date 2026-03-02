@@ -285,7 +285,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         if not self._sync_service.is_configured():
             self._set_config_incomplete_state()
         self._refresh_last_sync_label()
-        self._update_sync_button_state()
+        self._sync_controller.update_sync_button_state()
         self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
         self._post_init_load()
