@@ -31,3 +31,9 @@ def test_duracion_ms_desde_iso_no_devuelve_negativo() -> None:
         "2026-01-01T10:01:00+00:00", "2026-01-01T10:00:00+00:00", tz_objetivo=UTC
     )
     assert duracion == 0
+
+
+def test_duracion_ms_desde_iso_iso_invalido_retorna_cero_y_loguea_warning(caplog) -> None:
+    duracion = duracion_ms_desde_iso("invalido", "2026-01-01T10:00:00+00:00", tz_objetivo=UTC)
+    assert duracion == 0
+    assert "sync_report_datetime_invalido" in caplog.text

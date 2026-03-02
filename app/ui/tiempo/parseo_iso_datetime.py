@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, tzinfo
+
+
+logger = logging.getLogger(__name__)
 
 
 def _zona_horaria_local() -> tzinfo:
@@ -21,6 +25,13 @@ def duracion_ms_desde_iso(
     inicio_iso: str, fin_iso: str, *, tz_objetivo: tzinfo | None = None
 ) -> int:
     zona_objetivo = tz_objetivo or _zona_horaria_local()
-    inicio = normalizar_zona_horaria(parsear_iso_datetime(inicio_iso), zona_objetivo)
-    fin = normalizar_zona_horaria(parsear_iso_datetime(fin_iso), zona_objetivo)
+    try:
+        inicio = normalizar_zona_horaria(parsear_iso_datetime(inicio_iso), zona_objetivo)
+        fin = normalizar_zona_horaria(parsear_iso_datetime(fin_iso), zona_objetivo)
+    except ValueError:
+        logger.warning(
+            "sync_report_datetime_invalido",
+            extra={"inicio_iso": inicio_iso, "fin_iso": fin_iso},
+        )
+        return 0
     return max(0, int((fin - inicio).total_seconds() * 1000))
