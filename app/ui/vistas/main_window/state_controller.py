@@ -372,19 +372,22 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._apply_historico_filters()
 
     def _on_add_pendiente(self, *args, **kwargs) -> None:
-        if hasattr(acciones_pendientes, "on_add_pendiente"):
-            acciones_pendientes.on_add_pendiente(self, *args, **kwargs)
+        _ = (args, kwargs)
+        controller = getattr(self, "_solicitudes_controller", None)
+        if controller is not None and hasattr(controller, "on_add_pendiente"):
+            controller.on_add_pendiente()
             return
-        for nombre in ("_on_agregar", "on_confirmar"):
-            handler = getattr(self, nombre, None)
-            if callable(handler):
-                handler()
-                return
-        if hasattr(acciones_pendientes, "on_agregar"):
-            acciones_pendientes.on_agregar(self)
+
+        solicitud = self._build_preview_solicitud()
+        if solicitud is None:
             return
-        if getattr(self, "agregar_button", None) is not None and self.agregar_button.isEnabled():
-            self.agregar_button.click()
+
+        notas_text = self.notas_input.toPlainText().strip() if self.notas_input is not None else ""
+        if notas_text:
+            solicitud = solicitud.model_copy(update={"notas": notas_text})
+        self._pending_solicitudes.append(solicitud)
+        self._pending_all_solicitudes.append(solicitud)
+        acciones_pendientes.helper_refresh_pending_ui_state(self)
 
     def _validate_required_widgets(self) -> None:
         required_widgets = (
