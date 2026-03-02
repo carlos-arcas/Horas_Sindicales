@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -9,6 +10,8 @@ from pathlib import Path
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncLogEntry, SyncReport, SyncSummary
 from app.ui.copy_catalog import copy_text
 
+logger = logging.getLogger(__name__)
+
 
 def _txt(key: str, **kwargs: object) -> str:
     template = copy_text(key)
@@ -16,10 +19,47 @@ def _txt(key: str, **kwargs: object) -> str:
 
 
 def _parsear_iso_utc_aware(valor_iso: str) -> datetime:
-    dt = datetime.fromisoformat(valor_iso)
+    try:
+        dt = datetime.fromisoformat(valor_iso)
+    except ValueError:
+        logger.warning(
+            "ISO inválido para reporte de sincronización.",
+            extra={"extra": {"evento": "sync_report_iso_invalido", "valor_iso": valor_iso}},
+        )
+        raise
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+        tz_local = datetime.now().astimezone().tzinfo or timezone.utc
+        logger.info(
+            "ISO naive normalizado a zona horaria local para reporte de sincronización.",
+            extra={
+                "extra": {
+                    "evento": "sync_report_tz_naive_normalizado",
+                    "valor_iso": valor_iso,
+                    "tz_local": str(tz_local),
+                }
+            },
+        )
+        return dt.replace(tzinfo=tz_local).astimezone(timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def _duration_ms_from_plan(plan: SyncExecutionPlan, now: str) -> int:
+    try:
+        inicio = _parsear_iso_utc_aware(plan.generated_at)
+        fin = _parsear_iso_utc_aware(now)
+    except ValueError:
+        logger.warning(
+            "No se pudo calcular duración por ISO inválido; se devuelve 0.",
+            extra={
+                "extra": {
+                    "evento": "sync_report_duracion_iso_invalido",
+                    "generated_at": plan.generated_at,
+                    "now": now,
+                }
+            },
+        )
+        return 0
+    return max(0, int((fin - inicio).total_seconds() * 1000))
 
 
 def _parse_iso_to_utc_aware(value: str) -> datetime:
@@ -280,9 +320,7 @@ def build_simulation_report(
             )
         )
     status = "OK" if plan.has_changes else "IDLE"
-    inicio = _parsear_iso_utc_aware(plan.generated_at)
-    fin = _parsear_iso_utc_aware(now)
-    duration_ms = max(0, int((fin - inicio).total_seconds() * 1000))
+    duration_ms = _duration_ms_from_plan(plan, now)
 
     return SyncReport(
         sync_id=sync_id or str(uuid.uuid4()),
