@@ -69,7 +69,12 @@ def apply_historico_last_30_days(window: Any) -> None:
     window._apply_historico_filters()
 
 
-def on_historico_periodo_mode_changed(window: Any, mode: str | bool | None = None, *_args: Any) -> None:
+def on_historico_periodo_mode_changed(
+    window: Any,
+    mode: str | bool | None = None,
+    *_args: object,
+    **_kwargs: object,
+) -> None:
     if isinstance(mode, str):
         window.historico_periodo_anual_radio.setChecked(mode == "ALL_YEAR")
         window.historico_periodo_mes_radio.setChecked(mode == "YEAR_MONTH")
