@@ -43,3 +43,7 @@
   `build_container()` deja de importar `QSettings` en import-time y resuelve el adaptador en runtime para evitar fallos en colección de tests UI en CI sin backend Qt completo.  
   Si `infraestructura.repositorio_preferencias_qsettings` no está disponible, se registra `RepositorioPreferenciasIni` (sin PySide6) y se emite WARNING estructurado para trazabilidad operativa.  
   La aplicación sigue dependiendo del puerto `IRepositorioPreferencias`; las implementaciones concretas permanecen en infraestructura, preservando inversión de dependencias y compatibilidad Windows.
+
+- **2026-03-02 — Error accionable para permisos de Google Sheets en UI de sincronización — Vigente**  
+  Ante `SheetsPermissionError`, la UI marca estado `CONFIG_INCOMPLETE` y muestra mensaje accionable indicando que la hoja no está compartida con la cuenta de servicio.  
+  Se evita ofrecer reintento directo para este caso (error de configuración 403) y se exponen acciones contextuales: copiar email de servicio (si existe) y abrir guía de sincronización (si existe callback en la ventana).
