@@ -43,3 +43,8 @@
   `build_container()` deja de importar `QSettings` en import-time y resuelve el adaptador en runtime para evitar fallos en colección de tests UI en CI sin backend Qt completo.  
   Si `infraestructura.repositorio_preferencias_qsettings` no está disponible, se registra `RepositorioPreferenciasIni` (sin PySide6) y se emite WARNING estructurado para trazabilidad operativa.  
   La aplicación sigue dependiendo del puerto `IRepositorioPreferencias`; las implementaciones concretas permanecen en infraestructura, preservando inversión de dependencias y compatibilidad Windows.
+
+- **2026-03-02 — Smoke UI contra warning de QObject en hilo cruzado — Vigente**  
+  Se integra un smoke de UI en `tests/ui/` que ejecuta `scripts/ui_main_window_smoke.py` y falla si aparece el warning de Qt `Cannot create children for a parent that is in a different thread.`.  
+  Verificación: `pytest -q tests/ui/test_ui_thread_parent_warning_smoke.py` en entorno con PySide6/Qt disponible.
+

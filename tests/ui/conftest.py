@@ -62,6 +62,7 @@ def pytest_collection_modifyitems(config, items):
         "tests/ui/test_ui_arranque_minimo.py",
         "tests/ui/test_ui_navegacion_minima.py",
         "tests/ui/test_ui_headless_fallback_smoke.py",
+        "tests/ui/test_ui_thread_parent_warning_smoke.py",
     }
 
     skip_non_smoke = pytest.mark.skip(
@@ -76,7 +77,9 @@ def pytest_collection_modifyitems(config, items):
             continue
 
         item_path = Path(str(getattr(item, "path", ""))).as_posix()
-        in_smoke_allowlist = any(item_path.endswith(path) for path in smoke_only_allowlist)
+        in_smoke_allowlist = any(
+            item_path.endswith(path) for path in smoke_only_allowlist
+        )
         if smoke_only_in_ci and not in_smoke_allowlist:
             item.add_marker(skip_non_smoke)
             continue
