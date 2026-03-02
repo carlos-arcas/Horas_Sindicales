@@ -1,1 +1,1 @@
-"""Checks i18n para quality gate."""
+"""i18n checks for repository automation scripts."""

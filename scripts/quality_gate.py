@@ -15,15 +15,13 @@ from typing import Any, Callable
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from scripts.i18n.check_hardcode_i18n import (
     ConfigCheck,
     analizar_rutas,
     renderizar_hallazgos,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
 
 CONFIG_PATH = ROOT / ".config" / "quality_gate.json"
 BASELINE_NAMING_PATH = ROOT / ".config" / "naming_baseline.json"
