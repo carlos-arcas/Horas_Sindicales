@@ -455,6 +455,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _create_widgets(self) -> None:
         layout_builder.create_widgets(self)
+        self._update_responsive_columns()
 
     def _build_shell_layout(self) -> None:
         layout_builder.build_shell(self)

@@ -72,6 +72,15 @@ def _available_width(table: object) -> int:
     return 0
 
 
+def _window_width(window: object) -> int:
+    width_getter = getattr(window, "width", None)
+    if callable(width_getter):
+        width = width_getter()
+        if isinstance(width, int) and width > 0:
+            return width
+    return 0
+
+
 def _apply_header_policy(table: object, available_width: int) -> None:
     model_getter = getattr(table, "model", None)
     model = model_getter() if callable(model_getter) else None
@@ -106,7 +115,42 @@ def _apply_header_policy(table: object, available_width: int) -> None:
     set_column_width(last_column, target_last_width)
 
 
+def _apply_form_policy(window: object, window_width: int) -> None:
+    is_compact = 0 < window_width < 1160
+
+    persona_combo = getattr(window, "persona_combo", None)
+    set_minimum_width = getattr(persona_combo, "setMinimumWidth", None)
+    if callable(set_minimum_width):
+        target_persona_width = max(220, min(360, int(window_width * 0.28))) if window_width > 0 else 260
+        set_minimum_width(target_persona_width)
+
+    for input_name in ("fecha_input", "desde_input", "hasta_input"):
+        widget = getattr(window, input_name, None)
+        set_minimum_width = getattr(widget, "setMinimumWidth", None)
+        if callable(set_minimum_width):
+            set_minimum_width(108 if is_compact else 124)
+
+    for placeholder_name in ("desde_placeholder", "hasta_placeholder"):
+        placeholder = getattr(window, placeholder_name, None)
+        set_fixed_width = getattr(placeholder, "setFixedWidth", None)
+        if callable(set_fixed_width):
+            set_fixed_width(0 if is_compact else 28)
+
+    total_preview_input = getattr(window, "total_preview_input", None)
+    set_maximum_width = getattr(total_preview_input, "setMaximumWidth", None)
+    if callable(set_maximum_width):
+        set_maximum_width(72 if is_compact else 96)
+
+    for tip_name in ("solicitudes_tip_1", "solicitudes_tip_2", "solicitudes_tip_3"):
+        tip_label = getattr(window, tip_name, None)
+        set_word_wrap = getattr(tip_label, "setWordWrap", None)
+        if callable(set_word_wrap):
+            set_word_wrap(is_compact)
+
+
 def update_responsive_columns(window: object) -> None:
+    window_width = _window_width(window)
     for table in _iter_present_widgets(window, _TABLE_NAMES):
         available_width = _available_width(table)
         _apply_header_policy(table, available_width)
+    _apply_form_policy(window, window_width)
