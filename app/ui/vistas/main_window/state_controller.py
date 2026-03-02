@@ -371,9 +371,8 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._apply_historico_filters()
 
     def _on_add_pendiente(self, *args, **kwargs) -> None:
-        _ = (args, kwargs)
         if hasattr(acciones_pendientes, "on_add_pendiente"):
-            acciones_pendientes.on_add_pendiente(self)
+            acciones_pendientes.on_add_pendiente(self, *args, **kwargs)
             return
         for nombre in ("_on_agregar", "on_confirmar"):
             handler = getattr(self, nombre, None)
