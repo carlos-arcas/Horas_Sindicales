@@ -366,19 +366,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _on_add_pendiente(self, *args, **kwargs) -> None:
         _ = (args, kwargs)
-        if hasattr(acciones_pendientes, "on_add_pendiente"):
-            acciones_pendientes.on_add_pendiente(self)
-            return
-        for nombre in ("_on_agregar", "on_confirmar"):
-            handler = getattr(self, nombre, None)
-            if callable(handler):
-                handler()
-                return
-        if hasattr(acciones_pendientes, "on_agregar"):
-            acciones_pendientes.on_agregar(self)
-            return
-        if getattr(self, "agregar_button", None) is not None and self.agregar_button.isEnabled():
-            self.agregar_button.click()
+        self._solicitudes_controller.on_add_pendiente()
 
     def _validate_required_widgets(self) -> None:
         required_widgets = (
