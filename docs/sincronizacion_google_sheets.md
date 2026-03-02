@@ -286,4 +286,4 @@ Implicaciones:
 1. Ejecutar tests de dominio e infraestructura de permisos:
    - `pytest tests/domain/test_sheets_permission_error_context.py tests/domain/test_sheets_permission_error_enrichment.py tests/domain/test_sheets_permission_error_help.py tests/infrastructure/test_sheets_client_retry.py tests/infrastructure/test_sheets_client_rate_limit_flow.py`
 2. Ejecutar calidad completa del proyecto:
-   - `ruff check . && pytest && python scripts/quality_gate.py`
+   - `ruff check . && pytest && python -m scripts.quality_gate`

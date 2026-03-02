@@ -35,7 +35,7 @@ Regla: `app/ui` queda fuera del umbral bloqueante CORE.
 ### CLI (Windows/Linux/macOS)
 
 ```bash
-python scripts/quality_gate.py
+python -m scripts.quality_gate
 ```
 
 ### Windows (doble clic)
@@ -72,4 +72,4 @@ pip install -r requirements.txt
 pip install -r requirements-dev.txt
 ```
 
-3. Reejecutar `python scripts/quality_gate.py`.
+3. Reejecutar `python -m scripts.quality_gate`.

@@ -35,7 +35,7 @@ pytest -q -m "not ui"
 
 ## Comandos útiles
 
-- `python scripts/quality_gate.py`
+- `python -m scripts.quality_gate`
 - `python scripts/preflight_tests.py`
 - `python scripts/coverage_summary.py`
 - `python scripts/report_quality.py`

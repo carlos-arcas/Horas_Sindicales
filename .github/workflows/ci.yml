@@ -69,7 +69,7 @@ jobs:
 
       - name: Quality Gate unificado (reportes MD/JSON)
         run: |
-          python scripts/quality_gate.py
+          python -m scripts.quality_gate
           python scripts/quality_summary.py
 
       - name: Subir artefacto de calidad
