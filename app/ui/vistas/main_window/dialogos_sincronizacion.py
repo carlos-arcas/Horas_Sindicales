@@ -17,6 +17,13 @@ from app.ui.sync_reporting import list_sync_history, load_sync_report, persist_r
 from app.ui.toast_helpers import toast_success
 
 
+def _resolve_status_label(ventana, status: str) -> str:
+    resolver = getattr(ventana, "_status_to_label", None)
+    if callable(resolver):
+        return resolver(status)
+    return status_to_label(status)
+
+
 def apply_sync_report(ventana, report) -> None:
     ventana._last_sync_report = report
     ventana._sync_attempts.append({"status": report.status, "counts": report.counts})
@@ -36,8 +43,8 @@ def apply_sync_report(ventana, report) -> None:
     ventana.sync_panel_status.setText(
         copy_text("ui.sync.estado_intento_actual_final").format(
             intento=len(ventana._sync_attempts),
-            actual=status_to_label(report.status),
-            final=status_to_label(report.final_status),
+            actual=_resolve_status_label(ventana, report.status),
+            final=_resolve_status_label(ventana, report.final_status),
         )
     )
     ventana.last_sync_metrics_label.setText(
@@ -169,7 +176,7 @@ def show_sync_details_dialog(ventana) -> None:
 
 
 def set_sync_status_badge(ventana, status: str) -> None:
-    ventana.sync_status_badge.setText(status_to_label(status))
+    ventana.sync_status_badge.setText(_resolve_status_label(ventana, status))
     tone_map = {
         "OK": STATUS_PATTERNS["CONFIRMED"].tone,
         "RUNNING": STATUS_PATTERNS["PENDING"].tone,
