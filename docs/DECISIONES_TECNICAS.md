@@ -42,3 +42,16 @@ Objetivos:
   - `HAS_ID_RESOLVE_EXISTING` cuando `id is not None` (precedencia máxima, incluso para `id=0`).
   - `MISSING_ID_CREATE_NEW` cuando `id is None`.
 - Orden del plan estable: misma secuencia de entrada en lote.
+
+## 2026-03 Contrato AST de handlers en builders UI
+- Decisión: el test de contrato de handlers ahora descubre **todos** los builders bajo `app/ui/vistas/builders/*.py` (orden estable por nombre), evitando listas manuales incompletas.
+- Cobertura de contrato AST:
+  - `conectar_signal(..., handler_name=...)`
+  - `signal.connect(window._handler)`
+  - llamadas directas `window._handler(...)`
+  - referencias de atributo `window._handler`
+- Mensaje de fallo endurecido para CI: `Falta handler X requerido por Y` con archivo, línea y patrón.
+- Endurecimiento de firma: `on_historico_periodo_mode_changed` debe aceptar el argumento de señal además de `self/window`.
+- Verificación sugerida:
+  - `pytest -q tests/ui/test_contrato_handlers_builders.py`
+  - `pytest -q tests/ui/test_state_bindings_signature_adapter.py`

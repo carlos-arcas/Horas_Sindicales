@@ -5,12 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-BUILDERS = (
-    "app/ui/vistas/builders/main_window_builders.py",
-    "app/ui/vistas/builders/builders_formulario_solicitud.py",
-    "app/ui/vistas/builders/builders_tablas.py",
-    "app/ui/vistas/builders/builders_sync_panel.py",
-)
+BUILDERS_DIR = Path("app/ui/vistas/builders")
 FUENTES_HANDLERS = (
     "app/ui/vistas/main_window/state_controller.py",
     "app/ui/vistas/main_window_vista.py",
@@ -91,7 +86,9 @@ def _build_parent_map(tree: ast.AST) -> dict[ast.AST, ast.AST]:
     return parent_map
 
 
-def _extract_connect_window_handlers(tree: ast.AST, builder: str) -> list[HandlerRequirement]:
+def _extract_connect_window_handlers(
+    tree: ast.AST, builder: str
+) -> list[HandlerRequirement]:
     requirements: list[HandlerRequirement] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -100,33 +97,53 @@ def _extract_connect_window_handlers(tree: ast.AST, builder: str) -> list[Handle
             continue
         for arg in node.args:
             if _is_window_handler_attr(arg):
-                requirements.append(HandlerRequirement(builder, node.lineno, arg.attr, "connect(window._handler)"))
+                requirements.append(
+                    HandlerRequirement(
+                        builder, node.lineno, arg.attr, "connect(window._handler)"
+                    )
+                )
     return requirements
 
 
-def _extract_direct_window_calls(tree: ast.AST, builder: str) -> list[HandlerRequirement]:
+def _extract_direct_window_calls(
+    tree: ast.AST, builder: str
+) -> list[HandlerRequirement]:
     requirements: list[HandlerRequirement] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not _is_window_handler_attr(node.func):
             continue
-        requirements.append(HandlerRequirement(builder, node.lineno, node.func.attr, "window._handler()"))
+        requirements.append(
+            HandlerRequirement(
+                builder, node.lineno, node.func.attr, "window._handler()"
+            )
+        )
     return requirements
 
 
-def _extract_window_attr_accesses(tree: ast.AST, builder: str) -> list[HandlerRequirement]:
+def _extract_window_attr_accesses(
+    tree: ast.AST, builder: str
+) -> list[HandlerRequirement]:
     parent_map = _build_parent_map(tree)
     requirements: list[HandlerRequirement] = []
     for node in ast.walk(tree):
         if not _is_window_handler_attr(node):
             continue
         parent = parent_map.get(node)
-        if isinstance(parent, ast.Call) and (parent.func is node or node in parent.args):
+        if isinstance(parent, ast.Call) and (
+            parent.func is node or node in parent.args
+        ):
             continue
-        requirements.append(HandlerRequirement(builder, node.lineno, node.attr, "window._handler (atributo)"))
+        requirements.append(
+            HandlerRequirement(
+                builder, node.lineno, node.attr, "window._handler (atributo)"
+            )
+        )
     return requirements
 
 
-def _extract_conectar_signal_handler_requirements(tree: ast.AST, builder: str) -> list[HandlerRequirement]:
+def _extract_conectar_signal_handler_requirements(
+    tree: ast.AST, builder: str
+) -> list[HandlerRequirement]:
     requirements: list[HandlerRequirement] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not _is_conectar_signal_call(node):
@@ -146,7 +163,9 @@ def _extract_conectar_signal_handler_requirements(tree: ast.AST, builder: str) -
     return requirements
 
 
-def _extract_requirements_from_builder(tree: ast.AST, builder: str) -> list[HandlerRequirement]:
+def _extract_requirements_from_builder(
+    tree: ast.AST, builder: str
+) -> list[HandlerRequirement]:
     requirements = _extract_connect_window_handlers(tree, builder)
     requirements.extend(_extract_direct_window_calls(tree, builder))
     requirements.extend(_extract_window_attr_accesses(tree, builder))
@@ -167,7 +186,10 @@ def _extract_defined_functions_from_ast(tree: ast.AST) -> set[str]:
 
 
 def _collect_builder_trees() -> list[tuple[str, ast.AST]]:
-    return [(builder, _read_ast(builder)) for builder in BUILDERS]
+    builders = sorted(
+        path for path in BUILDERS_DIR.glob("*.py") if path.name != "__init__.py"
+    )
+    return [(builder.as_posix(), _read_ast(builder.as_posix())) for builder in builders]
 
 
 def _collect_defined_handlers() -> set[str]:
@@ -179,19 +201,14 @@ def _collect_defined_handlers() -> set[str]:
 
 
 def _format_missing_requirements(missing: list[HandlerRequirement]) -> str:
-    ordered = sorted(missing, key=lambda item: (item.builder, item.line, item.handler, item.patron))
+    ordered = sorted(
+        missing, key=lambda item: (item.builder, item.line, item.handler, item.patron)
+    )
     lines = [
-        (
-            f"- {item.builder}:{item.line} | handler={item.handler} | patron={item.patron}"
-            f" | contexto={item.contexto}"
-        )
+        f"Falta handler {item.handler} requerido por {item.builder}:{item.line} ({item.patron}, contexto={item.contexto})"
         for item in ordered
     ]
-    return (
-        "Faltan handlers requeridos por builders. "
-        "Revisa el handler o agrega binding/def en state_controller.py o main_window_vista.py.\n"
-        + "\n".join(lines)
-    )
+    return "\n".join(lines)
 
 
 def test_builders_referencian_handlers_presentes_en_fuentes_ast() -> None:
@@ -219,8 +236,24 @@ conectar_signal(window, signal, handler_name="_apply_historico_filters", context
 
     reqs = _extract_requirements_from_builder(tree, "builder.py")
 
-    assert any(req.handler == "_normalize_input_heights" and req.patron == "window._handler()" for req in reqs)
-    assert any(req.handler == "_update_responsive_columns" and req.patron == "connect(window._handler)" for req in reqs)
-    assert any(req.handler == "_refresh_header_title" and req.patron == "window._handler (atributo)" for req in reqs)
-    assert any(req.handler == "_on_confirmar" and req.contexto == "confirmar" for req in reqs)
-    assert any(req.handler == "_apply_historico_filters" and req.contexto == "histórico" for req in reqs)
+    assert any(
+        req.handler == "_normalize_input_heights" and req.patron == "window._handler()"
+        for req in reqs
+    )
+    assert any(
+        req.handler == "_update_responsive_columns"
+        and req.patron == "connect(window._handler)"
+        for req in reqs
+    )
+    assert any(
+        req.handler == "_refresh_header_title"
+        and req.patron == "window._handler (atributo)"
+        for req in reqs
+    )
+    assert any(
+        req.handler == "_on_confirmar" and req.contexto == "confirmar" for req in reqs
+    )
+    assert any(
+        req.handler == "_apply_historico_filters" and req.contexto == "histórico"
+        for req in reqs
+    )

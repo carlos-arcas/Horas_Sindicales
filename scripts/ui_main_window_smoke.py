@@ -33,15 +33,21 @@ WIRING_TYPE_ERROR_HINTS = (
     "positional argument",
     "unexpected keyword",
 )
-QT_THREAD_PARENT_WARNING = "Cannot create children for a parent that is in a different thread"
+QT_THREAD_PARENT_WARNING = (
+    "Cannot create children for a parent that is in a different thread"
+)
 
 
 def _validar_handlers_por_ast() -> int:
-    source = (ROOT / "app" / "ui" / "vistas" / "main_window_vista.py").read_text(encoding="utf-8")
+    source = (ROOT / "app" / "ui" / "vistas" / "main_window_vista.py").read_text(
+        encoding="utf-8"
+    )
     tree = ast.parse(source)
     for node in tree.body:
         if isinstance(node, ast.ClassDef) and node.name == "MainWindow":
-            method_names = {item.name for item in node.body if isinstance(item, ast.FunctionDef)}
+            method_names = {
+                item.name for item in node.body if isinstance(item, ast.FunctionDef)
+            }
             missing = [name for name in REQUIRED_HANDLERS if name not in method_names]
             if missing:
                 logger.error("missing_handlers_ast: %s", ", ".join(missing))
@@ -61,7 +67,9 @@ def _in_memory_connection():
 
 
 def _format_exception_summary(exc: BaseException) -> str:
-    last_frame = traceback.extract_tb(exc.__traceback__)[-1] if exc.__traceback__ else None
+    last_frame = (
+        traceback.extract_tb(exc.__traceback__)[-1] if exc.__traceback__ else None
+    )
     if last_frame is None:
         return f"SMOKE_UI_FAIL: {type(exc).__name__} {exc} archivo:linea N/D"
     file_name = Path(last_frame.filename).name
@@ -136,10 +144,13 @@ def main() -> int:
             window._switch_sidebar_page(sidebar_index)
             app.processEvents()
 
-        expected_title = "Solicitudes"
+        copy_catalog_module = importlib.import_module("app.ui.copy_catalog")
+        expected_title = copy_catalog_module.copy_text("solicitudes.section_title")
         header_title = getattr(window, "header_title_label", None)
         if header_title is None or header_title.text() != expected_title:
-            raise AssertionError("El header externo no actualizó el título esperado tras navegar secciones")
+            raise AssertionError(
+                "El header externo no actualizó el título esperado tras navegar secciones"
+            )
 
         # Guard-rail: el contenido no debe volver a montar un HeaderWidget interno.
         header_module = importlib.import_module("app.ui.widgets.header")
@@ -148,7 +159,9 @@ def main() -> int:
         search_root = content_page if content_page is not None else window
         internal_headers = search_root.findChildren(header_widget_cls)
         if internal_headers:
-            raise AssertionError("Se detectó HeaderWidget interno en la zona de contenido")
+            raise AssertionError(
+                "Se detectó HeaderWidget interno en la zona de contenido"
+            )
         if qt_messages:
             raise AssertionError(
                 "Se detectó warning Qt de parent en hilo distinto: "
@@ -162,7 +175,10 @@ def main() -> int:
             logger,
             "ui_main_window_smoke_failed",
             exc=sys.exc_info(),
-            extra={"script": "ui_main_window_smoke.py", "error_type": type(exc).__name__},
+            extra={
+                "script": "ui_main_window_smoke.py",
+                "error_type": type(exc).__name__,
+            },
         )
         if _should_fail_gate(exc):
             logger.error(_format_exception_summary(exc))
@@ -173,11 +189,20 @@ def main() -> int:
         if "qt_core" in locals() and "previous_handler" in locals():
             qt_core.qInstallMessageHandler(previous_handler)
 
-    missing = [name for name in REQUIRED_HANDLERS if not callable(getattr(type(window), name, None))]
+    missing = [
+        name
+        for name in REQUIRED_HANDLERS
+        if not callable(getattr(type(window), name, None))
+    ]
     if missing:
         message = f"Missing handlers: {', '.join(missing)}"
-        log_operational_error(logger, "ui_main_window_smoke_missing_handlers", exc=AttributeError(message))
-        logger.error("SMOKE_UI_FAIL: AttributeError %s archivo:linea ui_main_window_smoke.py:0", message)
+        log_operational_error(
+            logger, "ui_main_window_smoke_missing_handlers", exc=AttributeError(message)
+        )
+        logger.error(
+            "SMOKE_UI_FAIL: AttributeError %s archivo:linea ui_main_window_smoke.py:0",
+            message,
+        )
         window.close()
         app.processEvents()
         return 1

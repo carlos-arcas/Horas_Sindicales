@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 from pathlib import Path
 
 import pytest
 
 
-MODULE_PATH = Path(__file__).resolve().parents[2] / "app/ui/vistas/main_window/state_bindings.py"
+MODULE_PATH = (
+    Path(__file__).resolve().parents[2] / "app/ui/vistas/main_window/state_bindings.py"
+)
 SPEC = importlib.util.spec_from_file_location("state_bindings_under_test", MODULE_PATH)
 assert SPEC and SPEC.loader
 state_bindings = importlib.util.module_from_spec(SPEC)
@@ -69,3 +72,11 @@ def test_invocador_relanza_type_error_real() -> None:
 
     with pytest.raises(TypeError, match="boom"):
         _invocar_handler_compatible(fboom, Dummy(), (), {})
+
+
+def test_on_historico_periodo_mode_changed_acepta_arg_senal() -> None:
+    from app.ui.vistas import historico_actions
+
+    signature = inspect.signature(historico_actions.on_historico_periodo_mode_changed)
+    params = tuple(signature.parameters.values())
+    assert len(params) >= 2
