@@ -122,8 +122,7 @@ from app.ui.vistas.main_window.importaciones import (
     validacion_preventiva,
 )  # noqa: F401
 
-from . import data_refresh, layout_builder, wiring
-from .ui_layout_helpers import normalize_input_heights, update_responsive_columns
+from . import data_refresh, handlers_layout, layout_builder, wiring
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
 from app.ui.qt_hilos import assert_hilo_ui_o_log
@@ -455,19 +454,11 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         layout_builder.build_status(self)
 
     def _configure_time_placeholders(self) -> None:
-        """Alinea placeholders con el formato horario esperado en los inputs de tramo."""
-        for input_name in ("desde_input", "hasta_input"):
-            input_widget = getattr(self, input_name, None)
-            if input_widget is None:
-                continue
-            if hasattr(input_widget, "setDisplayFormat"):
-                input_widget.setDisplayFormat(copy_text("ui.solicitudes.formato_hora"))
-            if hasattr(input_widget, "setToolTip"):
-                input_widget.setToolTip(copy_text("ui.solicitudes.tooltip_formato_hora"))
+        handlers_layout.configure_time_placeholders(self)
 
     def _normalize_input_heights(self) -> None:
         try:
-            normalize_input_heights(self)
+            handlers_layout.normalize_input_heights(self)
         except Exception as exc:
             log_operational_error(
                 logger,
@@ -478,7 +469,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _update_responsive_columns(self) -> None:
         try:
-            update_responsive_columns(self)
+            handlers_layout.update_responsive_columns(self)
         except Exception as exc:
             log_operational_error(
                 logger,
@@ -487,13 +478,19 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
                 extra={"contexto": "mainwindow._update_responsive_columns"},
             )
 
-    def _status_to_label(self, status: str) -> str:
-        from app.ui.vistas.main_window import dialogos_sincronizacion
-
+    def _configure_operativa_focus_order(self) -> None:
         try:
-            return dialogos_sincronizacion.status_to_label(status)
-        except Exception:
-            return status
+            handlers_layout.configure_operativa_focus_order(self)
+        except Exception as exc:
+            log_operational_error(
+                logger,
+                "UI_CONFIGURE_OPERATIVA_FOCUS_ORDER_FAILED",
+                exc=exc,
+                extra={"contexto": "mainwindow._configure_operativa_focus_order"},
+            )
+
+    def _status_to_label(self, status: str) -> str:
+        return handlers_layout.status_to_label(status)
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
         model = table.model()
