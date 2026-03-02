@@ -199,10 +199,29 @@ def update_sync_button_state(ventana) -> None:
 
 
 def update_conflicts_reminder(ventana) -> None:
-    total = ventana._conflicts_service.count_conflicts()
-    ventana.conflicts_reminder_label.setVisible(total > 0)
-    if total > 0:
-        ventana.conflicts_reminder_label.setText(f"Hay {total} conflictos pendientes. Revisa antes de sincronizar.")
+    reminder_label = getattr(ventana, "conflicts_reminder_label", None)
+    i18n = getattr(ventana, "_i18n", None)
+    if reminder_label is None or i18n is None:
+        return
+
+    try:
+        total = _safe_conflicts_count(ventana)
+        reminder_label.setVisible(total > 0)
+        if total <= 0:
+            return
+        reminder_label.setText(f"Hay {total} conflictos pendientes. Revisa antes de sincronizar.")
+    except Exception:
+        logger.exception("UI_UPDATE_CONFLICTS_REMINDER_FAILED")
+
+
+def _safe_conflicts_count(ventana) -> int:
+    service = getattr(ventana, "_conflicts_service", None)
+    if service is None or not hasattr(service, "count_conflicts"):
+        return 0
+    raw_total = service.count_conflicts()
+    if isinstance(raw_total, bool) or not isinstance(raw_total, (int, float)):
+        return 0
+    return max(int(raw_total), 0)
 
 
 def show_sync_error_dialog(ventana, error: Exception, details: str | None) -> None:
