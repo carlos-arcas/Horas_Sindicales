@@ -49,7 +49,7 @@ class _SyncWorker(QObject):
             log_event(logger, "sync_failed", {"operation": self._operation_name, "error": str(exc)}, self._correlation_id)
             log_operational_error(
                 logger,
-                "Sync failed",
+                _fallback_texto("sync.error_operacion_log"),
                 exc=exc,
                 extra={
                     "operation": self._operation_name,
@@ -86,15 +86,15 @@ class SyncController:
                 _tr(
                     w,
                     "sync.primero_simular_aviso",
-                    "Primero ejecuta una simulación para generar el plan.",
+                    _fallback_texto("sync.primero_simular_aviso"),
                 ),
-                title=_tr(w, "sync.sin_plan_titulo", "Sin plan"),
+                title=_tr(w, "sync.sin_plan_titulo", _fallback_texto("sync.sin_plan_titulo")),
             )
             return
         if not w._pending_sync_plan.has_changes:
             w.toast.info(
-                _tr(w, "sync.sin_cambios_aplicar", "No hay cambios que aplicar"),
-                title=_tr(w, "sync.titulo", "Sincronización"),
+                _tr(w, "sync.sin_cambios_aplicar", _fallback_texto("sync.sin_cambios_aplicar")),
+                title=_tr(w, "sync.titulo", _fallback_texto("sync.titulo")),
             )
             return
         self._run_background_operation(
@@ -113,9 +113,9 @@ class SyncController:
                 _tr(
                     w,
                     "sync.configuracion_faltante_aviso",
-                    "No se pudo iniciar la sincronización.\nCausa probable: Falta configurar Google Sheets.\nAcción recomendada: Pulsa Ir a configuración, guarda los datos y reintenta.",
+                    _fallback_texto("sync.configuracion_faltante_aviso"),
                 ),
-                title=_tr(w, "sync.configuracion_faltante_titulo", "Sin configuración"),
+                title=_tr(w, "sync.configuracion_faltante_titulo", _fallback_texto("sync.configuracion_faltante_titulo")),
             )
             return
         w._set_sync_in_progress(True)
@@ -175,7 +175,7 @@ class SyncController:
         if w._sync_service.is_configured():
             w.go_to_sync_config_button.setVisible(False)
             w._set_sync_status_badge("IDLE")
-            w.sync_panel_status.setText(_tr(w, "sync.estado_pendiente", "Estado: Pendiente"))
+            w.sync_panel_status.setText(_tr(w, "sync.estado_pendiente", _fallback_texto("sync.estado_pendiente")))
         self.update_sync_button_state()
 
     def _on_sync_failed(self, payload: object) -> None:
@@ -188,7 +188,7 @@ class SyncController:
         service_email = error.service_account_email or _resolve_service_account_email(self.window)
         log_operational_error(
             logger,
-            "Sincronización bloqueada por permisos en Google Sheets",
+            _fallback_texto("sync.permisos_bloqueados_log"),
             exc=error,
             extra={
                 "operation": "sheets_permission_check",
@@ -201,7 +201,7 @@ class SyncController:
         if hasattr(self.window, "toast"):
             self.window.toast.warning(
                 build_sync_permission_blocked_message(service_account_email=service_email),
-                title=_tr(self.window, "sync.permisos_google_sheets", "Permisos de Google Sheets"),
+                title=_tr(self.window, "sync.permisos_google_sheets", _fallback_texto("sync.permisos_google_sheets")),
                 duration_ms=7000,
             )
 
@@ -255,7 +255,16 @@ def _resolve_service_account_email(window) -> str:
         if isinstance(account_email, str) and account_email.strip():
             return account_email.strip()
     logger.warning("SHEETS_SERVICE_EMAIL_MISSING", extra={"event": "SHEETS_SERVICE_EMAIL_MISSING"})
-    return _tr(window, "sync.email_no_disponible", "<email no disponible>")
+    return _tr(window, "sync.email_no_disponible", _fallback_texto("sync.email_no_disponible"))
+
+
+def _fallback_texto(key: str) -> str:
+    catalogo_es = CATALOGO.get("es", {}) if isinstance(CATALOGO, dict) else {}
+    if isinstance(catalogo_es, dict):
+        texto = catalogo_es.get(key)
+        if isinstance(texto, str) and texto.strip():
+            return texto
+    return key
 
 
 def _tr(window, key: str, fallback: str, **params: object) -> str:
