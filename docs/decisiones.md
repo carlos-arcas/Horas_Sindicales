@@ -97,3 +97,22 @@ Tomar el histórico como fuente de verdad asegura reproducibilidad de resultados
 - Cálculo mixto (histórico + estado en memoria).
 - Cálculo únicamente en vistas de UI.
 - Preagregados incrementales sin recomputación desde histórico.
+
+---
+
+## ADR-006: Redacción defensiva de errores de sincronización Sheets
+
+### Decisión
+Se aplica redacción explícita de secretos en mensajes de excepción mapeados (`map_gspread_exception`) y se enmascara el `spreadsheet_id` en payloads seguros por defecto (`…` + últimos 6), con opt-in controlado por `HORAS_PERMITIR_SPREADSHEET_ID_COMPLETO=true`.
+
+### Motivo
+Reducir riesgo de fuga accidental de tokens/credenciales e identificadores sensibles en logs operativos y reportes de error.
+
+### Consecuencias
+- Mensajes de error más seguros por defecto.
+- Mayor trazabilidad sin exposición completa de identificadores.
+- Si soporte requiere ver el ID completo, debe habilitarse explícitamente por política de entorno.
+
+### Verificación
+1. Ejecutar `pytest tests/infrastructure/test_sheets_errors_unit.py tests/domain/test_sheets_permission_error_context.py tests/domain/test_sheets_permission_error_enrichment.py`.
+2. Ejecutar `python scripts/quality_gate.py`.

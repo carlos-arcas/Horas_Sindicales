@@ -12,6 +12,7 @@ from typing import Callable, Literal
 
 from app.application.sync_sheets_use_case import SyncSheetsUseCase
 from app.core.errors import InfraError
+from app.core.redactor_secretos import redactar_texto
 from app.domain.sync_models import SyncSummary
 
 logger = logging.getLogger(__name__)
@@ -118,7 +119,9 @@ class GoogleSheetsSyncModule:
 
         if options.dry_run:
             duration = self._clock() - started
-            self._log("sync_dry_run", operation=options.operation, duration_seconds=duration)
+            self._log(
+                "sync_dry_run", operation=options.operation, duration_seconds=duration
+            )
             return SyncReport(
                 operation=options.operation,
                 dry_run=True,
@@ -136,7 +139,9 @@ class GoogleSheetsSyncModule:
             attempts += 1
             self._raise_if_cancelled(options.cancellation_token)
             try:
-                summary = self._run_with_timeout(options.operation, options.timeout_seconds)
+                summary = self._run_with_timeout(
+                    options.operation, options.timeout_seconds
+                )
                 report = self._summary_to_report(
                     options=options,
                     summary=summary,
@@ -149,16 +154,25 @@ class GoogleSheetsSyncModule:
             except SyncCancelledError:
                 raise
             except (InfraError, TimeoutError, ConnectionError, OSError) as exc:
-                errors.append(str(exc))
-                self._log("sync_attempt_failed", attempt=attempts, error=str(exc))
+                error_redactado = redactar_texto(str(exc))
+                errors.append(error_redactado)
+                self._log(
+                    "sync_attempt_failed", attempt=attempts, error=error_redactado
+                )
                 if attempts >= retry.max_attempts or not self._is_retryable(exc):
                     break
-                backoff = retry.initial_backoff_seconds * (retry.backoff_multiplier ** (attempts - 1))
-                self._log("sync_retry_scheduled", attempt=attempts, backoff_seconds=backoff)
+                backoff = retry.initial_backoff_seconds * (
+                    retry.backoff_multiplier ** (attempts - 1)
+                )
+                self._log(
+                    "sync_retry_scheduled", attempt=attempts, backoff_seconds=backoff
+                )
                 self._sleep_with_cancellation(backoff, options.cancellation_token)
 
         duration = self._clock() - started
-        self._log("sync_failed", attempts=attempts, errors=errors, duration_seconds=duration)
+        self._log(
+            "sync_failed", attempts=attempts, errors=errors, duration_seconds=duration
+        )
         return SyncReport(
             operation=options.operation,
             dry_run=False,
@@ -171,15 +185,21 @@ class GoogleSheetsSyncModule:
             duration_seconds=duration,
         )
 
-    def _run_with_timeout(self, operation: SyncOperation, timeout_seconds: float) -> SyncSummary:
-        self._log("sync_attempt_started", operation=operation, timeout_seconds=timeout_seconds)
+    def _run_with_timeout(
+        self, operation: SyncOperation, timeout_seconds: float
+    ) -> SyncSummary:
+        self._log(
+            "sync_attempt_started", operation=operation, timeout_seconds=timeout_seconds
+        )
         with ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(self._dispatch_operation, operation)
             try:
                 return future.result(timeout=timeout_seconds)
             except FuturesTimeoutError as exc:
                 future.cancel()
-                raise TimeoutError(f"Timeout en sincronización '{operation}' tras {timeout_seconds} segundos") from exc
+                raise TimeoutError(
+                    f"Timeout en sincronización '{operation}' tras {timeout_seconds} segundos"
+                ) from exc
 
     def _dispatch_operation(self, operation: SyncOperation) -> SyncSummary:
         if operation == "pull":
@@ -217,7 +237,9 @@ class GoogleSheetsSyncModule:
         transient_exceptions = (TimeoutError, ConnectionError, OSError)
         return isinstance(exc, transient_exceptions)
 
-    def _sleep_with_cancellation(self, seconds: float, token: CancellationToken | None) -> None:
+    def _sleep_with_cancellation(
+        self, seconds: float, token: CancellationToken | None
+    ) -> None:
         remaining = seconds
         while remaining > 0:
             self._raise_if_cancelled(token)

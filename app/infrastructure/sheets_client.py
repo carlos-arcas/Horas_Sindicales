@@ -46,8 +46,12 @@ class SheetsClient(SheetsClientPort):
         self._sheets_api_calls_count = 0
         self._service_account_email: str | None = None
 
-    def open_spreadsheet(self, credentials_path: Path, spreadsheet_id: str) -> gspread.Spreadsheet:
-        logger.info("Conectando a Google Sheets con credenciales: %s", "credentials.json")
+    def open_spreadsheet(
+        self, credentials_path: Path, spreadsheet_id: str
+    ) -> gspread.Spreadsheet:
+        logger.info(
+            "Conectando a Google Sheets con credenciales: %s", "credentials.json"
+        )
         self._service_account_email = self._read_service_account_email(credentials_path)
         try:
             client = gspread.service_account(filename=str(credentials_path))
@@ -76,9 +80,9 @@ class SheetsClient(SheetsClientPort):
         ) as exc:
             mapped_error = map_gspread_exception(exc)
             if isinstance(mapped_error, SheetsPermissionError):
-                mapped_error = mapped_error.enriquecer_email_cuenta_servicio(self._service_account_email).with_context(
-                    spreadsheet_id=spreadsheet_id
-                )
+                mapped_error = mapped_error.enriquecer_email_cuenta_servicio(
+                    self._service_account_email
+                ).with_context(spreadsheet_id=spreadsheet_id)
                 self._log_permission_error(
                     mapped_error,
                     spreadsheet_id=spreadsheet_id,
@@ -106,13 +110,18 @@ class SheetsClient(SheetsClientPort):
         if name in self._worksheet_cache:
             self._avoided_requests_count += 1
             return self._worksheet_cache[name]
-        if self._worksheets_by_title_cache is not None and name in self._worksheets_by_title_cache:
+        if (
+            self._worksheets_by_title_cache is not None
+            and name in self._worksheets_by_title_cache
+        ):
             self._avoided_requests_count += 1
             worksheet = self._worksheets_by_title_cache[name]
             self._worksheet_cache[name] = worksheet
             return worksheet
         if self._spreadsheet is None:
-            raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
+            raise RuntimeError(
+                "Spreadsheet no inicializado. Llama a open_spreadsheet primero."
+            )
         worksheet = self._with_rate_limit_retry(
             f"spreadsheet.worksheet({name})",
             lambda: self._spreadsheet.worksheet(name),
@@ -127,16 +136,24 @@ class SheetsClient(SheetsClientPort):
             self._avoided_requests_count += 1
             return self._worksheets_by_title_cache
         if self._spreadsheet is None:
-            raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
-        worksheets = self._with_rate_limit_retry("spreadsheet.worksheets", self._spreadsheet.worksheets)
-        self._worksheets_by_title_cache = {worksheet.title: worksheet for worksheet in worksheets}
+            raise RuntimeError(
+                "Spreadsheet no inicializado. Llama a open_spreadsheet primero."
+            )
+        worksheets = self._with_rate_limit_retry(
+            "spreadsheet.worksheets", self._spreadsheet.worksheets
+        )
+        self._worksheets_by_title_cache = {
+            worksheet.title: worksheet for worksheet in worksheets
+        }
         self._worksheet_cache.update(self._worksheets_by_title_cache)
         self._read_calls_count += 1
         return self._worksheets_by_title_cache
 
     def batch_get_ranges(self, ranges: list[str]) -> dict[str, list[list[str]]]:
         if self._spreadsheet is None:
-            raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
+            raise RuntimeError(
+                "Spreadsheet no inicializado. Llama a open_spreadsheet primero."
+            )
         if not ranges:
             return {}
         logger.debug("values_batch_get %s ranges", len(ranges))
@@ -153,7 +170,9 @@ class SheetsClient(SheetsClientPort):
         return mapped
 
     @staticmethod
-    def _normalize_batch_get_result(ranges: list[str], values_by_range: Any) -> dict[str, list[list[str]]]:
+    def _normalize_batch_get_result(
+        ranges: list[str], values_by_range: Any
+    ) -> dict[str, list[list[str]]]:
         if isinstance(values_by_range, dict):
             value_ranges = values_by_range.get("valueRanges", [])
             logger.debug(
@@ -198,17 +217,20 @@ class SheetsClient(SheetsClientPort):
         if not body.get("data"):
             return
         if self._spreadsheet is None:
-            raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
+            raise RuntimeError(
+                "Spreadsheet no inicializado. Llama a open_spreadsheet primero."
+            )
         self._with_write_retry(
             "spreadsheet.values_batch_update",
             lambda: self._spreadsheet.values_batch_update(body),
         )
         self._write_calls_count += 1
 
-
     def check_write_access(self, worksheet_name: str | None = None) -> None:
         if self._spreadsheet is None:
-            raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
+            raise RuntimeError(
+                "Spreadsheet no inicializado. Llama a open_spreadsheet primero."
+            )
         operation = "spreadsheet.batch_update(preflight_write_access)"
         self._with_write_retry(
             operation,
@@ -216,7 +238,13 @@ class SheetsClient(SheetsClientPort):
             spreadsheet_id=getattr(self._spreadsheet, "id", None),
         )
 
-    def _with_rate_limit_retry(self, operation_name: str, operation: Callable[[], T], *, spreadsheet_id: str | None = None) -> T:
+    def _with_rate_limit_retry(
+        self,
+        operation_name: str,
+        operation: Callable[[], T],
+        *,
+        spreadsheet_id: str | None = None,
+    ) -> T:
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
                 self._record_api_call(operation_name)
@@ -225,14 +253,22 @@ class SheetsClient(SheetsClientPort):
                 mapped_error = map_gspread_exception(exc)
                 if not isinstance(mapped_error, SheetsRateLimitError):
                     if isinstance(mapped_error, SheetsPermissionError):
-                        mapped_error = mapped_error.enriquecer_email_cuenta_servicio(self._service_account_email).with_context(
-                            spreadsheet_id=spreadsheet_id or getattr(self._spreadsheet, "id", None),
-                            worksheet=self._worksheet_from_operation_name(operation_name),
+                        mapped_error = mapped_error.enriquecer_email_cuenta_servicio(
+                            self._service_account_email
+                        ).with_context(
+                            spreadsheet_id=spreadsheet_id
+                            or getattr(self._spreadsheet, "id", None),
+                            worksheet=self._worksheet_from_operation_name(
+                                operation_name
+                            ),
                         )
                         self._log_permission_error(
                             mapped_error,
-                            spreadsheet_id=spreadsheet_id or getattr(self._spreadsheet, "id", None),
-                            worksheet_name=self._worksheet_from_operation_name(operation_name),
+                            spreadsheet_id=spreadsheet_id
+                            or getattr(self._spreadsheet, "id", None),
+                            worksheet_name=self._worksheet_from_operation_name(
+                                operation_name
+                            ),
                         )
                     raise mapped_error from exc
                 if attempt >= _MAX_RETRIES:
@@ -255,7 +291,13 @@ class SheetsClient(SheetsClientPort):
                 time.sleep(backoff_seconds)
         raise RuntimeError("No se pudo completar la operación de Google Sheets.")
 
-    def _with_write_retry(self, operation_name: str, operation: Callable[[], T], *, spreadsheet_id: str | None = None) -> T:
+    def _with_write_retry(
+        self,
+        operation_name: str,
+        operation: Callable[[], T],
+        *,
+        spreadsheet_id: str | None = None,
+    ) -> T:
         for attempt in range(1, _WRITE_MAX_RETRIES + 1):
             try:
                 self._record_api_call(operation_name)
@@ -263,11 +305,19 @@ class SheetsClient(SheetsClientPort):
             except gspread.exceptions.APIError as exc:
                 mapped_error = map_gspread_exception(exc)
                 if not isinstance(mapped_error, SheetsRateLimitError):
-                    self._handle_permission_error(mapped_error, operation_name, spreadsheet_id)
+                    self._handle_permission_error(
+                        mapped_error, operation_name, spreadsheet_id
+                    )
                     raise mapped_error from exc
                 if not should_retry_rate_limit(attempt, _WRITE_MAX_RETRIES):
-                    logger.error("Google Sheets rate limit persistente en escritura %s tras %s intentos.", operation_name, attempt)
-                    raise SheetsRateLimitError("Límite de escritura de Google Sheets alcanzado. Espera 1 minuto y reintenta.") from exc
+                    logger.error(
+                        "Google Sheets rate limit persistente en escritura %s tras %s intentos.",
+                        operation_name,
+                        attempt,
+                    )
+                    raise SheetsRateLimitError(
+                        "Límite de escritura de Google Sheets alcanzado. Espera 1 minuto y reintenta."
+                    ) from exc
                 backoff_seconds = write_backoff_seconds(attempt)
                 logger.warning(
                     "Rate limit en escritura Google Sheets (%s). intento=%s/%s backoff=%ss",
@@ -287,8 +337,12 @@ class SheetsClient(SheetsClientPort):
     ) -> None:
         if not isinstance(mapped_error, SheetsPermissionError):
             return
-        mapped_error = mapped_error.enriquecer_email_cuenta_servicio(self._service_account_email)
-        resolved_spreadsheet_id = self._resolve_spreadsheet_id(spreadsheet_id=spreadsheet_id)
+        mapped_error = mapped_error.enriquecer_email_cuenta_servicio(
+            self._service_account_email
+        )
+        resolved_spreadsheet_id = self._resolve_spreadsheet_id(
+            spreadsheet_id=spreadsheet_id
+        )
         worksheet_name = self._worksheet_from_operation_name(operation_name)
         mapped_error = mapped_error.with_context(
             spreadsheet_id=resolved_spreadsheet_id,
@@ -301,7 +355,9 @@ class SheetsClient(SheetsClientPort):
                 worksheet_name=worksheet_name,
             )
         except Exception:  # pragma: no cover - logging should never break sync flows
-            logger.exception("No se pudo registrar un error de permisos de Google Sheets")
+            logger.exception(
+                "No se pudo registrar un error de permisos de Google Sheets"
+            )
 
     @staticmethod
     def _worksheet_name_from_range(range_name: str) -> str | None:
@@ -311,7 +367,9 @@ class SheetsClient(SheetsClientPort):
     def _worksheet_from_operation_name(operation_name: str) -> str | None:
         return worksheet_from_operation_name(operation_name)
 
-    def _resolve_spreadsheet_id(self, *, spreadsheet_id: str | None = None) -> str | None:
+    def _resolve_spreadsheet_id(
+        self, *, spreadsheet_id: str | None = None
+    ) -> str | None:
         if spreadsheet_id:
             return spreadsheet_id
 
@@ -324,7 +382,11 @@ class SheetsClient(SheetsClientPort):
     def _record_api_call(self, operation_name: str) -> None:
         self._sheets_api_calls_count += 1
         metrics_registry.incrementar("sheets_api_calls")
-        logger.debug("Sheets API call #%s operation=%s", self._sheets_api_calls_count, operation_name)
+        logger.debug(
+            "Sheets API call #%s operation=%s",
+            self._sheets_api_calls_count,
+            operation_name,
+        )
 
     @staticmethod
     def _read_service_account_email(credentials_path: Path) -> str | None:
@@ -345,6 +407,9 @@ class SheetsClient(SheetsClientPort):
         worksheet_name: str | None = None,
     ) -> None:
         correlation_id = get_correlation_id()
+        payload_error = error.to_safe_payload()
+        spreadsheet_seguro = payload_error.get("spreadsheet_id")
+        worksheet_seguro = payload_error.get("worksheet") or worksheet_name
         log_operational_error(
             logger,
             "Sync failed: permisos insuficientes en Google Sheets",
@@ -352,8 +417,9 @@ class SheetsClient(SheetsClientPort):
             extra={
                 "correlation_id": correlation_id,
                 "operation": "sheets_permission_check",
-                "spreadsheet_id": spreadsheet_id,
-                "worksheet": worksheet_name,
+                "spreadsheet_id": spreadsheet_seguro,
+                "worksheet": worksheet_seguro,
                 "service_account_email": error.service_account_email,
+                "spreadsheet_id_original_provided": bool(spreadsheet_id),
             },
         )

@@ -15,8 +15,10 @@ def test_sheets_permission_error_serializes_safe_context_without_secrets() -> No
     rendered = str(error)
     represented = repr(error)
 
-    assert payload["service_account_email"] == "svc-account@demo.iam.gserviceaccount.com"
-    assert payload["spreadsheet_id"] == "sheet-abc"
+    assert (
+        payload["service_account_email"] == "svc-account@demo.iam.gserviceaccount.com"
+    )
+    assert payload["spreadsheet_id"] == "…et-abc"
     assert payload["worksheet"] == "solicitudes"
     assert "private_key" not in rendered
     assert "private_key" not in represented

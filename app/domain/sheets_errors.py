@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.core.politica_visibilidad import proteger_spreadsheet_id
 from app.core.errors import InfraError, TransientExternalError
 
 
@@ -25,8 +26,13 @@ class SheetsPermissionError(SheetsConfigError):
         self.spreadsheet_id = spreadsheet_id
         self.worksheet = worksheet
 
-    def enriquecer_email_cuenta_servicio(self, service_account_email: str | None) -> "SheetsPermissionError":
-        if not service_account_email or self.service_account_email == service_account_email:
+    def enriquecer_email_cuenta_servicio(
+        self, service_account_email: str | None
+    ) -> "SheetsPermissionError":
+        if (
+            not service_account_email
+            or self.service_account_email == service_account_email
+        ):
             return self
         return SheetsPermissionError(
             self.args[0],
@@ -43,7 +49,10 @@ class SheetsPermissionError(SheetsConfigError):
     ) -> "SheetsPermissionError":
         resolved_spreadsheet_id = spreadsheet_id or self.spreadsheet_id
         resolved_worksheet = worksheet or self.worksheet
-        if resolved_spreadsheet_id == self.spreadsheet_id and resolved_worksheet == self.worksheet:
+        if (
+            resolved_spreadsheet_id == self.spreadsheet_id
+            and resolved_worksheet == self.worksheet
+        ):
             return self
         return SheetsPermissionError(
             self.args[0],
@@ -55,7 +64,9 @@ class SheetsPermissionError(SheetsConfigError):
     def to_safe_payload(self) -> dict[str, str]:
         payload: dict[str, str] = {}
         if self.spreadsheet_id:
-            payload["spreadsheet_id"] = self.spreadsheet_id
+            spreadsheet_seguro = proteger_spreadsheet_id(self.spreadsheet_id)
+            if spreadsheet_seguro:
+                payload["spreadsheet_id"] = spreadsheet_seguro
         if self.worksheet:
             payload["worksheet"] = self.worksheet
         if self.service_account_email:

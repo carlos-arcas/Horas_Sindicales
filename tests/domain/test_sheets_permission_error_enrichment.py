@@ -26,8 +26,19 @@ def test_sheets_permission_error_safe_payload_no_expone_secretos() -> None:
     payload = error.to_safe_payload()
 
     assert payload == {
-        "spreadsheet_id": "sheet-123",
+        "spreadsheet_id": "…et-123",
         "worksheet": "solicitudes",
         "service_account_email": "sync-bot@example.iam.gserviceaccount.com",
     }
     assert "private_key" not in str(error)
+
+
+def test_sheets_permission_error_muestra_spreadsheet_completo_si_politica_lo_permite(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("HORAS_PERMITIR_SPREADSHEET_ID_COMPLETO", "true")
+    error = SheetsPermissionError("Permiso denegado", spreadsheet_id="sheet-123")
+
+    payload = error.to_safe_payload()
+
+    assert payload["spreadsheet_id"] == "sheet-123"

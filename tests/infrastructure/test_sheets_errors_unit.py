@@ -38,22 +38,39 @@ def test_extract_api_error_text_prioriza_response_text() -> None:
 
 
 def test_credentials_not_found_message_con_y_sin_path() -> None:
-    assert _credentials_not_found_message("/tmp/cred.json") == "No se encuentra credentials.json en /tmp/cred.json."
+    assert (
+        _credentials_not_found_message("/tmp/cred.json")
+        == "No se encuentra credentials.json en /tmp/cred.json."
+    )
     assert _credentials_not_found_message(None) == "No se encuentra credentials.json."
 
 
 def test_is_rate_limited_por_status_y_tokens() -> None:
     assert _is_rate_limited_api_error(_api_error(429, "x"), "x") is True
-    assert _is_rate_limited_api_error(_api_error(400, "quota exceeded"), "quota exceeded") is True
+    assert (
+        _is_rate_limited_api_error(_api_error(400, "quota exceeded"), "quota exceeded")
+        is True
+    )
     assert _is_rate_limited_api_error(_api_error(400, "otro"), "otro") is False
 
 
 def test_map_gspread_exception_cubre_taxonomia_api() -> None:
-    assert isinstance(map_gspread_exception(_api_error(503, "RESOURCE_EXHAUSTED")), SheetsRateLimitError)
-    assert isinstance(map_gspread_exception(_api_error(403, "permission_denied")), SheetsPermissionError)
-    assert isinstance(map_gspread_exception(_api_error(404, "requested entity was not found")), SheetsNotFoundError)
     assert isinstance(
-        map_gspread_exception(_api_error(400, "Google Sheets API has not been used in project")),
+        map_gspread_exception(_api_error(503, "RESOURCE_EXHAUSTED")),
+        SheetsRateLimitError,
+    )
+    assert isinstance(
+        map_gspread_exception(_api_error(403, "permission_denied")),
+        SheetsPermissionError,
+    )
+    assert isinstance(
+        map_gspread_exception(_api_error(404, "requested entity was not found")),
+        SheetsNotFoundError,
+    )
+    assert isinstance(
+        map_gspread_exception(
+            _api_error(400, "Google Sheets API has not been used in project")
+        ),
         SheetsApiDisabledError,
     )
     fallback = map_gspread_exception(_api_error(400, "fallo no mapeado"))
@@ -65,8 +82,14 @@ def test_map_gspread_exception_cubre_credenciales_y_genericos() -> None:
     not_found = FileNotFoundError("No existe")
     not_found.filename = "/tmp/credenciales.json"
     assert isinstance(map_gspread_exception(not_found), SheetsCredentialsError)
-    assert isinstance(map_gspread_exception(json.JSONDecodeError("msg", "{}", 0)), SheetsCredentialsError)
-    assert isinstance(map_gspread_exception(DefaultCredentialsError("bad creds")), SheetsCredentialsError)
+    assert isinstance(
+        map_gspread_exception(json.JSONDecodeError("msg", "{}", 0)),
+        SheetsCredentialsError,
+    )
+    assert isinstance(
+        map_gspread_exception(DefaultCredentialsError("bad creds")),
+        SheetsCredentialsError,
+    )
 
     attr = map_gspread_exception(AttributeError("attr missing"))
     assert isinstance(attr, SheetsClientError)
@@ -75,6 +98,20 @@ def test_map_gspread_exception_cubre_credenciales_y_genericos() -> None:
     runtime = map_gspread_exception(RuntimeError("boom"))
     assert isinstance(runtime, SheetsConfigError)
     assert str(runtime) == "boom"
+
+
+def test_map_gspread_exception_redacta_token_en_mensaje_fallback() -> None:
+    fallback = map_gspread_exception(_api_error(400, 'token="abc123"'))
+
+    assert isinstance(fallback, SheetsConfigError)
+    assert str(fallback) == "token=<REDACTED>"
+
+
+def test_is_rate_limited_ignora_403_aunque_texto_contenga_quota() -> None:
+    assert (
+        _is_rate_limited_api_error(_api_error(403, "quota exceeded"), "quota exceeded")
+        is False
+    )
 
 
 def test_map_gspread_exception_retorna_errores_ya_mapeados() -> None:
