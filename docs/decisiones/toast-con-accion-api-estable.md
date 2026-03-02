@@ -14,7 +14,7 @@ Evitar `TypeError` en integraciones que envían acciones opcionales, incluso cua
 ## Verificación rápida
 1. Ejecutar `ruff check .`.
 2. Ejecutar `pytest -q`.
-3. (Opcional) Ejecutar `python scripts/quality_gate.py`.
+3. (Opcional) Ejecutar `python -m scripts.quality_gate`.
 
 ## Actualización: guardrail para callback de acción (2026-03)
 Se incorpora el helper `app/ui/toasts/ejecutar_callback_seguro.py` para ejecutar `action_callback` con tolerancia a fallos. La `TarjetaToast` ahora delega en este helper para evitar excepciones no controladas en el event loop de Qt.

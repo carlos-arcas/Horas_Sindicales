@@ -19,7 +19,7 @@ pytest -q -m "not ui" --cov=. --cov-report=term-missing
 ## Comando recomendado con quality gate
 
 ```bash
-python scripts/quality_gate.py
+python -m scripts.quality_gate
 ```
 
 Este comando ejecuta:
