@@ -16,6 +16,7 @@ from app.ui.vistas.main_window import (
     resolve_active_delegada_id,
 )
 from app.ui.vistas.init_refresh import run_init_refresh
+from typing import Callable
 
 
 class MainWindow(_MainWindowBase):
@@ -27,19 +28,45 @@ class MainWindow(_MainWindowBase):
         self.historico_desde_date = getattr(self, "historico_desde_date", None)
         self.historico_hasta_date = getattr(self, "historico_hasta_date", None)
 
-    def _toast_success(self, message: str, title: str | None = None) -> None:
+    def _toast_success(
+        self,
+        message: str,
+        title: str | None = None,
+        *,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+    ) -> None:
         try:
+            kwargs: dict[str, object] = {}
             if title:
-                self.toast.success(message, title=title)
+                kwargs["title"] = title
+            if action_label is not None and action_callback is not None:
+                kwargs["action_label"] = action_label
+                kwargs["action_callback"] = action_callback
+            if kwargs:
+                self.toast.success(message, **kwargs)
             else:
                 self.toast.success(message)
         except TypeError:
             self.toast.success(message)
 
-    def _toast_error(self, message: str, *, title: str | None = None) -> None:
+    def _toast_error(
+        self,
+        message: str,
+        *,
+        title: str | None = None,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+    ) -> None:
         try:
+            kwargs: dict[str, object] = {}
             if title:
-                self.toast.error(message, title=title)
+                kwargs["title"] = title
+            if action_label is not None and action_callback is not None:
+                kwargs["action_label"] = action_label
+                kwargs["action_callback"] = action_callback
+            if kwargs:
+                self.toast.error(message, **kwargs)
             else:
                 self.toast.error(message)
         except TypeError:
