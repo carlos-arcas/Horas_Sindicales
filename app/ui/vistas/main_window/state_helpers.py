@@ -2,18 +2,22 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.ui.vistas.personas_presenter import resolve_active_delegada_id as _resolver_delegada_activa
 
-def resolve_active_delegada_id(delegada_ids: list[int], preferred_id: object) -> int | None:
-    """Resuelve una delegada activa priorizando la preferencia si es válida."""
+
+def resolve_active_delegada_id(window: Any, preferred_id: object | None = None) -> int | None:
+    """Resuelve la delegada activa desde una ventana o desde una lista de ids."""
+    if isinstance(window, list):
+        return _resolver_delegada_activa(window, preferred_id)
+
+    combo = getattr(window, "persona_combo", None)
+    delegada_ids: list[int] = []
+    if combo is not None and hasattr(combo, "count") and hasattr(combo, "itemData"):
+        delegada_ids = [combo.itemData(index) for index in range(combo.count()) if combo.itemData(index) is not None]
     if not delegada_ids:
         return None
-    try:
-        preferred = int(preferred_id) if preferred_id is not None else None
-    except (TypeError, ValueError):
-        preferred = None
-    if preferred is not None and preferred in delegada_ids:
-        return preferred
-    return delegada_ids[0]
+    preferred = preferred_id if preferred_id is not None else getattr(window, "_last_persona_id", None)
+    return _resolver_delegada_activa(delegada_ids, preferred)
 
 
 def set_processing_state(window: Any, in_progress: bool) -> None:

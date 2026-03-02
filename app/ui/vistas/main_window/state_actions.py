@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from datetime import date
+
+from app.application.dto import PeriodoFiltro
+from app.ui.copy_catalog import copy_text
+
 from . import data_refresh, state_historico
 
 
@@ -27,3 +32,29 @@ class MainWindowStateActionsMixin:
         update_actions = getattr(self, "_update_action_state", None)
         if callable(update_actions):
             update_actions()
+
+    def _apply_help_preferences(self) -> None:
+        show_help_toggle = getattr(self, "show_help_toggle", None)
+        if show_help_toggle is None:
+            return
+
+        settings_key = copy_text("ui.preferencias.settings_show_help_key")
+        raw_value = self._settings.value(settings_key, True)
+        show_help = raw_value.strip().lower() in {"1", "true", "yes", "on"} if isinstance(raw_value, str) else bool(raw_value)
+        show_help_toggle.blockSignals(True)
+        show_help_toggle.setChecked(show_help)
+        show_help_toggle.blockSignals(False)
+        if getattr(self, "_help_toggle_conectado", False):
+            show_help_toggle.toggled.disconnect(self._on_help_toggle_changed)
+            self._help_toggle_conectado = False
+        show_help_toggle.toggled.connect(self._on_help_toggle_changed)
+        self._help_toggle_conectado = True
+        self._on_help_toggle_changed(show_help)
+
+    def _current_saldo_filtro(self) -> PeriodoFiltro:
+        fecha_input = getattr(self, "fecha_input", None)
+        if fecha_input is not None and hasattr(fecha_input, "date"):
+            fecha = fecha_input.date()
+            if hasattr(fecha, "isValid") and fecha.isValid():
+                return PeriodoFiltro.mensual(fecha.year(), fecha.month())
+        return PeriodoFiltro.anual(date.today().year)
