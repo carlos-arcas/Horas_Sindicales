@@ -132,6 +132,22 @@ from .init_placeholders import inicializar_placeholders
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 from . import state_historico, state_pendientes
 from .header_state import resolve_section_title, resolve_sidebar_tab_index
+from .state_controller_utils import (
+    apply_help_preferences,
+    apply_solicitudes_tooltips,
+    configure_historico_focus_order,
+    configure_operativa_focus_order,
+    configure_solicitudes_table,
+    configure_time_placeholders,
+    normalize_input_heights,
+    on_fecha_changed,
+    on_help_toggle_changed,
+    safe_conflicts_count,
+    status_to_label,
+    update_conflicts_reminder,
+    update_responsive_columns,
+    warmup_sync_client,
+)
 from aplicacion.puertos.proveedor_i18n import ProveedorI18N
 
 logger = logging.getLogger(__name__)
@@ -312,13 +328,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
             reminder.setText(ui_text("ui.sync.panel.conflictos_pendientes", cantidad=self._safe_conflicts_count()))
 
     def _safe_conflicts_count(self) -> int:
-        service = getattr(self, "_conflicts_service", None)
-        if service is None or not hasattr(service, "count_conflicts"):
-            return 0
-        raw_total = service.count_conflicts()
-        if isinstance(raw_total, bool) or not isinstance(raw_total, (int, float)):
-            return 0
-        return max(int(raw_total), 0)
+        return safe_conflicts_count(self)
 
 
     def _inicializar_preferencia_pantalla_completa(self) -> None:
@@ -337,74 +347,16 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._guardar_preferencia_pantalla_completa.ejecutar(valor)
 
     def _apply_help_preferences(self) -> None:
-        show_help_toggle = getattr(self, "show_help_toggle", None)
-        if show_help_toggle is None:
-            return
-
-        settings_key = copy_text("ui.preferencias.settings_show_help_key")
-        default_show_help = True
-        raw_value = self._settings.value(settings_key, default_show_help)
-        if isinstance(raw_value, str):
-            show_help = raw_value.strip().lower() in {"1", "true", "yes", "on"}
-        else:
-            show_help = bool(raw_value)
-
-        show_help_toggle.blockSignals(True)
-        show_help_toggle.setChecked(show_help)
-        show_help_toggle.blockSignals(False)
-        if self._help_toggle_conectado:
-            show_help_toggle.toggled.disconnect(self._on_help_toggle_changed)
-            self._help_toggle_conectado = False
-        if not self._help_toggle_conectado:
-            show_help_toggle.toggled.connect(self._on_help_toggle_changed)
-            self._help_toggle_conectado = True
-        self._on_help_toggle_changed(show_help)
+        apply_help_preferences(self)
 
     def _on_help_toggle_changed(self, enabled: bool) -> None:
-        settings_key = copy_text("ui.preferencias.settings_show_help_key")
-        self._settings.setValue(settings_key, bool(enabled))
-
-        for attr_name in (
-            "solicitudes_tip_1",
-            "solicitudes_tip_2",
-            "solicitudes_tip_3",
-            "solicitudes_status_hint",
-        ):
-            widget = getattr(self, attr_name, None)
-            if widget is not None and hasattr(widget, "setVisible"):
-                widget.setVisible(enabled)
-
-        self._apply_solicitudes_tooltips(enabled)
+        on_help_toggle_changed(self, enabled)
 
     def _apply_solicitudes_tooltips(self, enabled: bool | None = None) -> None:
-        if enabled is None:
-            enabled = bool(getattr(getattr(self, "show_help_toggle", None), "isChecked", lambda: True)())
-
-        help_text_by_widget = (
-            ("persona_combo", "solicitudes.tooltip_delegada"),
-            ("fecha_input", "solicitudes.tooltip_fecha"),
-            ("desde_input", "solicitudes.tooltip_desde"),
-            ("hasta_input", "solicitudes.tooltip_hasta"),
-            ("total_preview_input", "solicitudes.tooltip_minutos"),
-            ("notas_input", "solicitudes.tooltip_notas"),
-        )
-        for widget_name, copy_key in help_text_by_widget:
-            widget = getattr(self, widget_name, None)
-            if widget is None or not hasattr(widget, "setToolTip"):
-                continue
-            widget.setToolTip(copy_text(copy_key) if enabled else "")
+        apply_solicitudes_tooltips(self, enabled)
 
     def _warmup_sync_client(self) -> None:
-        try:
-            if hasattr(self._sync_service, "ensure_connection"):
-                self._sync_service.ensure_connection()
-        except Exception as exc:  # pragma: no cover - warmup no debe bloquear la UI
-            log_operational_error(
-                logger,
-                "SYNC_WARMUP_FAILED",
-                exc=exc,
-                extra={"operation": "sync_warmup"},
-            )
+        warmup_sync_client(self, logger)
 
     def _post_init_load(self) -> None:
         run_init_refresh(
@@ -427,31 +379,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         return acciones_sincronizacion.sync_actor_text(self)
 
     def _update_conflicts_reminder(self) -> None:
-        logger = logging.getLogger(__name__)
-        try:
-            if not hasattr(self, "conflicts_reminder_label"):
-                return
-            if not hasattr(self, "_i18n"):
-                return
-
-            reminder_widget = self.conflicts_reminder_label
-            if reminder_widget is None:
-                return
-
-            total_conflictos_pendientes = 0
-            if hasattr(self, "_conflicts_service") and self._conflicts_service is not None:
-                total_conflictos_pendientes = int(self._conflicts_service.count_conflicts())
-
-            if total_conflictos_pendientes > 0:
-                reminder_widget.setVisible(True)
-                texto_base = copy_text("ui.sync.conflictos_pendientes")
-                reminder_widget.setText(texto_base.replace("0", str(total_conflictos_pendientes), 1))
-                return
-
-            reminder_widget.setVisible(False)
-        except Exception:
-            logger.exception("UI_UPDATE_CONFLICTS_REMINDER_FAILED")
-            return
+        update_conflicts_reminder(self, logger)
 
     def _on_main_tab_changed(self, index: int) -> None:
         if index != TAB_HISTORICO:
@@ -613,148 +541,26 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         layout_builder.build_status(self)
 
     def _configure_time_placeholders(self) -> None:
-        handlers_layout.configure_time_placeholders(self)
-
-        for input_name in ("desde_input", "hasta_input"):
-            input_widget = getattr(self, input_name, None)
-            if input_widget is None:
-                continue
-
-            line_edit = getattr(input_widget, "lineEdit", lambda: None)()
-            if line_edit is not None and hasattr(line_edit, "setPlaceholderText"):
-                line_edit.setPlaceholderText("HH:MM")
-                continue
-
-            if hasattr(input_widget, "setPlaceholderText"):
-                input_widget.setPlaceholderText("HH:MM")
+        configure_time_placeholders(self)
 
     def _normalize_input_heights(self) -> None:
         """Unifica la altura de los campos del formulario de solicitud."""
-        input_names = ("persona_combo", "fecha_input", "desde_input", "hasta_input", "notas_input")
-        single_line_class_names = {
-            "QComboBox",
-            "QDateEdit",
-            "QTimeEdit",
-            "QLineEdit",
-            "QSpinBox",
-            "QDoubleSpinBox",
-        }
-
-        def _size_hint_height(widget: object) -> int | None:
-            size_hint = getattr(widget, "sizeHint", None)
-            if not callable(size_hint):
-                return None
-            hint = size_hint()
-            height_getter = getattr(hint, "height", None)
-            if not callable(height_getter):
-                return None
-            height = height_getter()
-            if isinstance(height, int) and height > 0:
-                return height
-            return None
-
-        try:
-            widgets = [widget for name in input_names if (widget := getattr(self, name, None)) is not None]
-            single_line_widgets = [widget for widget in widgets if type(widget).__name__ in single_line_class_names]
-            heights = [height for widget in single_line_widgets if (height := _size_hint_height(widget)) is not None]
-            if not heights:
-                return
-
-            target_height = max(heights)
-            for widget in single_line_widgets:
-                set_fixed_height = getattr(widget, "setFixedHeight", None)
-                if callable(set_fixed_height):
-                    set_fixed_height(target_height)
-        except Exception as exc:
-            log_operational_error(
-                logger,
-                "UI_NORMALIZE_INPUT_HEIGHTS_FAILED",
-                exc=exc,
-                extra={"contexto": "mainwindow._normalize_input_heights"},
-            )
+        normalize_input_heights(self, logger)
 
     def _update_responsive_columns(self) -> None:
-        try:
-            handlers_layout.update_responsive_columns(self)
-        except Exception as exc:
-            log_operational_error(
-                logger,
-                "UI_UPDATE_RESPONSIVE_COLUMNS_FAILED",
-                exc=exc,
-                extra={"contexto": "mainwindow._update_responsive_columns"},
-            )
+        update_responsive_columns(self, logger)
 
     def _configure_operativa_focus_order(self) -> None:
-        focus_chain = (
-            ("persona_combo", "fecha_input"),
-            ("fecha_input", "desde_input"),
-            ("desde_input", "hasta_input"),
-            ("hasta_input", "completo_check"),
-            ("completo_check", "notas_input"),
-            ("notas_input", "agregar_button"),
-            ("agregar_button", "insertar_sin_pdf_button"),
-            ("insertar_sin_pdf_button", "confirmar_button"),
-        )
-        for before_name, after_name in focus_chain:
-            before_widget = getattr(self, before_name, None)
-            after_widget = getattr(self, after_name, None)
-            if before_widget is None or after_widget is None:
-                continue
-            self.setTabOrder(before_widget, after_widget)
+        configure_operativa_focus_order(self)
 
     def _configure_historico_focus_order(self) -> None:
-        focus_chain = (
-            ("historico_search_input", "historico_estado_combo"),
-            ("historico_estado_combo", "historico_delegada_combo"),
-            ("historico_delegada_combo", "historico_desde_date"),
-            ("historico_desde_date", "historico_hasta_date"),
-            ("historico_hasta_date", "historico_apply_filters_button"),
-            ("historico_apply_filters_button", "historico_table"),
-        )
-        set_tab_order = getattr(self, "setTabOrder", None)
-        if not callable(set_tab_order):
-            logger.warning("UI_SET_TAB_ORDER_NOT_AVAILABLE")
-            return
-
-        for before_name, after_name in focus_chain:
-            before_widget = getattr(self, before_name, None)
-            after_widget = getattr(self, after_name, None)
-            if before_widget is None or after_widget is None:
-                logger.warning(
-                    "UI_TAB_ORDER_SKIPPED_MISSING_WIDGET",
-                    extra={"before": before_name, "after": after_name},
-                )
-                continue
-            set_tab_order(before_widget, after_widget)
+        configure_historico_focus_order(self, logger)
 
     def _status_to_label(self, status: str) -> str:
-        return {
-            "IDLE": copy_text("ui.sync.estado_en_espera"),
-            "RUNNING": copy_text("ui.sync.estado_pendiente_sincronizando"),
-            "OK": status_badge("CONFIRMED"),
-            "OK_WARN": status_badge("WARNING"),
-            "ERROR": status_badge("ERROR"),
-            "CONFIG_INCOMPLETE": copy_text("ui.sync.estado_error_config_incompleta"),
-        }.get(status, status)
+        return status_to_label(status)
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
-        model = table.model()
-        column_count = model.columnCount() if model is not None else 6
-        if column_count <= 0:
-            return
-        table.setProperty("role", "dataTable")
-        table.setAlternatingRowColors(True)
-        header = table.horizontalHeader()
-        header.setMinimumSectionSize(78)
-        for column in range(max(0, column_count - 1)):
-            header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(column_count - 1, QHeaderView.Stretch)
-        header.setStretchLastSection(False)
-        table.setColumnWidth(column_count - 1, 240)
-        table.verticalHeader().setDefaultSectionSize(30)
-        table.verticalHeader().setVisible(False)
-        table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
-        table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        configure_solicitudes_table(table)
 
     def _save_current_draft(self, persona_id: int | None) -> None:
         return acciones_personas.save_current_draft(self, persona_id)
@@ -779,13 +585,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         return acciones_personas.on_persona_changed(self)
 
     def _on_fecha_changed(self, qdate: QDate) -> None:
-        if hasattr(qdate, "isValid") and qdate.isValid():
-            self._fecha_seleccionada = QDate(qdate)
-        else:
-            self._fecha_seleccionada = None
-        update_preview = getattr(self, "_update_solicitud_preview", None)
-        if callable(update_preview):
-            update_preview()
+        on_fecha_changed(self, qdate)
 
     def _on_add_persona(self) -> None:
         return acciones_personas.on_add_persona(self)
