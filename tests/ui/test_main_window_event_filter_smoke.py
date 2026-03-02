@@ -22,7 +22,7 @@ def test_event_filter_accepts_qkeyevent_without_nameerror(monkeypatch: pytest.Mo
     qt_gui = pytest.importorskip("PySide6.QtGui", exc_type=ImportError)
     qt_widgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
 
-    from app.ui.main_window import MainWindow
+    from app.ui.vistas.main_window import MainWindow
     from app.ui.vistas import main_window_vista
 
     app = QApplication.instance() or QApplication([])

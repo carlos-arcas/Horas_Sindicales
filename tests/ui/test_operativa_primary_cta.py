@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from app.ui.main_window import MainWindow
+from app.ui.vistas.main_window import MainWindow
 
 
 class _WidgetStub:

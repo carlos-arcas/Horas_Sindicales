@@ -37,7 +37,7 @@ class _ObtenerPreferenciaStub:
 def test_configuracion_muestra_y_guarda_preferencia_pantalla_completa(monkeypatch: pytest.MonkeyPatch) -> None:
     qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
 
-    from app.ui.main_window import MainWindow
+    from app.ui.vistas.main_window import MainWindow
     from app.ui.vistas import main_window_vista
 
     app = QApplication.instance() or QApplication([])
