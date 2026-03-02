@@ -42,3 +42,10 @@ Objetivos:
   - `HAS_ID_RESOLVE_EXISTING` cuando `id is not None` (precedencia máxima, incluso para `id=0`).
   - `MISSING_ID_CREATE_NEW` cuando `id is None`.
 - Orden del plan estable: misma secuencia de entrada en lote.
+
+## 2026-03 Guardrails de wiring UI
+- Se reforzó `conectar_signal` para validar precondiciones antes de conectar handlers.
+- Guardrail incorporado: la conexión de signals solo se permite en hilo GUI; fuera de hilo se registra evento estructurado y se lanza `RuntimeError` con contexto.
+- Se agregó validación opcional de firma (`signal_pasa_args=True`) para detectar handlers que no admiten argumentos posicionales cuando el signal los envía.
+- Los logs de error ahora incluyen `contexto`, `handler_name`, `widget` y `signal` para facilitar trazabilidad en refactors.
+- Verificación recomendada: `pytest tests/ui/test_wiring_helpers.py tests/ui/test_conectar_signal_modes.py`.
