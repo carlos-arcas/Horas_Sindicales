@@ -75,7 +75,7 @@ from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
     plan_pdf_confirmadas,
 )
 from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
-from app.application.use_cases.solicitudes.pdf_destino_policy import resolver_ruta_sin_colision
+from app.application.use_cases.solicitudes.pdf_destino_policy import resolver_colision_pdf
 from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
     EntradaNombrePdf,
     ServicioPreflightPdf,
@@ -564,7 +564,7 @@ class SolicitudUseCases:
         auto_rename: bool = True,
     ) -> ResolucionDestinoPdf:
         ruta_original = destino.resolve(strict=False)
-        ruta_alternativa = resolver_ruta_sin_colision(ruta_original)
+        ruta_alternativa = resolver_colision_pdf(ruta_original, self._fs)
         colision_detectada = ruta_alternativa != ruta_original
 
         if overwrite or not colision_detectada:
