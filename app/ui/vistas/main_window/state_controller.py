@@ -132,7 +132,7 @@ from .init_placeholders import inicializar_placeholders
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 from . import state_historico, state_pendientes
 from .header_state import resolve_section_title, resolve_sidebar_tab_index
-from .state_controller_utils import (
+from .utilidades_controlador_estado import (
     apply_help_preferences,
     apply_solicitudes_tooltips,
     configure_historico_focus_order,
