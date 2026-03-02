@@ -139,14 +139,9 @@ def test_confirmar_lote_resuelve_destino_pdf_una_sola_vez(connection, tmp_path: 
         patch.object(use_case, "resolver_destino_pdf", wraps=use_case.resolver_destino_pdf) as spy_use_case,
         patch.object(
             use_case_module,
-            "resolver_colision_pdf",
-            wraps=use_case_module.resolver_colision_pdf,
+            "resolver_ruta_sin_colision",
+            wraps=use_case_module.resolver_ruta_sin_colision,
         ) as spy_policy,
-        patch.object(
-            use_case._fs,
-            "resolver_colision_archivo",
-            wraps=use_case._fs.resolver_colision_archivo,
-        ) as spy_fs,
     ):
         _, _, errores, ruta_pdf = use_case.confirmar_lote_y_generar_pdf([_solicitud(persona_id)], destino)
 
@@ -155,7 +150,24 @@ def test_confirmar_lote_resuelve_destino_pdf_una_sola_vez(connection, tmp_path: 
     assert str(ruta_pdf).endswith("duplicado (1).pdf")
     assert spy_use_case.call_count == 1
     assert spy_policy.call_count == 1
-    assert spy_fs.call_count == 1
+
+
+def test_confirmar_lote_no_lanza_error_por_colision_de_ruta(connection, tmp_path: Path) -> None:
+    persona_repo = RepositorioPersonasSQLite(connection)
+    solicitud_repo = SolicitudRepositorySQLite(connection)
+    persona_id = _crear_persona(persona_repo)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=FakeGeneradorPdf())
+
+    destino = tmp_path / "colision.pdf"
+    destino.write_bytes(b"contenido previo")
+
+    try:
+        _, _, errores, ruta_pdf = use_case.confirmar_lote_y_generar_pdf([_solicitud(persona_id)], destino)
+    except BusinessRuleError as exc:  # pragma: no cover - regresion
+        pytest.fail(f"No debe lanzar BusinessRuleError por colisión: {exc}")
+
+    assert errores == []
+    assert ruta_pdf == (tmp_path / "colision (1).pdf").resolve(strict=False)
 
 
 def test_confirmar_lote_preflight_colision_si_existen_base_y_1_devuelve_2(connection, tmp_path: Path) -> None:

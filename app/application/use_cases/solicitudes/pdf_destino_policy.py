@@ -5,6 +5,25 @@ from pathlib import Path
 from app.application.ports.sistema_archivos_puerto import SistemaArchivosPuerto
 
 
+def resolver_ruta_sin_colision(ruta: Path) -> Path:
+    """Devuelve una ruta PDF libre aplicando sufijo incremental determinista."""
+    ruta_resuelta = ruta.resolve(strict=False)
+    if not ruta_resuelta.exists():
+        return ruta_resuelta
+
+    stem = ruta_resuelta.stem
+    suffix = ruta_resuelta.suffix
+    for indice in range(1, 1_000):
+        candidata = ruta_resuelta.parent / f"{stem} ({indice}){suffix}"
+        candidata_resuelta = candidata.resolve(strict=False)
+        if not candidata_resuelta.exists():
+            return candidata_resuelta
+
+    raise ValueError(
+        f"No se pudo resolver una ruta libre para '{ruta_resuelta}' tras 999 intentos."
+    )
+
+
 def resolver_colision_pdf(
     destino: Path, fs: SistemaArchivosPuerto, *, limite: int = 9_999
 ) -> Path:
