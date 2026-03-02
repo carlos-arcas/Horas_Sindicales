@@ -454,6 +454,17 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _build_status_bar(self) -> None:
         layout_builder.build_status(self)
 
+    def _configure_time_placeholders(self) -> None:
+        """Alinea placeholders con el formato horario esperado en los inputs de tramo."""
+        for input_name in ("desde_input", "hasta_input"):
+            input_widget = getattr(self, input_name, None)
+            if input_widget is None:
+                continue
+            if hasattr(input_widget, "setDisplayFormat"):
+                input_widget.setDisplayFormat(copy_text("ui.solicitudes.formato_hora"))
+            if hasattr(input_widget, "setToolTip"):
+                input_widget.setToolTip(copy_text("ui.solicitudes.tooltip_formato_hora"))
+
     def _normalize_input_heights(self) -> None:
         try:
             normalize_input_heights(self)
@@ -462,7 +473,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
                 logger,
                 "UI_NORMALIZE_INPUT_HEIGHTS_FAILED",
                 exc=exc,
-                extra={"contexto": "MainWindow._normalize_input_heights"},
+                extra={"contexto": "mainwindow._normalize_input_heights"},
             )
 
     def _update_responsive_columns(self) -> None:
@@ -473,7 +484,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
                 logger,
                 "UI_UPDATE_RESPONSIVE_COLUMNS_FAILED",
                 exc=exc,
-                extra={"contexto": "MainWindow._update_responsive_columns"},
+                extra={"contexto": "mainwindow._update_responsive_columns"},
             )
 
     def _status_to_label(self, status: str) -> str:
@@ -660,7 +671,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
                 log_operational_error(
                     logger,
                     "UI_CONFIRMAR_HANDLER_NO_DISPONIBLE",
-                    extra={"handler": "on_confirmar", "contexto": "MainWindow._on_confirmar"},
+                    extra={"handler": "on_confirmar", "contexto": "mainwindow._on_confirmar"},
                 )
                 return
             confirmar_action(self)
@@ -672,7 +683,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
                 logger,
                 "UI_CONFIRMAR_HANDLER_FALLO",
                 exc=exc,
-                extra={"handler": "on_confirmar", "contexto": "MainWindow._on_confirmar"},
+                extra={"handler": "on_confirmar", "contexto": "mainwindow._on_confirmar"},
             )
 
     def _render_preventive_validation(self) -> None:
