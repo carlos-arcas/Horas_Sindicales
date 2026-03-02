@@ -329,14 +329,22 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _update_action_state(self) -> None:
         update_action_state(self)
 
-    def _update_solicitud_preview(self) -> None:
+    def _update_solicitud_preview(self, *_args: object) -> None:
         self._update_action_state()
         if hasattr(self, "_schedule_preventive_validation"):
             self._schedule_preventive_validation()
 
+    def _on_open_saldos_modal(self) -> None:
+        self._refresh_saldos()
+
     def _on_completo_changed(self, checked: bool) -> None:
         _ = checked
         self._update_solicitud_preview()
+
+    def _on_historico_todas_delegadas_toggled(self, checked: bool) -> None:
+        if self.historico_delegada_combo is not None:
+            self.historico_delegada_combo.setEnabled(not checked)
+        self._apply_historico_filters()
 
     def _on_add_pendiente(self) -> None:
         if hasattr(acciones_pendientes, "on_add_pendiente"):
