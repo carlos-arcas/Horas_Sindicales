@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable
 
 from app.application.base_cuadrantes_service import BaseCuadrantesService
@@ -20,6 +21,7 @@ from app.application.use_cases.health_check import HealthCheckUseCase
 from app.infrastructure.cargador_datos_demo_sqlite import CargadorDatosDemoSQLite
 from app.infrastructure.db import _default_db_path, get_connection
 from app.infrastructure.health_probes import DefaultConnectivityProbe, SheetsConfigProbe, SQLiteLocalDbProbe
+from app.infrastructure.i18n import CargadorI18nDesdeArchivos, ServicioI18nEstable
 from app.infrastructure.local_config import RepositorioPreferenciasIni
 from app.infrastructure.auditoria_e2e.adaptadores import RelojSistema
 from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
@@ -59,6 +61,7 @@ class AppContainer:
     repositorio_preferencias: IRepositorioPreferencias
     cargar_datos_demo_caso_uso: CargarDatosDemoCasoUso
     exportar_compartir_periodo_caso_uso: ExportarCompartirPeriodoCasoUso
+    servicio_i18n: ServicioI18nEstable
 
 
 ConnectionFactory = Callable[[], object]
@@ -118,6 +121,11 @@ def build_container(
         reloj=RelojSistema(),
         exportador_pdf=generador_pdf,
     )
+    cargador_i18n = CargadorI18nDesdeArchivos(Path("configuracion") / "i18n")
+    servicio_i18n = ServicioI18nEstable(
+        cargador_i18n.cargar_catalogos(),
+        mapa_legacy=cargador_i18n.cargar_mapa_legacy(),
+    )
 
     return AppContainer(
         persona_use_cases=persona_use_cases,
@@ -132,6 +140,7 @@ def build_container(
         repositorio_preferencias=repositorio_preferencias,
         cargar_datos_demo_caso_uso=cargar_datos_demo_caso_uso,
         exportar_compartir_periodo_caso_uso=exportar_compartir_periodo_caso_uso,
+        servicio_i18n=servicio_i18n,
     )
 
 

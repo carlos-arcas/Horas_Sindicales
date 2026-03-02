@@ -97,6 +97,7 @@ def _build_rotating_handler(
 ) -> RotatingFileHandler:
     handler = RotatingFileHandler(
         log_path,
+        mode="w",
         maxBytes=max_bytes,
         backupCount=backup_count,
         encoding="utf-8",

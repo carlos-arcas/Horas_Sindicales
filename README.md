@@ -62,3 +62,15 @@ Consulta la sección de sincronización en la guía técnica:
 - Guía técnica: [`docs/README_tecnico.md`](docs/README_tecnico.md)
 - Decisiones técnicas: [`docs/DECISIONES_TECNICAS.md`](docs/DECISIONES_TECNICAS.md)
 - Soporte y runbook: [`docs/SOPORTE.md`](docs/SOPORTE.md)
+
+## Migración automática de claves i18n estables
+
+Para generar el catálogo estable y el mapa de compatibilidad legacy desde `.config/ui_strings_baseline.json`:
+
+```bash
+python scripts/migrar_ui_strings_baseline.py
+```
+
+El script actualiza:
+- `configuracion/i18n/es.json`
+- `configuracion/i18n/_legacy_map.json`
