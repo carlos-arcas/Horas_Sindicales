@@ -417,5 +417,6 @@
   "ui.sync.panel.sincronizando_sheets": "Sincronizando con Google Sheets…",
   "ui.sync.panel.sync_failed_inicio_ui": "Sync failed: no se pudo iniciar desde UI",
   "ui.sync.panel.sync_no_disponible": "Sync no disponible",
-  "ui.sync.panel.sync_pantalla_no_disponible": "La sincronización aún no está disponible en esta pantalla."
+  "ui.sync.panel.sync_pantalla_no_disponible": "La sincronización aún no está disponible en esta pantalla.",
+  "ui.placeholder_hora_hhmm": "HH:MM"
 }

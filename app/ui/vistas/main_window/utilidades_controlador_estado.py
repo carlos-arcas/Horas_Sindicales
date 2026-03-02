@@ -103,15 +103,16 @@ def update_conflicts_reminder(window: Any, logger_obj: logging.Logger) -> None:
 
 def configure_time_placeholders(window: Any) -> None:
     handlers_layout.configure_time_placeholders(window)
+    placeholder_hora = copy_text("ui.placeholder_hora_hhmm")
     for input_name in ("desde_input", "hasta_input"):
         input_widget = getattr(window, input_name, None)
         if input_widget is None:
             continue
         line_edit = getattr(input_widget, "lineEdit", lambda: None)()
         if line_edit is not None and hasattr(line_edit, "setPlaceholderText"):
-            line_edit.setPlaceholderText("HH:MM")
+            line_edit.setPlaceholderText(placeholder_hora)
         elif hasattr(input_widget, "setPlaceholderText"):
-            input_widget.setPlaceholderText("HH:MM")
+            input_widget.setPlaceholderText(placeholder_hora)
 
 
 def _size_hint_height(widget: object) -> int | None:
