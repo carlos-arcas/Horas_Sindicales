@@ -6,8 +6,16 @@ from PySide6.QtCore import QDate, QItemSelectionModel
 
 
 def aplicar_rango_por_defecto_historico(window: Any) -> None:
-    window.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
-    window.historico_hasta_date.setDate(QDate.currentDate())
+    today = QDate.currentDate()
+    window.historico_desde_date.setDate(today.addDays(-30))
+    window.historico_hasta_date.setDate(today)
+
+    if getattr(window, "historico_periodo_rango_radio", None) is not None:
+        window.historico_periodo_rango_radio.setChecked(True)
+
+    apply_filters = getattr(window, "_apply_historico_filters", None)
+    if callable(apply_filters) and getattr(window, "historico_proxy_model", None) is not None:
+        apply_filters()
 
 
 def aplicar_filtro_texto_historico(window: Any) -> None:

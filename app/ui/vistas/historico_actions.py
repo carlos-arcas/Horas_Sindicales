@@ -51,8 +51,16 @@ def apply_historico_filters(window: Any) -> None:
 
 
 def apply_historico_default_range(window: Any) -> None:
-    window.historico_desde_date.setDate(QDate.currentDate().addDays(-30))
-    window.historico_hasta_date.setDate(QDate.currentDate())
+    today = QDate.currentDate()
+    window.historico_desde_date.setDate(today.addDays(-30))
+    window.historico_hasta_date.setDate(today)
+
+    if getattr(window, "historico_periodo_rango_radio", None) is not None:
+        window.historico_periodo_rango_radio.setChecked(True)
+
+    apply_filters = getattr(window, "_apply_historico_filters", None)
+    if callable(apply_filters) and getattr(window, "historico_proxy_model", None) is not None:
+        apply_filters()
 
 
 def apply_historico_last_30_days(window: Any) -> None:
