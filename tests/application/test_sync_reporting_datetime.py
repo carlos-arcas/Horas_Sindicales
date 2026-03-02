@@ -15,8 +15,13 @@ def _run_simulation_report_with_now(
             return datetime.fromisoformat(value)
 
         @staticmethod
-        def now() -> datetime:
-            return datetime.fromisoformat(now_iso)
+        def now(tz=None) -> datetime:
+            current = datetime.fromisoformat(now_iso)
+            if tz is None:
+                return current
+            if current.tzinfo is None:
+                return current.replace(tzinfo=tz)
+            return current.astimezone(tz)
 
     monkeypatch.setattr(sync_reporting, "datetime", FakeDateTime)
     plan = SyncExecutionPlan(generated_at=generated_at, worksheet="solicitudes")
