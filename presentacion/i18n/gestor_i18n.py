@@ -1,8 +1,51 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, Signal
+from importlib import import_module
+from importlib.util import find_spec
+from typing import Any
 
 from aplicacion.puertos.proveedor_i18n import IProveedorI18N
+
+
+class _HeadlessSignalInstance:
+    def __init__(self) -> None:
+        self._subscribers: list[Any] = []
+
+    def connect(self, callback: Any) -> None:
+        self._subscribers.append(callback)
+
+    def emit(self, *args: Any, **kwargs: Any) -> None:
+        for callback in self._subscribers:
+            callback(*args, **kwargs)
+
+
+class _HeadlessSignal:
+    def __init__(self, *_args: Any, **_kwargs: Any) -> None:
+        self._storage_name = ""
+
+    def __set_name__(self, _owner: type[Any], name: str) -> None:
+        self._storage_name = f"_{name}_headless_signal"
+
+    def __get__(self, instance: Any, _owner: type[Any]) -> Any:
+        if instance is None:
+            return self
+        signal = getattr(instance, self._storage_name, None)
+        if signal is None:
+            signal = _HeadlessSignalInstance()
+            setattr(instance, self._storage_name, signal)
+        return signal
+
+
+if find_spec("PySide6.QtCore") is not None:
+    qtcore = import_module("PySide6.QtCore")
+    QObject = qtcore.QObject
+    Signal = qtcore.Signal
+else:
+    class QObject:  # pragma: no cover - branch for headless CI
+        def __init__(self, *_args: Any, **_kwargs: Any) -> None:
+            return
+
+    Signal = _HeadlessSignal
 
 
 class GestorI18N(QObject):
