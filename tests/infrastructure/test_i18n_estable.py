@@ -4,7 +4,11 @@ import json
 import re
 from pathlib import Path
 
-from app.infrastructure.i18n.servicio_i18n_estable import CargadorI18nDesdeArchivos, ServicioI18nEstable
+from app.infrastructure.i18n.servicio_i18n_estable import (
+    CargadorI18nDesdeArchivos,
+    ServicioI18nEstable,
+    _normalizar_filename,
+)
 
 
 def test_t_devuelve_traduccion_con_parametros() -> None:
@@ -42,16 +46,24 @@ def test_catalogos_nuevos_no_aceptan_patron_legacy_como_clave_final() -> None:
 
 
 def test_t_missing_key_no_revienta_con_filename_path(monkeypatch) -> None:
+    class _CodeFake:
+        co_filename = Path("tests/infrastructure/test_i18n_estable.py")
+        co_name = "test_path"
+
     class _FrameFake:
-        filename = Path("tests/infrastructure/test_i18n_estable.py")
-        function = "test_path"
-        lineno = 101
+        f_code = _CodeFake()
+        f_lineno = 101
 
     monkeypatch.setattr(
-        "app.infrastructure.i18n.servicio_i18n_estable.inspect.stack",
-        lambda: [object(), object(), object(), _FrameFake()],
+        "app.infrastructure.i18n.servicio_i18n_estable._obtener_frame",
+        lambda _: _FrameFake(),
     )
 
     servicio = ServicioI18nEstable({"es": {}}, idioma_inicial="es")
 
     assert servicio.t("ui.sync.inexistente") == "[MISSING:ui.sync.inexistente]"
+
+
+def test_normalizar_filename_acepta_path_y_str() -> None:
+    assert _normalizar_filename(Path("tests/infrastructure/test_i18n_estable.py")) == "test_i18n_estable.py"
+    assert _normalizar_filename("tests/infrastructure/test_i18n_estable.py") == "test_i18n_estable.py"
