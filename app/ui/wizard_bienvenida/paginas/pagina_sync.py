@@ -9,6 +9,8 @@ from presentacion.i18n import I18nManager
 class PaginaSync(PaginaTexto):
     def __init__(self, i18n: I18nManager, on_ver_guia) -> None:
         self._on_ver_guia = on_ver_guia
+        self._boton_ver_guia = QPushButton()
+        self._boton_ver_guia.clicked.connect(self._abrir_guia_sync)
         super().__init__(
             i18n,
             "wizard_paso_3",
@@ -19,13 +21,11 @@ class PaginaSync(PaginaTexto):
 
     def _construir_ui(self) -> None:
         super()._construir_ui()
-        self._boton_ver_guia = QPushButton()
-        self._boton_ver_guia.clicked.connect(self._on_ver_guia)
         self.layout().addWidget(self._boton_ver_guia)
+
+    def _abrir_guia_sync(self) -> None:
+        self._on_ver_guia()
 
     def actualizar_textos(self) -> None:
         super().actualizar_textos()
-        boton_ver_guia = getattr(self, "_boton_ver_guia", None)
-        if boton_ver_guia is None:
-            return
-        boton_ver_guia.setText(self._i18n.t("wizard_boton_ver_guia_sync"))
+        self._boton_ver_guia.setText(self._i18n.t("wizard_boton_ver_guia_sync"))
