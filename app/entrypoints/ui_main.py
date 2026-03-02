@@ -18,9 +18,10 @@ from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
     ObtenerPreferenciaPantallaCompleta,
 )
 from app.application.use_cases.cargar_datos_demo_caso_uso import CargarDatosDemoCasoUso
-from app.bootstrap.boot_diagnostics import marcar_stage
+from app.bootstrap.captura_fallos_fatales import iniciar_captura_fallos_fatales, marcar_stage
 from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
+from app.bootstrap.settings import project_root
 from app.entrypoints.arranque_nucleo import ResultadoArranque
 from app.ui.qt_message_handler import instalar_qt_message_handler
 from app.ui.qt_safe import safe_call
@@ -87,6 +88,7 @@ class _CoordinadorArranqueConCierreDeterminista:
             self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
             resolved_container = startup_payload.container
+            marcar_stage("UI_CONTAINER_RESUELTO")
             deps_arranque = startup_payload.deps_arranque
             idioma = startup_payload.idioma
             deps_arranque = _actualizar_preferencias_en_hilo_ui(
@@ -104,6 +106,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                 resolved_container,
                 deps_arranque,
             )
+            marcar_stage("UI_MAINWINDOW_CONSTRUIDA")
             self.app.setProperty("_main_window_ref", window)
             self.instalar_menu_ayuda(
                 window,
@@ -115,6 +118,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                 window.showMaximized()
             else:
                 window.show()
+            marcar_stage("UI_MAINWINDOW_MOSTRADA")
 
         try:
             _enqueue_on_ui_thread(self.app, _aplicar_resultado_en_ui)
@@ -438,6 +442,13 @@ def _instalar_menu_ayuda(
 
 
 def run_ui(container=None) -> int:
+    iniciar_captura_fallos_fatales(
+        log_dir=project_root() / "logs",
+        sobrescribir=True,
+    )
+    marcar_stage("UI_BOOT_INICIO")
+    marcar_stage("UI_LOGGING_CONFIGURADO")
+
     from app.entrypoints.arranque_hilo import TrabajadorArranque
     from app.ui.estilos.apply_theme import aplicar_tema
     from app.ui.main_window import MainWindow
@@ -454,6 +465,7 @@ def run_ui(container=None) -> int:
     startup_timeout_ms = _resolver_startup_timeout_ms()
 
     app = QApplication([])
+    marcar_stage("UI_QT_INICIALIZADO")
     instalar_qt_message_handler(LOGGER, getattr(container, "boot_trace_writer", None))
     assert_hilo_ui_o_log("run_ui.bootstrap", LOGGER)
     i18n = I18nManager("es")
