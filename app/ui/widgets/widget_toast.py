@@ -7,9 +7,19 @@ from typing import Callable
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from app.ui.copy_catalog import copy_text
+from app.ui.toasts.ejecutar_callback_seguro import ejecutar_callback_seguro
 
 logger = logging.getLogger(__name__)
 
@@ -25,16 +35,27 @@ class NotificacionToast:
     correlacion_id: str | None = None
     action_label: str | None = None
     action_callback: Callable[[], None] | None = None
-    timestamp: str = field(default_factory=lambda: datetime.now().strftime(copy_text("ui.toast.fecha_formato_default")))
+    timestamp: str = field(
+        default_factory=lambda: datetime.now().strftime(
+            copy_text("ui.toast.fecha_formato_default")
+        )
+    )
     duracion_ms: int = 8000
 
 
 class TarjetaToast(QFrame):
     cerrado = Signal(str)
     solicitar_detalles = Signal(str)
-    _ACENTOS_NIVEL = {"success": "#3FAF6A", "info": "#4C93F0", "warning": "#D09A34", "error": "#D35E5E"}
+    _ACENTOS_NIVEL = {
+        "success": "#3FAF6A",
+        "info": "#4C93F0",
+        "warning": "#D09A34",
+        "error": "#D35E5E",
+    }
 
-    def __init__(self, notificacion: NotificacionToast, parent: QWidget | None = None) -> None:
+    def __init__(
+        self, notificacion: NotificacionToast, parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self.notificacion = notificacion
         self.setObjectName("toastWidget")
@@ -62,8 +83,12 @@ class TarjetaToast(QFrame):
         acciones.addStretch(1)
         self._btn_detalles = QPushButton(copy_text("ui.sync.ver_detalles"))
         self._btn_detalles.setObjectName("toastDetailsButton")
-        self._btn_detalles.clicked.connect(lambda: self.solicitar_detalles.emit(self.notificacion.id))
-        self._btn_detalles.setVisible(bool(self.notificacion.detalles or self.notificacion.correlacion_id))
+        self._btn_detalles.clicked.connect(
+            lambda: self.solicitar_detalles.emit(self.notificacion.id)
+        )
+        self._btn_detalles.setVisible(
+            bool(self.notificacion.detalles or self.notificacion.correlacion_id)
+        )
         acciones.addWidget(self._btn_detalles)
         self._btn_accion = QPushButton(self.notificacion.action_label or "")
         self._btn_accion.setObjectName("toastActionButton")
@@ -74,7 +99,9 @@ class TarjetaToast(QFrame):
         acciones.addWidget(self._btn_accion)
         self._btn_cerrar = QPushButton(copy_text("ui.preferencias.cerrar"))
         self._btn_cerrar.setObjectName("toastCloseButton")
-        self._btn_cerrar.clicked.connect(lambda: self.cerrado.emit(self.notificacion.id))
+        self._btn_cerrar.clicked.connect(
+            lambda: self.cerrado.emit(self.notificacion.id)
+        )
         acciones.addWidget(self._btn_cerrar)
         root.addLayout(acciones)
 
@@ -82,23 +109,20 @@ class TarjetaToast(QFrame):
         callback = self.notificacion.action_callback
         if callback is None:
             return
-        try:
-            callback()
-        except Exception:
-            logger.exception(
-                "toast_action_callback_failed",
-                extra={
-                    "toast_id": self.notificacion.id,
-                    "toast_level": self.notificacion.nivel,
-                    "toast_action_label": self.notificacion.action_label,
-                },
-            )
+        ejecutar_callback_seguro(
+            callback,
+            logger=logger,
+            contexto=f"toast_id={self.notificacion.id};nivel={self.notificacion.nivel};accion={self.notificacion.action_label or ''}",
+            correlation_id=self.notificacion.correlacion_id,
+        )
 
     def _apply_style(self) -> None:
         palette = QApplication.palette()
         bg = palette.window().color().lighter(106).name()
         text = palette.windowText().color().name()
-        accent = self._ACENTOS_NIVEL.get(self.notificacion.nivel, self._ACENTOS_NIVEL["info"])
+        accent = self._ACENTOS_NIVEL.get(
+            self.notificacion.nivel, self._ACENTOS_NIVEL["info"]
+        )
         accent_soft = QColor(accent).lighter(170).name()
         self.setStyleSheet(
             f"""

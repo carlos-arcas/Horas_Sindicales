@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import pytest
 from tests.ui.conftest import require_qt
 
@@ -16,7 +17,13 @@ class _FakeAdapter(QObject):
     toast_requested = Signal(object)
 
 
-def _dto(idx: int, *, duracion_ms: int = 8000, detalles: str | None = None, correlacion_id: str | None = None) -> NotificacionToast:
+def _dto(
+    idx: int,
+    *,
+    duracion_ms: int = 8000,
+    detalles: str | None = None,
+    correlacion_id: str | None = None,
+) -> NotificacionToast:
     return NotificacionToast(
         id=f"toast-{idx}",
         titulo=f"Título {idx}",
@@ -105,7 +112,9 @@ def test_boton_detalles_abre_dialogo(qtbot, monkeypatch: pytest.MonkeyPatch) -> 
         called["open"] += 1
         return 0
 
-    monkeypatch.setattr("app.ui.widgets.toast.DialogoDetallesNotificacion.exec", _fake_exec)
+    monkeypatch.setattr(
+        "app.ui.widgets.toast.DialogoDetallesNotificacion.exec", _fake_exec
+    )
 
     toast = next(iter(manager._visibles.values()))
     qtbot.mouseClick(toast._btn_detalles, Qt.MouseButton.LeftButton)
@@ -148,3 +157,33 @@ def test_success_sin_action_label_no_muestra_boton(qtbot) -> None:
 
     toast = next(iter(manager._visibles.values()))
     assert not toast._btn_accion.isVisible()
+
+
+def test_action_callback_fallido_no_crashea_qt_y_loguea_contexto(qtbot, caplog) -> None:
+    caplog.set_level(logging.ERROR)
+
+    window = QMainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    manager = GestorToasts()
+    manager.attach_to(window)
+
+    def _fallar() -> None:
+        raise ValueError("fallo /tmp/secreto/token.txt")
+
+    manager.success(
+        "Mensaje",
+        action_label="X",
+        action_callback=_fallar,
+        correlation_id="CID-TOAST-1",
+    )
+    toast = next(iter(manager._visibles.values()))
+
+    qtbot.mouseClick(toast._btn_accion, Qt.MouseButton.LeftButton)
+
+    assert len(manager._visibles) == 1
+    assert caplog.records
+    ultimo = caplog.records[-1]
+    assert ultimo.msg == "toast_action_callback_failed"
+    assert ultimo.correlation_id == "CID-TOAST-1"

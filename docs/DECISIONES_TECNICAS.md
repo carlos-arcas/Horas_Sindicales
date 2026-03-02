@@ -42,3 +42,10 @@ Objetivos:
   - `HAS_ID_RESOLVE_EXISTING` cuando `id is not None` (precedencia máxima, incluso para `id=0`).
   - `MISSING_ID_CREATE_NEW` cuando `id is None`.
 - Orden del plan estable: misma secuencia de entrada en lote.
+
+## 2026-03 Hardening UI: callbacks de toast seguros
+- Decisión: centralizar la ejecución de `action_callback` en `app/ui/toasts/ejecutar_callback_seguro.py`.
+- Motivo: evitar que excepciones de callbacks lleguen al event loop de Qt y degraden estabilidad de UI.
+- Logging: se emite evento estructurado `toast_action_callback_failed` con `contexto` y `correlation_id`.
+- Seguridad: el mensaje de error anonimiza rutas absolutas (solo conserva nombre de archivo) para reducir exposición de paths sensibles.
+- Verificación: tests unitarios del helper + smoke test UI de callback fallido sin crash.
