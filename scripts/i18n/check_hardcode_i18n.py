@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import ast
 import fnmatch
+import hashlib
+import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,9 +15,11 @@ PATRONES_TECNICOS_DEFAULT = (r"^%[YmdHMS:\-_/ ]+$", r"^(utf-8|ascii|latin-1)$")
 
 @dataclass(frozen=True)
 class Hallazgo:
+    id: str
     ruta_relativa: str
     lineno: int
     texto: str
+    scope: str
     regla: str = "I18N_HARDCODE"
 
 
@@ -43,6 +47,7 @@ class _VisitanteHardcode(ast.NodeVisitor):
         self._config = config
         self._hallazgos: list[Hallazgo] = []
         self._padres: dict[ast.AST, ast.AST] = {}
+        self._stack_scope: list[str] = []
 
     def analizar(self, modulo: ast.AST) -> list[Hallazgo]:
         self._indexar_padres(modulo)
@@ -53,6 +58,21 @@ class _VisitanteHardcode(ast.NodeVisitor):
         for parent in ast.walk(modulo):
             for child in ast.iter_child_nodes(parent):
                 self._padres[child] = parent
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
+        self._stack_scope.append(node.name)
+        self.generic_visit(node)
+        self._stack_scope.pop()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+        self._stack_scope.append(node.name)
+        self.generic_visit(node)
+        self._stack_scope.pop()
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
+        self._stack_scope.append(node.name)
+        self.generic_visit(node)
+        self._stack_scope.pop()
 
     def visit_Constant(self, node: ast.Constant) -> None:  # noqa: N802
         if isinstance(node.value, str):
@@ -68,13 +88,21 @@ class _VisitanteHardcode(ast.NodeVisitor):
     def _analizar_texto(self, node: ast.AST, texto: str) -> None:
         if not self._es_hardcode_visible(node, texto):
             return
+        scope = self._scope_actual()
         self._hallazgos.append(
             Hallazgo(
+                id=construir_id_hallazgo(ruta_relativa=self._ruta_relativa, scope=scope, texto=texto),
                 ruta_relativa=self._ruta_relativa,
                 lineno=getattr(node, "lineno", 1),
                 texto=_recortar_texto(texto, self._config.recorte_texto),
+                scope=scope,
             )
         )
+
+    def _scope_actual(self) -> str:
+        if not self._stack_scope:
+            return "<module>"
+        return ".".join(self._stack_scope)
 
     def _es_hardcode_visible(self, node: ast.AST, texto: str) -> bool:
         if not texto.strip() or _es_docstring(node, self._padres):
@@ -117,6 +145,45 @@ def renderizar_hallazgos(hallazgos: list[Hallazgo]) -> str:
     return "\n".join(lineas)
 
 
+def cargar_baseline(ruta: Path) -> set[str]:
+    if not ruta.exists():
+        return set()
+    data = json.loads(ruta.read_text(encoding="utf-8"))
+    entries = data.get("entries", [])
+    if not isinstance(entries, list):
+        raise ValueError("Baseline inválida: 'entries' debe ser una lista.")
+    ids: set[str] = set()
+    for item in entries:
+        if isinstance(item, dict) and isinstance(item.get("id"), str):
+            ids.add(item["id"])
+    return ids
+
+
+def filtrar_nuevos(hallazgos: list[Hallazgo], baseline_ids: set[str]) -> list[Hallazgo]:
+    return [hallazgo for hallazgo in hallazgos if hallazgo.id not in baseline_ids]
+
+
+def escribir_baseline(ruta: Path, hallazgos: list[Hallazgo]) -> None:
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    entries = [
+        {
+            "id": item.id,
+            "ruta": item.ruta_relativa,
+            "texto": item.texto,
+            "scope": item.scope,
+        }
+        for item in hallazgos
+    ]
+    entries_ordenadas = sorted(entries, key=lambda item: (item["ruta"], item["texto"], item["id"]))
+    payload = {"version": 1, "entries": entries_ordenadas}
+    ruta.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def construir_id_hallazgo(ruta_relativa: str, scope: str, texto: str) -> str:
+    texto_normalizado = _normalizar_texto_id(texto)
+    raw = f"{ruta_relativa}|{scope}|{texto_normalizado}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
 
 def _resolver_raiz_repo(ruta_base: Path) -> Path:
     partes = ruta_base.parts
@@ -125,6 +192,7 @@ def _resolver_raiz_repo(ruta_base: Path) -> Path:
     if partes and partes[-1] == "presentacion":
         return ruta_base.parent
     return ruta_base.parent
+
 
 def _analizar_archivo(archivo: Path, raiz_repo: Path, config: ConfigCheck) -> list[Hallazgo]:
     relativo = archivo.relative_to(raiz_repo).as_posix()
@@ -181,3 +249,7 @@ def _recortar_texto(texto: str, maximo: int) -> str:
     if len(texto_limpio) <= maximo:
         return texto_limpio
     return f"{texto_limpio[: maximo - 1]}…"
+
+
+def _normalizar_texto_id(texto: str) -> str:
+    return " ".join(texto.strip().split())

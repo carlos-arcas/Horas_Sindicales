@@ -42,3 +42,32 @@ Este comando reutiliza `.coverage` si existe y exporta un resumen de texto legib
   - `SMOKE_UI_FAIL: <tipo> <mensaje> archivo:linea`
 - Además del resumen corto en consola, el detalle se registra en `error_operativo.log`.
 - Warnings benignos de Qt (por ejemplo, mensajes comunes de plataforma) se consideran `SMOKE_UI_WARN` y no bloquean el gate.
+
+## Baseline incremental de `i18n_hardcode`
+
+El control `i18n_hardcode` usa baseline versionada en `.config/i18n_hardcode_baseline.json`.
+
+- CI **solo falla por hallazgos nuevos** (regresiones) respecto a esa baseline.
+- Los hallazgos históricos incluidos en baseline no bloquean mientras no aparezcan nuevos.
+- El resumen del gate para esta área sigue el formato:
+  - `i18n_hardcode: PASS/FAIL | nuevos=X | total=Y | baseline=Z`
+
+### Regeneración controlada de baseline
+
+Regenerar baseline implica aceptar deuda técnica existente; debe hacerse con justificación en PR.
+
+Comando recomendado (desde raíz del repo):
+
+```bash
+python - <<'PY'
+from pathlib import Path
+from scripts.i18n.check_hardcode_i18n import ConfigCheck, analizar_rutas, escribir_baseline
+
+root = Path('.')
+config = ConfigCheck()
+rutas = [root / ruta for ruta in config.rutas_objetivo if (root / ruta).exists()]
+hallazgos = analizar_rutas(rutas, config)
+escribir_baseline(root / '.config' / 'i18n_hardcode_baseline.json', hallazgos)
+print(f'baseline actualizada con {len(hallazgos)} hallazgos totales')
+PY
+```
