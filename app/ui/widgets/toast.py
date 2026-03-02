@@ -17,14 +17,18 @@ class GestorToasts(_GestorToastsBase):
         try:
             self.show(**kwargs)
         except TypeError:
+            action_label = kwargs.get("action_label")
+            if action_label is not None:
+                logger.warning(
+                    "TOAST_ACTION_NOT_SUPPORTED",
+                    extra={"action_label": action_label},
+                )
             kwargs_filtrados = {
                 clave: kwargs.get(clave)
                 for clave in (
                     "message",
                     "level",
                     "title",
-                    "action_label",
-                    "action_callback",
                     "details",
                     "correlation_id",
                     "code",
@@ -48,6 +52,17 @@ class GestorToasts(_GestorToastsBase):
                 extra={"kwargs_no_soportados": claves_desconocidas},
             )
             raise ValueError(f"toast_kwargs_invalidos:{','.join(claves_desconocidas)}")
+
+        if (action_label is None) != (action_callback is None):
+            logger.warning(
+                "TOAST_ACTION_INCOMPLETE",
+                extra={
+                    "action_label": action_label,
+                    "has_action_callback": action_callback is not None,
+                },
+            )
+            action_label = None
+            action_callback = None
 
         return AccionToast.desde_argumentos(
             action_label=action_label,
@@ -188,6 +203,40 @@ class ToastManager(GestorToasts):
     Mantiene la firma pública histórica (`success/error` con
     `action_label/action_callback`) delegando íntegramente en `GestorToasts`.
     """
+
+    def success(
+        self,
+        mensaje: str,
+        *,
+        title: str | None = None,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+        **kwargs: object,
+    ) -> None:
+        super().success(
+            mensaje,
+            title=title,
+            action_label=action_label,
+            action_callback=action_callback,
+            **kwargs,
+        )
+
+    def error(
+        self,
+        mensaje: str,
+        *,
+        title: str | None = None,
+        action_label: str | None = None,
+        action_callback: Callable[[], None] | None = None,
+        **kwargs: object,
+    ) -> None:
+        super().error(
+            mensaje,
+            title=title,
+            action_label=action_label,
+            action_callback=action_callback,
+            **kwargs,
+        )
 
 
 Toast = TarjetaToast
