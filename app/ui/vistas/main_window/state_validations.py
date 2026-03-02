@@ -28,3 +28,6 @@ class MainWindowStateValidationMixin:
         total_minutes = max(0, int(total_minutes))
         horas, minutos = divmod(total_minutes, 60)
         return f"{horas:02d}:{minutos:02d}"
+
+    def _build_preview_solicitud(self):
+        return validacion_preventiva._build_preview_solicitud(self)
