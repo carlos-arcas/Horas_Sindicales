@@ -30,7 +30,12 @@ LOGGER = logging.getLogger(__name__)
 
 
 def _es_objeto_qt_valido(objeto) -> bool:
-    return es_objeto_qt_valido(objeto)
+    try:
+        import shiboken6
+
+        return bool(objeto is not None and shiboken6.isValid(objeto) and es_objeto_qt_valido(objeto))
+    except Exception:
+        return es_objeto_qt_valido(objeto)
 
 
 def _cerrar_splash_seguro(splash) -> None:
@@ -112,9 +117,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                 window.show()
 
         try:
-            from PySide6.QtCore import QTimer
-
-            QTimer.singleShot(0, _aplicar_resultado_en_ui)
+            _enqueue_on_ui_thread(self.app, _aplicar_resultado_en_ui)
         except Exception as exc:  # noqa: BLE001
             import sys
 
@@ -128,6 +131,26 @@ class _CoordinadorArranqueConCierreDeterminista:
                 watchdog_timer=self.watchdog_timer,
             )
 
+
+
+
+def _enqueue_on_ui_thread(app, callback: Callable[[], None]) -> None:
+    try:
+        from PySide6.QtCore import QTimer
+
+        QTimer.singleShot(0, app, callback)
+        return
+    except Exception:
+        pass
+
+    try:
+        from PySide6.QtCore import QMetaObject, Qt
+
+        callback_name = "_codex_ui_callback"
+        setattr(app, callback_name, callback)
+        QMetaObject.invokeMethod(app, callback_name, Qt.QueuedConnection)
+    except Exception:
+        callback()
 
 def _resolver_startup_timeout_ms() -> int:
     import os
@@ -262,21 +285,38 @@ def _manejar_fallo_arranque(
         if getattr(app, "_startup_fail_safe_ejecutado", False):
             return
         app._startup_fail_safe_ejecutado = True
-        _stop_watchdog_en_main_thread(watchdog_timer)
-        _safe_quit_thread()
-        _cerrar_splash_seguro(splash)
-        if _es_objeto_qt_valido(splash) and hasattr(splash, "deleteLater"):
-            try:
-                QTimer.singleShot(0, splash.deleteLater)
-            except RuntimeError:
-                pass
-        _mostrar_dialogo_error()
+        try:
+            _stop_watchdog_en_main_thread(watchdog_timer)
+            _safe_quit_thread()
+            if _es_objeto_qt_valido(splash):
+                _cerrar_splash_seguro(splash)
+            if _es_objeto_qt_valido(splash) and hasattr(splash, "deleteLater"):
+                try:
+                    QTimer.singleShot(0, splash.deleteLater)
+                except RuntimeError:
+                    pass
+        except Exception as cleanup_exc:  # noqa: BLE001
+            log_operational_error(
+                LOGGER,
+                "STARTUP_FAILSAFE_CLEANUP_FAILED",
+                exc=cleanup_exc,
+                extra={"incident_id": resolved_incident_id},
+            )
+        try:
+            _mostrar_dialogo_error()
+        except Exception as dialog_exc:  # noqa: BLE001
+            log_operational_error(
+                LOGGER,
+                "STARTUP_FAILSAFE_DIALOG_FAILED",
+                exc=dialog_exc,
+                extra={"incident_id": resolved_incident_id},
+            )
 
     app_thread = (
         app.thread() if es_objeto_qt_valido(app) and hasattr(app, "thread") else None
     )
     if app_thread is not None and QThread.currentThread() is not app_thread:
-        QTimer.singleShot(0, app, _do_fail_safe)
+        _enqueue_on_ui_thread(app, _do_fail_safe)
     else:
         _do_fail_safe()
     return resolved_incident_id

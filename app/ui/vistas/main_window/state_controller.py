@@ -131,20 +131,13 @@ from .init_placeholders import inicializar_placeholders
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 from . import state_historico, state_pendientes
 from .header_state import resolve_section_title, resolve_sidebar_tab_index
+
+logger = logging.getLogger(__name__)
+
 try:
     from .state_helpers import resolve_active_delegada_id, set_processing_state, update_action_state
-    from .state_actions import MainWindowStateActionsMixin
-    from .state_validations import MainWindowStateValidationMixin
-    from .state_bindings import registrar_state_bindings
-except Exception:  # pragma: no cover
-    class MainWindowStateActionsMixin:
-        pass
-
-    class MainWindowStateValidationMixin:
-        pass
-
-    def registrar_state_bindings(_cls) -> None:
-        return
+except Exception as exc:  # pragma: no cover
+    log_operational_error(logger, "MAINWINDOW_STATE_HELPERS_IMPORT_FAILED", exc=exc)
 
     def set_processing_state(_window, _in_progress: bool) -> None:
         return
@@ -154,7 +147,32 @@ except Exception:  # pragma: no cover
 
     def resolve_active_delegada_id(_delegada_ids: list[int], _preferred_id: object) -> int | None:
         return None
-logger = logging.getLogger(__name__)
+
+try:
+    from .state_actions import MainWindowStateActionsMixin
+except Exception as exc:  # pragma: no cover
+    log_operational_error(logger, "MAINWINDOW_STATE_ACTIONS_IMPORT_FAILED", exc=exc)
+
+    class MainWindowStateActionsMixin:
+        pass
+
+
+try:
+    from .state_validations import MainWindowStateValidationMixin
+except Exception as exc:  # pragma: no cover
+    log_operational_error(logger, "MAINWINDOW_STATE_VALIDATIONS_IMPORT_FAILED", exc=exc)
+
+    class MainWindowStateValidationMixin:
+        pass
+
+
+try:
+    from .state_bindings import registrar_state_bindings
+except Exception as exc:  # pragma: no cover
+    log_operational_error(logger, "MAINWINDOW_STATE_BINDINGS_IMPORT_FAILED", exc=exc)
+
+    def registrar_state_bindings(_cls) -> None:
+        return
 TAB_HISTORICO = 1
 
 
@@ -346,7 +364,8 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
             self.historico_delegada_combo.setEnabled(not checked)
         self._apply_historico_filters()
 
-    def _on_add_pendiente(self) -> None:
+    def _on_add_pendiente(self, *args, **kwargs) -> None:
+        _ = (args, kwargs)
         if hasattr(acciones_pendientes, "on_add_pendiente"):
             acciones_pendientes.on_add_pendiente(self)
             return
@@ -496,6 +515,12 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
                 exc=exc,
                 extra={"contexto": "mainwindow._configure_operativa_focus_order"},
             )
+
+    def _configure_historico_focus_order(self) -> None:
+        """Mantiene compatibilidad con builders aunque falle el binding dinámico."""
+        from app.ui.vistas import historico_actions
+
+        historico_actions.configure_historico_focus_order(self)
 
     def _status_to_label(self, status: str) -> str:
         return handlers_layout.status_to_label(status)

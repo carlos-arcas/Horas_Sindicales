@@ -19,6 +19,18 @@ REQUIRED_HANDLERS = (
     "_clear_form",
     "_verificar_handlers_ui",
     "eventFilter",
+    "_on_completo_changed",
+    "_on_add_pendiente",
+    "_on_confirmar",
+    "_update_solicitud_preview",
+    "_apply_historico_default_range",
+    "_status_to_label",
+    "_normalize_input_heights",
+    "_update_responsive_columns",
+    "_configure_time_placeholders",
+    "_configure_operativa_focus_order",
+    "_configure_historico_focus_order",
+
 )
 
 FAIL_GATE_EXCEPTIONS = (NameError, AttributeError, ImportError)
@@ -36,20 +48,32 @@ WIRING_TYPE_ERROR_HINTS = (
 QT_THREAD_PARENT_WARNING = "Cannot create children for a parent that is in a different thread"
 
 
-def _validar_handlers_por_ast() -> int:
-    source = (ROOT / "app" / "ui" / "vistas" / "main_window_vista.py").read_text(encoding="utf-8")
+def _extraer_metodos_clase_ast(path: Path, class_name: str) -> set[str]:
+    source = path.read_text(encoding="utf-8")
     tree = ast.parse(source)
     for node in tree.body:
-        if isinstance(node, ast.ClassDef) and node.name == "MainWindow":
-            method_names = {item.name for item in node.body if isinstance(item, ast.FunctionDef)}
-            missing = [name for name in REQUIRED_HANDLERS if name not in method_names]
-            if missing:
-                logger.error("missing_handlers_ast: %s", ", ".join(missing))
-                return 1
-            logger.info("ui_main_window_smoke_ok_ast")
-            return 0
-    logger.error("main_window_class_missing_ast")
-    return 1
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            return {item.name for item in node.body if isinstance(item, ast.FunctionDef)}
+    return set()
+
+
+def _validar_handlers_por_ast() -> int:
+    vista_methods = _extraer_metodos_clase_ast(
+        ROOT / "app" / "ui" / "vistas" / "main_window_vista.py", "MainWindow"
+    )
+    base_methods = _extraer_metodos_clase_ast(
+        ROOT / "app" / "ui" / "vistas" / "main_window" / "state_controller.py", "MainWindow"
+    )
+    method_names = vista_methods | base_methods
+    if not method_names:
+        logger.error("main_window_class_missing_ast")
+        return 1
+    missing = [name for name in REQUIRED_HANDLERS if name not in method_names]
+    if missing:
+        logger.error("missing_handlers_ast: %s", ", ".join(missing))
+        return 1
+    logger.info("ui_main_window_smoke_ok_ast")
+    return 0
 
 
 def _in_memory_connection():
