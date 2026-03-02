@@ -43,3 +43,9 @@
   `build_container()` deja de importar `QSettings` en import-time y resuelve el adaptador en runtime para evitar fallos en colección de tests UI en CI sin backend Qt completo.  
   Si `infraestructura.repositorio_preferencias_qsettings` no está disponible, se registra `RepositorioPreferenciasIni` (sin PySide6) y se emite WARNING estructurado para trazabilidad operativa.  
   La aplicación sigue dependiendo del puerto `IRepositorioPreferencias`; las implementaciones concretas permanecen en infraestructura, preservando inversión de dependencias y compatibilidad Windows.
+
+
+- **2026-03-02 — Blindaje de permisos Google Sheets (403) con metadata en error y mensaje UI parametrizado — Vigente**  
+  Se refuerza la validación de regresión para mapear `APIError` 403 a `SheetsPermissionError` preservando `spreadsheet_id`, `worksheet` y `service_account_email` en el error enriquecido.  
+  Además, el mensaje de bloqueo por permisos se separa en `construir_mensaje_permiso_sheets()` (clave i18n + parámetros) y render final reutilizable para UI sin hardcode adicional.  
+  Verificación: `pytest -q tests/infrastructure/test_sheets_client_rate_limit_flow.py tests/ui/test_sync_permission_message.py`.

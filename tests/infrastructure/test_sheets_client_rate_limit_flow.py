@@ -73,3 +73,22 @@ def test_with_rate_limit_retry_error_permisos_mapea_y_registra(monkeypatch: pyte
 
     assert capturado["spreadsheet_id"] == "spreadsheet-x"
     assert capturado["worksheet_name"] == "Resumen"
+
+
+def test_with_rate_limit_retry_403_enriquece_metadata_en_excepcion(monkeypatch: pytest.MonkeyPatch) -> None:
+    cliente = SheetsClient()
+    cliente._spreadsheet = SimpleNamespace(id="spreadsheet-meta")
+    cliente._service_account_email = "sync-bot@example.iam.gserviceaccount.com"
+
+    def _operacion() -> None:
+        raise gspread.exceptions.APIError(_Resp403())
+
+    monkeypatch.setattr(cliente, "_log_permission_error", lambda *_args, **_kwargs: None)
+
+    with pytest.raises(SheetsPermissionError) as exc_info:
+        cliente._with_rate_limit_retry("worksheet.get_all_values(Resumen)", _operacion)
+
+    error = exc_info.value
+    assert error.spreadsheet_id == "spreadsheet-meta"
+    assert error.worksheet == "Resumen"
+    assert error.service_account_email == "sync-bot@example.iam.gserviceaccount.com"
