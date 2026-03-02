@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import Callable
 
+from aplicacion.puertos.proveedor_i18n import ProveedorI18N
+
 LOGGER = logging.getLogger(__name__)
 LEGACY_KEY_PATTERN = re.compile(r".+\.py:\d+:.+")
 
@@ -16,7 +18,7 @@ class _MapaSeguro(dict[str, object]):
         return "{" + key + "}"
 
 
-class ServicioI18nEstable:
+class ServicioI18nEstable(ProveedorI18N):
     def __init__(
         self,
         catalogos: dict[str, dict[str, str]],
@@ -44,13 +46,15 @@ class ServicioI18nEstable:
         for callback in tuple(self._callbacks):
             callback(nuevo_idioma)
 
-    def t(self, key: str, **params: object) -> str:
+    def t(self, key: str, fallback: str | None = None, **params: object) -> str:
         if LEGACY_KEY_PATTERN.fullmatch(key):
             return self._resolver_legacy(key, params)
 
         plantilla = self._catalogo_actual().get(key)
         if plantilla is None:
             self._log_missing("MISSING", key)
+            if fallback is not None:
+                return self._formatear(fallback, params)
             return f"[MISSING:{key}]"
         return self._formatear(plantilla, params)
 
