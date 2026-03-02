@@ -30,5 +30,5 @@ class SplashWindow(QWidget):
         self._actualizar_textos()
 
     def _actualizar_textos(self) -> None:
-        self._titulo.setText(self._i18n.t("splash_titulo"))
-        self._subtitulo.setText(self._i18n.t("splash_subtitulo"))
+        self._titulo.setText(self._i18n.tr("splash_window.titulo"))
+        self._subtitulo.setText(self._i18n.tr("splash_window.subtitulo"))

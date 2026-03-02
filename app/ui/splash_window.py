@@ -51,20 +51,20 @@ class SplashWindow(QWidget):
         layout.addWidget(self._cargando)
         layout.addWidget(self._progreso)
 
-        self._estado_clave = "splash_cargando"
+        self._estado_clave = "splash_window.cargando"
         self._i18n.idioma_cambiado.connect(self._actualizar_textos)
         self._status_requested.connect(self._set_status_internal, Qt.ConnectionType.QueuedConnection)
         self._close_requested.connect(self._request_close_internal, Qt.ConnectionType.QueuedConnection)
         self._actualizar_textos()
 
     def _actualizar_textos(self) -> None:
-        self._titulo.setText(self._i18n.t("splash_titulo"))
-        self._cargando.setText(self._i18n.t(self._estado_clave))
+        self._titulo.setText(self._i18n.tr("splash_window.titulo"))
+        self._cargando.setText(self._i18n.tr(self._estado_clave))
 
     @Slot(str)
     def _set_status_internal(self, texto: str) -> None:
         self._estado_clave = texto
-        self._cargando.setText(self._i18n.t(texto))
+        self._cargando.setText(self._i18n.tr(texto))
 
     def set_status(self, texto: str) -> None:
         if QThread.currentThread() == self.thread():
