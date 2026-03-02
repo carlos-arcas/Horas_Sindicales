@@ -413,8 +413,8 @@ def run_ui(container=None) -> int:
 
     startup_timeout_ms = _resolver_startup_timeout_ms()
 
-    app = QApplication([])
     instalar_qt_message_handler(LOGGER, getattr(container, "boot_trace_writer", None))
+    app = QApplication([])
     assert_hilo_ui_o_log("run_ui.bootstrap", LOGGER)
     i18n = I18nManager("es")
     splash = SplashWindow(i18n)
