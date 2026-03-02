@@ -349,9 +349,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         update_action_state(self)
 
     def _update_solicitud_preview(self, *_args: object) -> None:
-        self._update_action_state()
-        if hasattr(self, "_schedule_preventive_validation"):
-            self._schedule_preventive_validation()
+        return validacion_preventiva._update_solicitud_preview(self)
 
     def _on_open_saldos_modal(self) -> None:
         self._refresh_saldos()
