@@ -483,6 +483,19 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _configure_time_placeholders(self) -> None:
         handlers_layout.configure_time_placeholders(self)
 
+        for input_name in ("desde_input", "hasta_input"):
+            input_widget = getattr(self, input_name, None)
+            if input_widget is None:
+                continue
+
+            line_edit = getattr(input_widget, "lineEdit", lambda: None)()
+            if line_edit is not None and hasattr(line_edit, "setPlaceholderText"):
+                line_edit.setPlaceholderText("HH:MM")
+                continue
+
+            if hasattr(input_widget, "setPlaceholderText"):
+                input_widget.setPlaceholderText("HH:MM")
+
     def _normalize_input_heights(self) -> None:
         try:
             handlers_layout.normalize_input_heights(self)
