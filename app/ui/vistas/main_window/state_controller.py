@@ -122,7 +122,7 @@ from app.ui.vistas.main_window.importaciones import (
     validacion_preventiva,
 )  # noqa: F401
 
-from . import data_refresh, handlers_layout, layout_builder, wiring
+from . import data_refresh, form_handlers, handlers_layout, layout_builder, wiring
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
 from app.ui.qt_hilos import assert_hilo_ui_o_log
@@ -810,6 +810,9 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _collect_pending_duplicates_warning(self, warnings: dict[str, str]) -> None:
         return validacion_preventiva._collect_pending_duplicates_warning(self, warnings)
+
+    def _build_preview_solicitud(self) -> SolicitudDTO | None:
+        return form_handlers.build_preview_solicitud(self)
 
     def _on_go_to_existing_duplicate(self) -> None:
         return validacion_preventiva._on_go_to_existing_duplicate(self)
