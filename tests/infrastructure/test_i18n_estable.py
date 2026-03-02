@@ -39,3 +39,19 @@ def test_catalogos_nuevos_no_aceptan_patron_legacy_como_clave_final() -> None:
 
     claves = list(es_catalogo.keys()) + list(en_catalogo.keys())
     assert all(not patron.search(clave) for clave in claves)
+
+
+def test_t_missing_key_no_revienta_con_filename_path(monkeypatch) -> None:
+    class _FrameFake:
+        filename = Path("tests/infrastructure/test_i18n_estable.py")
+        function = "test_path"
+        lineno = 101
+
+    monkeypatch.setattr(
+        "app.infrastructure.i18n.servicio_i18n_estable.inspect.stack",
+        lambda: [object(), object(), object(), _FrameFake()],
+    )
+
+    servicio = ServicioI18nEstable({"es": {}}, idioma_inicial="es")
+
+    assert servicio.t("ui.sync.inexistente") == "[MISSING:ui.sync.inexistente]"

@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Callable
@@ -90,7 +91,16 @@ class ServicioI18nEstable:
         if len(stack) < 4:
             return "desconocido"
         frame = stack[3]
-        return f"{Path(frame.filename).name}:{frame.function}:{frame.lineno}"
+        filename = _normalizar_filename(frame.filename)
+        return f"{filename}:{frame.function}:{frame.lineno}"
+
+
+def _normalizar_filename(filename: object) -> str:
+    if isinstance(filename, str):
+        return Path(filename).name
+    if isinstance(filename, os.PathLike):
+        return Path(filename).name
+    return str(filename)
 
 
 class CargadorI18nDesdeArchivos:
