@@ -15,9 +15,8 @@ class PaginaSync(PaginaTexto):
             i18n,
             "wizard_paso_3",
             "wizard_sync_texto",
-            auto_actualizar_textos=False,
         )
-        self.actualizar_textos()
+        self.inicializar_textos()
 
     def _construir_ui(self) -> None:
         super()._construir_ui()
