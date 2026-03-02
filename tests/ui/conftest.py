@@ -1,5 +1,5 @@
-import inspect
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -18,7 +18,8 @@ def _qt_ready() -> bool:
 
 def require_qt():
     # Este helper es exclusivo de tests UI: evita dependencia accidental en tests no-UI.
-    caller_file = Path(inspect.stack()[1].filename).as_posix()
+    caller_frame = sys._getframe(1)
+    caller_file = Path(caller_frame.f_code.co_filename).as_posix()
     if "/tests/ui/" not in f"/{caller_file}":
         raise RuntimeError(
             "require_qt() solo debe usarse desde tests/ui/** para no "
