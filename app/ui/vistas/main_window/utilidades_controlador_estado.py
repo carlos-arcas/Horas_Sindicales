@@ -85,12 +85,16 @@ def warmup_sync_client(window: Any, logger_obj: logging.Logger) -> None:
 
 def update_conflicts_reminder(window: Any, logger_obj: logging.Logger) -> None:
     try:
-        if not hasattr(window, "conflicts_reminder_label"):
-            return
-        _ = window._i18n
         reminder_widget = window.conflicts_reminder_label
-        if reminder_widget is None:
-            return
+    except AttributeError:
+        return
+    if reminder_widget is None:
+        return
+    try:
+        _ = window._i18n
+    except AttributeError:
+        return
+    try:
         total_conflictos_pendientes = int(window._conflicts_service.count_conflicts()) if hasattr(window, "_conflicts_service") and window._conflicts_service is not None else 0
         if total_conflictos_pendientes > 0:
             reminder_widget.setVisible(True)
