@@ -150,6 +150,16 @@ def _load_historico_components():
         models_qt = types.ModuleType("app.ui.models_qt")
         SOLICITUD_FECHA_ROLE = Qt.UserRole + 1
 
+        class PersonasTableModel:
+            def __init__(self, personas=None):
+                self._personas = list(personas or [])
+
+            def rowCount(self) -> int:  # noqa: N802
+                return len(self._personas)
+
+            def columnCount(self) -> int:  # noqa: N802
+                return 4
+
         class SolicitudesTableModel:
             def __init__(self, solicitudes):
                 self._solicitudes = list(solicitudes)
@@ -190,6 +200,7 @@ def _load_historico_components():
                     return None
 
         models_qt.SOLICITUD_FECHA_ROLE = SOLICITUD_FECHA_ROLE
+        models_qt.PersonasTableModel = PersonasTableModel
         models_qt.SolicitudesTableModel = SolicitudesTableModel
         sys.modules["app.ui.models_qt"] = models_qt
 
