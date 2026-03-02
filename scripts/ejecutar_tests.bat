@@ -16,5 +16,10 @@ if not exist ".venv\Scripts\python.exe" (
 call ".venv\Scripts\activate.bat"
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-if exist "requirements-dev.txt" python -m pip install -r requirements-dev.txt
+if exist "requirements-dev.txt" (
+    python -m pip install -r requirements-dev.txt
+) else (
+    echo [ERROR] Falta requirements-dev.txt para ejecutar tests con gate de metricas (radon).
+    exit /b 1
+)
 pytest --cov=. --cov-report=term-missing --cov-fail-under=85

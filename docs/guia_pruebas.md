@@ -84,6 +84,8 @@ Los tests UI pueden requerir entorno gráfico o modo `offscreen` según platafor
 2. Ejecutar primero smoke tests y luego suite completa cuando haya cambios amplios.
 3. Mantener consistencia entre comandos locales y los usados por CI.
 
+> **Nota obligatoria del gate de métricas:** `tests/test_quality_gate_metrics.py::test_quality_gate_size_and_complexity` requiere `radon` y esa dependencia se instala mediante `requirements-dev.txt`.
+
 ## Pendiente de completar
 
 - Pendiente de completar matriz de tiempos objetivo por tipo de suite (smoke, unit, integración, UI).
