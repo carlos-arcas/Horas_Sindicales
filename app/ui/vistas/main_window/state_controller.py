@@ -661,6 +661,9 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _collect_preventive_validation(self) -> tuple[dict[str, str], dict[str, str]]:
         return validacion_preventiva._collect_preventive_validation(self)
 
+    def _build_preview_solicitud(self) -> SolicitudDTO | None:
+        return validacion_preventiva._build_preview_solicitud(self)
+
     def _collect_preventive_business_rules(self, errors: dict[str, str], warnings: dict[str, str]) -> None:
         return validacion_preventiva._collect_preventive_business_rules(self, errors, warnings)
 

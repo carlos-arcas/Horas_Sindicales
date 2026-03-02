@@ -123,6 +123,32 @@ def _collect_pending_duplicates_warning(window, warnings: dict[str, str]) -> Non
     window._duplicate_target = window._pending_solicitudes[0] if window._pending_solicitudes else None
 
 
+def _build_preview_solicitud(window) -> SolicitudDTO | None:
+    persona = window._current_persona()
+    if persona is None:
+        return None
+    completo = window.completo_check.isChecked()
+    fecha_pedida = window.fecha_input.date().toString("yyyy-MM-dd")
+    desde = None if completo else window.desde_input.time().toString("HH:mm")
+    hasta = None if completo else window.hasta_input.time().toString("HH:mm")
+    manual_minutes = window._manual_hours_minutes()
+    editing_pending = window._selected_pending_for_editing()
+    return SolicitudDTO(
+        id=editing_pending.id if editing_pending is not None else None,
+        persona_id=persona.id or 0,
+        fecha_solicitud=datetime.now().strftime("%Y-%m-%d"),
+        fecha_pedida=fecha_pedida,
+        desde=desde,
+        hasta=hasta,
+        completo=completo,
+        horas=manual_minutes / 60 if manual_minutes > 0 else 0,
+        observaciones=None,
+        pdf_path=None,
+        pdf_hash=None,
+        notas=None,
+    )
+
+
 def _collect_preventive_validation(window) -> tuple[dict[str, str], dict[str, str]]:
     blocking = _collect_base_preventive_errors(window)
     warnings: dict[str, str] = {}
