@@ -257,6 +257,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._active_sidebar_index = 1
         inicializar_placeholders(self)
         self._last_persona_id: int | None = None
+        self._fecha_seleccionada: QDate | None = None
         self._draft_solicitud_por_persona: dict[int, dict[str, object]] = {}
         self.toast = GestorToasts()
         self.notifications = NotificationService(self.toast, self)
@@ -566,8 +567,11 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _on_persona_changed(self) -> None:
         return acciones_personas.on_persona_changed(self)
 
-    def _on_fecha_changed(self, nueva_fecha) -> None:
-        _ = nueva_fecha
+    def _on_fecha_changed(self, qdate: QDate) -> None:
+        if hasattr(qdate, "isValid") and qdate.isValid():
+            self._fecha_seleccionada = QDate(qdate)
+        else:
+            self._fecha_seleccionada = None
         update_preview = getattr(self, "_update_solicitud_preview", None)
         if callable(update_preview):
             update_preview()
