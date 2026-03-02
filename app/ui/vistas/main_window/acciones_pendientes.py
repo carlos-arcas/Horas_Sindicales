@@ -238,6 +238,24 @@ def helper_pending_minutes_for_period(window: MainWindow, filtro) -> int:
         return 0
 
 
+def on_add_pendiente(window: MainWindow, *args, **kwargs) -> None:
+    _ = (args, kwargs)
+    controller = getattr(window, "_solicitudes_controller", None)
+    if controller is not None and hasattr(controller, "on_add_pendiente"):
+        controller.on_add_pendiente()
+        return
+
+    solicitud = window._build_preview_solicitud()
+    if solicitud is None:
+        return
+
+    notas_text = window.notas_input.toPlainText().strip()
+    if notas_text:
+        solicitud = solicitud.model_copy(update={"notas": notas_text})
+    window._pending_solicitudes.append(solicitud)
+    helper_refresh_pending_ui_state(window)
+
+
 def on_remove_pendiente(window: MainWindow) -> None:
     logger.info("CLICK eliminar_pendiente handler=_on_remove_pendiente")
     window._dump_estado_pendientes("click_eliminar_pendiente")
