@@ -47,3 +47,6 @@
 - **2026-03-02 — Normalización de datetimes ISO en reportes de sincronización — Vigente**  
   Se extrae `app/ui/tiempo/parseo_iso_datetime.py` para centralizar `parsear_iso_datetime`, `normalizar_zona_horaria` y `duracion_ms_desde_iso`, evitando restas entre `datetime` naive/aware en `build_simulation_report` y demás constructores de reportes.  
   Política aplicada: si el valor ISO llega naive se asume zona horaria local y luego se normaliza explícitamente a la zona objetivo del cálculo.
+
+- **2026-03-02 — Fallback defensivo en duración de reportes sync ante ISO inválido — Vigente**  
+  `app/ui/sync_reporting.py` encapsula el cálculo con `duracion_ms_desde_iso(...)` y, si alguna fecha no parsea, retorna `duration_ms=0` con `WARNING` estructurado para evitar crash y preservar contrato del reporte. Verificación rápida: `pytest tests/application/test_sync_reporting_datetime.py -q`.
