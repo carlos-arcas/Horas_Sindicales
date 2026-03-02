@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, tzinfo
+
+
+logger = logging.getLogger(__name__)
 
 
 def _zona_horaria_local() -> tzinfo:
@@ -8,12 +12,28 @@ def _zona_horaria_local() -> tzinfo:
 
 
 def parsear_iso_datetime(iso: str) -> datetime:
-    return datetime.fromisoformat(iso)
+    try:
+        return datetime.fromisoformat(iso)
+    except ValueError:
+        logger.warning(
+            "iso_datetime_invalido",
+            extra={"evento": "iso_datetime_invalido", "iso": iso[:128]},
+        )
+        raise
 
 
 def normalizar_zona_horaria(dt: datetime, tz_objetivo: tzinfo) -> datetime:
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=_zona_horaria_local()).astimezone(tz_objetivo)
+        tz_local = _zona_horaria_local()
+        logger.info(
+            "normalizacion_tz_naive_local",
+            extra={
+                "evento": "normalizacion_tz_naive_local",
+                "tz_local": str(tz_local),
+                "tz_objetivo": str(tz_objetivo),
+            },
+        )
+        return dt.replace(tzinfo=tz_local).astimezone(tz_objetivo)
     return dt.astimezone(tz_objetivo)
 
 

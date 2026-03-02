@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -21,6 +22,9 @@ from app.ui.tiempo.parseo_iso_datetime import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 def _txt(key: str, **kwargs: object) -> str:
     template = copy_text(key)
     return template.format(**kwargs) if kwargs else template
@@ -38,6 +42,21 @@ def _parse_iso_to_utc_aware(value: str) -> datetime:
 
 def _duracion_ms_entre_isos(inicio_iso: str, fin_iso: str) -> int:
     return duracion_ms_desde_iso(inicio_iso, fin_iso, tz_objetivo=UTC)
+
+
+def _duracion_ms_simulacion(generated_at: str, now: str) -> int:
+    try:
+        return duracion_ms_desde_iso(generated_at, now, tz_objetivo=UTC)
+    except ValueError:
+        logger.warning(
+            "sync_simulacion_iso_invalido",
+            extra={
+                "evento": "sync_simulacion_iso_invalido",
+                "generated_at": generated_at,
+                "now": now,
+            },
+        )
+        return 0
 
 
 def build_sync_report(
@@ -335,7 +354,7 @@ def build_simulation_report(
             )
         )
     status = "OK" if plan.has_changes else "IDLE"
-    duration_ms = duracion_ms_desde_iso(plan.generated_at, now, tz_objetivo=UTC)
+    duration_ms = _duracion_ms_simulacion(plan.generated_at, now)
 
     return SyncReport(
         sync_id=sync_id or str(uuid.uuid4()),
