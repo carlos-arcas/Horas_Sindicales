@@ -527,7 +527,14 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         historico_actions.configure_historico_focus_order(self)
 
     def _status_to_label(self, status: str) -> str:
-        return handlers_layout.status_to_label(status)
+        return {
+            "IDLE": copy_text("ui.sync.estado_en_espera"),
+            "RUNNING": copy_text("ui.sync.estado_pendiente_sincronizando"),
+            "OK": status_badge("CONFIRMED"),
+            "OK_WARN": status_badge("WARNING"),
+            "ERROR": status_badge("ERROR"),
+            "CONFIG_INCOMPLETE": copy_text("ui.sync.estado_error_config_incompleta"),
+        }.get(status, status)
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
         model = table.model()

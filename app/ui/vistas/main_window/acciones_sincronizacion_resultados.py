@@ -66,14 +66,14 @@ def on_sync_finished(ventana, summary: SyncSummary) -> None:
         feedback_status = "error"
         incidents = "La sincronización no se pudo completar."
     ventana.notifications.notify_operation(OperationFeedback(
-        title=f"Resultado de sincronización: {dialogos_sincronizacion.status_to_label(status)}",
+        title=f"Resultado de sincronización: {ventana._status_to_label(status)}",
         happened="Se actualizó el estado del panel con el resumen persistente.",
         affected_count=summary.inserted_local + summary.inserted_remote + summary.updated_local + summary.updated_remote,
         incidents=incidents,
         next_step="Revisa conflictos o continúa operando según el estado mostrado.",
         status=feedback_status,
     ))
-    dialogos_sincronizacion.show_sync_summary_dialog(ventana, f"Resultado: {dialogos_sincronizacion.status_to_label(status)}", summary)
+    dialogos_sincronizacion.show_sync_summary_dialog(ventana, f"Resultado: {ventana._status_to_label(status)}", summary)
 
 
 def on_sync_simulation_finished(ventana, plan: SyncExecutionPlan) -> None:
