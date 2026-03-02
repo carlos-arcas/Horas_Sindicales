@@ -517,10 +517,29 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
             )
 
     def _configure_historico_focus_order(self) -> None:
-        """Mantiene compatibilidad con builders aunque falle el binding dinámico."""
-        from app.ui.vistas import historico_actions
+        focus_chain = (
+            ("historico_search_input", "historico_estado_combo"),
+            ("historico_estado_combo", "historico_delegada_combo"),
+            ("historico_delegada_combo", "historico_desde_date"),
+            ("historico_desde_date", "historico_hasta_date"),
+            ("historico_hasta_date", "historico_apply_filters_button"),
+            ("historico_apply_filters_button", "historico_table"),
+        )
+        set_tab_order = getattr(self, "setTabOrder", None)
+        if not callable(set_tab_order):
+            logger.warning("UI_SET_TAB_ORDER_NOT_AVAILABLE")
+            return
 
-        historico_actions.configure_historico_focus_order(self)
+        for before_name, after_name in focus_chain:
+            before_widget = getattr(self, before_name, None)
+            after_widget = getattr(self, after_name, None)
+            if before_widget is None or after_widget is None:
+                logger.warning(
+                    "UI_TAB_ORDER_SKIPPED_MISSING_WIDGET",
+                    extra={"before": before_name, "after": after_name},
+                )
+                continue
+            set_tab_order(before_widget, after_widget)
 
     def _status_to_label(self, status: str) -> str:
         return handlers_layout.status_to_label(status)
