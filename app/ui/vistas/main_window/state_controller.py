@@ -388,6 +388,15 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _init_refresh(self) -> None:
         self._post_init_load()
 
+    def _sync_source_text(self) -> str:
+        return acciones_sincronizacion.sync_source_text(self)
+
+    def _sync_scope_text(self) -> str:
+        return acciones_sincronizacion.sync_scope_text()
+
+    def _sync_actor_text(self) -> str:
+        return acciones_sincronizacion.sync_actor_text(self)
+
     def _on_main_tab_changed(self, index: int) -> None:
         if index != TAB_HISTORICO:
             return
