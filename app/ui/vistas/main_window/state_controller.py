@@ -240,6 +240,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._ui_ready = False
         self._solicitudes_runtime_error = False
         self._solicitudes_last_action_saved = False
+        self._help_toggle_conectado = False
         self.status_sync_label: QLabel | None = None
         self.status_sync_progress: QProgressBar | None = None
         self.status_pending_label: QLabel | None = None
@@ -322,11 +323,12 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         show_help_toggle.blockSignals(True)
         show_help_toggle.setChecked(show_help)
         show_help_toggle.blockSignals(False)
-        try:
+        if self._help_toggle_conectado:
             show_help_toggle.toggled.disconnect(self._on_help_toggle_changed)
-        except Exception:
-            pass
-        show_help_toggle.toggled.connect(self._on_help_toggle_changed)
+            self._help_toggle_conectado = False
+        if not self._help_toggle_conectado:
+            show_help_toggle.toggled.connect(self._on_help_toggle_changed)
+            self._help_toggle_conectado = True
         self._on_help_toggle_changed(show_help)
 
     def _on_help_toggle_changed(self, enabled: bool) -> None:
