@@ -454,6 +454,17 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _build_status_bar(self) -> None:
         layout_builder.build_status(self)
 
+    def _configure_time_placeholders(self) -> None:
+        """Alinea placeholders con el formato horario esperado en los inputs de tramo."""
+        for input_name in ("desde_input", "hasta_input"):
+            input_widget = getattr(self, input_name, None)
+            if input_widget is None:
+                continue
+            if hasattr(input_widget, "setDisplayFormat"):
+                input_widget.setDisplayFormat("HH:mm")
+            if hasattr(input_widget, "setToolTip"):
+                input_widget.setToolTip("Formato 24h (HH:mm)")
+
     def _normalize_input_heights(self) -> None:
         try:
             normalize_input_heights(self)
