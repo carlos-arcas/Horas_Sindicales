@@ -121,6 +121,9 @@ class SheetsSyncService(
     def ensure_connection(self) -> None:
         self._ensure_connection_ready()
 
+    def get_service_account_email(self) -> str | None:
+        return self._client.get_service_account_email()
+
 
 __all__ = [
     "HEADER_CANONICO_SOLICITUDES",

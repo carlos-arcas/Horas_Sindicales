@@ -7,6 +7,8 @@ from PySide6.QtCore import QObject, QThread, Signal, Slot
 
 from app.bootstrap.logging import log_operational_error
 from app.core.observability import OperationContext, log_event
+from app.domain.sheets_errors import SheetsPermissionError
+from app.ui.sync_permission_message import build_sync_permission_blocked_message
 from app.ui.controllers.sync_button_state_rules import EstadoBotonSyncEntrada, decidir_estado_botones_sync
 
 
@@ -93,7 +95,7 @@ class SyncController:
         w._sync_worker.moveToThread(w._sync_thread)
         w._sync_thread.started.connect(w._sync_worker.run)
         w._sync_worker.finished.connect(on_finished)
-        w._sync_worker.failed.connect(w._on_sync_failed)
+        w._sync_worker.failed.connect(self._on_sync_failed)
         w._sync_worker.finished.connect(w._sync_thread.quit)
         w._sync_worker.finished.connect(w._sync_worker.deleteLater)
         w._sync_thread.finished.connect(w._sync_thread.deleteLater)
@@ -145,6 +147,33 @@ class SyncController:
             w.sync_panel_status.setText("Estado: Pendiente")
         self.update_sync_button_state()
 
+    def _on_sync_failed(self, payload: object) -> None:
+        error = _extract_error(payload)
+        if isinstance(error, SheetsPermissionError):
+            self._handle_permission_error(error)
+        self.window._on_sync_failed(payload)
+
+    def _handle_permission_error(self, error: SheetsPermissionError) -> None:
+        service_email = error.service_account_email or _resolve_service_account_email(self.window)
+        log_operational_error(
+            logger,
+            "Sincronización bloqueada por permisos en Google Sheets",
+            exc=error,
+            extra={
+                "operation": "sheets_permission_check",
+                "spreadsheet_id": error.spreadsheet_id,
+                "worksheet": error.worksheet,
+                "service_email": service_email,
+                "correlation_id": getattr(getattr(self.window, "_sync_operation_context", None), "correlation_id", None),
+            },
+        )
+        if hasattr(self.window, "toast"):
+            self.window.toast.warning(
+                build_sync_permission_blocked_message(service_account_email=service_email),
+                title="Permisos de Google Sheets",
+                duration_ms=7000,
+            )
+
 
 def _aplicar_decision_boton(widget, decision) -> None:
     """Aplica una decisión de estado a un botón Qt sin acoplar reglas al controlador."""
@@ -177,3 +206,22 @@ def _leer_tooltip_boton(widget) -> str:
     except TypeError:
         return ""
     return str(tooltip)
+
+
+def _extract_error(payload: object) -> Exception | None:
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        return error if isinstance(error, Exception) else None
+    if isinstance(payload, Exception):
+        return payload
+    return None
+
+
+def _resolve_service_account_email(window) -> str:
+    sync_service = getattr(window, "_sync_service", None)
+    if sync_service is not None and hasattr(sync_service, "get_service_account_email"):
+        account_email = sync_service.get_service_account_email()
+        if isinstance(account_email, str) and account_email.strip():
+            return account_email.strip()
+    logger.warning("SHEETS_SERVICE_EMAIL_MISSING", extra={"event": "SHEETS_SERVICE_EMAIL_MISSING"})
+    return "<email no disponible>"

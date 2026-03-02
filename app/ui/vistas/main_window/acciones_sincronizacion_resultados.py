@@ -120,6 +120,7 @@ def on_sync_failed(ventana, payload: object) -> None:
     if details:
         log_operational_error(logger, "Sync failed", exc=error, extra={"operation": "sync_ui", "correlation_id": getattr(ventana._sync_operation_context, "correlation_id", None), "sync_id": ventana._active_sync_id})
     if isinstance(error, SheetsPermissionError):
+        _log_sync_permission_error(ventana, error)
         report = build_config_incomplete_report(
             source=dialogos_sincronizacion.sync_source_text(ventana),
             scope=dialogos_sincronizacion.sync_scope_text(),
@@ -139,6 +140,21 @@ def on_sync_failed(ventana, payload: object) -> None:
     apply_sync_report(ventana, report)
     ventana.notifications.notify_operation(OperationFeedback(title="Sincronización con fallo", happened="No se pudo completar la sincronización.", affected_count=0, incidents="Se detectó un error durante el proceso.", next_step="Revisa el detalle y vuelve a intentar.", status="error"))
     show_sync_error_dialog(ventana, error, details)
+
+
+def _log_sync_permission_error(ventana, error: SheetsPermissionError) -> None:
+    log_operational_error(
+        logger,
+        "Sincronización bloqueada por permisos en Google Sheets",
+        exc=error,
+        extra={
+            "operation": "sheets_permission_check",
+            "spreadsheet_id": error.spreadsheet_id,
+            "worksheet": error.worksheet,
+            "service_email": error.service_account_email or dialogos_sincronizacion.service_account_email(ventana),
+            "correlation_id": getattr(getattr(ventana, "_sync_operation_context", None), "correlation_id", None),
+        },
+    )
 
 
 def on_push_now(ventana) -> None:

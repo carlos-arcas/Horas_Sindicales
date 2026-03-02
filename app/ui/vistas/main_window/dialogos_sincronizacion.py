@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 try:
@@ -15,6 +16,9 @@ from app.ui.copy_catalog import copy_text
 from app.ui.patterns import STATUS_PATTERNS, apply_modal_behavior, status_badge
 from app.ui.sync_reporting import list_sync_history, load_sync_report, persist_report, to_markdown
 from app.ui.toast_helpers import toast_success
+
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_status_label(ventana, status: str) -> str:
@@ -270,10 +274,17 @@ def show_details_dialog(ventana, title: str, details: str) -> None:
 
 
 def service_account_email(ventana) -> str | None:
+    sync_service = getattr(ventana, "_sync_service", None)
+    if sync_service is not None and hasattr(sync_service, "get_service_account_email"):
+        account_email = sync_service.get_service_account_email()
+        if isinstance(account_email, str) and account_email.strip():
+            return account_email.strip()
     config = ventana._sheets_service.get_config()
-    if config is None:
-        return None
-    account_email = getattr(config, "service_account_email", None)
+    account_email = getattr(config, "service_account_email", None) if config is not None else None
     if isinstance(account_email, str) and account_email.strip():
         return account_email.strip()
-    return None
+    logger.warning(
+        "SHEETS_SERVICE_EMAIL_MISSING",
+        extra={"event": "SHEETS_SERVICE_EMAIL_MISSING", "operation": "sheets_permission_check"},
+    )
+    return "<email no disponible>"

@@ -55,7 +55,11 @@ class _FakeWorker:
 def _build_window() -> SimpleNamespace:
     return SimpleNamespace(
         _sync_in_progress=False,
-        _sync_service=SimpleNamespace(is_configured=Mock(return_value=True), sync_bidirectional=Mock(return_value={"ok": True})),
+        _sync_service=SimpleNamespace(
+            is_configured=Mock(return_value=True),
+            sync_bidirectional=Mock(return_value={"ok": True}),
+            get_service_account_email=Mock(return_value="sync-bot@example.iam.gserviceaccount.com"),
+        ),
         _set_sync_in_progress=Mock(),
         _on_sync_finished=Mock(),
         _on_sync_failed=Mock(),
@@ -89,3 +93,17 @@ def test_start_sync_sheets_permission_error() -> None:
 
     assert len(failed_emits) == 1
     assert failed_emits[0]["error"] is error
+
+
+@pytest.mark.headless_safe
+def test_controller_handles_permission_error_without_propagating() -> None:
+    window = _build_window()
+    controller = SyncController(window)
+    error = SheetsPermissionError("403", service_account_email="sync-bot@example.iam.gserviceaccount.com")
+
+    controller._on_sync_failed({"error": error, "details": "trace"})
+
+    window._on_sync_failed.assert_called_once()
+    window.toast.warning.assert_called_once()
+    toast_message = window.toast.warning.call_args.args[0]
+    assert "sync-bot@example.iam.gserviceaccount.com" in toast_message

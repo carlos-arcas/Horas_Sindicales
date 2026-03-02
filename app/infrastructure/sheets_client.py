@@ -219,6 +219,9 @@ class SheetsClient(SheetsClientPort):
             spreadsheet_id=getattr(self._spreadsheet, "id", None),
         )
 
+    def get_service_account_email(self) -> str | None:
+        return self._service_account_email
+
     def _with_rate_limit_retry(self, operation_name: str, operation: Callable[[], T], *, spreadsheet_id: str | None = None) -> T:
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
