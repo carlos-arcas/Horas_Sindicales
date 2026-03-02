@@ -42,3 +42,10 @@ Objetivos:
   - `HAS_ID_RESOLVE_EXISTING` cuando `id is not None` (precedencia máxima, incluso para `id=0`).
   - `MISSING_ID_CREATE_NEW` cuando `id is None`.
 - Orden del plan estable: misma secuencia de entrada en lote.
+
+## 2026-03 Colisiones de destino PDF sin bloqueo
+- Problema: `confirmar_lote_y_generar_pdf` podía terminar en `BusinessRuleError` cuando la ruta destino ya existía.
+- Decisión: resolver colisiones de forma determinista con sufijo ` (n)` empezando en `2` (`archivo.pdf` -> `archivo (2).pdf`).
+- Implementación: helper de infraestructura `resolver_colision_archivo` en `app/infrastructure/sistema_archivos/` y delegación opcional desde la policy de aplicación.
+- Resultado: la confirmación ya no falla por colisión; se usa una ruta alternativa segura que se propaga como `pdf_path` (ruta final efectiva).
+- Verificación: ejecutar `pytest tests/application/test_pdf_destino_colision_policy.py tests/application/use_cases/solicitudes/test_servicio_preflight_pdf.py tests/application/test_generacion_pdf_use_case.py tests/infrastructure/test_resolver_colision_archivo.py`.
