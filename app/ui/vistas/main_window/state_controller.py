@@ -306,6 +306,63 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
             return
         self._guardar_preferencia_pantalla_completa.ejecutar(valor)
 
+    def _apply_help_preferences(self) -> None:
+        show_help_toggle = getattr(self, "show_help_toggle", None)
+        if show_help_toggle is None:
+            return
+
+        settings_key = copy_text("ui.preferencias.settings_show_help_key")
+        default_show_help = True
+        raw_value = self._settings.value(settings_key, default_show_help)
+        if isinstance(raw_value, str):
+            show_help = raw_value.strip().lower() in {"1", "true", "yes", "on"}
+        else:
+            show_help = bool(raw_value)
+
+        show_help_toggle.blockSignals(True)
+        show_help_toggle.setChecked(show_help)
+        show_help_toggle.blockSignals(False)
+        try:
+            show_help_toggle.toggled.disconnect(self._on_help_toggle_changed)
+        except Exception:
+            pass
+        show_help_toggle.toggled.connect(self._on_help_toggle_changed)
+        self._on_help_toggle_changed(show_help)
+
+    def _on_help_toggle_changed(self, enabled: bool) -> None:
+        settings_key = copy_text("ui.preferencias.settings_show_help_key")
+        self._settings.setValue(settings_key, bool(enabled))
+
+        for attr_name in (
+            "solicitudes_tip_1",
+            "solicitudes_tip_2",
+            "solicitudes_tip_3",
+            "solicitudes_status_hint",
+        ):
+            widget = getattr(self, attr_name, None)
+            if widget is not None and hasattr(widget, "setVisible"):
+                widget.setVisible(enabled)
+
+        self._apply_solicitudes_tooltips(enabled)
+
+    def _apply_solicitudes_tooltips(self, enabled: bool | None = None) -> None:
+        if enabled is None:
+            enabled = bool(getattr(getattr(self, "show_help_toggle", None), "isChecked", lambda: True)())
+
+        help_text_by_widget = (
+            ("persona_combo", "solicitudes.tooltip_delegada"),
+            ("fecha_input", "solicitudes.tooltip_fecha"),
+            ("desde_input", "solicitudes.tooltip_desde"),
+            ("hasta_input", "solicitudes.tooltip_hasta"),
+            ("total_preview_input", "solicitudes.tooltip_minutos"),
+            ("notas_input", "solicitudes.tooltip_notas"),
+        )
+        for widget_name, copy_key in help_text_by_widget:
+            widget = getattr(self, widget_name, None)
+            if widget is None or not hasattr(widget, "setToolTip"):
+                continue
+            widget.setToolTip(copy_text(copy_key) if enabled else "")
+
     def _warmup_sync_client(self) -> None:
         try:
             if hasattr(self._sync_service, "ensure_connection"):
