@@ -356,7 +356,13 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._refresh_saldos()
 
     def _on_completo_changed(self, checked: bool) -> None:
-        _ = checked
+        self._field_touched.add("tramo")
+        self.desde_input.setEnabled(not checked)
+        self.hasta_input.setEnabled(not checked)
+
+        if checked:
+            self.tramo_field_error.setVisible(False)
+            self.tramo_field_error.clear()
         self._update_solicitud_preview()
 
     def _on_historico_todas_delegadas_toggled(self, checked: bool) -> None:
