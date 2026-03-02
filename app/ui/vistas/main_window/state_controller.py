@@ -585,7 +585,10 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         return acciones_personas.on_persona_changed(self)
 
     def _on_fecha_changed(self, qdate: QDate) -> None:
-        on_fecha_changed(self, qdate)
+        self._fecha_seleccionada = QDate(qdate) if hasattr(qdate, "isValid") and qdate.isValid() else None
+        update_preview = getattr(self, "_update_solicitud_preview", None)
+        if callable(update_preview):
+            self._update_solicitud_preview()
 
     def _on_add_persona(self) -> None:
         return acciones_personas.on_add_persona(self)
