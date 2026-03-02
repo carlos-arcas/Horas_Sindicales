@@ -3,11 +3,22 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan, SyncLogEntry, SyncReport, SyncSummary
+from app.domain.sync_models import (
+    SyncAttemptReport,
+    SyncExecutionPlan,
+    SyncLogEntry,
+    SyncReport,
+    SyncSummary,
+)
 from app.ui.copy_catalog import copy_text
+from app.ui.tiempo.parseo_iso_datetime import (
+    duracion_ms_desde_iso,
+    normalizar_zona_horaria,
+    parsear_iso_datetime,
+)
 
 
 def _txt(key: str, **kwargs: object) -> str:
@@ -16,10 +27,8 @@ def _txt(key: str, **kwargs: object) -> str:
 
 
 def _parsear_iso_utc_aware(valor_iso: str) -> datetime:
-    dt = datetime.fromisoformat(valor_iso)
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+    dt = parsear_iso_datetime(valor_iso)
+    return normalizar_zona_horaria(dt, UTC)
 
 
 def _parse_iso_to_utc_aware(value: str) -> datetime:
@@ -28,9 +37,7 @@ def _parse_iso_to_utc_aware(value: str) -> datetime:
 
 
 def _duracion_ms_entre_isos(inicio_iso: str, fin_iso: str) -> int:
-    inicio = _parsear_iso_utc_aware(inicio_iso)
-    fin = _parsear_iso_utc_aware(fin_iso)
-    return max(0, int((fin - inicio).total_seconds() * 1000))
+    return duracion_ms_desde_iso(inicio_iso, fin_iso, tz_objetivo=UTC)
 
 
 def build_sync_report(
@@ -52,23 +59,59 @@ def build_sync_report(
     finished = datetime.now().isoformat()
     warnings: list[str] = []
     if summary.duplicates_skipped > 0:
-        warnings.append(_txt("ui.sync_report.warning_solicitudes_existian", cantidad=summary.duplicates_skipped))
+        warnings.append(
+            _txt(
+                "ui.sync_report.warning_solicitudes_existian",
+                cantidad=summary.duplicates_skipped,
+            )
+        )
     if summary.omitted_by_delegada > 0:
-        warnings.append(_txt("ui.sync_report.warning_filas_omitidas_delegada", cantidad=summary.omitted_by_delegada))
+        warnings.append(
+            _txt(
+                "ui.sync_report.warning_filas_omitidas_delegada",
+                cantidad=summary.omitted_by_delegada,
+            )
+        )
 
     errors = []
     if summary.errors > 0:
-        errors.append(_txt("ui.sync_report.error_solicitudes_sincronizacion", cantidad=summary.errors))
+        errors.append(
+            _txt(
+                "ui.sync_report.error_solicitudes_sincronizacion",
+                cantidad=summary.errors,
+            )
+        )
 
     conflicts = []
     if summary.conflicts_detected > 0:
-        conflicts.append(_txt("ui.sync_report.conflictos_detectados", cantidad=summary.conflicts_detected))
+        conflicts.append(
+            _txt(
+                "ui.sync_report.conflictos_detectados",
+                cantidad=summary.conflicts_detected,
+            )
+        )
 
-    entries = _base_entries(summary, warnings=warnings, errors=errors, conflicts=conflicts, details=details, finished=finished)
+    entries = _base_entries(
+        summary,
+        warnings=warnings,
+        errors=errors,
+        conflicts=conflicts,
+        details=details,
+        finished=finished,
+    )
     duration_ms = _duracion_ms_entre_isos(started, finished)
     attempts = max(1, len(attempt_history) or 1)
-    total_operations = summary.inserted_local + summary.updated_local + summary.inserted_remote + summary.updated_remote
-    success_rate = 1.0 if total_operations == 0 else max(0.0, (total_operations - summary.errors) / total_operations)
+    total_operations = (
+        summary.inserted_local
+        + summary.updated_local
+        + summary.inserted_remote
+        + summary.updated_remote
+    )
+    success_rate = (
+        1.0
+        if total_operations == 0
+        else max(0.0, (total_operations - summary.errors) / total_operations)
+    )
 
     return SyncReport(
         sync_id=sync_id or str(uuid.uuid4()),
@@ -92,8 +135,16 @@ def build_sync_report(
         errors=errors,
         conflicts=conflicts,
         items_changed=[
-            _txt("ui.sync_report.items_changed_local", created=summary.inserted_local, updated=summary.updated_local),
-            _txt("ui.sync_report.items_changed_sheets", created=summary.inserted_remote, updated=summary.updated_remote),
+            _txt(
+                "ui.sync_report.items_changed_local",
+                created=summary.inserted_local,
+                updated=summary.updated_local,
+            ),
+            _txt(
+                "ui.sync_report.items_changed_sheets",
+                created=summary.inserted_remote,
+                updated=summary.updated_remote,
+            ),
         ],
         entries=entries,
         duration_ms=duration_ms,
@@ -195,9 +246,9 @@ def build_failed_report(
         duration_ms=_duracion_ms_entre_isos(start, now),
         error_count=1,
         success_rate=0.0,
-        attempt_history=attempt_history or (SyncAttemptReport(attempt_number=1, status="ERROR", errors=1),),
+        attempt_history=attempt_history
+        or (SyncAttemptReport(attempt_number=1, status="ERROR", errors=1),),
     )
-
 
 
 def build_simulation_report(
@@ -228,7 +279,11 @@ def build_simulation_report(
                 severity="INFO",
                 section=_txt("ui.sync_report.section_actualizaciones"),
                 entity=_txt("ui.sync_report.entity_solicitud"),
-                message=_txt("ui.sync_report.solicitud_cambios", uuid=item.uuid, cantidad=len(item.diffs)),
+                message=_txt(
+                    "ui.sync_report.solicitud_cambios",
+                    uuid=item.uuid,
+                    cantidad=len(item.diffs),
+                ),
             )
         )
         for diff in item.diffs:
@@ -280,9 +335,7 @@ def build_simulation_report(
             )
         )
     status = "OK" if plan.has_changes else "IDLE"
-    inicio = _parsear_iso_utc_aware(plan.generated_at)
-    fin = _parsear_iso_utc_aware(now)
-    duration_ms = max(0, int((fin - inicio).total_seconds() * 1000))
+    duration_ms = duracion_ms_desde_iso(plan.generated_at, now, tz_objetivo=UTC)
 
     return SyncReport(
         sync_id=sync_id or str(uuid.uuid4()),
@@ -325,12 +378,15 @@ def build_simulation_report(
         ),
     )
 
+
 def persist_report(report: SyncReport, root: Path) -> tuple[Path, Path]:
     logs_dir = root / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     json_path = logs_dir / "sync_last.json"
     md_path = logs_dir / "sync_last.md"
-    json_path.write_text(json.dumps(report.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+    json_path.write_text(
+        json.dumps(report.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     md_path.write_text(to_markdown(report), encoding="utf-8")
 
     history_dir = logs_dir / "sync_history"
@@ -339,7 +395,9 @@ def persist_report(report: SyncReport, root: Path) -> tuple[Path, Path]:
     sync_id = report.sync_id or "no-sync-id"
     history_json = history_dir / f"{stamp}_{sync_id}.json"
     history_md = history_dir / f"{stamp}_{sync_id}.md"
-    history_json.write_text(json.dumps(report.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+    history_json.write_text(
+        json.dumps(report.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     history_md.write_text(to_markdown(report), encoding="utf-8")
     _trim_history(history_dir)
     return json_path, md_path
@@ -355,16 +413,36 @@ def to_markdown(report: SyncReport) -> str:
         _txt("ui.sync_report.md_actor", actor=report.actor),
         _txt("ui.sync_report.md_fuente", fuente=report.source),
         _txt("ui.sync_report.md_alcance", alcance=report.scope),
-        _txt("ui.sync_report.md_idempotencia", idempotencia=report.idempotency_criteria),
+        _txt(
+            "ui.sync_report.md_idempotencia", idempotencia=report.idempotency_criteria
+        ),
         "",
         _txt("ui.sync_report.seccion_resumen"),
-        _txt("ui.sync_report.md_solicitudes_creadas", cantidad=report.counts.get("created", 0)),
-        _txt("ui.sync_report.md_solicitudes_actualizadas", cantidad=report.counts.get("updated", 0)),
-        _txt("ui.sync_report.md_solicitudes_omitidas", cantidad=report.counts.get("skipped", 0)),
-        _txt("ui.sync_report.md_conflictos_detectados", cantidad=report.counts.get("conflicts", 0)),
+        _txt(
+            "ui.sync_report.md_solicitudes_creadas",
+            cantidad=report.counts.get("created", 0),
+        ),
+        _txt(
+            "ui.sync_report.md_solicitudes_actualizadas",
+            cantidad=report.counts.get("updated", 0),
+        ),
+        _txt(
+            "ui.sync_report.md_solicitudes_omitidas",
+            cantidad=report.counts.get("skipped", 0),
+        ),
+        _txt(
+            "ui.sync_report.md_conflictos_detectados",
+            cantidad=report.counts.get("conflicts", 0),
+        ),
         _txt("ui.sync_report.md_errores", cantidad=report.counts.get("errors", 0)),
-        _txt("ui.sync_report.md_solicitudes_locales_totales", cantidad=report.rows_total_local),
-        _txt("ui.sync_report.md_solicitudes_remotas_revisadas", cantidad=report.rows_scanned_remote),
+        _txt(
+            "ui.sync_report.md_solicitudes_locales_totales",
+            cantidad=report.rows_total_local,
+        ),
+        _txt(
+            "ui.sync_report.md_solicitudes_remotas_revisadas",
+            cantidad=report.rows_scanned_remote,
+        ),
         _txt("ui.sync_report.md_llamadas_api", cantidad=report.api_calls_count),
         _txt("ui.sync_report.md_reintentos", cantidad=report.retry_count),
         _txt("ui.sync_report.md_conflictos_metrica", cantidad=report.conflicts_count),
@@ -393,7 +471,11 @@ def to_markdown(report: SyncReport) -> str:
 
 
 def _trim_history(history_dir: Path, max_entries: int = 20) -> None:
-    files = sorted(history_dir.glob(_txt("ui.sync_report.glob_json")), key=lambda item: item.stat().st_mtime, reverse=True)
+    files = sorted(
+        history_dir.glob(_txt("ui.sync_report.glob_json")),
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
     companion_md = {path.with_suffix(".md") for path in files}
     all_files = files + [path for path in companion_md if path.exists()]
     for old in all_files[max_entries * 2 :]:
@@ -404,13 +486,19 @@ def list_sync_history(root: Path) -> list[Path]:
     history_dir = root / "logs" / "sync_history"
     if not history_dir.exists():
         return []
-    return sorted(history_dir.glob(_txt("ui.sync_report.glob_json")), key=lambda item: item.stat().st_mtime, reverse=True)
+    return sorted(
+        history_dir.glob(_txt("ui.sync_report.glob_json")),
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
 
 
 def load_sync_report(path: Path) -> SyncReport:
     data = json.loads(path.read_text(encoding="utf-8"))
     entries = [SyncLogEntry(**entry) for entry in data.get("entries", [])]
-    attempts = [SyncAttemptReport(**attempt) for attempt in data.get("attempt_history", [])]
+    attempts = [
+        SyncAttemptReport(**attempt) for attempt in data.get("attempt_history", [])
+    ]
     return SyncReport(
         sync_id=data.get("sync_id", ""),
         started_at=data["started_at"],

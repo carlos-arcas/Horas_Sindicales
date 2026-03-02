@@ -55,6 +55,7 @@ _COPY: dict[str, str] = {
     "ui.solicitudes.saldos": "Saldos",
     "ui.solicitudes.ir_existente": "Ir a la existente",
     "ui.solicitudes.formato_hora": "HH:mm",
+    "ui.solicitudes.tooltip_formato_hora": "Formato 24h (HH:mm)",
     "ui.solicitudes.completo": "Completo",
     "ui.solicitudes.saldo_reservado": "Saldo reservado",
     "ui.solicitudes.estado": "Estado",

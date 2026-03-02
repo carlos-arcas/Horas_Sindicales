@@ -26,3 +26,6 @@ Se incorpora el helper `app/ui/toasts/ejecutar_callback_seguro.py` para ejecutar
 ### Verificación rápida
 1. Ejecutar `pytest -q tests/test_ejecutar_callback_seguro.py`.
 2. Ejecutar `ruff check app/ui/toasts/ejecutar_callback_seguro.py app/ui/widgets/widget_toast.py tests/test_ejecutar_callback_seguro.py`.
+## Actualización (tests puros sin Qt)
+Se agregan pruebas unitarias en `tests/ui/test_toast_manager_action_kwargs_puros.py` que cargan `app.ui.widgets.toast` con stubs para evitar runtime de Qt y blindan que `success/error` aceptan `action_label/action_callback` sin `TypeError`.
+Además, se valida por firma (`inspect.signature`) que ambos parámetros opcionales permanezcan expuestos y que un `action_callback` no callable se degrade a `None` de forma segura.
