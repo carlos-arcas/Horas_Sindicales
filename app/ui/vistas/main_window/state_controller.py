@@ -230,6 +230,11 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._servicio_i18n = servicio_i18n
         if servicio_i18n is not None:
+            try:
+                self._i18n
+            except AttributeError:
+                self._i18n = servicio_i18n
+        if servicio_i18n is not None:
             configurar_i18n_interfaz(servicio_i18n)
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []

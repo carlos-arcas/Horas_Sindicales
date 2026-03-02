@@ -82,3 +82,37 @@ def test_configure_time_placeholders_resuelve_desde_i18n_sin_excepcion(monkeypat
 
     assert window.desde_input.lineEdit().placeholder == "HH:MM"
     assert window.hasta_input.lineEdit().placeholder == "HH:MM"
+
+
+class _FakeLogger:
+    def __init__(self) -> None:
+        self.exception_calls = 0
+
+    def exception(self, _msg: str) -> None:
+        self.exception_calls += 1
+
+
+class _FakeReminderLabel:
+    def __init__(self) -> None:
+        self.visible = None
+        self.text = None
+
+    def setVisible(self, value: bool) -> None:
+        self.visible = value
+
+    def setText(self, value: str) -> None:
+        self.text = value
+
+
+class _WindowWithoutI18n:
+    def __init__(self) -> None:
+        self.conflicts_reminder_label = _FakeReminderLabel()
+
+
+def test_update_conflicts_reminder_sin_i18n_sale_sin_error() -> None:
+    logger = _FakeLogger()
+    window = _WindowWithoutI18n()
+
+    estado_utils.update_conflicts_reminder(window, logger)
+
+    assert logger.exception_calls == 0
