@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -114,6 +115,24 @@ def test_confirmar_lote_preflight_colision_se_resuelve_con_ruta_alternativa(conn
     assert errores == []
     assert ruta_pdf is not None
     assert str(ruta_pdf).endswith("duplicado (1).pdf")
+
+
+def test_confirmar_lote_resuelve_destino_pdf_una_sola_vez(connection, tmp_path: Path) -> None:
+    persona_repo = RepositorioPersonasSQLite(connection)
+    solicitud_repo = SolicitudRepositorySQLite(connection)
+    persona_id = _crear_persona(persona_repo)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=FakeGeneradorPdf())
+
+    destino = tmp_path / "duplicado.pdf"
+    destino.write_bytes(b"contenido previo")
+
+    with patch.object(use_case, "resolver_destino_pdf", wraps=use_case.resolver_destino_pdf) as spy:
+        _, _, errores, ruta_pdf = use_case.confirmar_lote_y_generar_pdf([_solicitud(persona_id)], destino)
+
+    assert errores == []
+    assert ruta_pdf is not None
+    assert str(ruta_pdf).endswith("duplicado (1).pdf")
+    assert spy.call_count == 1
 
 
 class FakeGeneradorPdfFalla(FakeGeneradorPdf):

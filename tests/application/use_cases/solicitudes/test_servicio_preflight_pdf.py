@@ -92,7 +92,7 @@ def test_use_case_resuelve_colision_con_renombrado_automatico(tmp_path: Path) ->
     destino = tmp_path / "colision.pdf"
     existentes = {
         str(destino.resolve(strict=False)),
-        str((tmp_path / "colision (2).pdf").resolve(strict=False)),
+        str((tmp_path / "colision (1).pdf").resolve(strict=False)),
     }
     use_case = SolicitudUseCases(
         repo=object(),
@@ -107,4 +107,4 @@ def test_use_case_resuelve_colision_con_renombrado_automatico(tmp_path: Path) ->
 
     assert resolucion.colision_detectada is True
     assert str(resolucion.ruta_original).endswith("colision.pdf")
-    assert str(resolucion.ruta_destino).endswith("colision (3).pdf")
+    assert str(resolucion.ruta_destino).endswith("colision (2).pdf")

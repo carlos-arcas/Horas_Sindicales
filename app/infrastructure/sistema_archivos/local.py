@@ -44,6 +44,6 @@ class SistemaArchivosLocal(SistemaArchivosPuerto):
         self.mkdir(ruta, parents=True, exist_ok=True)
 
     def resolver_colision_archivo(
-        self, destino: Path, *, inicio: int = 2, limite: int = 9_999
+        self, destino: Path, *, inicio: int = 1, limite: int = 9_999
     ) -> Path:
         return resolver_colision_archivo(destino, inicio=inicio, limite=limite)

@@ -13,7 +13,7 @@ def resolver_colision_pdf(
 
     resolver_fs = getattr(fs, "resolver_colision_archivo", None)
     if callable(resolver_fs):
-        return Path(resolver_fs(destino_resuelto, inicio=2, limite=limite)).resolve(
+        return Path(resolver_fs(destino_resuelto, inicio=1, limite=limite)).resolve(
             strict=False
         )
 
@@ -22,7 +22,7 @@ def resolver_colision_pdf(
 
     stem = destino_resuelto.stem
     suffix = destino_resuelto.suffix or ".pdf"
-    for indice in range(2, limite + 1):
+    for indice in range(1, limite + 1):
         candidata = destino_resuelto.parent / f"{stem} ({indice}){suffix}"
         candidata_resuelta = candidata.resolve(strict=False)
         if not _existe(candidata_resuelta, fs):

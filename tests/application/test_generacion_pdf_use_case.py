@@ -327,4 +327,4 @@ def test_confirmar_lote_colision_pdf_renombra_destino_sin_error(
 
     assert errores == []
     assert ruta_pdf is not None
-    assert str(ruta_pdf).endswith("solicitud (2).pdf")
+    assert str(ruta_pdf).endswith("solicitud (1).pdf")
