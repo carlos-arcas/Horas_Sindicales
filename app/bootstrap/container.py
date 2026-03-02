@@ -10,17 +10,28 @@ from app.application.conflicts_service import ConflictsService
 from app.application.sheets_service import SheetsService
 from app.application.sync_sheets_use_case import SyncSheetsUseCase
 from app.application.use_cases import CargarDatosDemoCasoUso
-from app.application.use_cases.exportar_compartir_periodo import ExportarCompartirPeriodoCasoUso
+from app.application.use_cases.exportar_compartir_periodo import (
+    ExportarCompartirPeriodoCasoUso,
+)
 from app.application.use_cases.grupos_config import GrupoConfigUseCases
 from app.application.use_cases.personas import PersonaUseCases
 from app.application.use_cases.solicitudes import SolicitudUseCases
-from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
+from app.application.use_cases.validacion_preventiva_lock_use_case import (
+    ValidacionPreventivaLockUseCase,
+)
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.infrastructure.cargador_datos_demo_sqlite import CargadorDatosDemoSQLite
 from app.infrastructure.db import _default_db_path, get_connection
-from app.infrastructure.health_probes import DefaultConnectivityProbe, SheetsConfigProbe, SQLiteLocalDbProbe
-from app.infrastructure.local_config import RepositorioPreferenciasIni
+from app.infrastructure.health_probes import (
+    DefaultConnectivityProbe,
+    SheetsConfigProbe,
+    SQLiteLocalDbProbe,
+)
+from app.infrastructure.local_config import (
+    RepositorioPreferenciasIni,
+    resolve_appdata_dir,
+)
 from app.infrastructure.auditoria_e2e.adaptadores import RelojSistema
 from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 from app.infrastructure.local_config_store import LocalConfigStore
@@ -82,7 +93,13 @@ def build_container(
     base_cuadrantes_service.ensure_for_all_personas()
     persona_use_cases = PersonaUseCases(persona_repo, base_cuadrantes_service)
     generador_pdf = GeneradorPdfReportlab()
-    solicitud_use_cases = SolicitudUseCases(solicitud_repo, persona_repo, grupo_repo, generador_pdf)
+    solicitud_use_cases = SolicitudUseCases(
+        solicitud_repo,
+        persona_repo,
+        grupo_repo,
+        generador_pdf,
+        base_dir_permitido_pdf=resolve_appdata_dir(),
+    )
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)
 
     config_store = LocalConfigStore()
@@ -91,7 +108,9 @@ def build_container(
     sheets_gateway = SheetsGatewayGspread(sheets_client, sheets_repository)
     sheets_service = SheetsService(config_store, sheets_gateway)
 
-    sync_port = SyncSheetsAdapter(connection_factory, config_store, sheets_client, sheets_repository)
+    sync_port = SyncSheetsAdapter(
+        connection_factory, config_store, sheets_client, sheets_repository
+    )
     sync_service = SyncSheetsUseCase(sync_port)
 
     health_check_use_case = HealthCheckUseCase(
@@ -100,9 +119,13 @@ def build_container(
         SQLiteLocalDbProbe(connection_factory),
     )
     alert_engine = AlertEngine()
-    validacion_preventiva_lock_use_case = ValidacionPreventivaLockUseCase(SQLiteLockErrorClassifier())
+    validacion_preventiva_lock_use_case = ValidacionPreventivaLockUseCase(
+        SQLiteLockErrorClassifier()
+    )
 
-    repositorio_preferencias = _build_repositorio_preferencias(preferencias_headless=preferencias_headless)
+    repositorio_preferencias = _build_repositorio_preferencias(
+        preferencias_headless=preferencias_headless
+    )
 
     conflicts_repository = SQLiteConflictsRepository(connection)
     conflicts_service = ConflictsService(
@@ -135,11 +158,15 @@ def build_container(
     )
 
 
-def _build_repositorio_preferencias(*, preferencias_headless: bool = False) -> IRepositorioPreferencias:
+def _build_repositorio_preferencias(
+    *, preferencias_headless: bool = False
+) -> IRepositorioPreferencias:
     if preferencias_headless:
         return RepositorioPreferenciasIni()
     try:
-        modulo = importlib.import_module("infraestructura.repositorio_preferencias_qsettings")
+        modulo = importlib.import_module(
+            "infraestructura.repositorio_preferencias_qsettings"
+        )
         repositorio_cls = modulo.RepositorioPreferenciasQSettings
         return repositorio_cls()
     except (ImportError, AttributeError) as exc:

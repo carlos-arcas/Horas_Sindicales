@@ -33,12 +33,18 @@ from app.core.metrics import metrics_registry
 from app.core.observability import log_event
 from app.configuracion.settings import is_read_only_enabled
 from app.domain.models import Persona, Solicitud
-from app.domain.ports import GrupoConfigRepository, PersonaRepository, SolicitudRepository
+from app.domain.ports import (
+    GrupoConfigRepository,
+    PersonaRepository,
+    SolicitudRepository,
+)
 from app.domain.request_time import compute_request_minutes, minutes_to_hours_float
 from app.domain.services import BusinessRuleError, ValidacionError, validar_solicitud
 from app.domain.time_range import normalize_range, overlaps
 from app.domain.time_utils import parse_hhmm
-from app.application.use_cases.solicitudes.validaciones import validar_solicitud_dto_declarativo
+from app.application.use_cases.solicitudes.validaciones import (
+    validar_solicitud_dto_declarativo,
+)
 from app.application.use_cases.solicitudes.mapping_service import (
     solicitud_to_dto as _solicitud_to_dto,
 )
@@ -74,8 +80,12 @@ from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
     PdfConfirmadasEntrada,
     plan_pdf_confirmadas,
 )
-from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
-from app.application.use_cases.solicitudes.pdf_destino_policy import resolver_colision_pdf
+from app.application.use_cases.solicitudes.pdf_confirmadas_runner import (
+    run_pdf_confirmadas_plan,
+)
+from app.application.use_cases.solicitudes.pdf_destino_policy import (
+    resolver_colision_pdf,
+)
 from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
     EntradaNombrePdf,
     ServicioPreflightPdf,
@@ -115,8 +125,6 @@ def _resolver_correlation_id(
     return correlation_id
 
 
-
-
 @dataclass(frozen=True)
 class ResolucionDestinoPdf:
     ruta_destino: Path
@@ -127,6 +135,7 @@ class ResolucionDestinoPdf:
 
 class SolicitudUseCases:
     """Casos de uso para solicitudes."""
+
     def __init__(
         self,
         repo: SolicitudRepository,
@@ -134,6 +143,7 @@ class SolicitudUseCases:
         config_repo: GrupoConfigRepository | None = None,
         generador_pdf: GeneradorPdfPuerto | None = None,
         fs: SistemaArchivosPuerto | None = None,
+        base_dir_permitido_pdf: Path | None = None,
     ) -> None:
         self._repo = repo
         self._persona_repo = persona_repo
@@ -143,6 +153,7 @@ class SolicitudUseCases:
         self._servicio_preflight_pdf = ServicioPreflightPdf(
             fs=self._fs,
             generador_pdf=self._generador_pdf,
+            base_dir_permitido=base_dir_permitido_pdf,
         )
 
     def listar_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
@@ -169,7 +180,10 @@ class SolicitudUseCases:
         return solicitudes
 
     def listar_pendientes_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
-        return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_by_persona(persona_id)]
+        return [
+            _solicitud_to_dto(s)
+            for s in self._repo.list_pendientes_by_persona(persona_id)
+        ]
 
     def listar_pendientes_all(self) -> Iterable[SolicitudDTO]:
         return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_all()]
@@ -183,7 +197,9 @@ class SolicitudUseCases:
         correlation_id: str | None = None,
         contexto: ContextoOperacion | None = None,
     ) -> SolicitudDTO:
-        solicitud, _ = self.agregar_solicitud(dto, correlation_id=correlation_id, contexto=contexto)
+        solicitud, _ = self.agregar_solicitud(
+            dto, correlation_id=correlation_id, contexto=contexto
+        )
         return solicitud
 
     def crear_resultado(
@@ -204,7 +220,12 @@ class SolicitudUseCases:
                 correlation_id=correlation_id,
                 contexto=contexto,
             )
-        except (ValidacionError, BusinessRuleError, InfraError, PersistenceError) as exc:
+        except (
+            ValidacionError,
+            BusinessRuleError,
+            InfraError,
+            PersistenceError,
+        ) as exc:
             errores.append(str(exc))
             return resultado_error_creacion(errores=errores, warnings=warnings)
 
@@ -216,7 +237,9 @@ class SolicitudUseCases:
             saldos=saldos,
         )
 
-    def _resolver_dto_y_persona_para_creacion(self, dto: SolicitudDTO) -> tuple[SolicitudDTO, Persona]:
+    def _resolver_dto_y_persona_para_creacion(
+        self, dto: SolicitudDTO
+    ) -> tuple[SolicitudDTO, Persona]:
         mensaje_error = mensaje_persona_invalida(dto.persona_id)
         if mensaje_error is not None:
             raise BusinessRuleError(mensaje_error)
@@ -226,7 +249,11 @@ class SolicitudUseCases:
             raise BusinessRuleError("Persona no encontrada.")
 
         dto_normalizado = normalizar_dto_para_creacion(dto)
-        conflicto = self.validar_conflicto_dia(dto_normalizado.persona_id, dto_normalizado.fecha_pedida, dto_normalizado.completo)
+        conflicto = self.validar_conflicto_dia(
+            dto_normalizado.persona_id,
+            dto_normalizado.fecha_pedida,
+            dto_normalizado.completo,
+        )
         if not conflicto.ok:
             raise BusinessRuleError(mensaje_conflicto(conflicto.accion_sugerida))
         duplicate = self.buscar_duplicado(dto_normalizado)
@@ -234,11 +261,15 @@ class SolicitudUseCases:
             raise BusinessRuleError(mensaje_duplicado(duplicate.generated))
         return dto_normalizado, persona
 
-    def _agregar_warning_saldo_si_aplica(self, dto: SolicitudDTO, persona: Persona, warnings: list[str]) -> None:
+    def _agregar_warning_saldo_si_aplica(
+        self, dto: SolicitudDTO, persona: Persona, warnings: list[str]
+    ) -> None:
         minutos = _calcular_minutos(dto, persona)
         year, month = _parse_year_month(dto.fecha_pedida)
         saldos_previos = self.calcular_saldos(dto.persona_id, year, month)
-        if not saldo_insuficiente(saldos_previos.restantes_mes, saldos_previos.restantes_ano, minutos):
+        if not saldo_insuficiente(
+            saldos_previos.restantes_mes, saldos_previos.restantes_ano, minutos
+        ):
             return
         warning_msg = mensaje_warning_saldo_insuficiente()
         warnings.append(warning_msg)
@@ -283,7 +314,9 @@ class SolicitudUseCases:
             )
         return _solicitud_to_dto(creada), saldos
 
-    def _log_inicio_agregar_solicitud(self, dto: SolicitudDTO, correlation_id: str) -> None:
+    def _log_inicio_agregar_solicitud(
+        self, dto: SolicitudDTO, correlation_id: str
+    ) -> None:
         logger.info(
             "Creando solicitud persona_id=%s fecha_pedida=%s completo=%s desde=%s hasta=%s",
             dto.persona_id,
@@ -293,9 +326,16 @@ class SolicitudUseCases:
             dto.hasta,
         )
         if debe_emitir_evento(correlation_id):
-            log_event(logger, "solicitud_create_started", payload_evento_inicio(dto), correlation_id)
+            log_event(
+                logger,
+                "solicitud_create_started",
+                payload_evento_inicio(dto),
+                correlation_id,
+            )
 
-    def _validar_y_normalizar_dto(self, dto: SolicitudDTO) -> tuple[SolicitudDTO, Persona]:
+    def _validar_y_normalizar_dto(
+        self, dto: SolicitudDTO
+    ) -> tuple[SolicitudDTO, Persona]:
         mensaje_persona = mensaje_persona_invalida(dto.persona_id)
         if mensaje_persona is not None:
             raise BusinessRuleError(mensaje_persona)
@@ -305,22 +345,36 @@ class SolicitudUseCases:
             raise BusinessRuleError("Persona no encontrada.")
         return normalizar_dto_para_creacion(dto), persona
 
-    def _validar_conflicto_y_duplicado(self, dto: SolicitudDTO, persona: Persona) -> None:
-        conflicto = self.validar_conflicto_dia(dto.persona_id, dto.fecha_pedida, dto.completo)
+    def _validar_conflicto_y_duplicado(
+        self, dto: SolicitudDTO, persona: Persona
+    ) -> None:
+        conflicto = self.validar_conflicto_dia(
+            dto.persona_id, dto.fecha_pedida, dto.completo
+        )
         if not conflicto.ok:
             raise BusinessRuleError(mensaje_conflicto(conflicto.accion_sugerida))
 
-        duplicate_key = solicitud_key(dto, persona=persona, delegada_uuid=self._delegada_uuid(dto.persona_id))
+        duplicate_key = solicitud_key(
+            dto, persona=persona, delegada_uuid=self._delegada_uuid(dto.persona_id)
+        )
         duplicate = self.buscar_duplicado(dto)
         if duplicate is None:
             return
-        logger.debug("Duplicado detectado al agregar solicitud. nueva=%s existente_id=%s", duplicate_key, duplicate.id)
+        logger.debug(
+            "Duplicado detectado al agregar solicitud. nueva=%s existente_id=%s",
+            duplicate_key,
+            duplicate.id,
+        )
         raise BusinessRuleError(mensaje_duplicado_desde_estado(duplicate.generated))
 
-    def _crear_solicitud_y_saldos(self, dto: SolicitudDTO, persona: Persona) -> tuple[Solicitud, SaldosDTO]:
+    def _crear_solicitud_y_saldos(
+        self, dto: SolicitudDTO, persona: Persona
+    ) -> tuple[Solicitud, SaldosDTO]:
         desde_min, hasta_min = rango_en_minutos(dto.desde, dto.hasta)
         minutos = _calcular_minutos(dto, persona)
-        solicitud = solicitud_desde_dto(dto, minutos=minutos, desde_min=desde_min, hasta_min=hasta_min)
+        solicitud = solicitud_desde_dto(
+            dto, minutos=minutos, desde_min=desde_min, hasta_min=hasta_min
+        )
         validar_solicitud(solicitud)
         creada = self._repo.create(solicitud)
         logger.info(
@@ -348,7 +402,9 @@ class SolicitudUseCases:
         )
         desde_min = None if completo else parse_hhmm(str(desde))
         hasta_min = None if completo else parse_hhmm(str(hasta))
-        duplicate = self._repo.find_duplicate(dto.persona_id, str(fecha), desde_min, hasta_min, completo)
+        duplicate = self._repo.find_duplicate(
+            dto.persona_id, str(fecha), desde_min, hasta_min, completo
+        )
         if duplicate is None:
             return None
         return _solicitud_to_dto(duplicate)
@@ -431,18 +487,32 @@ class SolicitudUseCases:
             raise BusinessRuleError("Modo solo lectura activado")
         correlation_id = _resolver_correlation_id(correlation_id, contexto)
         if correlation_id:
-            log_event(logger, "solicitud_delete_started", {"solicitud_id": solicitud_id}, correlation_id)
+            log_event(
+                logger,
+                "solicitud_delete_started",
+                {"solicitud_id": solicitud_id},
+                correlation_id,
+            )
         solicitud = self._repo.get_by_id(solicitud_id)
         if solicitud is None:
             raise BusinessRuleError("Solicitud no encontrada.")
         self._repo.delete(solicitud_id)
         year, month = _parse_year_month(solicitud.fecha_pedida)
         if correlation_id:
-            log_event(logger, "solicitud_delete_succeeded", {"solicitud_id": solicitud_id}, correlation_id)
+            log_event(
+                logger,
+                "solicitud_delete_succeeded",
+                {"solicitud_id": solicitud_id},
+                correlation_id,
+            )
         return self.calcular_saldos(solicitud.persona_id, year, month)
 
-    def validar_conflicto_dia(self, persona_id: int, fecha_pedida: str, tipo_nuevo: bool) -> ConflictoDiaDTO:
-        existentes = list(self._repo.list_by_persona_and_fecha(persona_id, fecha_pedida))
+    def validar_conflicto_dia(
+        self, persona_id: int, fecha_pedida: str, tipo_nuevo: bool
+    ) -> ConflictoDiaDTO:
+        existentes = list(
+            self._repo.list_by_persona_and_fecha(persona_id, fecha_pedida)
+        )
         if tipo_nuevo:
             conflictos = [s for s in existentes if not s.completo]
         else:
@@ -464,8 +534,12 @@ class SolicitudUseCases:
         correlation_id: str | None = None,
     ) -> tuple[SolicitudDTO, SaldosDTO]:
         if not nueva_solicitud.completo:
-            raise BusinessRuleError("La solicitud debe ser completa para esta sustitución.")
-        existentes = list(self._repo.list_by_persona_and_fecha(persona_id, fecha_pedida))
+            raise BusinessRuleError(
+                "La solicitud debe ser completa para esta sustitución."
+            )
+        existentes = list(
+            self._repo.list_by_persona_and_fecha(persona_id, fecha_pedida)
+        )
         ids = [s.id for s in existentes if s.id is not None and not s.completo]
         self._repo.delete_by_ids(ids)
         return self.agregar_solicitud(nueva_solicitud, correlation_id=correlation_id)
@@ -478,8 +552,12 @@ class SolicitudUseCases:
         correlation_id: str | None = None,
     ) -> tuple[SolicitudDTO, SaldosDTO]:
         if nueva_solicitud.completo:
-            raise BusinessRuleError("La solicitud debe ser parcial para esta sustitución.")
-        existentes = list(self._repo.list_by_persona_and_fecha(persona_id, fecha_pedida))
+            raise BusinessRuleError(
+                "La solicitud debe ser parcial para esta sustitución."
+            )
+        existentes = list(
+            self._repo.list_by_persona_and_fecha(persona_id, fecha_pedida)
+        )
         ids = [s.id for s in existentes if s.id is not None and s.completo]
         self._repo.delete_by_ids(ids)
         return self.agregar_solicitud(nueva_solicitud, correlation_id=correlation_id)
@@ -491,7 +569,9 @@ class SolicitudUseCases:
         total_dia = _total_cuadrante_por_fecha(persona, fecha)
         return total_dia if total_dia > 0 else 0
 
-    def sumar_pendientes_min(self, persona_id: int, solicitudes: Iterable[SolicitudDTO]) -> int:
+    def sumar_pendientes_min(
+        self, persona_id: int, solicitudes: Iterable[SolicitudDTO]
+    ) -> int:
         persona = self._persona_repo.get_by_id(persona_id)
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
@@ -509,7 +589,9 @@ class SolicitudUseCases:
     def minutes_to_hours_float(self, minutos: int) -> float:
         return minutes_to_hours_float(minutos)
 
-    def detectar_conflictos_pendientes(self, solicitudes: Iterable[SolicitudDTO]) -> set[int]:
+    def detectar_conflictos_pendientes(
+        self, solicitudes: Iterable[SolicitudDTO]
+    ) -> set[int]:
         solicitudes_list = list(solicitudes)
         if not solicitudes_list:
             return set()
@@ -592,12 +674,19 @@ class SolicitudUseCases:
         if not correlation_id:
             correlation_id = str(uuid.uuid4())
         if correlation_id:
-            log_event(logger, "confirmar_lote_pdf_started", {"count": len(solicitudes_list)}, correlation_id)
+            log_event(
+                logger,
+                "confirmar_lote_pdf_started",
+                {"count": len(solicitudes_list)},
+                correlation_id,
+            )
 
         for solicitud in solicitudes_list:
             validar_solicitud_dto_declarativo(solicitud)
 
-        resolucion_destino = self.resolver_destino_pdf(destino, overwrite=False, auto_rename=True)
+        resolucion_destino = self.resolver_destino_pdf(
+            destino, overwrite=False, auto_rename=True
+        )
         destino_resuelto = resolucion_destino.ruta_destino
         if resolucion_destino.colision_detectada and correlation_id:
             log_event(
@@ -605,13 +694,15 @@ class SolicitudUseCases:
                 "pdf_destino_colision_resuelta",
                 {
                     "reason_code": "PDF_DESTINO_COLISION_RESUELTA",
-                    "ruta_original": str(resolucion_destino.ruta_original),
-                    "ruta_final": str(destino_resuelto),
+                    "archivo": destino_resuelto.name,
+                    "carpeta": str(destino_resuelto.parent),
                 },
                 correlation_id,
             )
 
-        preflight = ConfirmacionPdfOperacion(fs=self._fs, generador_pdf=self._generador_pdf).ejecutar(
+        preflight = ConfirmacionPdfOperacion(
+            fs=self._fs, generador_pdf=self._generador_pdf
+        ).ejecutar(
             RequestConfirmacionPdf(
                 solicitudes=solicitudes_list,
                 destino=destino_resuelto,
@@ -636,18 +727,26 @@ class SolicitudUseCases:
             log_event(
                 logger,
                 "confirmar_lote_pdf_succeeded",
-                {"creadas": len(creadas), "pendientes": len(pendientes), "errores": len(errores)},
+                {
+                    "creadas": len(creadas),
+                    "pendientes": len(pendientes),
+                    "errores": len(errores),
+                },
                 correlation_id,
             )
         return creadas, pendientes, errores, pdf_path
 
-    def _confirmar_solicitudes_lote(self, solicitudes: list[SolicitudDTO], *, correlation_id: str | None) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]:
+    def _confirmar_solicitudes_lote(
+        self, solicitudes: list[SolicitudDTO], *, correlation_id: str | None
+    ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]:
         creadas: list[SolicitudDTO] = []
         pendientes: list[SolicitudDTO] = []
         errores: list[str] = []
         for solicitud in solicitudes:
             try:
-                creada = self._resolver_o_crear_solicitud(solicitud, correlation_id=correlation_id)
+                creada = self._resolver_o_crear_solicitud(
+                    solicitud, correlation_id=correlation_id
+                )
                 creadas.append(creada)
             except (ValidacionError, BusinessRuleError) as exc:
                 errores.append(str(exc))
@@ -658,12 +757,21 @@ class SolicitudUseCases:
                 incident_id = _generar_incident_id()
                 logger.exception("Error técnico creando solicitud")
                 if correlation_id:
-                    log_event(logger, "confirmar_lote_pdf_failed", {"error": "crear_solicitud", "incident_id": incident_id}, correlation_id)
-                errores.append(f"Se produjo un error técnico al guardar la solicitud. ID de incidente: {incident_id}")
+                    log_event(
+                        logger,
+                        "confirmar_lote_pdf_failed",
+                        {"error": "crear_solicitud", "incident_id": incident_id},
+                        correlation_id,
+                    )
+                errores.append(
+                    f"Se produjo un error técnico al guardar la solicitud. ID de incidente: {incident_id}"
+                )
                 pendientes.append(solicitud)
         return creadas, pendientes, errores
 
-    def _resolver_o_crear_solicitud(self, solicitud: SolicitudDTO, *, correlation_id: str | None) -> SolicitudDTO:
+    def _resolver_o_crear_solicitud(
+        self, solicitud: SolicitudDTO, *, correlation_id: str | None
+    ) -> SolicitudDTO:
         if solicitud.id is not None:
             existente = self._repo.get_by_id(solicitud.id)
             if existente is None:
@@ -672,17 +780,23 @@ class SolicitudUseCases:
         creada, _ = self.agregar_solicitud(solicitud, correlation_id=correlation_id)
         return creada
 
-    def _generar_pdf_confirmadas(self, creadas: list[SolicitudDTO], destino: Path, *, correlation_id: str | None) -> tuple[Path | None, list[SolicitudDTO]]:
+    def _generar_pdf_confirmadas(
+        self, creadas: list[SolicitudDTO], destino: Path, *, correlation_id: str | None
+    ) -> tuple[Path | None, list[SolicitudDTO]]:
         """Genera y persiste PDF de solicitudes confirmadas."""
         pdf_options = self._config_repo.get() if self._config_repo else None
         entrada = PdfConfirmadasEntrada(
             creadas=tuple(creadas),
             destino=destino,
-            persona=self._persona_repo.get_by_id(creadas[0].persona_id) if creadas else None,
+            persona=self._persona_repo.get_by_id(creadas[0].persona_id)
+            if creadas
+            else None,
             generador_configurado=self._generador_pdf is not None,
             intro_text=_pdf_intro_text(pdf_options),
             logo_path=pdf_options.pdf_logo_path if pdf_options else None,
-            include_hours_in_horario=(pdf_options.pdf_include_hours_in_horario if pdf_options else None),
+            include_hours_in_horario=(
+                pdf_options.pdf_include_hours_in_horario if pdf_options else None
+            ),
         )
         plan = plan_pdf_confirmadas(entrada)
         pdf_path, actualizadas = run_pdf_confirmadas_plan(
@@ -711,7 +825,12 @@ class SolicitudUseCases:
             raise BusinessRuleError("Modo solo lectura activado")
         solicitudes_list = list(solicitudes)
         if correlation_id:
-            log_event(logger, "confirmar_sin_pdf_started", {"count": len(solicitudes_list)}, correlation_id)
+            log_event(
+                logger,
+                "confirmar_sin_pdf_started",
+                {"count": len(solicitudes_list)},
+                correlation_id,
+            )
 
         plan = plan_confirmar_sin_pdf(solicitudes_list)
         creadas_confirmadas: list[SolicitudDTO] = []
@@ -720,7 +839,9 @@ class SolicitudUseCases:
 
         for action in plan:
             try:
-                creada = self._run_confirmar_sin_pdf_action(action, correlation_id=correlation_id)
+                creada = self._run_confirmar_sin_pdf_action(
+                    action, correlation_id=correlation_id
+                )
                 creadas_confirmadas.append(creada)
             except (ValidacionError, BusinessRuleError) as exc:
                 errores.append(str(exc))
@@ -730,7 +851,12 @@ class SolicitudUseCases:
             except InfraError as exc:  # pragma: no cover - fallback
                 logger.exception("Error técnico confirmando solicitud sin PDF")
                 if correlation_id:
-                    log_event(logger, "confirmar_sin_pdf_failed", {"error": str(exc)}, correlation_id)
+                    log_event(
+                        logger,
+                        "confirmar_sin_pdf_failed",
+                        {"error": str(exc)},
+                        correlation_id,
+                    )
                 errores.append("Se produjo un error técnico al confirmar la solicitud.")
                 pendientes_restantes.append(action.solicitud)
 
@@ -738,7 +864,11 @@ class SolicitudUseCases:
             log_event(
                 logger,
                 "confirmar_sin_pdf_succeeded",
-                {"creadas": len(creadas_confirmadas), "pendientes": len(pendientes_restantes), "errores": len(errores)},
+                {
+                    "creadas": len(creadas_confirmadas),
+                    "pendientes": len(pendientes_restantes),
+                    "errores": len(errores),
+                },
                 correlation_id,
             )
         return creadas_confirmadas, pendientes_restantes, errores
@@ -774,7 +904,9 @@ class SolicitudUseCases:
         destino: Path,
         correlation_id: str | None = None,
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:
-        return self.confirmar_lote_y_generar_pdf(solicitudes, destino, correlation_id=correlation_id)
+        return self.confirmar_lote_y_generar_pdf(
+            solicitudes, destino, correlation_id=correlation_id
+        )
 
     def confirmar_y_generar_pdf_por_filtro(
         self,
@@ -789,7 +921,9 @@ class SolicitudUseCases:
             seleccionadas = pendientes_lista
             modo = "todas"
         else:
-            seleccionadas = [sol for sol in pendientes_lista if sol.persona_id == filtro_delegada]
+            seleccionadas = [
+                sol for sol in pendientes_lista if sol.persona_id == filtro_delegada
+            ]
             modo = f"delegada:{filtro_delegada}"
         if not seleccionadas:
             return None, [], f"Sin pendientes para confirmar ({modo})."
@@ -813,14 +947,21 @@ class SolicitudUseCases:
     ) -> Path:
         solicitudes_list = list(solicitudes)
         if correlation_id:
-            log_event(logger, "generar_pdf_historico_started", {"count": len(solicitudes_list)}, correlation_id)
+            log_event(
+                logger,
+                "generar_pdf_historico_started",
+                {"count": len(solicitudes_list)},
+                correlation_id,
+            )
         if not solicitudes_list:
             raise BusinessRuleError("No hay solicitudes para generar el PDF.")
         persona = self._persona_repo.get_by_id(solicitudes_list[0].persona_id)
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
         pdf_options = self._config_repo.get() if self._config_repo else None
-        operacion = ExportacionPdfHistoricoOperacion(fs=self._fs, generador_pdf=self._generador_pdf)
+        operacion = ExportacionPdfHistoricoOperacion(
+            fs=self._fs, generador_pdf=self._generador_pdf
+        )
         started_at = time.perf_counter()
         resultado = operacion.ejecutar(
             RequestExportacionPdfHistorico(
@@ -836,10 +977,17 @@ class SolicitudUseCases:
         if resultado.conflictos.no_ejecutable:
             raise BusinessRuleError("; ".join(resultado.conflictos.conflictos))
         metrics_registry.incrementar("pdfs_generados")
-        metrics_registry.registrar_tiempo("latency.generar_pdf_ms", (time.perf_counter() - started_at) * 1000)
+        metrics_registry.registrar_tiempo(
+            "latency.generar_pdf_ms", (time.perf_counter() - started_at) * 1000
+        )
         pdf_path = Path(resultado.artefactos_generados[0])
         if correlation_id:
-            log_event(logger, "generar_pdf_historico_succeeded", {"path": str(pdf_path)}, correlation_id)
+            log_event(
+                logger,
+                "generar_pdf_historico_succeeded",
+                {"archivo": pdf_path.name, "carpeta": str(pdf_path.parent)},
+                correlation_id,
+            )
         return pdf_path
 
     def exportar_historico_pdf(
@@ -850,7 +998,12 @@ class SolicitudUseCases:
         correlation_id: str | None = None,
     ) -> Path:
         if correlation_id:
-            log_event(logger, "exportar_historico_pdf_started", {"persona_id": persona_id}, correlation_id)
+            log_event(
+                logger,
+                "exportar_historico_pdf_started",
+                {"persona_id": persona_id},
+                correlation_id,
+            )
         persona = self._persona_repo.get_by_id(persona_id)
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
@@ -863,7 +1016,9 @@ class SolicitudUseCases:
         if not solicitudes_list:
             raise BusinessRuleError("No hay solicitudes para generar el PDF.")
         pdf_options = self._config_repo.get() if self._config_repo else None
-        operacion = ExportacionPdfHistoricoOperacion(fs=self._fs, generador_pdf=self._generador_pdf)
+        operacion = ExportacionPdfHistoricoOperacion(
+            fs=self._fs, generador_pdf=self._generador_pdf
+        )
         started_at = time.perf_counter()
         resultado = operacion.ejecutar(
             RequestExportacionPdfHistorico(
@@ -879,10 +1034,17 @@ class SolicitudUseCases:
         if resultado.conflictos.no_ejecutable:
             raise BusinessRuleError("; ".join(resultado.conflictos.conflictos))
         metrics_registry.incrementar("pdfs_generados")
-        metrics_registry.registrar_tiempo("latency.generar_pdf_ms", (time.perf_counter() - started_at) * 1000)
+        metrics_registry.registrar_tiempo(
+            "latency.generar_pdf_ms", (time.perf_counter() - started_at) * 1000
+        )
         pdf_path = Path(resultado.artefactos_generados[0])
         if correlation_id:
-            log_event(logger, "exportar_historico_pdf_succeeded", {"path": str(pdf_path)}, correlation_id)
+            log_event(
+                logger,
+                "exportar_historico_pdf_succeeded",
+                {"archivo": pdf_path.name, "carpeta": str(pdf_path.parent)},
+                correlation_id,
+            )
         return pdf_path
 
     def sugerir_nombre_pdf_historico(self, filtro: PeriodoFiltro) -> str:
@@ -895,7 +1057,9 @@ class SolicitudUseCases:
             _sumar_consumo_solicitudes(
                 [
                     solicitud.horas_solicitadas_min
-                    for solicitud in self._repo.list_by_persona_and_period(persona.id or 0, filtro.year, mes)
+                    for solicitud in self._repo.list_by_persona_and_period(
+                        persona.id or 0, filtro.year, mes
+                    )
                 ]
             )
             for persona in personas
@@ -918,19 +1082,30 @@ class SolicitudUseCases:
         solicitudes_ano = self._repo.list_by_persona_and_period(
             persona_id, filtro.year, None
         )
-        consumidas_periodo = _sumar_consumo_solicitudes([s.horas_solicitadas_min for s in solicitudes_periodo])
-        consumidas_anual = _sumar_consumo_solicitudes([s.horas_solicitadas_min for s in solicitudes_ano])
+        consumidas_periodo = _sumar_consumo_solicitudes(
+            [s.horas_solicitadas_min for s in solicitudes_periodo]
+        )
+        consumidas_anual = _sumar_consumo_solicitudes(
+            [s.horas_solicitadas_min for s in solicitudes_ano]
+        )
 
         personas = list(self._persona_repo.list_all())
         consumo_anual_por_persona = [
             _sumar_consumo_solicitudes(
-                [s.horas_solicitadas_min for s in self._repo.list_by_persona_and_period(p.id or 0, filtro.year, None)]
+                [
+                    s.horas_solicitadas_min
+                    for s in self._repo.list_by_persona_and_period(
+                        p.id or 0, filtro.year, None
+                    )
+                ]
             )
             for p in personas
         ]
-        total_bolsa_anual, total_consumidas_anual = _acumular_consumo_anual_por_personas(
-            personas=personas,
-            consumo_anual_por_persona_min=consumo_anual_por_persona,
+        total_bolsa_anual, total_consumidas_anual = (
+            _acumular_consumo_anual_por_personas(
+                personas=personas,
+                consumo_anual_por_persona_min=consumo_anual_por_persona,
+            )
         )
 
         config = self._config_repo.get() if self._config_repo else None

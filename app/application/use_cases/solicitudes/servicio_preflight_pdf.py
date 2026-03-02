@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,6 +10,17 @@ from app.application.ports.sistema_archivos_puerto import SistemaArchivosPuerto
 
 _REEMPLAZO_NOMBRE = re.compile(r'[<>:"/\\|?*\x00-\x1F]+')
 _REEMPLAZO_ESPACIOS = re.compile(r"\s+")
+_REEMPLAZO_PUNTO_ESPACIO_FINAL = re.compile(r"[. ]+$")
+_NOMBRES_RESERVADOS_WINDOWS = {
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -30,9 +42,11 @@ class ServicioPreflightPdf:
         self,
         fs: SistemaArchivosPuerto,
         generador_pdf: GeneradorPdfPuerto | None,
+        base_dir_permitido: Path | None = None,
     ) -> None:
         self._fs = fs
         self._generador_pdf = generador_pdf
+        self._base_dir_permitido = _resolver_base_dir_permitido(base_dir_permitido)
 
     def construir_nombre_pdf(self, entrada: EntradaNombrePdf) -> str:
         if self._generador_pdf is None:
@@ -45,11 +59,13 @@ class ServicioPreflightPdf:
 
     def construir_ruta_destino(self, entrada: EntradaNombrePdf, carpeta: str) -> str:
         nombre_pdf = self.construir_nombre_pdf(entrada)
-        return _normalizar_ruta(Path(carpeta).expanduser() / nombre_pdf)
+        destino = Path(carpeta).expanduser() / nombre_pdf
+        return self._normalizar_y_validar_destino(destino)
 
     def validar_colision(self, ruta: str) -> ResultadoPreflightPdf:
-        destino = _normalizar_ruta(Path(ruta).expanduser())
+        destino = self._normalizar_y_validar_destino(Path(ruta).expanduser())
         if not self._existe_ruta(destino):
+            self._log_destino_seguro(Path(destino), "pdf_preflight_destino_disponible")
             return ResultadoPreflightPdf(
                 ruta_destino=destino,
                 colision=False,
@@ -57,6 +73,7 @@ class ServicioPreflightPdf:
                 motivos=(),
             )
         sugerida = self.sugerir_ruta_alternativa(destino)
+        self._log_destino_seguro(Path(destino), "pdf_preflight_destino_colision")
         return ResultadoPreflightPdf(
             ruta_destino=destino,
             colision=True,
@@ -65,7 +82,7 @@ class ServicioPreflightPdf:
         )
 
     def sugerir_ruta_alternativa(self, ruta: str, *, limite: int = 9_999) -> str | None:
-        destino = Path(_normalizar_ruta(Path(ruta)))
+        destino = Path(self._normalizar_y_validar_destino(Path(ruta)))
         stem = destino.stem
         suffix = destino.suffix or ".pdf"
         for indice in range(1, limite + 1):
@@ -82,6 +99,22 @@ class ServicioPreflightPdf:
             return bool(existe_ruta(path))
         return bool(self._fs.existe(path))
 
+    def _normalizar_y_validar_destino(self, ruta: Path) -> str:
+        destino = Path(_normalizar_ruta(ruta))
+        _validar_destino_bajo_base(destino, self._base_dir_permitido)
+        return str(destino)
+
+    def _log_destino_seguro(self, destino: Path, evento: str) -> None:
+        logger.info(
+            evento,
+            extra={
+                "extra": {
+                    "archivo": destino.name,
+                    "carpeta": str(destino.parent),
+                }
+            },
+        )
+
 
 def _normalizar_ruta(ruta: Path) -> str:
     return str(ruta.resolve(strict=False))
@@ -90,8 +123,34 @@ def _normalizar_ruta(ruta: Path) -> str:
 def _normalizar_nombre_pdf(nombre: str) -> str:
     limpio = _REEMPLAZO_NOMBRE.sub("_", nombre.strip())
     compacto = _REEMPLAZO_ESPACIOS.sub("_", limpio)
+    compacto = _REEMPLAZO_PUNTO_ESPACIO_FINAL.sub("", compacto)
+    compacto = _normalizar_nombre_reservado_windows(compacto)
     if not compacto:
         return "solicitudes.pdf"
     if not compacto.lower().endswith(".pdf"):
         return f"{compacto}.pdf"
     return compacto
+
+
+def _normalizar_nombre_reservado_windows(nombre: str) -> str:
+    stem = Path(nombre).stem.upper()
+    if stem in _NOMBRES_RESERVADOS_WINDOWS:
+        return f"{nombre}_archivo"
+    return nombre
+
+
+def _resolver_base_dir_permitido(base_dir_permitido: Path | None) -> Path | None:
+    if base_dir_permitido is None:
+        return None
+    return base_dir_permitido.expanduser().resolve(strict=False)
+
+
+def _validar_destino_bajo_base(destino: Path, base_dir_permitido: Path | None) -> None:
+    if base_dir_permitido is None:
+        return
+    try:
+        destino.relative_to(base_dir_permitido)
+    except ValueError as exc:
+        raise ValueError(
+            "El destino PDF debe estar dentro del directorio permitido configurado."
+        ) from exc

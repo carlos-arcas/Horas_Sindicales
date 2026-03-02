@@ -27,7 +27,9 @@ class FakeGeneradorPdf:
 
 
 def test_validar_colision_ok_sin_existencia(tmp_path: Path) -> None:
-    servicio = ServicioPreflightPdf(fs=FakeSistemaArchivos(), generador_pdf=FakeGeneradorPdf())
+    servicio = ServicioPreflightPdf(
+        fs=FakeSistemaArchivos(), generador_pdf=FakeGeneradorPdf()
+    )
 
     destino = tmp_path / "ok.pdf"
     resultado = servicio.validar_colision(str(destino))
@@ -47,7 +49,9 @@ def test_validar_colision_detecta_existente_y_motivo_con_ruta(tmp_path: Path) ->
     resultado = servicio.validar_colision(str(destino))
 
     assert resultado.colision is True
-    assert resultado.motivos == (f"Colisión de ruta destino: {destino.resolve(strict=False)}",)
+    assert resultado.motivos == (
+        f"Colisión de ruta destino: {destino.resolve(strict=False)}",
+    )
 
 
 def test_construir_ruta_destino_normaliza_caracteres_raros() -> None:
@@ -56,7 +60,9 @@ def test_construir_ruta_destino_normaliza_caracteres_raros() -> None:
             _ = (nombre, fechas)
             return ' Solicitud: A/B * "?.PDF '
 
-    servicio = ServicioPreflightPdf(fs=FakeSistemaArchivos(), generador_pdf=FakeGeneradorRaro())
+    servicio = ServicioPreflightPdf(
+        fs=FakeSistemaArchivos(), generador_pdf=FakeGeneradorRaro()
+    )
 
     ruta = servicio.construir_ruta_destino(
         EntradaNombrePdf(nombre_persona="Ana", fechas=("2026-01-01",)),
@@ -73,7 +79,9 @@ def test_sugerir_ruta_alternativa_propone_siguiente_disponible(tmp_path: Path) -
         str((tmp_path / "solicitud(1).pdf").resolve(strict=False)),
         str((tmp_path / "solicitud(2).pdf").resolve(strict=False)),
     }
-    servicio = ServicioPreflightPdf(fs=FakeSistemaArchivos(existentes), generador_pdf=FakeGeneradorPdf())
+    servicio = ServicioPreflightPdf(
+        fs=FakeSistemaArchivos(existentes), generador_pdf=FakeGeneradorPdf()
+    )
 
     sugerida = servicio.sugerir_ruta_alternativa(str(destino))
 
@@ -93,8 +101,46 @@ def test_use_case_resuelve_colision_con_renombrado_automatico(tmp_path: Path) ->
         fs=FakeSistemaArchivos(existentes),
     )
 
-    resolucion = use_case.resolver_destino_pdf(destino, overwrite=False, auto_rename=True)
+    resolucion = use_case.resolver_destino_pdf(
+        destino, overwrite=False, auto_rename=True
+    )
 
     assert resolucion.colision_detectada is True
     assert str(resolucion.ruta_original).endswith("colision.pdf")
     assert str(resolucion.ruta_destino).endswith("colision (2).pdf")
+
+
+def test_construir_ruta_destino_rechaza_fuera_de_base_permitida(tmp_path: Path) -> None:
+    base = tmp_path / "permitido"
+    servicio = ServicioPreflightPdf(
+        fs=FakeSistemaArchivos(),
+        generador_pdf=FakeGeneradorPdf(),
+        base_dir_permitido=base,
+    )
+
+    try:
+        servicio.construir_ruta_destino(
+            EntradaNombrePdf(nombre_persona="Ana", fechas=("2026-01-01",)),
+            str(tmp_path / "otro"),
+        )
+    except ValueError as exc:
+        assert "directorio permitido" in str(exc)
+    else:
+        raise AssertionError("Se esperaba ValueError por ruta fuera de base permitida")
+
+
+def test_construir_nombre_pdf_corrige_nombre_reservado_windows() -> None:
+    class FakeGeneradorReservado:
+        def construir_nombre_archivo(self, nombre: str, fechas: list[str]) -> str:
+            _ = (nombre, fechas)
+            return "CON.pdf"
+
+    servicio = ServicioPreflightPdf(
+        fs=FakeSistemaArchivos(), generador_pdf=FakeGeneradorReservado()
+    )
+
+    nombre = servicio.construir_nombre_pdf(
+        EntradaNombrePdf(nombre_persona="Ana", fechas=("2026-01-01",))
+    )
+
+    assert nombre == "CON.pdf_archivo.pdf"

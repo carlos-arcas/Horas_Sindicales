@@ -43,3 +43,7 @@
   `build_container()` deja de importar `QSettings` en import-time y resuelve el adaptador en runtime para evitar fallos en colección de tests UI en CI sin backend Qt completo.  
   Si `infraestructura.repositorio_preferencias_qsettings` no está disponible, se registra `RepositorioPreferenciasIni` (sin PySide6) y se emite WARNING estructurado para trazabilidad operativa.  
   La aplicación sigue dependiendo del puerto `IRepositorioPreferencias`; las implementaciones concretas permanecen en infraestructura, preservando inversión de dependencias y compatibilidad Windows.
+
+- **2026-03-02 — Hardening de rutas PDF (base permitida + sanitización Windows) — Vigente**  
+  Se valida en preflight que la ruta final de exportación PDF quede dentro de un `base_dir` permitido configurable (inyectado en el caso de uso), mitigando path traversal/salidas fuera de carpeta autorizada.  
+  Además, se endurece la normalización de nombres para compatibilidad Windows (caracteres inválidos, sufijos con punto/espacio y nombres reservados) y se ajusta logging para registrar `archivo` + `carpeta` en lugar de rutas completas.
