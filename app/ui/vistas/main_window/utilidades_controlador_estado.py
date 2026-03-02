@@ -103,7 +103,7 @@ def update_conflicts_reminder(window: Any, logger_obj: logging.Logger) -> None:
 
 def configure_time_placeholders(window: Any) -> None:
     handlers_layout.configure_time_placeholders(window)
-    placeholder_hora = copy_text("ui.placeholder_hora_hhmm")
+    placeholder_hora = _resolver_placeholder_hora(window)
     for input_name in ("desde_input", "hasta_input"):
         input_widget = getattr(window, input_name, None)
         if input_widget is None:
@@ -113,6 +113,15 @@ def configure_time_placeholders(window: Any) -> None:
             line_edit.setPlaceholderText(placeholder_hora)
         elif hasattr(input_widget, "setPlaceholderText"):
             input_widget.setPlaceholderText(placeholder_hora)
+
+
+def _resolver_placeholder_hora(window: Any) -> str:
+    i18n = getattr(window, "_i18n", None)
+    traductor = getattr(i18n, "t", None)
+    if callable(traductor):
+        texto = traductor("ui.placeholder_hora_hhmm", fallback="")
+        return texto if isinstance(texto, str) else ""
+    return ""
 
 
 def _size_hint_height(widget: object) -> int | None:
