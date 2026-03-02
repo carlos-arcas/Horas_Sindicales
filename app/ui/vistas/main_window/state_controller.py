@@ -122,7 +122,11 @@ from app.ui.vistas.main_window.importaciones import (
     validacion_preventiva,
 )  # noqa: F401
 
-from . import data_refresh, handlers_layout, layout_builder, wiring
+from . import data_refresh, layout_builder, wiring
+from .handlers_confirmacion import HandlersConfirmacion
+from .handlers_formulario import HandlersFormulario
+from .handlers_historico import HandlersHistorico
+from .handlers_layout import HandlersLayout
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
 from app.ui.qt_hilos import assert_hilo_ui_o_log
@@ -175,7 +179,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         obtener_preferencia_pantalla_completa: ObtenerPreferenciaPantallaCompleta | None = None,
     ) -> None:
         super().__init__()
-        assert_hilo_ui_o_log("MainWindow.__init__", logger)
+        assert_hilo_ui_o_log(__name__, logger)
         self._persona_use_cases = persona_use_cases
         self._solicitud_use_cases = solicitud_use_cases
         self._grupo_use_cases = grupo_use_cases
@@ -247,6 +251,11 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._sync_controller = SyncController(self)
         self._pdf_controller = PdfController(self._solicitud_use_cases)
         self._pdf_preview_dialog_class = PdfPreviewDialog
+        self._confirmar_action = on_confirmar
+        self._handlers_formulario = HandlersFormulario(self)
+        self._handlers_historico = HandlersHistorico(self)
+        self._handlers_layout = HandlersLayout(self)
+        self._handlers_confirmacion = HandlersConfirmacion(self)
         self._historico_detalle_dialog_class = HistoricoDetalleDialog
         self._optional_confirm_dialog_class = OptionalConfirmDialog
         self.setWindowTitle(copy_text("ui.sync.window_title"))
@@ -330,28 +339,13 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         update_action_state(self)
 
     def _update_solicitud_preview(self) -> None:
-        self._update_action_state()
-        if hasattr(self, "_schedule_preventive_validation"):
-            self._schedule_preventive_validation()
+        self._handlers_formulario.update_solicitud_preview()
 
     def _on_completo_changed(self, checked: bool) -> None:
-        _ = checked
-        self._update_solicitud_preview()
+        self._handlers_formulario.on_completo_changed(checked)
 
     def _on_add_pendiente(self) -> None:
-        if hasattr(acciones_pendientes, "on_add_pendiente"):
-            acciones_pendientes.on_add_pendiente(self)
-            return
-        for nombre in ("_on_agregar", "on_confirmar"):
-            handler = getattr(self, nombre, None)
-            if callable(handler):
-                handler()
-                return
-        if hasattr(acciones_pendientes, "on_agregar"):
-            acciones_pendientes.on_agregar(self)
-            return
-        if getattr(self, "agregar_button", None) is not None and self.agregar_button.isEnabled():
-            self.agregar_button.click()
+        self._handlers_formulario.on_add_pendiente()
 
     def _validate_required_widgets(self) -> None:
         required_widgets = (
@@ -454,11 +448,11 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         layout_builder.build_status(self)
 
     def _configure_time_placeholders(self) -> None:
-        handlers_layout.configure_time_placeholders(self)
+        self._handlers_layout.configure_time_placeholders()
 
     def _normalize_input_heights(self) -> None:
         try:
-            handlers_layout.normalize_input_heights(self)
+            self._handlers_layout.normalize_input_heights()
         except Exception as exc:
             log_operational_error(
                 logger,
@@ -469,7 +463,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _update_responsive_columns(self) -> None:
         try:
-            handlers_layout.update_responsive_columns(self)
+            self._handlers_layout.update_responsive_columns()
         except Exception as exc:
             log_operational_error(
                 logger,
@@ -480,7 +474,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _configure_operativa_focus_order(self) -> None:
         try:
-            handlers_layout.configure_operativa_focus_order(self)
+            self._handlers_layout.configure_operativa_focus_order()
         except Exception as exc:
             log_operational_error(
                 logger,
@@ -490,7 +484,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
             )
 
     def _status_to_label(self, status: str) -> str:
-        return handlers_layout.status_to_label(status)
+        return self._handlers_layout.status_to_label(status)
 
     def _configure_solicitudes_table(self, table: QTableView) -> None:
         model = table.model()
@@ -534,10 +528,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         return acciones_personas.on_persona_changed(self)
 
     def _on_fecha_changed(self, nueva_fecha) -> None:
-        _ = nueva_fecha
-        update_preview = getattr(self, "_update_solicitud_preview", None)
-        if callable(update_preview):
-            update_preview()
+        self._handlers_formulario.on_fecha_changed(nueva_fecha)
 
     def _on_add_persona(self) -> None:
         return acciones_personas.on_add_persona(self)
@@ -564,12 +555,10 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         return state_historico.aplicar_filtro_texto_historico(self)
 
     def _apply_historico_default_range(self) -> None:
-        """Wrapper: aplica el rango por defecto del histórico."""
-        aplicar_ultimo_rango = getattr(self, "_apply_historico_last_30_days", None)
-        if callable(aplicar_ultimo_rango):
-            aplicar_ultimo_rango()
-            return
-        state_historico.aplicar_rango_por_defecto_historico(self)
+        self._handlers_historico.apply_historico_default_range()
+
+    def _on_historico_periodo_mode_changed(self, checked: bool | None = None) -> None:
+        self._handlers_historico.on_historico_periodo_mode_changed(checked)
 
     def _historico_period_filter_state(self) -> tuple[str, int | None, int | None]:
         return state_historico.estado_filtro_periodo_historico(self)
@@ -652,36 +641,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _on_confirmar(self, *args, **kwargs) -> None:
         _ = (args, kwargs)
-        try:
-            persona_actual = self._current_persona()
-            if persona_actual is None:
-                self.toast.warning(
-                    copy_text("ui.sync.delegada_no_seleccionada"),
-                    title=copy_text("ui.validacion.validacion"),
-                )
-                return
-            confirmar_action = globals().get("on_confirmar")
-            if not callable(confirmar_action):
-                mensaje = copy_text("ui.errores.no_se_pudo_completar_operacion")
-                detalle = copy_text("ui.errores.reintenta_contacta_soporte")
-                toast_error(self.toast, f"{mensaje}. {detalle}")
-                log_operational_error(
-                    logger,
-                    "UI_CONFIRMAR_HANDLER_NO_DISPONIBLE",
-                    extra={"handler": "on_confirmar", "contexto": "mainwindow._on_confirmar"},
-                )
-                return
-            confirmar_action(self)
-        except Exception as exc:
-            mensaje = copy_text("ui.errores.no_se_pudo_completar_operacion")
-            detalle = copy_text("ui.errores.reintenta_contacta_soporte")
-            toast_error(self.toast, f"{mensaje}. {detalle}")
-            log_operational_error(
-                logger,
-                "UI_CONFIRMAR_HANDLER_FALLO",
-                exc=exc,
-                extra={"handler": "on_confirmar", "contexto": "mainwindow._on_confirmar"},
-            )
+        self._handlers_confirmacion.on_confirmar()
 
     def _render_preventive_validation(self) -> None:
         return validacion_preventiva._render_preventive_validation(self)

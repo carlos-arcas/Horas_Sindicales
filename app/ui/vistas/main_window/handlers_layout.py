@@ -11,6 +11,26 @@ from .ui_layout_helpers import update_responsive_columns as _update_responsive_c
 logger = logging.getLogger(__name__)
 
 
+class HandlersLayout:
+    def __init__(self, window: object) -> None:
+        self._window = window
+
+    def configure_time_placeholders(self) -> None:
+        configure_time_placeholders(self._window)
+
+    def configure_operativa_focus_order(self) -> None:
+        configure_operativa_focus_order(self._window)
+
+    def normalize_input_heights(self) -> None:
+        normalize_input_heights(self._window)
+
+    def update_responsive_columns(self) -> None:
+        update_responsive_columns(self._window)
+
+    def status_to_label(self, status: str) -> str:
+        return status_to_label(status)
+
+
 def configure_time_placeholders(window: object) -> None:
     """Configura formato y ayuda de hora sin asumir disponibilidad de widgets."""
     for input_name in ("desde_input", "hasta_input"):
