@@ -197,6 +197,9 @@ class SheetsClientPort(Protocol):
     def check_write_access(self, worksheet_name: str | None = None) -> None:
         ...
 
+    def get_service_account_email(self) -> str | None:
+        ...
+
 
 class SheetsRepositoryPort(Protocol):
     def ensure_schema(self, spreadsheet, schema: dict[str, list[str]]) -> list[str]:

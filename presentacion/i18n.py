@@ -54,8 +54,8 @@ CATALOGO: dict[str, dict[str, str]] = {
         "startup_timeout_message": "Arranque tardando más de lo normal",
         "startup_last_stage": "Última etapa: {etapa}",
         "startup_worker_no_terminal_signal": "El worker de arranque no emitió señal terminal. Etapa: {etapa}",
-        "sync_permission_blocked_message_with_email": "La sincronización está bloqueada por permisos.\nComparte el spreadsheet con {service_account_email} como Editor.",
-        "sync_permission_blocked_message_without_email": "La sincronización está bloqueada por permisos.\nComparte el spreadsheet con la cuenta de servicio como Editor.",
+        "sync_permission_blocked_message_with_email": "Permisos insuficientes en Google Sheets. Comparte la hoja con la cuenta de servicio: {service_account_email}",
+        "sync_permission_blocked_message_without_email": "Permisos insuficientes en Google Sheets. Comparte la hoja con la cuenta de servicio: <email no disponible>",
     },
     "en": {
         "splash_titulo": "Starting Horas Sindicales…",
@@ -107,8 +107,8 @@ CATALOGO: dict[str, dict[str, str]] = {
         "startup_timeout_message": "Startup is taking longer than expected",
         "startup_last_stage": "Last stage: {etapa}",
         "startup_worker_no_terminal_signal": "Startup worker did not emit a terminal signal. Stage: {etapa}",
-        "sync_permission_blocked_message_with_email": "Sync is blocked due to permissions.\nShare the spreadsheet with {service_account_email} as Editor.",
-        "sync_permission_blocked_message_without_email": "Sync is blocked due to permissions.\nShare the spreadsheet with the service account as Editor.",
+        "sync_permission_blocked_message_with_email": "Insufficient permissions in Google Sheets. Share the sheet with the service account: {service_account_email}",
+        "sync_permission_blocked_message_without_email": "Insufficient permissions in Google Sheets. Share the sheet with the service account: <email unavailable>",
     },
 }
 

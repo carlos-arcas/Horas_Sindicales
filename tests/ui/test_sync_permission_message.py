@@ -14,8 +14,8 @@ def test_build_sync_permission_message_with_email() -> None:
 def test_build_sync_permission_message_without_email() -> None:
     message = build_sync_permission_blocked_message(service_account_email=None)
 
-    assert "cuenta de servicio" in message
-    assert "Editor" in message
+    assert "<email no disponible>" in message
+    assert "Permisos insuficientes en Google Sheets" in message
 
 
 def test_sheets_permission_error_can_carry_service_account_email() -> None:
