@@ -28,7 +28,11 @@ class FakeSignal:
 
 class WindowWithHandler:
     def __init__(self) -> None:
-        self._on_click = lambda: None
+        self.invocaciones = 0
+        self._on_click = self._handler
+
+    def _handler(self) -> None:
+        self.invocaciones += 1
 
 
 class WindowWithoutHandler:
@@ -47,14 +51,16 @@ def test_conectar_signal_ok_conecta_handler(monkeypatch: pytest.MonkeyPatch) -> 
 
     conectar_signal(window, signal, "_on_click", contexto="builder:test")
 
-    assert signal.connected is window._on_click
+    assert callable(signal.connected)
+    signal.connected()
+    assert window.invocaciones == 1
 
 
 def test_conectar_signal_missing_handler_raises_runtime_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("WIRING_STRICT", "true")
     signal = FakeSignal()
 
-    with pytest.raises(RuntimeError, match=r"_on_click.*builder:test"):
+    with pytest.raises(RuntimeError, match=r"Archivo: app/ui/vistas/main_window/wiring_helpers.py"):
         conectar_signal(WindowWithoutHandler(), signal, "_on_click", contexto="builder:test")
 
 
@@ -62,5 +68,5 @@ def test_conectar_signal_non_callable_handler_raises_runtime_error(monkeypatch: 
     monkeypatch.setenv("WIRING_STRICT", "true")
     signal = FakeSignal()
 
-    with pytest.raises(RuntimeError, match=r"_on_click.*builder:test"):
+    with pytest.raises(RuntimeError, match=r"handler: _on_click"):
         conectar_signal(WindowWithNonCallable(), signal, "_on_click", contexto="builder:test")

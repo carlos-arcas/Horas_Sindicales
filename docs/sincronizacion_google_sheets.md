@@ -272,3 +272,18 @@ Implicaciones:
   3. Definir criterio de conflicto y dedupe (si aplica).
   4. Añadir tests de regresión para conflicto/dedupe/timestamps.
 
+
+---
+
+## 11) Nota técnica: manejo de `SheetsPermissionError` (403)
+
+- Se reforzó el enriquecimiento de contexto para errores 403 para incluir metadatos mínimos (`spreadsheet_id`, `worksheet` y `service_account_email` cuando está disponible).
+- Se añadió `construir_mensaje_permiso_sheets(error)` para generar una ayuda accionable estable (con `i18n_key` y parámetros) sin acoplar lógica de UI al dominio.
+- El logging operativo de permisos ahora registra `operation` real y `worksheet` como campos estructurados, preservando `correlation_id` para trazabilidad.
+
+### Verificación rápida
+
+1. Ejecutar tests de dominio e infraestructura de permisos:
+   - `pytest tests/domain/test_sheets_permission_error_context.py tests/domain/test_sheets_permission_error_enrichment.py tests/domain/test_sheets_permission_error_help.py tests/infrastructure/test_sheets_client_retry.py tests/infrastructure/test_sheets_client_rate_limit_flow.py`
+2. Ejecutar calidad completa del proyecto:
+   - `ruff check . && pytest && python scripts/quality_gate.py`

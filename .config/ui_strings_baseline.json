@@ -357,6 +357,7 @@
     "app/ui/vistas/main_window/state_bindings.py:11:positional argument",
     "app/ui/vistas/main_window/state_bindings.py:12:required positional argument",
     "app/ui/vistas/main_window/state_bindings.py:13:got multiple values for argument",
+    "app/ui/vistas/main_window/state_controller.py:178:MainWindow.__init__",
     "app/ui/vistas/main_window/state_controller.py:179:MainWindow.__init__",
     "app/ui/vistas/main_window/state_controller.py:465:MainWindow._normalize_input_heights",
     "app/ui/vistas/main_window/state_controller.py:476:MainWindow._update_responsive_columns",

@@ -61,10 +61,11 @@ def test_with_rate_limit_retry_error_permisos_mapea_y_registra(monkeypatch: pyte
     def _operacion() -> None:
         raise gspread.exceptions.APIError(_Resp403())
 
-    def _fake_log(error: SheetsPermissionError, *, spreadsheet_id: str | None = None, worksheet_name: str | None = None) -> None:
+    def _fake_log(error: SheetsPermissionError, *, operation: str, spreadsheet_id: str | None = None, worksheet_name: str | None = None) -> None:
         capturado["mensaje"] = str(error)
         capturado["spreadsheet_id"] = spreadsheet_id
         capturado["worksheet_name"] = worksheet_name
+        capturado["operation"] = operation
 
     monkeypatch.setattr(cliente, "_log_permission_error", _fake_log)
 
@@ -73,3 +74,4 @@ def test_with_rate_limit_retry_error_permisos_mapea_y_registra(monkeypatch: pyte
 
     assert capturado["spreadsheet_id"] == "spreadsheet-x"
     assert capturado["worksheet_name"] == "Resumen"
+    assert capturado["operation"] == "worksheet.get_all_values(Resumen)"
