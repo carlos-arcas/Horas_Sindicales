@@ -49,6 +49,10 @@
   Si `infraestructura.repositorio_preferencias_qsettings` no está disponible, se registra `RepositorioPreferenciasIni` (sin PySide6) y se emite WARNING estructurado para trazabilidad operativa.  
   La aplicación sigue dependiendo del puerto `IRepositorioPreferencias`; las implementaciones concretas permanecen en infraestructura, preservando inversión de dependencias y compatibilidad Windows.
 
+- **2026-03-02 — Smoke UI contra warning de QObject en hilo cruzado — Vigente**  
+  Se integra un smoke de UI en `tests/ui/` que ejecuta `scripts/ui_main_window_smoke.py` y falla si aparece el warning de Qt `Cannot create children for a parent that is in a different thread.`.  
+  Verificación: `pytest -q tests/ui/test_ui_thread_parent_warning_smoke.py` en entorno con PySide6/Qt disponible.
+
 - **2026-03-02 — Normalización de datetimes ISO en reportes de sincronización — Vigente**  
   Se extrae `app/ui/tiempo/parseo_iso_datetime.py` para centralizar `parsear_iso_datetime`, `normalizar_zona_horaria` y `duracion_ms_desde_iso`, evitando restas entre `datetime` naive/aware en `build_simulation_report` y demás constructores de reportes.  
   Política aplicada: si el valor ISO llega naive se asume zona horaria local y luego se normaliza explícitamente a la zona objetivo del cálculo.
