@@ -38,7 +38,7 @@ def ejecutar_callback_seguro(
         return True
     except Exception:
         logger.exception(
-            "toast_action_callback_failed",
+            "TOAST_ACTION_FAILED",
             extra={
                 "contexto": contexto_seguro,
                 "correlation_id": correlation_id,
