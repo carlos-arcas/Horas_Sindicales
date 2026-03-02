@@ -197,20 +197,35 @@ def configure_logging(
 
 
 def write_crash_log(exc_type: type[BaseException], exc: BaseException, tb: Any, log_dir: Path) -> Path:
-    log_dir.mkdir(parents=True, exist_ok=True)
-    logger = logging.getLogger("app.crash")
-    logger.critical(
-        "Unhandled exception",
-        exc_info=(exc_type, exc, tb),
-        extra={
-            "extra": {
-                "python": sys.version,
-                "executable": sys.executable,
-                "cwd": str(Path.cwd()),
-            }
-        },
-    )
-    return log_dir / CRASH_LOG_NAME
+    crash_path = log_dir / CRASH_LOG_NAME
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        logger = logging.getLogger("app.crash")
+        logger.critical(
+            "Unhandled exception",
+            exc_info=(exc_type, exc, tb),
+            extra={
+                "extra": {
+                    "python": sys.version,
+                    "executable": sys.executable,
+                    "cwd": str(Path.cwd()),
+                }
+            },
+        )
+    except Exception as crash_error:  # noqa: BLE001
+        payload = "".join(
+            [
+                "[write_crash_log_fallback] failed to persist crash log\n",
+                f"reason={crash_error!r}\n",
+                f"original_exc={exc_type.__name__}: {exc}\n",
+            ]
+        )
+        try:
+            sys.stderr.write(payload)
+            sys.stderr.flush()
+        except Exception:
+            pass
+    return crash_path
 
 
 def install_exception_hook(log_dir: Path) -> None:
