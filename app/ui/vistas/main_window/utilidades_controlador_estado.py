@@ -85,8 +85,9 @@ def warmup_sync_client(window: Any, logger_obj: logging.Logger) -> None:
 
 def update_conflicts_reminder(window: Any, logger_obj: logging.Logger) -> None:
     try:
-        if not hasattr(window, "conflicts_reminder_label") or not hasattr(window, "_i18n"):
+        if not hasattr(window, "conflicts_reminder_label"):
             return
+        _ = window._i18n
         reminder_widget = window.conflicts_reminder_label
         if reminder_widget is None:
             return
@@ -116,10 +117,16 @@ def configure_time_placeholders(window: Any) -> None:
 
 
 def _resolver_placeholder_hora(window: Any) -> str:
-    i18n = getattr(window, "_i18n", None)
-    traductor = getattr(i18n, "t", None)
+    try:
+        i18n = window._i18n
+        traductor = i18n.t
+    except AttributeError:
+        return ""
     if callable(traductor):
-        texto = traductor("ui.placeholder_hora_hhmm", fallback="")
+        try:
+            texto = traductor("ui.placeholder_hora_hhmm", fallback="")
+        except Exception:
+            return ""
         return texto if isinstance(texto, str) else ""
     return ""
 
