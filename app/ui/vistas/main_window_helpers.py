@@ -266,6 +266,13 @@ def handle_historico_render_mismatch(
     return row_count
 
 
+def _redact_search_text(search: str) -> dict[str, object]:
+    texto = search.strip()
+    if not texto:
+        return {"has_search": False, "len": 0, "preview": ""}
+    return {"has_search": True, "len": len(texto), "preview": texto[:3] + "***"}
+
+
 def build_historico_filters_payload(*, delegada_id, estado, desde: str, hasta: str, search: str, force: bool, tab_index: int | None) -> dict[str, object]:
     """Helper pequeño para centralizar el snapshot de filtros usado en logs."""
     return {
@@ -273,7 +280,7 @@ def build_historico_filters_payload(*, delegada_id, estado, desde: str, hasta: s
         "estado": estado,
         "desde": desde,
         "hasta": hasta,
-        "search": search,
+        "search": _redact_search_text(search),
         "force": force,
         "tab_index": tab_index,
     }

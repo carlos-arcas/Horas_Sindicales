@@ -55,6 +55,7 @@ _COPY: dict[str, str] = {
     "ui.solicitudes.saldos": "Saldos",
     "ui.solicitudes.ir_existente": "Ir a la existente",
     "ui.solicitudes.formato_hora": "HH:mm",
+    "ui.solicitudes.tooltip_formato_hora": "Formato 24h (HH:mm)",
     "ui.solicitudes.completo": "Completo",
     "ui.solicitudes.saldo_reservado": "Saldo reservado",
     "ui.solicitudes.estado": "Estado",
@@ -171,6 +172,8 @@ _COPY: dict[str, str] = {
     "ui.sync.window_title": "Horas Sindicales",
     "ui.sync.qt_no_disponible": "UI no disponible: falta instalación de Qt/PySide6",
     "ui.sync.mainwindow_incompleta": "MainWindow mal inicializada. Falta widget requerido:",
+    "ui.wiring.slot_error": "Se produjo un error interno al procesar la acción. Reintenta.",
+    "ui.wiring.handler_missing_detalle": "Handler de Qt no disponible o no invocable. Archivo: app/ui/vistas/main_window/wiring_helpers.py; contexto: {contexto}; handler: {handler_name}. Acción: implementa el método en la ventana o corrige handler_name en el builder.",
     # UI conflictos
     "ui.conflictos.accion_recomendada_label": "Acción recomendada:",
     "ui.conflictos.solicitud_label": "Solicitud:",

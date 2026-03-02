@@ -61,7 +61,7 @@ def apply_historico_last_30_days(window: Any) -> None:
     window._apply_historico_filters()
 
 
-def on_historico_periodo_mode_changed(window: Any) -> None:
+def on_historico_periodo_mode_changed(window: Any, *_args: Any) -> None:
     anual_activo = window.historico_periodo_anual_radio.isChecked()
     mes_activo = window.historico_periodo_mes_radio.isChecked()
     rango_activo = window.historico_periodo_rango_radio.isChecked()

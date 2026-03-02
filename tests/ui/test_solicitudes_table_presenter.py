@@ -23,9 +23,9 @@ pytestmark = pytest.mark.headless_safe
         (4, {"horas": 1.5}, "01:30"),
         (4, {"horas": -2.0}, "-02:00"),
         (4, {"horas": 1 / 60}, "00:01"),
-        (5, {"notas": None}, ""),
-        (5, {"notas": ""}, ""),
-        (5, {"notas": "Observación"}, "Observación"),
+        (5, {"notas": None}, "—"),
+        (5, {"notas": ""}, "—"),
+        (5, {"notas": "Observación"}, "🔒 11"),
     ],
 )
 def test_build_display_columnas_base(column: int, kwargs: dict, expected: str) -> None:
@@ -77,9 +77,9 @@ def test_build_display_estado_precedencia(generated: bool, is_deleted: bool, exp
 @pytest.mark.parametrize(
     ("show_estado", "show_delegada", "column", "persona_nombre", "expected"),
     [
-        (False, True, 6, None, "(sin delegada)"),
+        (False, True, 6, None, "—"),
         (False, True, 6, "Ana", "Ana"),
-        (True, True, 7, None, "(sin delegada)"),
+        (True, True, 7, None, "—"),
         (True, True, 7, "Bea", "Bea"),
         (True, False, 7, "Carla", None),
     ],
