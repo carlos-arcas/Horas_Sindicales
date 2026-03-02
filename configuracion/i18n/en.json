@@ -1,1 +1,21 @@
-{}
+{
+  "ui.sync.panel.confirmar_inicio_sync": "Do you want to start synchronization with Google Sheets now?",
+  "ui.sync.panel.confirmar_sincronizacion": "Confirm synchronization",
+  "ui.sync.panel.conflictos_pendientes": "There are {cantidad} pending conflicts. Review them before syncing.",
+  "ui.sync.panel.conflictos_pendientes_decision": "Conflicts pending decision",
+  "ui.sync.panel.estado_pendiente": "Status: Pending",
+  "ui.sync.panel.estado_pendiente_sincronizando": "Status: Pending · Synchronizing",
+  "ui.sync.panel.falta_configuracion": "Google Sheets is not configured or shared with the service account.",
+  "ui.sync.panel.funcion_no_disponible": "Feature not available",
+  "ui.sync.panel.no_hay_configuracion": "Google Sheets is not configured. Open Options to configure it.",
+  "ui.sync.panel.no_se_pudo_iniciar": "Could not start synchronization.",
+  "ui.sync.panel.sin_configuracion": "No configuration",
+  "ui.sync.panel.sincronizacion": "Synchronization",
+  "ui.sync.panel.sincronizacion_bloqueada": "Synchronization blocked",
+  "ui.sync.panel.sincronizacion_completada": "Synchronization completed",
+  "ui.sync.panel.sincronizando": "Synchronizing…",
+  "ui.sync.panel.sincronizando_sheets": "Synchronizing with Google Sheets…",
+  "ui.sync.panel.sync_failed_inicio_ui": "Sync failed: failed to start from UI",
+  "ui.sync.panel.sync_no_disponible": "Sync unavailable",
+  "ui.sync.panel.sync_pantalla_no_disponible": "Synchronization is not available on this screen yet."
+}

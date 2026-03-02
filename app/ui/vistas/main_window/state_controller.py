@@ -125,12 +125,14 @@ from app.ui.vistas.main_window.importaciones import (
 from . import data_refresh, form_handlers, handlers_layout, layout_builder, wiring
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
+from app.ui.i18n_ui import cambiar_idioma_ui, configurar_ui_i18n, registrar_refresco_idioma, ui_text
 from app.ui.qt_hilos import assert_hilo_ui_o_log
 from .init_placeholders import inicializar_placeholders
 
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 from . import state_historico, state_pendientes
 from .header_state import resolve_section_title, resolve_sidebar_tab_index
+from app.infrastructure.i18n import ServicioI18nEstable
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +193,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase | None = None,
         guardar_preferencia_pantalla_completa: GuardarPreferenciaPantallaCompleta | None = None,
         obtener_preferencia_pantalla_completa: ObtenerPreferenciaPantallaCompleta | None = None,
+        servicio_i18n: ServicioI18nEstable | None = None,
     ) -> None:
         super().__init__()
         assert_hilo_ui_o_log("MainWindow.__init__", logger)
@@ -209,6 +212,9 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._guardar_preferencia_pantalla_completa = guardar_preferencia_pantalla_completa
         self._obtener_preferencia_pantalla_completa = obtener_preferencia_pantalla_completa
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
+        self._servicio_i18n = servicio_i18n
+        if servicio_i18n is not None:
+            configurar_ui_i18n(servicio_i18n)
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
         self._pending_all_solicitudes: list[SolicitudDTO] = []
@@ -271,6 +277,8 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._optional_confirm_dialog_class = OptionalConfirmDialog
         self.setWindowTitle(copy_text("ui.sync.window_title"))
         self._build_ui()
+        registrar_refresco_idioma(self._refrescar_textos_sync)
+        self._refrescar_textos_sync()
         self._inicializar_preferencia_pantalla_completa()
         self._apply_help_preferences()
         self._apply_solicitudes_tooltips()
@@ -290,6 +298,27 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._refresh_health_and_alerts()
         self._post_init_load()
         QTimer.singleShot(0, self._warmup_sync_client)
+
+    def cambiar_idioma(self, idioma: str) -> None:
+        cambiar_idioma_ui(idioma)
+
+    def _refrescar_textos_sync(self) -> None:
+        if hasattr(self, "sync_panel_status"):
+            self.sync_panel_status.setText(ui_text("ui.sync.panel.estado_pendiente"))
+        if hasattr(self, "sync_status_label"):
+            self.sync_status_label.setText(ui_text("ui.sync.panel.sincronizando"))
+        reminder = getattr(self, "conflicts_reminder_label", None)
+        if reminder is not None and reminder.isVisible():
+            reminder.setText(ui_text("ui.sync.panel.conflictos_pendientes", cantidad=self._safe_conflicts_count()))
+
+    def _safe_conflicts_count(self) -> int:
+        service = getattr(self, "_conflicts_service", None)
+        if service is None or not hasattr(service, "count_conflicts"):
+            return 0
+        raw_total = service.count_conflicts()
+        if isinstance(raw_total, bool) or not isinstance(raw_total, (int, float)):
+            return 0
+        return max(int(raw_total), 0)
 
 
     def _inicializar_preferencia_pantalla_completa(self) -> None:

@@ -495,6 +495,7 @@ def run_ui(container=None) -> int:
             resolved_container.validacion_preventiva_lock_use_case,
             guardar_preferencia_pantalla_completa=deps_arranque.guardar_preferencia_pantalla_completa,
             obtener_preferencia_pantalla_completa=deps_arranque.obtener_preferencia_pantalla_completa,
+            servicio_i18n=resolved_container.servicio_i18n,
         ),
         orquestador_factory=OrquestadorArranqueUI,
         instalar_menu_ayuda=_instalar_menu_ayuda,

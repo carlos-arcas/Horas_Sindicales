@@ -289,6 +289,7 @@
   "app/ui/vistas/main_window/acciones_sincronizacion.py:217:Sincronización": "ui.app.acciones_sincronizacion.sincronizacion_d88c2b03",
   "app/ui/vistas/main_window/acciones_sincronizacion.py:223:Confirmar sincronización": "ui.app.acciones_sincronizacion.confirmar_sincronizacion_2b834bbb",
   "app/ui/vistas/main_window/acciones_sincronizacion.py:224:¿Deseas iniciar la sincronización con Google Sheets ahora?": "ui.app.acciones_sincronizacion.deseas_iniciar_la_sincronizacion_con_goo_e2ed0af5",
+  "app/ui/vistas/main_window/acciones_sincronizacion.py:236:Sync failed: no se pudo iniciar desde UI": "ui.sync.panel.sync_failed_inicio_ui",
   "app/ui/vistas/main_window/acciones_sincronizacion.py:238:Función no disponible": "ui.app.acciones_sincronizacion.funcion_no_disponible_7b4d7631",
   "app/ui/vistas/main_window/acciones_sincronizacion.py:238:Sincronización": "ui.app.acciones_sincronizacion.sincronizacion_d88c2b03",
   "app/ui/vistas/main_window/acciones_sincronizacion.py:242:Sync failed: no se pudo iniciar desde UI": "ui.app.acciones_sincronizacion.sync_failed_no_se_pudo_iniciar_desde_ui_1f13b7c5",
