@@ -119,7 +119,7 @@ if exist "requirements-dev.txt" (
     exit /b 1
 )
 
-python scripts/preflight_tests.py >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+python scripts/preflight_tests.py --require-radon >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
 if errorlevel 3 (
     echo [ERROR] Preflight de tests fallo por error interno. Revisa logs.
     >>"%LOG_PYTEST%" echo [ERROR] Preflight de tests fallo por error interno.
@@ -128,9 +128,9 @@ if errorlevel 3 (
     exit /b 3
 )
 if errorlevel 2 (
-    echo [ERROR] Preflight de tests: faltan dependencias obligatorias (^"pytest-cov^" y/o ^"pytest^"^). Revisa logs.
-    >>"%LOG_PYTEST%" echo [ERROR] Faltan dependencias obligatorias para pytest.
-    >>"%LOG_COVERAGE%" echo [ERROR] Faltan dependencias obligatorias para cobertura.
+    echo [ERROR] Preflight de tests: faltan dependencias obligatorias (^"pytest^", ^"pytest-cov^" y/o ^"radon^"^). Revisa logs.
+    >>"%LOG_PYTEST%" echo [ERROR] Faltan dependencias obligatorias para pytest (^"pytest^", ^"pytest-cov^", ^"radon^"^).
+    >>"%LOG_COVERAGE%" echo [ERROR] Faltan dependencias obligatorias para cobertura y gate de metricas (^"radon^"^).
     call :log_debug "ERROR: preflight_tests.py dependencias faltantes"
     exit /b 2
 )
