@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from PySide6.QtWidgets import QPushButton
 
 from app.ui.wizard_bienvenida.paginas.pagina_base import PaginaTexto
@@ -7,17 +9,12 @@ from presentacion.i18n import I18nManager
 
 
 class PaginaSync(PaginaTexto):
-    def __init__(self, i18n: I18nManager, on_ver_guia) -> None:
+    def __init__(self, i18n: I18nManager, on_ver_guia: Callable[[], None]) -> None:
         self._on_ver_guia = on_ver_guia
         self._boton_ver_guia = QPushButton()
         self._boton_ver_guia.clicked.connect(self._abrir_guia_sync)
-        super().__init__(
-            i18n,
-            "wizard_paso_3",
-            "wizard_sync_texto",
-            auto_actualizar_textos=False,
-        )
-        self.actualizar_textos()
+        super().__init__(i18n, "wizard_paso_3", "wizard_sync_texto")
+        self.inicializar_textos()
 
     def _construir_ui(self) -> None:
         super()._construir_ui()

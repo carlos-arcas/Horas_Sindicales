@@ -12,7 +12,6 @@ class PaginaTexto(QWidget):
         key_titulo: str,
         key_texto: str,
         parent: QWidget | None = None,
-        auto_actualizar_textos: bool = True,
     ) -> None:
         super().__init__(parent)
         self._i18n = i18n
@@ -21,9 +20,6 @@ class PaginaTexto(QWidget):
 
         self._ui_construida = False
         self._construir_ui()
-
-        if auto_actualizar_textos:
-            self.actualizar_textos()
 
     def _construir_ui(self) -> None:
         if self._ui_construida:
@@ -44,3 +40,6 @@ class PaginaTexto(QWidget):
     def actualizar_textos(self) -> None:
         self._titulo.setText(self._i18n.t(self._key_titulo))
         self._texto.setText(self._i18n.t(self._key_texto))
+
+    def inicializar_textos(self) -> None:
+        self.actualizar_textos()
