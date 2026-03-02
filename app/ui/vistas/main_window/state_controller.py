@@ -397,6 +397,9 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _sync_actor_text(self) -> str:
         return acciones_sincronizacion.sync_actor_text(self)
 
+    def _update_conflicts_reminder(self) -> None:
+        return acciones_sincronizacion.update_conflicts_reminder(self)
+
     def _on_main_tab_changed(self, index: int) -> None:
         if index != TAB_HISTORICO:
             return
