@@ -523,15 +523,22 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
             )
 
     def _configure_operativa_focus_order(self) -> None:
-        try:
-            handlers_layout.configure_operativa_focus_order(self)
-        except Exception as exc:
-            log_operational_error(
-                logger,
-                "UI_CONFIGURE_OPERATIVA_FOCUS_ORDER_FAILED",
-                exc=exc,
-                extra={"contexto": "mainwindow._configure_operativa_focus_order"},
-            )
+        focus_chain = (
+            ("persona_combo", "fecha_input"),
+            ("fecha_input", "desde_input"),
+            ("desde_input", "hasta_input"),
+            ("hasta_input", "completo_check"),
+            ("completo_check", "notas_input"),
+            ("notas_input", "agregar_button"),
+            ("agregar_button", "insertar_sin_pdf_button"),
+            ("insertar_sin_pdf_button", "confirmar_button"),
+        )
+        for before_name, after_name in focus_chain:
+            before_widget = getattr(self, before_name, None)
+            after_widget = getattr(self, after_name, None)
+            if before_widget is None or after_widget is None:
+                continue
+            self.setTabOrder(before_widget, after_widget)
 
     def _configure_historico_focus_order(self) -> None:
         """Mantiene compatibilidad con builders aunque falle el binding dinámico."""
