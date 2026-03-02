@@ -43,3 +43,7 @@
   `build_container()` deja de importar `QSettings` en import-time y resuelve el adaptador en runtime para evitar fallos en colección de tests UI en CI sin backend Qt completo.  
   Si `infraestructura.repositorio_preferencias_qsettings` no está disponible, se registra `RepositorioPreferenciasIni` (sin PySide6) y se emite WARNING estructurado para trazabilidad operativa.  
   La aplicación sigue dependiendo del puerto `IRepositorioPreferencias`; las implementaciones concretas permanecen en infraestructura, preservando inversión de dependencias y compatibilidad Windows.
+
+- **2026-03-02 — Crash logging temprano + flush determinista en arranque — Vigente**  
+  Se refuerza el entrypoint para garantizar persistencia de `crash.log` ante fallos durante splash/arranque: se mantiene `sys.excepthook` temprano y `qInstallMessageHandler` se instala antes de iniciar el hilo de arranque; adicionalmente, el entrypoint ejecuta `flush` de handlers en `finally` para minimizar pérdidas de eventos en salidas anormales.  
+  Verificación rápida: forzar excepción en arranque (`HORAS_FORCE_UNHANDLED_EXCEPTION=1`) y comprobar escritura en `crash.log` y `boot_trace.log`.

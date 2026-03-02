@@ -58,19 +58,20 @@ class JsonLinesFormatter(logging.Formatter):
 
 
 
+def _redact_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return redactar_texto(value)
+    if isinstance(value, dict):
+        return {inner_key: _redact_value(inner_value) for inner_key, inner_value in value.items()}
+    if isinstance(value, list):
+        return [_redact_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact_value(item) for item in value)
+    return value
+
+
 def _redact_event_payload(event: dict[str, Any]) -> dict[str, Any]:
-    redacted_event: dict[str, Any] = {}
-    for key, value in event.items():
-        if isinstance(value, str):
-            redacted_event[key] = redactar_texto(value)
-        elif isinstance(value, dict):
-            redacted_event[key] = {
-                inner_key: redactar_texto(inner_value) if isinstance(inner_value, str) else inner_value
-                for inner_key, inner_value in value.items()
-            }
-        else:
-            redacted_event[key] = value
-    return redacted_event
+    return {key: _redact_value(value) for key, value in event.items()}
 
 
 class CrashOnlyFilter(logging.Filter):
@@ -221,3 +222,12 @@ def install_exception_hook(log_dir: Path) -> None:
             pass
 
     sys.excepthook = _handler
+
+
+def flush_logging_handlers() -> None:
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        try:
+            handler.flush()
+        except Exception:
+            continue

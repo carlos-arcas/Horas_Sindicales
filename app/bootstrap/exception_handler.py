@@ -9,6 +9,7 @@ from types import TracebackType
 from app.bootstrap.logging import CRASH_LOG_NAME, write_crash_log
 from app.bootstrap.settings import resolve_log_dir
 from app.core.observability import generate_correlation_id, get_correlation_id, set_correlation_id
+from app.core.redactor_secretos import redactar_texto
 
 
 def generar_id_incidente() -> str:
@@ -39,8 +40,8 @@ def _escribir_fallback_crash_log(
         "incident_id": incident_id,
         "correlation_id": correlation_id,
         "error_type": exc_type.__name__,
-        "error_message": str(exc_value),
-        "stacktrace": "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)),
+        "error_message": redactar_texto(str(exc_value)),
+        "stacktrace": redactar_texto("".join(traceback.format_exception(exc_type, exc_value, exc_traceback))),
     }
     with crash_file.open("a", encoding="utf-8") as handler:
         handler.write(json.dumps(payload, ensure_ascii=False) + "\n")

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from app.bootstrap.boot_diagnostics import init_boot_diagnostics, marcar_stage
 from app.bootstrap.exception_handler import manejar_excepcion_global
-from app.bootstrap.logging import CRASH_LOG_NAME, configure_logging
+from app.bootstrap.logging import CRASH_LOG_NAME, configure_logging, flush_logging_handlers
 from app.bootstrap.settings import project_root, resolve_log_dir
 from app.entrypoints.ui_main import run_ui
 
@@ -59,17 +59,20 @@ def main(argv: list[str] | None = None) -> int:
     sys.excepthook = manejar_excepcion_global
     marcar_stage("logging_configured")
 
-    if os.getenv("HORAS_FORCE_UNHANDLED_EXCEPTION") == "1":
-        raise RuntimeError("Excepción forzada para pruebas de robustez global")
+    try:
+        if os.getenv("HORAS_FORCE_UNHANDLED_EXCEPTION") == "1":
+            raise RuntimeError("Excepción forzada para pruebas de robustez global")
 
-    logger = logging.getLogger(__name__)
-    logger.info("Log dir: %s", log_dir)
-    logger.info("Python: %s", sys.version)
-    logger.info("Executable: %s", sys.executable)
-    logger.info("CWD: %s", Path.cwd())
+        logger = logging.getLogger(__name__)
+        logger.info("Log dir: %s", log_dir)
+        logger.info("Python: %s", sys.version)
+        logger.info("Executable: %s", sys.executable)
+        logger.info("CWD: %s", Path.cwd())
 
-    if args.selfcheck:
-        marcar_stage("selfcheck_requested")
-        return _run_selfcheck(log_dir)
-    marcar_stage("run_ui_start")
-    return run_ui()
+        if args.selfcheck:
+            marcar_stage("selfcheck_requested")
+            return _run_selfcheck(log_dir)
+        marcar_stage("run_ui_start")
+        return run_ui()
+    finally:
+        flush_logging_handlers()
