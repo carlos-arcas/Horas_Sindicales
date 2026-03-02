@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Callable
 
+from app.ui.toasts.accion_toast import AccionToast
 from app.ui.widgets.dialogo_detalles_toast import DialogoDetallesNotificacion
 from app.ui.widgets.gestor_toasts import GestorToasts as _GestorToastsBase
 from app.ui.widgets.overlay_toast import CapaToasts
@@ -38,7 +39,7 @@ class GestorToasts(_GestorToastsBase):
         action_label: str | None,
         action_callback: Callable[[], None] | None,
         opts: dict[str, object],
-    ) -> tuple[str | None, Callable[[], None] | None]:
+    ) -> AccionToast:
         claves_permitidas = {"action_text", "action"}
         claves_desconocidas = sorted(set(opts.keys()) - claves_permitidas)
         if claves_desconocidas:
@@ -48,15 +49,12 @@ class GestorToasts(_GestorToastsBase):
             )
             raise ValueError(f"toast_kwargs_invalidos:{','.join(claves_desconocidas)}")
 
-        alias_label = opts.get("action_text")
-        if action_label is None and isinstance(alias_label, str):
-            action_label = alias_label
-
-        alias_callback = opts.get("action")
-        if action_callback is None and callable(alias_callback):
-            action_callback = alias_callback
-
-        return action_label, action_callback
+        return AccionToast.desde_argumentos(
+            action_label=action_label,
+            action_callback=action_callback,
+            action_text=opts.get("action_text"),
+            action=opts.get("action"),
+        )
 
     def success(
         self,
@@ -71,7 +69,7 @@ class GestorToasts(_GestorToastsBase):
         duration_ms: int | None = None,
         **opts: object,
     ) -> None:
-        action_label, action_callback = self._resolver_aliases_accion(
+        accion = self._resolver_aliases_accion(
             action_label=action_label,
             action_callback=action_callback,
             opts=opts,
@@ -81,8 +79,8 @@ class GestorToasts(_GestorToastsBase):
             message=message,
             level="success",
             title=title,
-            action_label=action_label,
-            action_callback=action_callback,
+            action_label=accion.etiqueta,
+            action_callback=accion.callback,
             details=details,
             correlation_id=correlation_id,
             code=code,
@@ -102,7 +100,7 @@ class GestorToasts(_GestorToastsBase):
         duration_ms: int | None = None,
         **opts: object,
     ) -> None:
-        action_label, action_callback = self._resolver_aliases_accion(
+        accion = self._resolver_aliases_accion(
             action_label=action_label,
             action_callback=action_callback,
             opts=opts,
@@ -112,8 +110,8 @@ class GestorToasts(_GestorToastsBase):
             message=message,
             level="info",
             title=title,
-            action_label=action_label,
-            action_callback=action_callback,
+            action_label=accion.etiqueta,
+            action_callback=accion.callback,
             details=details,
             correlation_id=correlation_id,
             code=code,
@@ -133,7 +131,7 @@ class GestorToasts(_GestorToastsBase):
         duration_ms: int | None = None,
         **opts: object,
     ) -> None:
-        action_label, action_callback = self._resolver_aliases_accion(
+        accion = self._resolver_aliases_accion(
             action_label=action_label,
             action_callback=action_callback,
             opts=opts,
@@ -143,8 +141,8 @@ class GestorToasts(_GestorToastsBase):
             message=message,
             level="warning",
             title=title,
-            action_label=action_label,
-            action_callback=action_callback,
+            action_label=accion.etiqueta,
+            action_callback=accion.callback,
             details=details,
             correlation_id=correlation_id,
             code=code,
@@ -164,7 +162,7 @@ class GestorToasts(_GestorToastsBase):
         duration_ms: int | None = None,
         **opts: object,
     ) -> None:
-        action_label, action_callback = self._resolver_aliases_accion(
+        accion = self._resolver_aliases_accion(
             action_label=action_label,
             action_callback=action_callback,
             opts=opts,
@@ -175,8 +173,8 @@ class GestorToasts(_GestorToastsBase):
             message=payload_message,
             level="error",
             title=title,
-            action_label=action_label,
-            action_callback=action_callback,
+            action_label=accion.etiqueta,
+            action_callback=accion.callback,
             details=payload_details,
             correlation_id=correlation_id,
             code=code,
@@ -195,11 +193,6 @@ class ToastManager(GestorToasts):
 Toast = TarjetaToast
 
 
-def _on_action_clicked() -> None:
-    return None
-
-
-# action_button.clicked.connect(self._on_action_clicked)
 __all__ = [
     Toast.__name__,
     NotificacionToast.__name__,
