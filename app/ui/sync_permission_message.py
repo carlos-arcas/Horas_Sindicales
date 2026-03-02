@@ -1,9 +1,24 @@
 from __future__ import annotations
 
-from presentacion.i18n import CATALOGO
+import logging
+
+
+logger = logging.getLogger(__name__)
+
+try:
+    from presentacion.i18n import CATALOGO, I18nManager
+except ImportError:  # pragma: no cover - fallback for headless/unit-test environments
+    CATALOGO = {}
+    I18nManager = None
+    logger.warning(
+        "I18N_FALLBACK_ACTIVE_SYNC_PERMISSION_MESSAGE",
+        extra={"event": "I18N_FALLBACK_ACTIVE_SYNC_PERMISSION_MESSAGE"},
+    )
 
 
 def build_sync_permission_blocked_message(*, service_account_email: str | None) -> str:
+    """Construye mensaje de permisos usando i18n o fallback estático para pruebas sin UI."""
+
     lang_catalog = CATALOGO.get("es", {})
     account_email = (service_account_email or "<email no disponible>").strip() or "<email no disponible>"
     return lang_catalog.get(
