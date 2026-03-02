@@ -52,5 +52,14 @@
   "wizard_sync_dialog_error": "No se pudo cargar la guía de Sync.",
   "wizard_sync_dialog_titulo": "Guía de Sync",
   "wizard_sync_texto": "Sync es necesario para mantener coordinado el grupo de delegadas y compartir credenciales de acceso.",
-  "wizard_titulo": "Asistente de bienvenida"
+  "wizard_titulo": "Asistente de bienvenida",
+  "sync.primero_simular_aviso": "Primero ejecuta una simulación para generar el plan.",
+  "sync.sin_plan_titulo": "Sin plan",
+  "sync.sin_cambios_aplicar": "No hay cambios que aplicar",
+  "sync.titulo": "Sincronización",
+  "sync.configuracion_faltante_aviso": "No se pudo iniciar la sincronización.\nCausa probable: Falta configurar Google Sheets.\nAcción recomendada: Pulsa Ir a configuración, guarda los datos y reintenta.",
+  "sync.configuracion_faltante_titulo": "Sin configuración",
+  "sync.estado_pendiente": "Estado: Pendiente",
+  "sync.permisos_google_sheets": "Permisos de Google Sheets",
+  "sync.email_no_disponible": "<email no disponible>"
 }
