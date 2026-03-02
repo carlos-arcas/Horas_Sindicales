@@ -18,7 +18,7 @@ def test_ejecutar_callback_seguro_captura_excepcion_y_no_propaga(caplog) -> None
         )
 
     assert ejecutado is False
-    assert "toast_action_callback_failed" in caplog.text
+    assert "TOAST_ACTION_FAILED" in caplog.text
     registro = caplog.records[-1]
     assert getattr(registro, "correlation_id", None) == "cid-123"
     assert getattr(registro, "contexto", None) == ".../secreto/callback.py"

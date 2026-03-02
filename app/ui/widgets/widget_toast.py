@@ -80,6 +80,14 @@ class TarjetaToast(QFrame):
         root.addLayout(acciones)
 
     def _ejecutar_accion(self) -> None:
+        logger.info(
+            "TOAST_ACTION_CLICK",
+            extra={
+                "titulo": self.notificacion.titulo,
+                "mensaje": self.notificacion.mensaje,
+                "correlation_id": self.notificacion.correlacion_id,
+            },
+        )
         ejecutar_callback_seguro(
             self.notificacion.action_callback,
             logger=logger,
