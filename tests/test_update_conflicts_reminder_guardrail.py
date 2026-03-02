@@ -18,46 +18,58 @@ class _Dummy:
     pass
 
 
-def _prepare_import_stubs() -> None:
-    _stub_module("app")
-    _stub_module("app.domain")
-    _stub_module("app.ui")
-    _stub_module("app.bootstrap")
-    _stub_module("app.ui.vistas")
-    _stub_module("app.ui.vistas.main_window")
-    _stub_module("app.ui.workers")
+def _prepare_import_stubs() -> dict[str, ModuleType | None]:
+    originals: dict[str, ModuleType | None] = {}
 
-    _stub_module("app.domain.sheets_errors", SheetsPermissionError=Exception)
-    _stub_module(
+    def _register(name: str, **attrs) -> None:
+        if name not in originals:
+            originals[name] = sys.modules.get(name)
+        _stub_module(name, **attrs)
+
+    _register("app.domain")
+    _register("app.bootstrap")
+    _register("app.ui.vistas.main_window")
+    _register("app.ui.workers")
+
+    _register("app.domain.sheets_errors", SheetsPermissionError=Exception)
+    _register(
         "app.domain.sync_models",
         SyncAttemptReport=_Dummy,
         SyncExecutionPlan=_Dummy,
         SyncSummary=_Dummy,
     )
-    _stub_module("app.ui.dialogos_comunes")
-    _stub_module("app.ui.conflicts_dialog", ConflictsDialog=_Dummy)
-    _stub_module("app.ui.error_mapping", map_error_to_ui_message=lambda *_a, **_k: None)
-    _stub_module("app.ui.notification_service", OperationFeedback=_Dummy)
-    _stub_module(
+    _register("app.ui.dialogos_comunes")
+    _register("app.ui.conflicts_dialog", ConflictsDialog=_Dummy)
+    _register("app.ui.error_mapping", map_error_to_ui_message=lambda *_a, **_k: None)
+    _register("app.ui.notification_service", OperationFeedback=_Dummy)
+    _register(
         "app.ui.sync_reporting",
         build_config_incomplete_report=lambda *_a, **_k: None,
         build_failed_report=lambda *_a, **_k: None,
         build_simulation_report=lambda *_a, **_k: None,
         build_sync_report=lambda *_a, **_k: None,
     )
-    _stub_module("app.ui.vistas.main_window.dialogos_sincronizacion")
-    _stub_module("app.ui.vistas.main_window_helpers", show_sync_error_dialog_from_exception=lambda *_a, **_k: None)
-    _stub_module("app.ui.workers.sincronizacion_workers", PushWorker=_Dummy)
-    _stub_module("app.bootstrap.logging", log_operational_error=lambda *_a, **_k: None)
+    _register("app.ui.vistas.main_window.dialogos_sincronizacion")
+    _register("app.ui.vistas.main_window_helpers", show_sync_error_dialog_from_exception=lambda *_a, **_k: None)
+    _register("app.ui.workers.sincronizacion_workers", PushWorker=_Dummy)
+    _register("app.bootstrap.logging", log_operational_error=lambda *_a, **_k: None)
+    return originals
 
 
 def _load_module():
-    _prepare_import_stubs()
+    originals = _prepare_import_stubs()
     ruta = Path("app/ui/vistas/main_window/acciones_sincronizacion_resultados.py")
     spec = importlib.util.spec_from_file_location("acciones_sincronizacion_resultados", ruta)
     assert spec is not None and spec.loader is not None
     modulo = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modulo)
+    try:
+        spec.loader.exec_module(modulo)
+    finally:
+        for module_name, original in reversed(list(originals.items())):
+            if original is None:
+                sys.modules.pop(module_name, None)
+            else:
+                sys.modules[module_name] = original
     return modulo
 
 

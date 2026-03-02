@@ -8,7 +8,7 @@ from tests.ui.conftest import require_qt
 qtwidgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
 
 from app.bootstrap.container import build_container
-from app.ui.main_window import MainWindow
+from app.ui.vistas.main_window import MainWindow
 
 QApplication = require_qt()
 QMessageBox = qtwidgets.QMessageBox

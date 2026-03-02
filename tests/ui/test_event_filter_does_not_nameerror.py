@@ -11,7 +11,7 @@ qtgui = pytest.importorskip("PySide6.QtGui", exc_type=ImportError)
 
 from app.bootstrap.container import build_container
 import app.ui.vistas.main_window_vista as main_window_vista
-from app.ui.main_window import MainWindow
+from app.ui.vistas.main_window import MainWindow
 
 QApplication = require_qt()
 QEvent = qtcore.QEvent

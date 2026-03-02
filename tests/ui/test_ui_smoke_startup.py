@@ -33,7 +33,7 @@ def test_ui_smoke_startup_without_real_infra(monkeypatch: pytest.MonkeyPatch) ->
     qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
     qt_widgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
 
-    from app.ui.main_window import MainWindow
+    from app.ui.vistas.main_window import MainWindow
     from app.ui.vistas import main_window_vista
 
     q_app = QApplication.instance() or QApplication([])

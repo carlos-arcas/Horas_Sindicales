@@ -32,7 +32,7 @@ def _require_qt_in_test() -> object:
 def test_main_window_contract_public_attributes(monkeypatch: pytest.MonkeyPatch) -> None:
     QApplication = _require_qt_in_test()
 
-    from app.ui.main_window import MainWindow
+    from app.ui.vistas.main_window import MainWindow
     from app.ui.vistas import main_window_vista
 
     app = QApplication.instance() or QApplication([])

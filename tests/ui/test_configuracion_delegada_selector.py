@@ -10,7 +10,7 @@ QApplication = require_qt()
 
 from app.application.dto import PersonaDTO
 from app.bootstrap.container import build_container
-from app.ui.main_window import MainWindow
+from app.ui.vistas.main_window import MainWindow
 from app.ui.vistas.main_window_vista import resolve_active_delegada_id
 
 

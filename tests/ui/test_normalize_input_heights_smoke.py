@@ -7,7 +7,7 @@ from tests.ui.conftest import require_qt
 QApplication = require_qt()
 qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
 
-from app.ui.main_window import MainWindow
+from app.ui.vistas.main_window import MainWindow
 from app.ui.vistas import main_window_vista
 
 

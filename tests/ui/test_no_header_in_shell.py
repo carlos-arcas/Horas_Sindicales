@@ -10,7 +10,7 @@ QApplication = require_qt()
 QPushButton = qtwidgets.QPushButton
 
 from app.bootstrap.container import build_container
-from app.ui.main_window import MainWindow
+from app.ui.vistas.main_window import MainWindow
 
 
 def _in_memory_connection() -> sqlite3.Connection:
