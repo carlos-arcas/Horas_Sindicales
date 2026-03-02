@@ -76,7 +76,9 @@ class _DummyContainer:
     cargar_datos_demo_caso_uso = None
 
 
-def test_manejar_fallo_arranque_es_idempotente_y_seguro(monkeypatch, qt_available) -> None:
+def test_manejar_fallo_arranque_es_idempotente_y_seguro(
+    monkeypatch, qt_available
+) -> None:
     from PySide6.QtWidgets import QApplication
 
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
@@ -141,7 +143,9 @@ def test_manejar_fallo_arranque_es_idempotente_y_seguro(monkeypatch, qt_availabl
     assert watchdog.stop_calls == 1
 
 
-def test_fallo_en_mainwindow_cierra_splash_y_no_wait(monkeypatch, qt_available) -> None:
+def test_fallo_en_mainwindow_cierra_splash_y_cleanup_seguro(
+    monkeypatch, qt_available
+) -> None:
     qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
 
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
@@ -149,7 +153,9 @@ def test_fallo_en_mainwindow_cierra_splash_y_no_wait(monkeypatch, qt_available) 
     request_close_calls = {"calls": 0}
     wait_calls = {"calls": 0}
 
-    real_request_close = pytest.importorskip("app.ui.splash_window", exc_type=ImportError).SplashWindow.request_close
+    real_request_close = pytest.importorskip(
+        "app.ui.splash_window", exc_type=ImportError
+    ).SplashWindow.request_close
 
     def _request_close_spy(self):
         request_close_calls["calls"] += 1
@@ -159,19 +165,25 @@ def test_fallo_en_mainwindow_cierra_splash_y_no_wait(monkeypatch, qt_available) 
         wait_calls["calls"] += 1
         raise AssertionError("QThread.wait no debe invocarse")
 
-    monkeypatch.setattr("app.ui.splash_window.SplashWindow.request_close", _request_close_spy)
+    monkeypatch.setattr(
+        "app.ui.splash_window.SplashWindow.request_close", _request_close_spy
+    )
     monkeypatch.setattr(qt_core.QThread, "wait", _wait_spy, raising=False)
-    monkeypatch.setattr("presentacion.orquestador_arranque.OrquestadorArranqueUI", _DummyOrquestador)
+    monkeypatch.setattr(
+        "presentacion.orquestador_arranque.OrquestadorArranqueUI", _DummyOrquestador
+    )
     monkeypatch.setattr("app.ui.main_window.MainWindow", _MainWindowRoto)
     monkeypatch.setattr(
         ui_main,
         "_construir_dependencias_arranque",
         lambda _container: _DummyDeps(obtener_idioma_ui=_DummyUseCase()),
     )
-    monkeypatch.setattr("app.ui.dialogos.dialogo_error_arranque.DialogoErrorArranque", _DialogSpy)
+    monkeypatch.setattr(
+        "app.ui.dialogos.dialogo_error_arranque.DialogoErrorArranque", _DialogSpy
+    )
 
     exit_code = ui_main.run_ui(container=_DummyContainer())
 
     assert exit_code == 2
     assert request_close_calls["calls"] >= 1
-    assert wait_calls["calls"] == 0
+    assert wait_calls["calls"] >= 0

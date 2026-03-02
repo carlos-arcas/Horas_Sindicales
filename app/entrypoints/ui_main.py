@@ -8,7 +8,11 @@ from typing import Callable
 
 from aplicacion.casos_de_uso.documentos import ObtenerRutaGuiaSync
 from aplicacion.casos_de_uso.idioma import GuardarIdiomaUI, ObtenerIdiomaUI
-from aplicacion.casos_de_uso.onboarding import MarcarOnboardingCompletado, ObtenerEstadoOnboarding, ReiniciarOnboarding
+from aplicacion.casos_de_uso.onboarding import (
+    MarcarOnboardingCompletado,
+    ObtenerEstadoOnboarding,
+    ReiniciarOnboarding,
+)
 from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
     GuardarPreferenciaPantallaCompleta,
     ObtenerPreferenciaPantallaCompleta,
@@ -19,7 +23,7 @@ from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
 from app.ui.qt_message_handler import instalar_qt_message_handler
 from app.ui.qt_safe import safe_call
-from app.ui.qt_safe_ops import es_objeto_qt_valido, safe_hide, safe_quit_thread
+from app.ui.qt_safe_ops import es_objeto_qt_valido, safe_hide
 
 LOGGER = logging.getLogger(__name__)
 
@@ -29,7 +33,46 @@ def _es_objeto_qt_valido(objeto) -> bool:
 
 
 def _cerrar_splash_seguro(splash) -> None:
+    if splash is None:
+        return
+    try:
+        from PySide6.QtCore import QThread, QTimer
+        from PySide6.QtWidgets import QApplication
+    except Exception:
+        safe_hide(splash)
+        return
+
+    app = QApplication.instance()
+    app_thread = app.thread() if app is not None and _es_objeto_qt_valido(app) else None
+    if app_thread is not None and QThread.currentThread() is not app_thread:
+        QTimer.singleShot(0, lambda: safe_hide(splash))
+        return
     safe_hide(splash)
+
+
+def _cleanup_startup_thread_seguro(startup_thread) -> None:
+    if not _es_objeto_qt_valido(startup_thread):
+        return
+    if not hasattr(startup_thread, "isRunning"):
+        return
+    try:
+        if not startup_thread.isRunning():
+            return
+    except RuntimeError:
+        return
+
+    if hasattr(startup_thread, "quit"):
+        try:
+            startup_thread.quit()
+        except RuntimeError:
+            return
+
+    if not _es_objeto_qt_valido(startup_thread) or not hasattr(startup_thread, "wait"):
+        return
+    try:
+        startup_thread.wait(2000)
+    except RuntimeError:
+        return
 
 
 def _stop_watchdog_en_main_thread(watchdog_timer) -> None:
@@ -61,12 +104,16 @@ class _CoordinadorArranqueConCierreDeterminista:
             return
 
     def _cerrar_splash_idempotente(self) -> None:
-        if self._splash_cerrado:
+        if self._splash_cerrado or bool(self.app.property("_splash_cerrado")):
             return
         self._splash_cerrado = True
+        self.app.setProperty("_splash_cerrado", True)
         if not _es_objeto_qt_valido(self.splash):
             return
         _cerrar_splash_seguro(self.splash)
+
+    def _solicitar_cierre_thread(self) -> None:
+        _cleanup_startup_thread_seguro(self.thread)
 
     def on_finished(self, startup_payload) -> None:
         marcar_stage("on_finished_enter")
@@ -77,7 +124,9 @@ class _CoordinadorArranqueConCierreDeterminista:
             self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
             resolved_container, deps_arranque, idioma = startup_payload
-            deps_arranque = _actualizar_preferencias_en_hilo_ui(resolved_container, deps_arranque)
+            deps_arranque = _actualizar_preferencias_en_hilo_ui(
+                resolved_container, deps_arranque
+            )
             idioma = deps_arranque.obtener_idioma_ui.ejecutar()
             self.i18n.set_idioma(idioma)
             orquestador = self.orquestador_factory(deps_arranque, self.i18n)
@@ -120,7 +169,6 @@ class _CoordinadorArranqueConCierreDeterminista:
             )
 
 
-
 def _resolver_startup_timeout_ms() -> int:
     import os
 
@@ -147,7 +195,9 @@ def manejar_excepcion_ui(
     if app is None:
         return incident_id
     try:
-        QMessageBox.critical(None, "Error inesperado", construir_mensaje_error_ui(incident_id))
+        QMessageBox.critical(
+            None, "Error inesperado", construir_mensaje_error_ui(incident_id)
+        )
     except Exception:
         pass
     return incident_id
@@ -194,7 +244,9 @@ def _manejar_fallo_arranque(
     resolved_detalles = detalles or ""
     if not resolved_detalles:
         if trace_info is not None and all(trace_info):
-            resolved_detalles = "".join(traceback.format_exception(trace_info[0], trace_info[1], trace_info[2]))
+            resolved_detalles = "".join(
+                traceback.format_exception(trace_info[0], trace_info[1], trace_info[2])
+            )
         elif exc is not None:
             resolved_detalles = repr(exc)
 
@@ -209,7 +261,7 @@ def _manejar_fallo_arranque(
     )
 
     def _safe_quit_thread() -> None:
-        safe_quit_thread(startup_thread)
+        _cleanup_startup_thread_seguro(startup_thread)
 
     def _mostrar_dialogo_error() -> None:
         if getattr(app, "_fallo_arranque_dialogo_mostrado", False):
@@ -260,7 +312,9 @@ def _manejar_fallo_arranque(
                 pass
         _mostrar_dialogo_error()
 
-    app_thread = app.thread() if es_objeto_qt_valido(app) and hasattr(app, "thread") else None
+    app_thread = (
+        app.thread() if es_objeto_qt_valido(app) and hasattr(app, "thread") else None
+    )
     if app_thread is not None and QThread.currentThread() is not app_thread:
         QTimer.singleShot(0, app, _do_fail_safe)
     else:
@@ -277,8 +331,12 @@ def _construir_dependencias_arranque(container):
     return DependenciasArranque(
         obtener_estado_onboarding=ObtenerEstadoOnboarding(repo_pref),
         marcar_onboarding_completado=MarcarOnboardingCompletado(repo_pref),
-        guardar_preferencia_pantalla_completa=GuardarPreferenciaPantallaCompleta(repo_pref),
-        obtener_preferencia_pantalla_completa=ObtenerPreferenciaPantallaCompleta(repo_pref),
+        guardar_preferencia_pantalla_completa=GuardarPreferenciaPantallaCompleta(
+            repo_pref
+        ),
+        obtener_preferencia_pantalla_completa=ObtenerPreferenciaPantallaCompleta(
+            repo_pref
+        ),
         obtener_idioma_ui=ObtenerIdiomaUI(repo_pref),
         guardar_idioma_ui=GuardarIdiomaUI(repo_pref),
         obtener_ruta_guia_sync=ObtenerRutaGuiaSync(proveedor_documentos),
@@ -288,7 +346,9 @@ def _construir_dependencias_arranque(container):
 def _actualizar_preferencias_en_hilo_ui(resolved_container, deps_arranque):
     """Reemplaza preferencias headless por QSettings desde el hilo de UI."""
     try:
-        from infraestructura.repositorio_preferencias_qsettings import RepositorioPreferenciasQSettings
+        from infraestructura.repositorio_preferencias_qsettings import (
+            RepositorioPreferenciasQSettings,
+        )
     except Exception:
         return deps_arranque
 
@@ -328,7 +388,9 @@ def _instalar_menu_ayuda(
         if respuesta != QMessageBox.Yes:
             return
         reiniciar_onboarding.ejecutar()
-        QMessageBox.information(main_window, i18n.t("menu_ayuda"), i18n.t("menu_reiniciar_ok"))
+        QMessageBox.information(
+            main_window, i18n.t("menu_ayuda"), i18n.t("menu_reiniciar_ok")
+        )
 
     def _cargar_demo() -> None:
         confirmacion = QMessageBox.question(
@@ -396,10 +458,13 @@ def run_ui(container=None) -> int:
     assert_hilo_ui_o_log("run_ui.bootstrap", LOGGER)
     i18n = I18nManager("es")
     splash = SplashWindow(i18n)
+    app.setProperty("_splash_ref", splash)
+    app.setProperty("_splash_cerrado", False)
     splash.show()
     marcar_stage("splash_created")
 
     startup_thread = QThread(splash)
+    app.setProperty("_startup_thread_ref", startup_thread)
     startup_worker = TrabajadorArranque(container, i18n)
     startup_worker.moveToThread(startup_thread)
     splash.registrar_arranque(startup_thread, startup_worker)
@@ -408,7 +473,9 @@ def run_ui(container=None) -> int:
     watchdog_timer.setSingleShot(True)
     watchdog_timer.setInterval(startup_timeout_ms)
 
-    class CoordinadorArranquePrincipal(_CoordinadorArranqueConCierreDeterminista, CoordinadorArranque):
+    class CoordinadorArranquePrincipal(
+        _CoordinadorArranqueConCierreDeterminista, CoordinadorArranque
+    ):
         pass
 
     controlador = CoordinadorArranquePrincipal(
@@ -439,12 +506,24 @@ def run_ui(container=None) -> int:
 
     splash.registrar_watchdog(watchdog_timer)
 
-    watchdog_timer.timeout.connect(controlador.on_timeout, Qt.ConnectionType.QueuedConnection)
-    startup_worker.progreso.connect(controlador.on_progreso, Qt.ConnectionType.QueuedConnection)
-    startup_worker.finished.connect(controlador.on_finished, Qt.ConnectionType.QueuedConnection)
-    startup_worker.failed.connect(controlador.on_failed, Qt.ConnectionType.QueuedConnection)
-    startup_thread.finished.connect(startup_worker.deleteLater)
-    startup_thread.finished.connect(startup_thread.deleteLater)
+    watchdog_timer.timeout.connect(
+        controlador.on_timeout, Qt.ConnectionType.QueuedConnection
+    )
+    startup_worker.progreso.connect(
+        controlador.on_progreso, Qt.ConnectionType.QueuedConnection
+    )
+    startup_worker.finished.connect(
+        controlador.on_finished, Qt.ConnectionType.QueuedConnection
+    )
+    startup_worker.failed.connect(
+        controlador.on_failed, Qt.ConnectionType.QueuedConnection
+    )
+    startup_thread.finished.connect(
+        startup_worker.deleteLater, Qt.ConnectionType.QueuedConnection
+    )
+    startup_thread.finished.connect(
+        startup_thread.deleteLater, Qt.ConnectionType.QueuedConnection
+    )
     startup_thread.started.connect(startup_worker.run)
 
     try:

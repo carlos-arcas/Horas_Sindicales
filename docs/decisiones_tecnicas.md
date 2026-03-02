@@ -43,3 +43,8 @@
   `build_container()` deja de importar `QSettings` en import-time y resuelve el adaptador en runtime para evitar fallos en colección de tests UI en CI sin backend Qt completo.  
   Si `infraestructura.repositorio_preferencias_qsettings` no está disponible, se registra `RepositorioPreferenciasIni` (sin PySide6) y se emite WARNING estructurado para trazabilidad operativa.  
   La aplicación sigue dependiendo del puerto `IRepositorioPreferencias`; las implementaciones concretas permanecen en infraestructura, preservando inversión de dependencias y compatibilidad Windows.
+
+- **2026-03-02 — Cleanup defensivo de arranque UI (QThread/Splash) — Vigente**  
+  Se introduce un cierre seguro para el hilo de arranque (`_cleanup_startup_thread_seguro`) con validación `shiboken6.isValid` antes de `quit()/wait()`, evitando `RuntimeError: ... QThread already deleted`.  
+  El splash se mantiene referenciado en `QApplication` durante el bootstrap, su cierre se agenda en el hilo principal y se protege doble cierre con flag idempotente (`_splash_cerrado`) para evitar `RuntimeError: ... SplashWindow already deleted`.  
+  Verificación rápida: ejecutar `pytest tests/ui/test_startup_failsafe_deleted_objects.py tests/ui/test_ui_main_cleanup_thread.py` y confirmar ausencia de excepciones de objetos C++ eliminados.
