@@ -123,11 +123,13 @@ from app.ui.vistas.main_window.importaciones import (
 )  # noqa: F401
 
 from . import data_refresh, layout_builder, wiring
-from .ui_layout_helpers import normalize_input_heights, update_responsive_columns
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
 from app.ui.qt_hilos import assert_hilo_ui_o_log
 from .init_placeholders import inicializar_placeholders
+from .handlers_formulario import MainWindowHandlersFormularioMixin
+from .handlers_historico import MainWindowHandlersHistoricoMixin
+from .handlers_layout import MainWindowHandlersLayoutMixin
 
 from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
 from . import state_historico, state_pendientes
@@ -160,7 +162,15 @@ TAB_HISTORICO = 1
 
 
 
-class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, MainWindowHealthMixin, QMainWindow):
+class MainWindow(
+    MainWindowHandlersFormularioMixin,
+    MainWindowHandlersHistoricoMixin,
+    MainWindowHandlersLayoutMixin,
+    MainWindowStateActionsMixin,
+    MainWindowStateValidationMixin,
+    MainWindowHealthMixin,
+    QMainWindow,
+):
     def __init__(
         self,
         persona_use_cases: PersonaUseCases,
@@ -330,30 +340,6 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _update_action_state(self) -> None:
         update_action_state(self)
 
-    def _update_solicitud_preview(self) -> None:
-        self._update_action_state()
-        if hasattr(self, "_schedule_preventive_validation"):
-            self._schedule_preventive_validation()
-
-    def _on_completo_changed(self, checked: bool) -> None:
-        _ = checked
-        self._update_solicitud_preview()
-
-    def _on_add_pendiente(self) -> None:
-        if hasattr(acciones_pendientes, "on_add_pendiente"):
-            acciones_pendientes.on_add_pendiente(self)
-            return
-        for nombre in ("_on_agregar", "on_confirmar"):
-            handler = getattr(self, nombre, None)
-            if callable(handler):
-                handler()
-                return
-        if hasattr(acciones_pendientes, "on_agregar"):
-            acciones_pendientes.on_agregar(self)
-            return
-        if getattr(self, "agregar_button", None) is not None and self.agregar_button.isEnabled():
-            self.agregar_button.click()
-
     def _validate_required_widgets(self) -> None:
         required_widgets = (
             "persona_combo",
@@ -454,28 +440,6 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _build_status_bar(self) -> None:
         layout_builder.build_status(self)
 
-    def _normalize_input_heights(self) -> None:
-        try:
-            normalize_input_heights(self)
-        except Exception as exc:
-            log_operational_error(
-                logger,
-                "UI_NORMALIZE_INPUT_HEIGHTS_FAILED",
-                exc=exc,
-                extra={"contexto": "MainWindow._normalize_input_heights"},
-            )
-
-    def _update_responsive_columns(self) -> None:
-        try:
-            update_responsive_columns(self)
-        except Exception as exc:
-            log_operational_error(
-                logger,
-                "UI_UPDATE_RESPONSIVE_COLUMNS_FAILED",
-                exc=exc,
-                extra={"contexto": "MainWindow._update_responsive_columns"},
-            )
-
     def _status_to_label(self, status: str) -> str:
         from app.ui.vistas.main_window import dialogos_sincronizacion
 
@@ -525,12 +489,6 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _on_persona_changed(self) -> None:
         return acciones_personas.on_persona_changed(self)
 
-    def _on_fecha_changed(self, nueva_fecha) -> None:
-        _ = nueva_fecha
-        update_preview = getattr(self, "_update_solicitud_preview", None)
-        if callable(update_preview):
-            update_preview()
-
     def _on_add_persona(self) -> None:
         return acciones_personas.on_add_persona(self)
 
@@ -554,14 +512,6 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _apply_historico_text_filter(self) -> None:
         return state_historico.aplicar_filtro_texto_historico(self)
-
-    def _apply_historico_default_range(self) -> None:
-        """Wrapper: aplica el rango por defecto del histórico."""
-        aplicar_ultimo_rango = getattr(self, "_apply_historico_last_30_days", None)
-        if callable(aplicar_ultimo_rango):
-            aplicar_ultimo_rango()
-            return
-        state_historico.aplicar_rango_por_defecto_historico(self)
 
     def _historico_period_filter_state(self) -> tuple[str, int | None, int | None]:
         return state_historico.estado_filtro_periodo_historico(self)
@@ -641,39 +591,6 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _on_insertar_sin_pdf(self) -> None:
         return on_insertar_sin_pdf(self)
-
-    def _on_confirmar(self, *args, **kwargs) -> None:
-        _ = (args, kwargs)
-        try:
-            persona_actual = self._current_persona()
-            if persona_actual is None:
-                self.toast.warning(
-                    copy_text("ui.sync.delegada_no_seleccionada"),
-                    title=copy_text("ui.validacion.validacion"),
-                )
-                return
-            confirmar_action = globals().get("on_confirmar")
-            if not callable(confirmar_action):
-                mensaje = copy_text("ui.errores.no_se_pudo_completar_operacion")
-                detalle = copy_text("ui.errores.reintenta_contacta_soporte")
-                toast_error(self.toast, f"{mensaje}. {detalle}")
-                log_operational_error(
-                    logger,
-                    "UI_CONFIRMAR_HANDLER_NO_DISPONIBLE",
-                    extra={"handler": "on_confirmar", "contexto": "MainWindow._on_confirmar"},
-                )
-                return
-            confirmar_action(self)
-        except Exception as exc:
-            mensaje = copy_text("ui.errores.no_se_pudo_completar_operacion")
-            detalle = copy_text("ui.errores.reintenta_contacta_soporte")
-            toast_error(self.toast, f"{mensaje}. {detalle}")
-            log_operational_error(
-                logger,
-                "UI_CONFIRMAR_HANDLER_FALLO",
-                exc=exc,
-                extra={"handler": "on_confirmar", "contexto": "MainWindow._on_confirmar"},
-            )
 
     def _render_preventive_validation(self) -> None:
         return validacion_preventiva._render_preventive_validation(self)

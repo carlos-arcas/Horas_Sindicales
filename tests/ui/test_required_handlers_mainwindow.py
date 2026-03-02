@@ -6,12 +6,21 @@ from pathlib import Path
 
 FUENTES_HANDLERS = (
     "app/ui/vistas/main_window/state_controller.py",
+    "app/ui/vistas/main_window/handlers_formulario.py",
+    "app/ui/vistas/main_window/handlers_historico.py",
+    "app/ui/vistas/main_window/handlers_layout.py",
     "app/ui/vistas/main_window_vista.py",
 )
 HANDLERS_REQUERIDOS = (
-    "_on_confirmar",
+    "_on_fecha_changed",
+    "_update_solicitud_preview",
+    "_on_completo_changed",
+    "_on_add_pendiente",
+    "_apply_historico_default_range",
     "_normalize_input_heights",
     "_update_responsive_columns",
+    "_configure_time_placeholders",
+    "_on_confirmar",
 )
 
 
