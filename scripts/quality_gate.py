@@ -18,6 +18,8 @@ import pytest
 from scripts.i18n.check_hardcode_i18n import (
     ConfigCheck,
     analizar_rutas,
+    cargar_baseline,
+    filtrar_nuevos,
     renderizar_hallazgos,
 )
 
@@ -25,6 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 CONFIG_PATH = ROOT / ".config" / "quality_gate.json"
 BASELINE_NAMING_PATH = ROOT / ".config" / "naming_baseline.json"
+BASELINE_I18N_HARDCODE_PATH = ROOT / ".config" / "i18n_hardcode_baseline.json"
 LOGS_DIR = ROOT / "logs"
 QUALITY_REPORT_JSON = LOGS_DIR / "quality_report.json"
 QUALITY_REPORT_MD = LOGS_DIR / "quality_report.md"
@@ -209,13 +212,32 @@ def run_i18n_hardcode_guard(config: dict[str, object], records: list[dict[str, s
     check = _load_i18n_check_config(config)
     rutas = [ROOT / ruta for ruta in check.rutas_objetivo if (ROOT / ruta).exists()]
     hallazgos = analizar_rutas(rutas, check)
-    if hallazgos:
-        print(renderizar_hallazgos(hallazgos))
+    if not BASELINE_I18N_HARDCODE_PATH.exists():
+        status = "FAIL"
+        detail = (
+            "nuevos={nuevos} | total={total} | baseline=0 | "
+            "falta .config/i18n_hardcode_baseline.json; genera baseline inicial controlada"
+        ).format(nuevos=len(hallazgos), total=len(hallazgos))
+        if hallazgos:
+            print(renderizar_hallazgos(hallazgos))
+        _record(records, "i18n_hardcode", status, detail)
+        return _make_result(status, detail, nuevos_hallazgos=len(hallazgos), total_hallazgos=len(hallazgos), baseline=0)
 
-    status = "FAIL" if hallazgos else "PASS"
-    detail = f"hallazgos={len(hallazgos)}"
+    baseline_ids = cargar_baseline(BASELINE_I18N_HARDCODE_PATH)
+    hallazgos_nuevos = filtrar_nuevos(hallazgos, baseline_ids)
+    if hallazgos_nuevos:
+        print(renderizar_hallazgos(hallazgos_nuevos))
+
+    status = "FAIL" if hallazgos_nuevos else "PASS"
+    detail = f"nuevos={len(hallazgos_nuevos)} | total={len(hallazgos)} | baseline={len(baseline_ids)}"
     _record(records, "i18n_hardcode", status, detail)
-    return _make_result(status, detail, total_hallazgos=len(hallazgos))
+    return _make_result(
+        status,
+        detail,
+        nuevos_hallazgos=len(hallazgos_nuevos),
+        total_hallazgos=len(hallazgos),
+        baseline=len(baseline_ids),
+    )
 
 
 def _load_naming_baseline() -> dict[str, set[str]]:
