@@ -398,7 +398,31 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         return acciones_sincronizacion.sync_actor_text(self)
 
     def _update_conflicts_reminder(self) -> None:
-        return acciones_sincronizacion.update_conflicts_reminder(self)
+        logger = logging.getLogger(__name__)
+        try:
+            if not hasattr(self, "conflicts_reminder_label"):
+                return
+            if not hasattr(self, "_i18n"):
+                return
+
+            reminder_widget = self.conflicts_reminder_label
+            if reminder_widget is None:
+                return
+
+            total_conflictos_pendientes = 0
+            if hasattr(self, "_conflicts_service") and self._conflicts_service is not None:
+                total_conflictos_pendientes = int(self._conflicts_service.count_conflicts())
+
+            if total_conflictos_pendientes > 0:
+                reminder_widget.setVisible(True)
+                texto_base = copy_text("ui.sync.conflictos_pendientes")
+                reminder_widget.setText(texto_base.replace("0", str(total_conflictos_pendientes), 1))
+                return
+
+            reminder_widget.setVisible(False)
+        except Exception:
+            logger.exception("UI_UPDATE_CONFLICTS_REMINDER_FAILED")
+            return
 
     def _on_main_tab_changed(self, index: int) -> None:
         if index != TAB_HISTORICO:
@@ -517,6 +541,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _build_ui(self) -> None:
         wiring.build_ui(self)
+        self._update_conflicts_reminder()
 
     def _build_layout(self) -> None:
         layout_builder.build_layout_phase(self)
