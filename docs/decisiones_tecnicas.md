@@ -43,3 +43,7 @@
   `build_container()` deja de importar `QSettings` en import-time y resuelve el adaptador en runtime para evitar fallos en colección de tests UI en CI sin backend Qt completo.  
   Si `infraestructura.repositorio_preferencias_qsettings` no está disponible, se registra `RepositorioPreferenciasIni` (sin PySide6) y se emite WARNING estructurado para trazabilidad operativa.  
   La aplicación sigue dependiendo del puerto `IRepositorioPreferencias`; las implementaciones concretas permanecen en infraestructura, preservando inversión de dependencias y compatibilidad Windows.
+
+- **2026-03-02 — Resolución de colisión de archivo con sufijo existente ` (n)` — Vigente**  
+  Se incorpora `resolver_colision_archivo` para incrementar correctamente nombres que ya llegan numerados (ej. `reporte (1).pdf` -> `reporte (2).pdf`) y se mantiene compatibilidad en `resolver_colision_pdf`.  
+  Verificación sugerida: `pytest -q tests/application/test_pdf_destino_colision_policy.py tests/application/use_cases/solicitudes/test_servicio_preverificacion_pdf.py`.
