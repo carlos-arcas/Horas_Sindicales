@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from presentacion.i18n import I18nManager
 
 
-class PaginaTexto(QWidget):
+class PaginaBase(QWidget):
     def __init__(
         self,
         i18n: I18nManager,
@@ -43,3 +43,7 @@ class PaginaTexto(QWidget):
     def actualizar_textos(self) -> None:
         self._titulo.setText(self._i18n.t(self._key_titulo))
         self._texto.setText(self._i18n.t(self._key_texto))
+
+
+# Alias de compatibilidad para imports existentes.
+PaginaTexto = PaginaBase
