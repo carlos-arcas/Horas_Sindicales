@@ -65,7 +65,12 @@ from app.domain.ports import (
     SqlConnectionPort,
 )
 from app.application.dtos.sync_preflight_result import SyncPreflightResult
-from app.domain.sheets_errors import SheetsConfigError, SheetsPermissionError, SheetsRateLimitError
+from app.domain.sheets_errors import (
+    SheetsConfigError,
+    SheetsPermissionError,
+    SheetsRateLimitError,
+    construir_mensaje_permiso_sheets,
+)
 from app.domain.sync_models import SyncExecutionPlan, SyncSummary
 
 logger = logging.getLogger(__name__)
@@ -171,7 +176,7 @@ class SheetsSyncService:
             enriched = self._enrich_permission_error(error, spreadsheet)
             return SyncPreflightResult.permission_denied(
                 mensaje=str(enriched),
-                accion_sugerida="Comparte la hoja con la service account con permisos de editor.",
+                accion_sugerida=construir_mensaje_permiso_sheets(enriched),
                 metadata=enriched.to_safe_payload(),
             )
 

@@ -77,11 +77,14 @@ class SheetsClient(SheetsClientPort):
             mapped_error = map_gspread_exception(exc)
             if isinstance(mapped_error, SheetsPermissionError):
                 mapped_error = mapped_error.enriquecer_email_cuenta_servicio(self._service_account_email).with_context(
-                    spreadsheet_id=spreadsheet_id
+                    spreadsheet_id=spreadsheet_id,
+                    worksheet="desconocida",
                 )
                 self._log_permission_error(
                     mapped_error,
+                    operation="open_spreadsheet",
                     spreadsheet_id=spreadsheet_id,
+                    worksheet_name="desconocida",
                 )
             raise mapped_error from exc
 
@@ -225,14 +228,16 @@ class SheetsClient(SheetsClientPort):
                 mapped_error = map_gspread_exception(exc)
                 if not isinstance(mapped_error, SheetsRateLimitError):
                     if isinstance(mapped_error, SheetsPermissionError):
+                        worksheet_name = self._worksheet_from_operation_name(operation_name) or "desconocida"
                         mapped_error = mapped_error.enriquecer_email_cuenta_servicio(self._service_account_email).with_context(
                             spreadsheet_id=spreadsheet_id or getattr(self._spreadsheet, "id", None),
-                            worksheet=self._worksheet_from_operation_name(operation_name),
+                            worksheet=worksheet_name,
                         )
                         self._log_permission_error(
                             mapped_error,
+                            operation=operation_name,
                             spreadsheet_id=spreadsheet_id or getattr(self._spreadsheet, "id", None),
-                            worksheet_name=self._worksheet_from_operation_name(operation_name),
+                            worksheet_name=worksheet_name,
                         )
                     raise mapped_error from exc
                 if attempt >= _MAX_RETRIES:
@@ -289,7 +294,7 @@ class SheetsClient(SheetsClientPort):
             return
         mapped_error = mapped_error.enriquecer_email_cuenta_servicio(self._service_account_email)
         resolved_spreadsheet_id = self._resolve_spreadsheet_id(spreadsheet_id=spreadsheet_id)
-        worksheet_name = self._worksheet_from_operation_name(operation_name)
+        worksheet_name = self._worksheet_from_operation_name(operation_name) or "desconocida"
         mapped_error = mapped_error.with_context(
             spreadsheet_id=resolved_spreadsheet_id,
             worksheet=worksheet_name,
@@ -297,6 +302,7 @@ class SheetsClient(SheetsClientPort):
         try:
             self._log_permission_error(
                 mapped_error,
+                operation=operation_name,
                 spreadsheet_id=resolved_spreadsheet_id,
                 worksheet_name=worksheet_name,
             )
@@ -341,6 +347,7 @@ class SheetsClient(SheetsClientPort):
     def _log_permission_error(
         error: SheetsPermissionError,
         *,
+        operation: str,
         spreadsheet_id: str | None = None,
         worksheet_name: str | None = None,
     ) -> None:
@@ -351,7 +358,7 @@ class SheetsClient(SheetsClientPort):
             exc=error,
             extra={
                 "correlation_id": correlation_id,
-                "operation": "sheets_permission_check",
+                "operation": operation,
                 "spreadsheet_id": spreadsheet_id,
                 "worksheet": worksheet_name,
                 "service_account_email": error.service_account_email,
