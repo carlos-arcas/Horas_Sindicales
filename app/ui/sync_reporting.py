@@ -44,17 +44,31 @@ def _duracion_ms_entre_isos(inicio_iso: str, fin_iso: str) -> int:
     return duracion_ms_desde_iso(inicio_iso, fin_iso, tz_objetivo=UTC)
 
 
-def _duracion_ms_simulacion(generated_at: str, now: str) -> int:
-    return duracion_ms_desde_iso(
-        generated_at,
-        now,
-        tz_objetivo=UTC,
-        evento_iso_invalido="sync_simulacion_iso_invalido",
-        contexto_evento={
-            "generated_at": generated_at,
-            "now": now,
-        },
-    )
+def _timestamp_y_duracion_simulacion(generated_at: str) -> tuple[str, int]:
+    now_dt = datetime.now()
+    now = now_dt.isoformat()
+    try:
+        generated_at_dt = datetime.fromisoformat(generated_at)
+    except (TypeError, ValueError):
+        logger.warning(
+            "sync_simulacion_iso_invalido",
+            extra={
+                "evento": "sync_simulacion_iso_invalido",
+                "generated_at": generated_at,
+                "now": now,
+            },
+        )
+        return now, 0
+
+    if generated_at_dt.tzinfo is not None:
+        now_dt = datetime.now(generated_at_dt.tzinfo)
+        now = now_dt.isoformat()
+    elif now_dt.tzinfo is not None:
+        now_dt = now_dt.replace(tzinfo=None)
+        now = now_dt.isoformat()
+
+    duration_ms = max(0, int((now_dt - generated_at_dt).total_seconds() * 1000))
+    return now, duration_ms
 
 
 def build_sync_report(
@@ -277,7 +291,7 @@ def build_simulation_report(
     sync_id: str | None = None,
     attempt_history: tuple[SyncAttemptReport, ...] = (),
 ) -> SyncReport:
-    now = datetime.now().isoformat()
+    now, duration_ms = _timestamp_y_duracion_simulacion(plan.generated_at)
     entries: list[SyncLogEntry] = []
     for item in plan.to_create:
         entries.append(
@@ -352,8 +366,6 @@ def build_simulation_report(
             )
         )
     status = "OK" if plan.has_changes else "IDLE"
-    duration_ms = _duracion_ms_simulacion(plan.generated_at, now)
-
     return SyncReport(
         sync_id=sync_id or str(uuid.uuid4()),
         started_at=plan.generated_at,
