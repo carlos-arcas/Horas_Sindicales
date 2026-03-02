@@ -21,7 +21,7 @@ from app.ui.vistas.main_window import dialogos_sincronizacion
 from app.ui.vistas.main_window_helpers import show_sync_error_dialog_from_exception
 from app.ui.workers.sincronizacion_workers import PushWorker
 from app.bootstrap.logging import log_operational_error
-from app.ui.i18n_ui import ui_text
+from app.ui.i18n_interfaz import texto_interfaz
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +160,7 @@ def _log_sync_permission_error(ventana, error: SheetsPermissionError) -> None:
 
 def on_push_now(ventana) -> None:
     if not ventana._sync_service.is_configured():
-        ventana.toast.warning(ui_text("ui.sync.panel.no_hay_configuracion"), title=ui_text("ui.sync.panel.sin_configuracion"))
+        ventana.toast.warning(texto_interfaz("ui.sync.panel.no_hay_configuracion"), title=texto_interfaz("ui.sync.panel.sin_configuracion"))
         return
     set_sync_in_progress(ventana, True)
     ventana._sync_thread = QThread()
@@ -183,7 +183,7 @@ def on_push_finished(ventana, summary: SyncSummary) -> None:
     if summary.conflicts > 0:
         ConflictsDialog(ventana._conflicts_service, ventana).exec()
     ventana._refresh_last_sync_label()
-    dialogos_sincronizacion.show_sync_summary_dialog(ventana, ui_text("ui.sync.panel.sincronizacion_completada"), summary)
+    dialogos_sincronizacion.show_sync_summary_dialog(ventana, texto_interfaz("ui.sync.panel.sincronizacion_completada"), summary)
 
 
 def on_push_failed(ventana, payload: object) -> None:
@@ -209,7 +209,7 @@ def update_conflicts_reminder(ventana) -> None:
         reminder_label.setVisible(total > 0)
         if total <= 0:
             return
-        reminder_label.setText(ui_text("ui.sync.panel.conflictos_pendientes", cantidad=total))
+        reminder_label.setText(texto_interfaz("ui.sync.panel.conflictos_pendientes", cantidad=total))
     except Exception:
         logger.exception("UI_UPDATE_CONFLICTS_REMINDER_FAILED")
 
@@ -272,7 +272,7 @@ def set_sync_in_progress(ventana, in_progress: bool) -> None:
         ventana.status_sync_progress.setVisible(in_progress)
     if in_progress:
         ventana._sync_started_at = datetime.now().isoformat()
-        ventana.statusBar().showMessage(ui_text("ui.sync.panel.sincronizando_sheets"))
+        ventana.statusBar().showMessage(texto_interfaz("ui.sync.panel.sincronizando_sheets"))
         ventana.sync_button.setEnabled(False)
         ventana.simulate_sync_button.setEnabled(False)
         ventana.confirm_sync_button.setEnabled(False)
@@ -280,7 +280,7 @@ def set_sync_in_progress(ventana, in_progress: bool) -> None:
         ventana.copy_sync_report_button.setEnabled(False)
         ventana.review_conflicts_button.setEnabled(False)
         dialogos_sincronizacion.set_sync_status_badge(ventana, "RUNNING")
-        ventana.sync_panel_status.setText(ui_text("ui.sync.panel.estado_pendiente_sincronizando"))
+        ventana.sync_panel_status.setText(texto_interfaz("ui.sync.panel.estado_pendiente_sincronizando"))
     else:
         ventana.statusBar().clearMessage()
 

@@ -14,7 +14,7 @@ class _ProveedorI18NNull:
         return fallback if fallback is not None else f"[MISSING:{key}]"
 
 
-class RegistroIdiomaUI:
+class RegistroIdiomaInterfaz:
     def __init__(self, servicio: ProveedorI18N) -> None:
         self._servicio = servicio
         self._callbacks: list[Callable[[], None]] = []
@@ -38,10 +38,10 @@ class RegistroIdiomaUI:
             callback()
 
 
-_REGISTRO_IDIOMA = RegistroIdiomaUI(_ProveedorI18NNull())
+_REGISTRO_IDIOMA = RegistroIdiomaInterfaz(_ProveedorI18NNull())
 
 
-def configurar_ui_i18n(servicio: ProveedorI18N) -> None:
+def configurar_i18n_interfaz(servicio: ProveedorI18N) -> None:
     _REGISTRO_IDIOMA.configurar_servicio(servicio)
 
 
@@ -49,26 +49,26 @@ def registrar_refresco_idioma(callback: Callable[[], None]) -> None:
     _REGISTRO_IDIOMA.registrar(callback)
 
 
-def cambiar_idioma_ui(idioma: str) -> None:
+def cambiar_idioma_interfaz(idioma: str) -> None:
     _REGISTRO_IDIOMA.cambiar_idioma(idioma)
 
 
-def idioma_actual_ui() -> str:
+def idioma_actual_interfaz() -> str:
     servicio = _REGISTRO_IDIOMA.servicio
     return getattr(servicio, "idioma", "es")
 
 
-def ui_text(key: str, **params: object) -> str:
+def texto_interfaz(key: str, **params: object) -> str:
     return _resolver_texto(key, **params)
 
 
-def ui_text_legacy(legacy: str, **params: object) -> str:
+def texto_interfaz_heredado(legacy: str, **params: object) -> str:
     return _resolver_texto(legacy, **params)
 
 
 def _resolver_texto(key: str, **params: object) -> str:
     traducido = _REGISTRO_IDIOMA.servicio.t(key, **params)
     if traducido.startswith("[MISSING"):
-        LOGGER.warning("i18n_missing_ui_key", extra={"extra": {"key": key, "idioma": idioma_actual_ui()}})
+        LOGGER.warning("i18n_missing_ui_key", extra={"extra": {"key": key, "idioma": idioma_actual_interfaz()}})
         return _FALLBACK_TEXTO
     return traducido

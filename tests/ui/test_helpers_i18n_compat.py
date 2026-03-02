@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.ui.vistas.helpers_i18n_compat import resolver_texto_i18n
+from app.ui.vistas.compat_i18n import resolver_texto_i18n
 
 
 class _Gestor:

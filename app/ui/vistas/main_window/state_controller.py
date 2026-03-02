@@ -125,7 +125,7 @@ from app.ui.vistas.main_window.importaciones import (
 from . import data_refresh, form_handlers, handlers_layout, layout_builder, wiring
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
-from app.ui.i18n_ui import cambiar_idioma_ui, configurar_ui_i18n, registrar_refresco_idioma, ui_text
+from app.ui.i18n_interfaz import cambiar_idioma_interfaz, configurar_i18n_interfaz, registrar_refresco_idioma, texto_interfaz
 from app.ui.qt_hilos import assert_hilo_ui_o_log
 from .init_placeholders import inicializar_placeholders
 
@@ -214,7 +214,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._servicio_i18n = servicio_i18n
         if servicio_i18n is not None:
-            configurar_ui_i18n(servicio_i18n)
+            configurar_i18n_interfaz(servicio_i18n)
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
         self._pending_all_solicitudes: list[SolicitudDTO] = []
@@ -300,16 +300,16 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         QTimer.singleShot(0, self._warmup_sync_client)
 
     def cambiar_idioma(self, idioma: str) -> None:
-        cambiar_idioma_ui(idioma)
+        cambiar_idioma_interfaz(idioma)
 
     def _refrescar_textos_sync(self) -> None:
         if hasattr(self, "sync_panel_status"):
-            self.sync_panel_status.setText(ui_text("ui.sync.panel.estado_pendiente"))
+            self.sync_panel_status.setText(texto_interfaz("ui.sync.panel.estado_pendiente"))
         if hasattr(self, "sync_status_label"):
-            self.sync_status_label.setText(ui_text("ui.sync.panel.sincronizando"))
+            self.sync_status_label.setText(texto_interfaz("ui.sync.panel.sincronizando"))
         reminder = getattr(self, "conflicts_reminder_label", None)
         if reminder is not None and reminder.isVisible():
-            reminder.setText(ui_text("ui.sync.panel.conflictos_pendientes", cantidad=self._safe_conflicts_count()))
+            reminder.setText(texto_interfaz("ui.sync.panel.conflictos_pendientes", cantidad=self._safe_conflicts_count()))
 
     def _safe_conflicts_count(self) -> int:
         service = getattr(self, "_conflicts_service", None)
