@@ -28,6 +28,9 @@
 - **2026-03-01 — Reglas de filtrado de histórico movidas de UI a aplicación — Vigente**  
   Antes: `app/ui/vistas/historico_filter_rules.py` contenía lógica de aceptación/descartes por estado, rango y búsqueda. Después: reglas puras en `app/domain/services.py`, y el módulo UI queda como shim de compatibilidad sin negocio. Se refuerza con guard de imports entre capas.
 
+- **2026-03-02 — Cálculo de duración ISO tolerante a naive/aware e inválidos en reporting — Vigente**  
+  Se incorpora `duracion_ms_desde_iso` para normalizar offsets (`UTC`) y devolver `0` ante entradas no parseables sin lanzar excepciones; esto evita la regresión de `TypeError` en combinaciones naive/aware y simplifica pruebas unitarias puras.
+
 ## Procedimiento de actualización
 
 1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).

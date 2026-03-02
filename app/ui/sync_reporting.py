@@ -28,8 +28,16 @@ def _parse_iso_to_utc_aware(value: str) -> datetime:
 
 
 def _duracion_ms_entre_isos(inicio_iso: str, fin_iso: str) -> int:
-    inicio = _parsear_iso_utc_aware(inicio_iso)
-    fin = _parsear_iso_utc_aware(fin_iso)
+    return duracion_ms_desde_iso(inicio_iso, fin_iso)
+
+
+def duracion_ms_desde_iso(inicio_iso: str, fin_iso: str) -> int:
+    """Devuelve la duración en ms entre dos timestamps ISO sin lanzar por inputs inválidos."""
+    try:
+        inicio = _parsear_iso_utc_aware(inicio_iso)
+        fin = _parsear_iso_utc_aware(fin_iso)
+    except (TypeError, ValueError):
+        return 0
     return max(0, int((fin - inicio).total_seconds() * 1000))
 
 
@@ -280,9 +288,7 @@ def build_simulation_report(
             )
         )
     status = "OK" if plan.has_changes else "IDLE"
-    inicio = _parsear_iso_utc_aware(plan.generated_at)
-    fin = _parsear_iso_utc_aware(now)
-    duration_ms = max(0, int((fin - inicio).total_seconds() * 1000))
+    duration_ms = duracion_ms_desde_iso(plan.generated_at, now)
 
     return SyncReport(
         sync_id=sync_id or str(uuid.uuid4()),
