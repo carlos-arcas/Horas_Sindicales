@@ -214,7 +214,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         servicio_i18n: ProveedorI18N | None = None,
     ) -> None:
         super().__init__()
-        assert_hilo_ui_o_log("MainWindow.__init__", logger)
+        assert_hilo_ui_o_log("ui.mainwindow.init", logger)
         self._persona_use_cases = persona_use_cases
         self._solicitud_use_cases = solicitud_use_cases
         self._grupo_use_cases = grupo_use_cases

@@ -120,3 +120,21 @@ def test_preflight_no_toca_disco() -> None:
     caso_uso.execute(SolicitudConfirmarPdfPeticion(pendientes_ids=[], generar_pdf=True, destino_pdf=None))
 
     assert fs.mkdir_calls == 0
+
+
+def test_caso_uso_es_invocable_como_callable() -> None:
+    repo = FakeRepositorio([_solicitud(1)])
+    generador = FakeGeneradorPdf()
+    fs = FakeFs()
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
+
+    resultado = caso_uso(
+        SolicitudConfirmarPdfPeticion(
+            pendientes_ids=[1],
+            generar_pdf=True,
+            destino_pdf=Path("/tmp/callable.pdf"),
+        )
+    )
+
+    assert resultado.ruta_pdf == Path("/tmp/callable.pdf")
+    assert resultado.confirmadas_ids == [1]
