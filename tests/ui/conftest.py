@@ -1,12 +1,35 @@
 import os
 import sys
+from importlib import import_module
 from pathlib import Path
 
 import pytest
 
 
+def _clear_pyside6_modules() -> None:
+    for module_name in [name for name in list(sys.modules) if name == "PySide6" or name.startswith("PySide6.")]:
+        sys.modules.pop(module_name, None)
+
+
+def _assert_real_qt_disponible() -> None:
+    _clear_pyside6_modules()
+    try:
+        qt_widgets = import_module("PySide6.QtWidgets")
+    except Exception as exc:  # pragma: no cover - depende del host
+        raise RuntimeError(
+            "PySide6 real no disponible; se detectó stub o instalación incompleta"
+        ) from exc
+    if not hasattr(qt_widgets, "QCheckBox"):
+        raise RuntimeError("PySide6 real no disponible; se detectó stub o instalación incompleta")
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    _assert_real_qt_disponible()
+
+
 def _qt_ready() -> bool:
     try:
+        _assert_real_qt_disponible()
         from PySide6.QtCore import QEvent
         from PySide6.QtWidgets import QApplication
 
