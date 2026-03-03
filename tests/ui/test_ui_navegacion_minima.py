@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from tests.ui.conftest import require_qt
-
-QApplication = require_qt()
+qt_widgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
 qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
+QApplication = getattr(qt_widgets, "QApplication", None)
 
 from app.ui.vistas.main_window import MainWindow
 from app.ui.vistas import main_window_vista
@@ -24,6 +23,9 @@ class _FakeSyncService(_NoOpService):
 @pytest.mark.ui
 @pytest.mark.smoke
 def test_ui_navegacion_minima_cambia_tab(monkeypatch: pytest.MonkeyPatch) -> None:
+    if QApplication is None or not hasattr(QApplication, "instance"):
+        pytest.fail("PySide6 real requerido en tests/ui: QApplication.instance no disponible (stub detectado)")
+
     app = QApplication.instance() or QApplication([])
 
     monkeypatch.setattr(main_window_vista.MainWindow, "_load_personas", lambda self, select_id=None: None)
