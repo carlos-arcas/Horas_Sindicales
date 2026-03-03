@@ -33,7 +33,7 @@ def _solicitud_base() -> SolicitudDTO:
 
 def _build_window_for_add(solicitud: SolicitudDTO | None) -> SimpleNamespace:
     use_cases = Mock()
-    use_cases.buscar_duplicado.return_value = None
+    use_cases.buscar_conflicto_pendiente.return_value = None
     use_cases.calcular_minutos_solicitud.return_value = 90
     use_cases.minutes_to_hours_float.return_value = 1.5
     use_cases.crear_resultado.return_value = ResultadoCrearSolicitudDTO(
@@ -49,6 +49,7 @@ def _build_window_for_add(solicitud: SolicitudDTO | None) -> SimpleNamespace:
         _selected_pending_for_editing=Mock(return_value=None),
         _solicitud_use_cases=use_cases,
         _handle_duplicate_detected=Mock(return_value=False),
+        ir_a_pendiente_existente=Mock(),
         _resolve_backend_conflict=Mock(return_value=True),
         _set_processing_state=Mock(),
         _reload_pending_views=Mock(),

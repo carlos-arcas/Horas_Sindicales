@@ -894,6 +894,26 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _focus_pending_by_id(self, solicitud_id: int | None) -> bool:
         return state_pendientes.enfocar_pendiente_por_id(self, solicitud_id)
 
+
+    def ir_a_pendiente_existente(self, solicitud_id: int) -> None:
+        try:
+            if self.main_tabs is not None and self.main_tabs.currentIndex() != 0:
+                self.main_tabs.setCurrentIndex(0)
+            if getattr(self, "ver_todas_pendientes_button", None) is not None and not self._pending_view_all:
+                self.ver_todas_pendientes_button.setChecked(True)
+            if self._pending_view_all:
+                self._reload_pending_views()
+            if not self._focus_pending_by_id(solicitud_id):
+                logger.warning("pending_row_not_found", extra={"solicitud_id": solicitud_id})
+                return
+            pendientes_table = getattr(self, "pendientes_table", None)
+            if pendientes_table is None:
+                logger.warning("pending_table_missing", extra={"solicitud_id": solicitud_id})
+                return
+            QTimer.singleShot(2500, pendientes_table.clearSelection)
+        except Exception:
+            logger.warning("navigate_to_existing_pending_failed", extra={"solicitud_id": solicitud_id}, exc_info=True)
+
     def _dump_estado_pendientes(self, motivo: str) -> None:
         try:
             estado = build_estado_pendientes_debug_payload(

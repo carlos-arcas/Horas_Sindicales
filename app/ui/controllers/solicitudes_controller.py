@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 import logging
 from pathlib import Path
+from time import monotonic
 
 from app.application.dto import SolicitudDTO
 
@@ -15,8 +16,11 @@ logger = logging.getLogger(__name__)
 
 
 class SolicitudesController:
+    _CONFLICT_DEBOUNCE_MS = 800
+
     def __init__(self, window) -> None:
         self.window = window
+        self._last_conflict_toast: tuple[int, str, float] | None = None
 
     def on_add_pendiente(self) -> None:
         w = self.window
@@ -48,10 +52,72 @@ class SolicitudesController:
 
     def _handle_duplicate(self, solicitud: SolicitudDTO, pendiente_en_edicion: SolicitudDTO | None) -> bool:
         w = self.window
-        duplicate = w._solicitud_use_cases.buscar_duplicado(solicitud)
-        if duplicate is not None and (pendiente_en_edicion is None or duplicate.id != pendiente_en_edicion.id):
-            return w._handle_duplicate_detected(duplicate)
+        conflicto = w._solicitud_use_cases.buscar_conflicto_pendiente(
+            solicitud,
+            excluir_solicitud_id=getattr(pendiente_en_edicion, "id", None),
+        )
+        if conflicto is not None:
+            return self._handle_conflict_detected(conflicto)
         return True
+
+    def _handle_conflict_detected(self, conflicto: object) -> bool:
+        tipo = str(getattr(conflicto, "tipo", "")).upper()
+        id_existente = getattr(conflicto, "id_existente", None)
+        if not isinstance(id_existente, int) or not tipo:
+            logger.warning("conflict_toast_missing_payload", extra={"tipo": tipo, "id_existente": id_existente})
+            return self.window._handle_duplicate_detected(conflicto)
+
+        ahora_ms = monotonic() * 1000
+        if self._is_debounced(id_existente=id_existente, tipo=tipo, timestamp_ms=ahora_ms):
+            logger.info("conflict_toast_debounced", extra={"tipo": tipo, "id_existente": id_existente})
+            return False
+
+        title = self._copy("ui.conflictos.titulo_revisa_formulario", fallback="Revisa el formulario")
+        message_key = "ui.conflictos.duplicado_mensaje" if tipo == "DUPLICADO" else "ui.conflictos.solape_mensaje"
+        message_template = self._copy(message_key)
+        message = message_template.format(
+            id=id_existente,
+            fecha=getattr(conflicto, "fecha", "-"),
+            desde=getattr(conflicto, "desde", "-"),
+            hasta=getattr(conflicto, "hasta", "-"),
+            completo=getattr(conflicto, "completo", False),
+        )
+        action_label = self._copy("ui.conflictos.boton_ver_registro", fallback="Ver registro")
+        self.window.toast.warning(
+            message,
+            title=title,
+            action_label=action_label,
+            action_callback=lambda: self.window.ir_a_pendiente_existente(id_existente),
+        )
+        self._last_conflict_toast = (id_existente, tipo, ahora_ms)
+        return False
+
+    def _copy(self, key: str, fallback: str | None = None) -> str:
+        translate = getattr(self.window, "_t", None)
+        if callable(translate):
+            translated = translate(key)
+            if isinstance(translated, str) and translated.strip():
+                return translated
+        translated = getattr(self.window, "copy_text", None)
+        if callable(translated):
+            value = translated(key)
+            if isinstance(value, str) and value.strip():
+                return value
+        try:
+            from app.ui.copy_catalog import copy_text
+
+            value = copy_text(key)
+            if isinstance(value, str) and value.strip():
+                return value
+        except Exception:  # pragma: no cover - defensive
+            logger.warning("copy_text_resolution_failed", extra={"key": key}, exc_info=True)
+        return fallback if fallback is not None else key
+
+    def _is_debounced(self, *, id_existente: int, tipo: str, timestamp_ms: float) -> bool:
+        if self._last_conflict_toast is None:
+            return False
+        last_id, last_tipo, last_ts = self._last_conflict_toast
+        return last_id == id_existente and last_tipo == tipo and (timestamp_ms - last_ts) < self._CONFLICT_DEBOUNCE_MS
 
     def _persist_pendiente(
         self,

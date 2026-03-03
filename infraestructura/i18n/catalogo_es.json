@@ -64,5 +64,9 @@
   "sync.email_no_disponible": "<email no disponible>",
   "sync.error_operacion_log": "Sync failed",
   "sync.permisos_bloqueados_log": "Sincronización bloqueada por permisos en Google Sheets",
-  "ui.texto_no_disponible": "(texto no disponible)"
+  "ui.texto_no_disponible": "(texto no disponible)",
+  "ui.conflictos.titulo_revisa_formulario": "Revisa el formulario",
+  "ui.conflictos.duplicado_mensaje": "Ya existe un registro con los mismos datos. ID {id} · Fecha {fecha} · Desde {desde} · Hasta {hasta} · Completo {completo}.",
+  "ui.conflictos.solape_mensaje": "El tramo horario se solapa con un registro existente. ID {id} · Fecha {fecha} · Desde {desde} · Hasta {hasta} · Completo {completo}.",
+  "ui.conflictos.boton_ver_registro": "Ver registro"
 }
