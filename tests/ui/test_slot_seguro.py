@@ -9,7 +9,7 @@ class ToastFalso:
     def __init__(self) -> None:
         self.calls: list[str] = []
 
-    def error(self, mensaje: str) -> None:
+    def error(self, mensaje: str, **kwargs: object) -> None:
         self.calls.append(mensaje)
 
 
