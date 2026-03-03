@@ -14,6 +14,12 @@ class RepositorioSolicitudesDesdeCasosUso(RepositorioSolicitudes):
     def listar_pendientes(self) -> list[SolicitudDTO]:
         return list(self._solicitud_use_cases.listar_pendientes_all())
 
+    def crear_pendiente(self, solicitud: SolicitudDTO, correlation_id: str | None = None) -> SolicitudDTO:
+        return self._solicitud_use_cases.crear(
+            solicitud,
+            correlation_id=correlation_id,
+        )
+
     def confirmar_sin_pdf(
         self,
         pendientes: list[SolicitudDTO],
