@@ -1,0 +1,57 @@
+{
+  "estado": "FAIL",
+  "total_violaciones": 2,
+  "total_indicios_ui": 5,
+  "violaciones": [
+    {
+      "tipo": "ui_importa_infraestructura",
+      "archivo": "presentacion/i18n/__init__.py",
+      "linea": 13,
+      "modulo_origen": "presentacion.i18n.__init__",
+      "modulo_destino": "infraestructura.i18n.proveedor_traducciones",
+      "capa_origen": "ui",
+      "capa_destino": "infraestructura"
+    },
+    {
+      "tipo": "ui_importa_infraestructura",
+      "archivo": "presentacion/i18n/catalogo.py",
+      "linea": 3,
+      "modulo_origen": "presentacion.i18n.catalogo",
+      "modulo_destino": "infraestructura.i18n.proveedor_traducciones",
+      "capa_origen": "ui",
+      "capa_destino": "infraestructura"
+    }
+  ],
+  "indicios_negocio_en_ui": [
+    {
+      "tipo": "ui_importa_acceso_datos",
+      "archivo": "app/ui/i18n_interfaz.py",
+      "linea": 6,
+      "detalle": "aplicacion.puertos.proveedor_i18n"
+    },
+    {
+      "tipo": "ui_importa_acceso_datos",
+      "archivo": "app/ui/vistas/main_window/state_controller.py",
+      "linea": 151,
+      "detalle": "aplicacion.puertos.proveedor_i18n"
+    },
+    {
+      "tipo": "ui_importa_acceso_datos",
+      "archivo": "presentacion/i18n/__init__.py",
+      "linea": 13,
+      "detalle": "infraestructura.i18n.proveedor_traducciones"
+    },
+    {
+      "tipo": "ui_importa_acceso_datos",
+      "archivo": "presentacion/i18n/catalogo.py",
+      "linea": 3,
+      "detalle": "infraestructura.i18n.proveedor_traducciones"
+    },
+    {
+      "tipo": "ui_importa_acceso_datos",
+      "archivo": "presentacion/i18n/gestor_i18n.py",
+      "linea": 11,
+      "detalle": "aplicacion.puertos.proveedor_i18n"
+    }
+  ]
+}
