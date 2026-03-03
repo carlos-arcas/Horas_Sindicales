@@ -8,7 +8,10 @@ from unittest.mock import Mock
 from app.application.dto import ResultadoCrearSolicitudDTO, SolicitudDTO
 from app.ui.controllers.pdf_controller import PdfController
 from app.ui.controllers.personas_controller import PersonasController
-from app.ui.controllers.solicitudes_controller import SolicitudesController, aplicar_confirmacion
+from app.ui.controllers.solicitudes_controller import (
+    SolicitudesController,
+    aplicar_confirmacion,
+)
 from app.ui.controllers.sync_controller import SyncController
 
 
@@ -37,7 +40,9 @@ def _build_window_for_solicitudes(solicitud: SolicitudDTO | None) -> SimpleNames
         ir_a_pendiente_existente=Mock(),
         _selected_pending_for_editing=Mock(return_value=None),
         _undo_last_added_pending=Mock(),
-        notas_input=SimpleNamespace(toPlainText=Mock(return_value=""), setPlainText=Mock()),
+        notas_input=SimpleNamespace(
+            toPlainText=Mock(return_value=""), setPlainText=Mock()
+        ),
         notifications=Mock(),
         toast=Mock(),
         desde_input=SimpleNamespace(setFocus=Mock()),
@@ -49,7 +54,9 @@ def _build_window_for_solicitudes(solicitud: SolicitudDTO | None) -> SimpleNames
 def test_personas_controller_calls_crear() -> None:
     use_cases = Mock()
     use_cases.crear.return_value = SimpleNamespace(id=7)
-    window = SimpleNamespace(_persona_use_cases=use_cases, _load_personas=Mock(), toast=Mock())
+    window = SimpleNamespace(
+        _persona_use_cases=use_cases, _load_personas=Mock(), toast=Mock()
+    )
 
     controller = PersonasController(window)
     controller.on_add_persona(SimpleNamespace(nombre="X"))
@@ -107,13 +114,15 @@ def test_solicitudes_controller_conflict_toast_guides_to_existing() -> None:
         notas=None,
     )
     window = _build_window_for_solicitudes(solicitud)
-    window._solicitud_use_cases.buscar_conflicto_pendiente.return_value = SimpleNamespace(
-        tipo="DUPLICADO",
-        id_existente=11,
-        fecha="2024-01-01",
-        desde="10:00",
-        hasta="11:00",
-        completo=False,
+    window._solicitud_use_cases.buscar_conflicto_pendiente.return_value = (
+        SimpleNamespace(
+            tipo="DUPLICADO",
+            id_existente=11,
+            fecha="2024-01-01",
+            desde="10:00",
+            hasta="11:00",
+            completo=False,
+        )
     )
 
     controller = SolicitudesController(window)
@@ -128,10 +137,9 @@ def test_solicitudes_controller_conflict_toast_guides_to_existing() -> None:
     window._solicitud_use_cases.crear_resultado.assert_not_called()
 
 
-
-
-
-def test_solicitudes_controller_conflict_debounce_avoids_duplicate_toast(monkeypatch) -> None:
+def test_solicitudes_controller_conflict_debounce_avoids_duplicate_toast(
+    monkeypatch,
+) -> None:
     solicitud = SolicitudDTO(
         id=None,
         persona_id=1,
@@ -158,13 +166,16 @@ def test_solicitudes_controller_conflict_debounce_avoids_duplicate_toast(monkeyp
     window._solicitud_use_cases.buscar_conflicto_pendiente.return_value = conflicto
 
     tiempos = iter([100.0, 100.2])
-    monkeypatch.setattr("app.ui.controllers.solicitudes_controller.monotonic", lambda: next(tiempos))
+    monkeypatch.setattr(
+        "app.ui.controllers.solicitudes_controller.monotonic", lambda: next(tiempos)
+    )
 
     controller = SolicitudesController(window)
     controller.on_add_pendiente()
     controller.on_add_pendiente()
 
     window.toast.warning.assert_called_once()
+
 
 def test_solicitudes_controller_muestra_warning_no_bloqueante() -> None:
     solicitud = SolicitudDTO(
@@ -182,12 +193,14 @@ def test_solicitudes_controller_muestra_warning_no_bloqueante() -> None:
         notas=None,
     )
     window = _build_window_for_solicitudes(solicitud)
-    window._solicitud_use_cases.crear_resultado.return_value = ResultadoCrearSolicitudDTO(
-        success=True,
-        warnings=["Saldo insuficiente. La petición se ha registrado igualmente."],
-        errores=[],
-        entidad=replace(solicitud, id=77),
-        saldos=None,
+    window._solicitud_use_cases.crear_resultado.return_value = (
+        ResultadoCrearSolicitudDTO(
+            success=True,
+            warnings=["Saldo insuficiente. La petición se ha registrado igualmente."],
+            errores=[],
+            entidad=replace(solicitud, id=77),
+            saldos=None,
+        )
     )
 
     controller = SolicitudesController(window)
@@ -195,6 +208,7 @@ def test_solicitudes_controller_muestra_warning_no_bloqueante() -> None:
 
     window.toast.info.assert_called_once()
     window._reload_pending_views.assert_called_once()
+
 
 def test_sync_controller_updates_button_state() -> None:
     window = SimpleNamespace(
@@ -210,6 +224,41 @@ def test_sync_controller_updates_button_state() -> None:
 
     window.sync_button.setEnabled.assert_called_once_with(True)
     window.review_conflicts_button.setText.assert_called_once()
+
+
+def test_sync_controller_traduce_texto_review_conflicts_desde_reason_code() -> None:
+    window = SimpleNamespace(
+        _sync_service=SimpleNamespace(is_configured=Mock(return_value=True)),
+        _sync_in_progress=False,
+        _pending_sync_plan=None,
+        _last_sync_report=None,
+        sync_button=SimpleNamespace(
+            setEnabled=Mock(),
+            text=Mock(return_value="Sync"),
+            toolTip=Mock(return_value=""),
+        ),
+        review_conflicts_button=SimpleNamespace(
+            setEnabled=Mock(),
+            setText=Mock(),
+            text=Mock(return_value=""),
+            toolTip=Mock(return_value=""),
+        ),
+        _conflicts_service=SimpleNamespace(count_conflicts=Mock(return_value=2)),
+    )
+
+    controller = SyncController(window)
+    controller.update_sync_button_state()
+
+    assert window.review_conflicts_button.setText.call_args_list[0].args == (
+        "Revisar conflictos",
+    )
+
+    window._conflicts_service.count_conflicts.return_value = 0
+    controller.update_sync_button_state()
+
+    assert window.review_conflicts_button.setText.call_args_list[1].args == (
+        "Revisar conflictos (sin pendientes)",
+    )
 
 
 def test_sync_controller_blocks_reentrancy() -> None:
@@ -309,8 +358,6 @@ def test_solicitudes_controller_actualiza_pendiente_en_edicion() -> None:
     window.toast.success.assert_called_once()
 
 
-
-
 def test_solicitudes_controller_refresh_historico_devuelve_resultado_use_case() -> None:
     historico = [
         SolicitudDTO(
@@ -338,11 +385,52 @@ def test_solicitudes_controller_refresh_historico_devuelve_resultado_use_case() 
 
     assert result == historico
     use_cases.listar_historico.assert_called_once_with()
+
+
 def test_aplicar_confirmacion_deja_solo_no_confirmadas() -> None:
     pendientes = [
-        SolicitudDTO(id=1, persona_id=1, fecha_solicitud="2024-01-01", fecha_pedida="2024-01-01", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
-        SolicitudDTO(id=2, persona_id=1, fecha_solicitud="2024-01-02", fecha_pedida="2024-01-02", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
-        SolicitudDTO(id=3, persona_id=1, fecha_solicitud="2024-01-03", fecha_pedida="2024-01-03", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
+        SolicitudDTO(
+            id=1,
+            persona_id=1,
+            fecha_solicitud="2024-01-01",
+            fecha_pedida="2024-01-01",
+            desde="10:00",
+            hasta="11:00",
+            completo=False,
+            horas=1,
+            observaciones=None,
+            pdf_path=None,
+            pdf_hash=None,
+            notas=None,
+        ),
+        SolicitudDTO(
+            id=2,
+            persona_id=1,
+            fecha_solicitud="2024-01-02",
+            fecha_pedida="2024-01-02",
+            desde="10:00",
+            hasta="11:00",
+            completo=False,
+            horas=1,
+            observaciones=None,
+            pdf_path=None,
+            pdf_hash=None,
+            notas=None,
+        ),
+        SolicitudDTO(
+            id=3,
+            persona_id=1,
+            fecha_solicitud="2024-01-03",
+            fecha_pedida="2024-01-03",
+            desde="10:00",
+            hasta="11:00",
+            completo=False,
+            horas=1,
+            observaciones=None,
+            pdf_path=None,
+            pdf_hash=None,
+            notas=None,
+        ),
     ]
 
     nuevas = aplicar_confirmacion(pendientes, [1, 3])
@@ -352,8 +440,34 @@ def test_aplicar_confirmacion_deja_solo_no_confirmadas() -> None:
 
 def test_aplicar_confirmacion_todas_confirmadas_lista_vacia() -> None:
     pendientes = [
-        SolicitudDTO(id=10, persona_id=1, fecha_solicitud="2024-01-01", fecha_pedida="2024-01-01", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
-        SolicitudDTO(id=11, persona_id=1, fecha_solicitud="2024-01-02", fecha_pedida="2024-01-02", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
+        SolicitudDTO(
+            id=10,
+            persona_id=1,
+            fecha_solicitud="2024-01-01",
+            fecha_pedida="2024-01-01",
+            desde="10:00",
+            hasta="11:00",
+            completo=False,
+            horas=1,
+            observaciones=None,
+            pdf_path=None,
+            pdf_hash=None,
+            notas=None,
+        ),
+        SolicitudDTO(
+            id=11,
+            persona_id=1,
+            fecha_solicitud="2024-01-02",
+            fecha_pedida="2024-01-02",
+            desde="10:00",
+            hasta="11:00",
+            completo=False,
+            horas=1,
+            observaciones=None,
+            pdf_path=None,
+            pdf_hash=None,
+            notas=None,
+        ),
     ]
 
     nuevas = aplicar_confirmacion(pendientes, [10, 11])
@@ -363,8 +477,34 @@ def test_aplicar_confirmacion_todas_confirmadas_lista_vacia() -> None:
 
 def test_aplicar_confirmacion_sin_confirmadas_lista_intacta() -> None:
     pendientes = [
-        SolicitudDTO(id=20, persona_id=1, fecha_solicitud="2024-01-01", fecha_pedida="2024-01-01", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
-        SolicitudDTO(id=21, persona_id=1, fecha_solicitud="2024-01-02", fecha_pedida="2024-01-02", desde="10:00", hasta="11:00", completo=False, horas=1, observaciones=None, pdf_path=None, pdf_hash=None, notas=None),
+        SolicitudDTO(
+            id=20,
+            persona_id=1,
+            fecha_solicitud="2024-01-01",
+            fecha_pedida="2024-01-01",
+            desde="10:00",
+            hasta="11:00",
+            completo=False,
+            horas=1,
+            observaciones=None,
+            pdf_path=None,
+            pdf_hash=None,
+            notas=None,
+        ),
+        SolicitudDTO(
+            id=21,
+            persona_id=1,
+            fecha_solicitud="2024-01-02",
+            fecha_pedida="2024-01-02",
+            desde="10:00",
+            hasta="11:00",
+            completo=False,
+            horas=1,
+            observaciones=None,
+            pdf_path=None,
+            pdf_hash=None,
+            notas=None,
+        ),
     ]
 
     nuevas = aplicar_confirmacion(pendientes, [])

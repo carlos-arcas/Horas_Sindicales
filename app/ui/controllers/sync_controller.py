@@ -9,8 +9,12 @@ from PySide6.QtCore import QObject, QThread, Signal, Slot
 from app.bootstrap.logging import log_operational_error
 from app.core.observability import OperationContext, log_event
 from app.domain.sheets_errors import SheetsPermissionError
+from app.ui.copy_catalog import copy_text
 from app.ui.sync_permission_message import build_sync_permission_blocked_message
-from app.ui.controllers.sync_button_state_rules import EstadoBotonSyncEntrada, decidir_estado_botones_sync
+from app.ui.controllers.sync_button_state_rules import (
+    EstadoBotonSyncEntrada,
+    decidir_estado_botones_sync,
+)
 from app.ui.vistas.compat_i18n import resolver_texto_i18n
 
 
@@ -43,11 +47,26 @@ class _SyncWorker(QObject):
     @Slot()
     def run(self) -> None:
         try:
-            log_event(logger, "sync_started", {"operation": self._operation_name}, self._correlation_id)
+            log_event(
+                logger,
+                "sync_started",
+                {"operation": self._operation_name},
+                self._correlation_id,
+            )
             result = self._operation()
-            log_event(logger, "sync_succeeded", {"operation": self._operation_name}, self._correlation_id)
+            log_event(
+                logger,
+                "sync_succeeded",
+                {"operation": self._operation_name},
+                self._correlation_id,
+            )
         except Exception as exc:  # pragma: no cover
-            log_event(logger, "sync_failed", {"operation": self._operation_name, "error": str(exc)}, self._correlation_id)
+            log_event(
+                logger,
+                "sync_failed",
+                {"operation": self._operation_name, "error": str(exc)},
+                self._correlation_id,
+            )
             log_operational_error(
                 logger,
                 _fallback_texto("sync.error_operacion_log"),
@@ -76,7 +95,9 @@ class SyncController:
     def on_simulate_sync(self) -> None:
         self._run_background_operation(
             operation=lambda: self.window._sync_service.simulate_sync_plan(),
-            on_finished=getattr(self.window, "_on_sync_simulation_finished", lambda *_: None),
+            on_finished=getattr(
+                self.window, "_on_sync_simulation_finished", lambda *_: None
+            ),
             operation_name="simulate_sync",
         )
 
@@ -89,12 +110,18 @@ class SyncController:
                     "sync.primero_simular_aviso",
                     _fallback_texto("sync.primero_simular_aviso"),
                 ),
-                title=_tr(w, "sync.sin_plan_titulo", _fallback_texto("sync.sin_plan_titulo")),
+                title=_tr(
+                    w, "sync.sin_plan_titulo", _fallback_texto("sync.sin_plan_titulo")
+                ),
             )
             return
         if not w._pending_sync_plan.has_changes:
             w.toast.info(
-                _tr(w, "sync.sin_cambios_aplicar", _fallback_texto("sync.sin_cambios_aplicar")),
+                _tr(
+                    w,
+                    "sync.sin_cambios_aplicar",
+                    _fallback_texto("sync.sin_cambios_aplicar"),
+                ),
                 title=_tr(w, "sync.titulo", _fallback_texto("sync.titulo")),
             )
             return
@@ -104,7 +131,9 @@ class SyncController:
             operation_name="execute_sync_plan",
         )
 
-    def _run_background_operation(self, *, operation, on_finished, operation_name: str) -> None:
+    def _run_background_operation(
+        self, *, operation, on_finished, operation_name: str
+    ) -> None:
         w = self.window
         if w._sync_in_progress:
             return
@@ -116,14 +145,20 @@ class SyncController:
                     "sync.configuracion_faltante_aviso",
                     _fallback_texto("sync.configuracion_faltante_aviso"),
                 ),
-                title=_tr(w, "sync.configuracion_faltante_titulo", _fallback_texto("sync.configuracion_faltante_titulo")),
+                title=_tr(
+                    w,
+                    "sync.configuracion_faltante_titulo",
+                    _fallback_texto("sync.configuracion_faltante_titulo"),
+                ),
             )
             return
         w._set_sync_in_progress(True)
         w._sync_thread = QThread()
         operation_context = OperationContext("sync_ui")
         w._sync_operation_context = operation_context
-        w._sync_worker = _SyncWorker(operation, operation_context.correlation_id, operation_name)
+        w._sync_worker = _SyncWorker(
+            operation, operation_context.correlation_id, operation_name
+        )
         w._sync_worker.moveToThread(w._sync_thread)
         w._sync_thread.started.connect(w._sync_worker.run)
         w._sync_worker.finished.connect(on_finished)
@@ -144,10 +179,16 @@ class SyncController:
             sync_configurado=w._sync_service.is_configured(),
             sync_en_progreso=w._sync_in_progress,
             hay_plan_pendiente=pending_plan is not None,
-            plan_tiene_cambios=bool(pending_plan is not None and pending_plan.has_changes),
-            plan_tiene_conflictos=bool(pending_plan is not None and pending_plan.conflicts),
+            plan_tiene_cambios=bool(
+                pending_plan is not None and pending_plan.has_changes
+            ),
+            plan_tiene_conflictos=bool(
+                pending_plan is not None and pending_plan.conflicts
+            ),
             ultimo_reporte_presente=report is not None,
-            ultimo_reporte_tiene_fallos=bool(report and (report.errors or report.conflicts)),
+            ultimo_reporte_tiene_fallos=bool(
+                report and (report.errors or report.conflicts)
+            ),
             conflictos_pendientes_total=conflictos_pendientes_total,
             texto_sync_actual=_leer_texto_boton(getattr(w, "sync_button", None)),
             tooltip_sync_actual=_leer_tooltip_boton(getattr(w, "sync_button", None)),
@@ -155,6 +196,13 @@ class SyncController:
         decision = decidir_estado_botones_sync(entrada)
 
         _aplicar_decision_boton(w.sync_button, decision.sync)
+        if hasattr(w.review_conflicts_button, "setText"):
+            w.review_conflicts_button.setText(
+                _texto_review_conflictos(
+                    reason_code=decision.review_conflicts.reason_code,
+                    severity=decision.review_conflicts.severity,
+                )
+            )
         _aplicar_decision_boton(w.review_conflicts_button, decision.review_conflicts)
 
         if hasattr(w, "simulate_sync_button"):
@@ -168,7 +216,9 @@ class SyncController:
         if hasattr(w, "sync_details_button"):
             _aplicar_decision_boton(w.sync_details_button, decision.sync_details)
         if hasattr(w, "copy_sync_report_button"):
-            _aplicar_decision_boton(w.copy_sync_report_button, decision.copy_sync_report)
+            _aplicar_decision_boton(
+                w.copy_sync_report_button, decision.copy_sync_report
+            )
 
     def on_open_opciones(self) -> None:
         w = self.window
@@ -179,7 +229,11 @@ class SyncController:
         if w._sync_service.is_configured():
             w.go_to_sync_config_button.setVisible(False)
             w._set_sync_status_badge("IDLE")
-            w.sync_panel_status.setText(_tr(w, "sync.estado_pendiente", _fallback_texto("sync.estado_pendiente")))
+            w.sync_panel_status.setText(
+                _tr(
+                    w, "sync.estado_pendiente", _fallback_texto("sync.estado_pendiente")
+                )
+            )
         self.update_sync_button_state()
 
     def _on_sync_failed(self, payload: object) -> None:
@@ -189,7 +243,9 @@ class SyncController:
         self.window._on_sync_failed(payload)
 
     def _handle_permission_error(self, error: SheetsPermissionError) -> None:
-        service_email = error.service_account_email or _resolve_service_account_email(self.window)
+        service_email = error.service_account_email or _resolve_service_account_email(
+            self.window
+        )
         log_operational_error(
             logger,
             _fallback_texto("sync.permisos_bloqueados_log"),
@@ -199,13 +255,23 @@ class SyncController:
                 "spreadsheet_id": error.spreadsheet_id,
                 "worksheet": error.worksheet,
                 "service_email": service_email,
-                "correlation_id": getattr(getattr(self.window, "_sync_operation_context", None), "correlation_id", None),
+                "correlation_id": getattr(
+                    getattr(self.window, "_sync_operation_context", None),
+                    "correlation_id",
+                    None,
+                ),
             },
         )
         if hasattr(self.window, "toast"):
             self.window.toast.warning(
-                build_sync_permission_blocked_message(service_account_email=service_email),
-                title=_tr(self.window, "sync.permisos_google_sheets", _fallback_texto("sync.permisos_google_sheets")),
+                build_sync_permission_blocked_message(
+                    service_account_email=service_email
+                ),
+                title=_tr(
+                    self.window,
+                    "sync.permisos_google_sheets",
+                    _fallback_texto("sync.permisos_google_sheets"),
+                ),
                 duration_ms=7000,
             )
 
@@ -221,6 +287,14 @@ def _aplicar_decision_boton(widget, decision) -> None:
         widget.setText(decision.text)
     if decision.tooltip is not None and hasattr(widget, "setToolTip"):
         widget.setToolTip(decision.tooltip)
+
+
+def _texto_review_conflictos(reason_code: str, severity: str | None) -> str:
+    """Resuelve el texto i18n del botón de conflictos a partir del contrato de decisión."""
+
+    if reason_code == "review_conflictos_pendientes" or severity == "warning":
+        return copy_text("ui.sync.revisar_conflictos")
+    return copy_text("ui.sync.revisar_conflictos_sin_pendientes")
 
 
 def _leer_texto_boton(widget) -> str:
@@ -270,8 +344,12 @@ def _resolve_service_account_email(window) -> str:
         account_email = sync_service.get_service_account_email()
         if isinstance(account_email, str) and account_email.strip():
             return account_email.strip()
-    logger.warning("SHEETS_SERVICE_EMAIL_MISSING", extra={"event": "SHEETS_SERVICE_EMAIL_MISSING"})
-    return _tr(window, "sync.email_no_disponible", _fallback_texto("sync.email_no_disponible"))
+    logger.warning(
+        "SHEETS_SERVICE_EMAIL_MISSING", extra={"event": "SHEETS_SERVICE_EMAIL_MISSING"}
+    )
+    return _tr(
+        window, "sync.email_no_disponible", _fallback_texto("sync.email_no_disponible")
+    )
 
 
 def _fallback_texto(key: str) -> str:
@@ -287,4 +365,6 @@ def _tr(window, key: str, fallback: str, **params: object) -> str:
     """Resuelve textos i18n con fallback estático para pruebas unitarias/headless."""
 
     i18n = getattr(window, "i18n", None)
-    return resolver_texto_i18n(i18n=i18n, key=key, fallback=fallback, catalogo=CATALOGO, **params)
+    return resolver_texto_i18n(
+        i18n=i18n, key=key, fallback=fallback, catalogo=CATALOGO, **params
+    )

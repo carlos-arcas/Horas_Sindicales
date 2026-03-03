@@ -99,7 +99,13 @@ def _razon_review_conflictos(entrada: EstadoBotonSyncEntrada) -> str:
 
     reglas: tuple[ReglaReasonCode, ...] = (
         (lambda e: e.sync_en_progreso, "review_conflictos_bloqueado_en_progreso"),
-        (lambda e: _normalizar_conflictos_pendientes_total(e.conflictos_pendientes_total) > 0, "review_conflictos_pendientes"),
+        (
+            lambda e: _normalizar_conflictos_pendientes_total(
+                e.conflictos_pendientes_total
+            )
+            > 0,
+            "review_conflictos_pendientes",
+        ),
     )
     return _first_matching_reason(entrada, reglas, "review_conflictos_sin_pendientes")
 
@@ -114,15 +120,6 @@ def _razon_reportes(entrada: EstadoBotonSyncEntrada) -> str:
     return _first_matching_reason(entrada, reglas, "reporte_no_disponible")
 
 
-def _texto_review_conflictos(entrada: EstadoBotonSyncEntrada) -> str:
-    """Devuelve el texto visible del botón de conflictos según pendientes."""
-
-    conflictos_pendientes_total = _normalizar_conflictos_pendientes_total(entrada.conflictos_pendientes_total)
-    if conflictos_pendientes_total > 0:
-        return "Revisar conflictos"
-    return "Revisar conflictos (sin pendientes)"
-
-
 def _normalizar_conflictos_pendientes_total(conflictos_pendientes: object) -> int:
     """Adapta payloads legacy para evaluar reglas de forma segura."""
 
@@ -135,11 +132,12 @@ def _normalizar_conflictos_pendientes_total(conflictos_pendientes: object) -> in
     return 0
 
 
-
-def decidir_estado_botones_sync(entrada: EstadoBotonSyncEntrada) -> EstadoBotonesSyncDecision:
+def decidir_estado_botones_sync(
+    entrada: EstadoBotonSyncEntrada,
+) -> EstadoBotonesSyncDecision:
     """Calcula el estado visible de los botones de sincronización.
 
-    Mantiene la UX previa: mismas reglas de enabled y texto para conflictos.
+    Mantiene la UX previa: mismas reglas de enabled.
     """
 
     sync_habilitado = entrada.sync_configurado and not entrada.sync_en_progreso
@@ -162,15 +160,20 @@ def decidir_estado_botones_sync(entrada: EstadoBotonSyncEntrada) -> EstadoBotone
         and not entrada.plan_tiene_conflictos
     )
 
-    retry_habilitado = not entrada.sync_en_progreso and entrada.ultimo_reporte_tiene_fallos
+    retry_habilitado = (
+        not entrada.sync_en_progreso and entrada.ultimo_reporte_tiene_fallos
+    )
     razon_retry = _razon_retry(entrada)
 
-    conflictos_pendientes_total = _normalizar_conflictos_pendientes_total(entrada.conflictos_pendientes_total)
+    conflictos_pendientes_total = _normalizar_conflictos_pendientes_total(
+        entrada.conflictos_pendientes_total
+    )
     review_habilitado = not entrada.sync_en_progreso and conflictos_pendientes_total > 0
     razon_review = _razon_review_conflictos(entrada)
-    texto_review = _texto_review_conflictos(entrada)
 
-    detalles_habilitado = not entrada.sync_en_progreso and entrada.ultimo_reporte_presente
+    detalles_habilitado = (
+        not entrada.sync_en_progreso and entrada.ultimo_reporte_presente
+    )
     razon_detalles = _razon_reportes(entrada)
 
     return EstadoBotonesSyncDecision(
@@ -198,7 +201,7 @@ def decidir_estado_botones_sync(entrada: EstadoBotonSyncEntrada) -> EstadoBotone
         ),
         review_conflicts=DecisionBotonSync(
             enabled=review_habilitado,
-            text=texto_review,
+            text="",
             tooltip=None,
             severity="warning" if conflictos_pendientes_total > 0 else None,
             reason_code=razon_review,
