@@ -25,7 +25,7 @@ class FakeGeneradorPdf:
         _ = (solicitudes, persona, destino, intro_text, logo_path, include_hours_in_horario)
         raise AssertionError("No aplica para exportación de histórico")
 
-    def generar_pdf_historico(self, solicitudes, persona, destino, intro_text=None, logo_path=None):
+    def generar_pdf_historico(self, solicitudes, persona, destino, intro_text=None, logo_path=None, personas_por_id=None):
         _ = (solicitudes, persona, intro_text, logo_path)
         self.calls += 1
         self.last_destino = destino

@@ -38,6 +38,7 @@ class GeneradorPdfReportlab(GeneradorPdfPuerto):
         destino: Path,
         intro_text: str | None = None,
         logo_path: str | None = None,
+        personas_por_id: dict[int, Persona] | None = None,
     ) -> Path:
         return pdf_builder.construir_pdf_historico(
             solicitudes,
@@ -45,4 +46,5 @@ class GeneradorPdfReportlab(GeneradorPdfPuerto):
             destino,
             intro_text=intro_text,
             logo_path=logo_path,
+            personas_por_id=personas_por_id,
         )

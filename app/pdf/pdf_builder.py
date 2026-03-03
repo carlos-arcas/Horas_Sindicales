@@ -15,7 +15,7 @@ from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.application.dto import ReportePdf, SolicitudDTO
-from app.application.use_cases.solicitudes.mapping_service import construir_reporte_pdf
+from app.application.use_cases.solicitudes.mapping_service import construir_reporte_pdf, construir_reporte_pdf_historico
 from app.domain.models import Persona
 
 INTRO_TEXT = (
@@ -123,9 +123,26 @@ def construir_pdf_historico(
     destino: Path,
     intro_text: str | None = None,
     logo_path: str | None = None,
+    personas_por_id: dict[int, Persona] | None = None,
 ) -> Path:
+    solicitudes_list = list(solicitudes)
+    if personas_por_id:
+        reporte = construir_reporte_pdf_historico(
+            solicitudes=solicitudes_list,
+            nombre_por_persona_id={persona_id: item.nombre for persona_id, item in personas_por_id.items()},
+            genero_por_persona_id={persona_id: item.genero for persona_id, item in personas_por_id.items()},
+            nombre_por_defecto=persona.nombre,
+            genero_por_defecto=persona.genero,
+        )
+        return construir_pdf_desde_modelo(
+            reporte=reporte,
+            destino=destino,
+            intro_text=intro_text,
+            logo_path=logo_path,
+            include_hours_in_horario=False,
+        )
     return construir_pdf_solicitudes(
-        solicitudes,
+        solicitudes_list,
         persona,
         destino,
         intro_text=intro_text,

@@ -79,3 +79,33 @@ def construir_reporte_pdf(solicitudes: list[SolicitudDTO], nombre_persona: str, 
         filas=filas,
         totales=TotalesReportePdf(total_horas_hhmm=minutes_to_hhmm(total_minutos), total_minutos=total_minutos),
     )
+
+
+def construir_reporte_pdf_historico(
+    solicitudes: list[SolicitudDTO],
+    nombre_por_persona_id: dict[int, str],
+    genero_por_persona_id: dict[int, str],
+    nombre_por_defecto: str,
+    genero_por_defecto: str,
+) -> ReportePdf:
+    filas: list[FilaReportePdf] = []
+    for solicitud in sorted(solicitudes, key=lambda item: item.fecha_pedida):
+        minutos_fila = max(horas_decimales_a_minutos(solicitud.horas), 0)
+        horario = "COMPLETO" if solicitud.completo else f"{solicitud.desde or '--:--'} - {solicitud.hasta or '--:--'}"
+        nombre_persona = nombre_por_persona_id.get(solicitud.persona_id, nombre_por_defecto)
+        genero = genero_por_persona_id.get(solicitud.persona_id, genero_por_defecto)
+        prefijo = "Dª" if genero.upper() == "F" else "D."
+        filas.append(
+            FilaReportePdf(
+                nombre=f"{prefijo} {nombre_persona}",
+                fecha=datetime.strptime(solicitud.fecha_pedida, "%Y-%m-%d").strftime("%d/%m/%y"),
+                horario=horario,
+                horas_hhmm=minutes_to_hhmm(minutos_fila),
+                minutos_totales_fila=minutos_fila,
+            )
+        )
+    total_minutos = sum(fila.minutos_totales_fila for fila in filas)
+    return ReportePdf(
+        filas=filas,
+        totales=TotalesReportePdf(total_horas_hhmm=minutes_to_hhmm(total_minutos), total_minutos=total_minutos),
+    )
