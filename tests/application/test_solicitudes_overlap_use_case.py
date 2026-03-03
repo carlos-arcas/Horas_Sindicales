@@ -64,11 +64,12 @@ def test_solape_misma_persona_y_fecha_bloquea_y_retorna_existing_id(solicitud_us
     solicitud_use_cases.agregar_solicitud(_dto(persona_id, "2026-03-01", "09:00", "11:00"))
 
     candidato = _dto(persona_id, "2026-03-01", "10:00", "12:00")
-    duplicate = solicitud_use_cases.buscar_duplicado(candidato)
-    assert duplicate is not None
-    assert duplicate.id is not None
+    conflicto = solicitud_use_cases.buscar_conflicto_pendiente(candidato)
+    assert conflicto is not None
+    assert conflicto.tipo == "SOLAPE"
+    assert conflicto.id_existente is not None
 
-    with pytest.raises(BusinessRuleError, match="Duplicado"):
+    with pytest.raises(BusinessRuleError, match="Solape"):
         solicitud_use_cases.agregar_solicitud(candidato)
 
 

@@ -32,7 +32,7 @@ from app.core.errors import InfraError, PersistenceError
 from app.core.metrics import metrics_registry
 from app.core.observability import log_event
 from app.configuracion.settings import is_read_only_enabled
-from app.domain.models import Persona, Solicitud
+from app.domain.models import ConflictoSolicitud, Persona, Solicitud
 from app.domain.ports import GrupoConfigRepository, PersonaRepository, SolicitudRepository
 from app.domain.request_time import compute_request_minutes, minutes_to_hours_float
 from app.domain.services import BusinessRuleError, ValidacionError, validar_solicitud
@@ -315,11 +315,23 @@ class SolicitudUseCases:
             raise BusinessRuleError(mensaje_conflicto(conflicto.accion_sugerida))
 
         duplicate_key = solicitud_key(dto, persona=persona, delegada_uuid=self._delegada_uuid(dto.persona_id))
-        duplicate = self.buscar_duplicado(dto)
-        if duplicate is None:
+        conflicto_pendiente = self.buscar_conflicto_pendiente(dto)
+        if conflicto_pendiente is None:
             return
-        logger.debug("Duplicado detectado al agregar solicitud. nueva=%s existente_id=%s", duplicate_key, duplicate.id)
-        raise BusinessRuleError(mensaje_duplicado_desde_estado(duplicate.generated))
+        if conflicto_pendiente.tipo == "DUPLICADO":
+            duplicate = self._repo.get_by_id(conflicto_pendiente.id_existente)
+            logger.debug(
+                "Duplicado detectado al agregar solicitud. nueva=%s existente_id=%s",
+                duplicate_key,
+                conflicto_pendiente.id_existente,
+            )
+            raise BusinessRuleError(mensaje_duplicado_desde_estado(bool(duplicate and duplicate.generated)))
+        logger.debug(
+            "Solape detectado al agregar solicitud. nueva=%s existente_id=%s",
+            duplicate_key,
+            conflicto_pendiente.id_existente,
+        )
+        raise BusinessRuleError("Solape horario con una solicitud existente en la misma fecha.")
 
     def _crear_solicitud_y_saldos(self, dto: SolicitudDTO, persona: Persona) -> tuple[Solicitud, SaldosDTO]:
         desde_min, hasta_min = rango_en_minutos(dto.desde, dto.hasta)
@@ -344,7 +356,12 @@ class SolicitudUseCases:
             raise BusinessRuleError("No se pudo resolver el uuid de la delegada.")
         return delegada_uuid
 
-    def buscar_duplicado(self, dto: SolicitudDTO) -> SolicitudDTO | None:
+    def buscar_conflicto_pendiente(
+        self,
+        dto: SolicitudDTO,
+        *,
+        excluir_solicitud_id: int | None = None,
+    ) -> ConflictoSolicitud | None:
         _, fecha, completo, desde, hasta = solicitud_key(
             dto,
             persona=self._persona_repo.get_by_id(dto.persona_id),
@@ -352,7 +369,20 @@ class SolicitudUseCases:
         )
         desde_min = None if completo else parse_hhmm(str(desde))
         hasta_min = None if completo else parse_hhmm(str(hasta))
-        duplicate = self._repo.find_duplicate(dto.persona_id, str(fecha), desde_min, hasta_min, completo)
+        return self._repo.detectar_conflicto_pendiente(
+            dto.persona_id,
+            str(fecha),
+            desde_min,
+            hasta_min,
+            completo,
+            excluir_solicitud_id=excluir_solicitud_id,
+        )
+
+    def buscar_duplicado(self, dto: SolicitudDTO) -> SolicitudDTO | None:
+        conflicto = self.buscar_conflicto_pendiente(dto)
+        if conflicto is None or conflicto.tipo != "DUPLICADO":
+            return None
+        duplicate = self._repo.get_by_id(conflicto.id_existente)
         if duplicate is None:
             return None
         return _solicitud_to_dto(duplicate)

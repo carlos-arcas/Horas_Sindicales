@@ -35,7 +35,7 @@ def test_no_duplicada_si_misma_persona_mismo_tramo_pero_dias_distintos(solicitud
 def test_duplicada_si_misma_persona_misma_fecha_y_tramo_solapado(solicitud_use_cases, persona_id: int) -> None:
     solicitud_use_cases.agregar_solicitud(_dto(persona_id, "2026-03-01", "09:00", "10:00"))
 
-    with pytest.raises(BusinessRuleError, match="Duplicado"):
+    with pytest.raises(BusinessRuleError, match="Duplicado|Solape"):
         solicitud_use_cases.agregar_solicitud(_dto(persona_id, "2026-03-01", "09:30", "10:30"))
 
 

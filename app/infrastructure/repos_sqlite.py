@@ -7,14 +7,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import Callable, Iterable, TypeVar
 
-from app.domain.models import GrupoConfig, Solicitud
+from app.domain.models import ConflictoSolicitud, GrupoConfig, Solicitud
 from app.domain.ports import CuadranteRepository, GrupoConfigRepository, SolicitudRepository
-from app.domain.services import es_duplicada
+from app.domain.time_utils import minutes_to_hhmm
 from app.infrastructure.repos_sqlite_builders import (
     SOLICITUD_SELECT_FIELDS,
     build_period_filters,
     build_soft_delete_many_sql,
-    build_solicitud_candidate,
     bool_from_db,
     int_or_zero,
     solicitud_insert_params,
@@ -90,6 +89,52 @@ def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: Iterable[
     cursor.execute(sql, tuple(params_list))
 
 
+
+
+def _detectar_conflicto_desde_fila(
+    *,
+    desde_min: int | None,
+    hasta_min: int | None,
+    completo: bool,
+    existente: sqlite3.Row,
+) -> ConflictoSolicitud | None:
+    existente_completo = bool(existente["completo"])
+    existente_desde = existente["desde_min"]
+    existente_hasta = existente["hasta_min"]
+    if completo:
+        if existente_completo:
+            return _crear_conflicto("DUPLICADO", existente)
+        return _crear_conflicto("SOLAPE", existente)
+    if existente_completo:
+        return _crear_conflicto("SOLAPE", existente)
+    if desde_min == existente_desde and hasta_min == existente_hasta:
+        return _crear_conflicto("DUPLICADO", existente)
+    if _solapan_intervalos(desde_min, hasta_min, existente_desde, existente_hasta):
+        return _crear_conflicto("SOLAPE", existente)
+    return None
+
+
+def _solapan_intervalos(
+    nuevo_desde: int | None,
+    nuevo_hasta: int | None,
+    existente_desde: int | None,
+    existente_hasta: int | None,
+) -> bool:
+    if None in {nuevo_desde, nuevo_hasta, existente_desde, existente_hasta}:
+        return False
+    return bool(nuevo_desde < existente_hasta and nuevo_hasta > existente_desde)
+
+
+def _crear_conflicto(tipo: str, fila: sqlite3.Row) -> ConflictoSolicitud:
+    return ConflictoSolicitud(
+        tipo=tipo,
+        id_existente=int(fila["id"]),
+        persona_id=int(fila["persona_id"]),
+        fecha=str(fila["fecha_pedida"]),
+        desde=minutes_to_hhmm(fila["desde_min"]),
+        hasta=minutes_to_hhmm(fila["hasta_min"]),
+        completo=bool(fila["completo"]),
+    )
 
 
 class CuadranteRepositorySQLite(CuadranteRepository):
@@ -349,6 +394,58 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             return None
         return self._row_to_solicitud(row)
 
+    def detectar_conflicto_pendiente(
+        self,
+        persona_id: int,
+        fecha_pedida: str,
+        desde_min: int | None,
+        hasta_min: int | None,
+        completo: bool,
+        *,
+        excluir_solicitud_id: int | None = None,
+    ) -> ConflictoSolicitud | None:
+        cursor = self._connection.cursor()
+        clauses = [
+            "s.persona_id = ?",
+            "s.fecha_pedida = ?",
+            "(s.deleted = 0 OR s.deleted IS NULL)",
+        ]
+        params: list[object] = [persona_id, fecha_pedida]
+        if excluir_solicitud_id is not None:
+            clauses.append("s.id != ?")
+            params.append(excluir_solicitud_id)
+
+        cursor.execute(
+            f"""
+            SELECT s.id, s.persona_id, s.fecha_pedida, s.desde_min, s.hasta_min, s.completo
+            FROM solicitudes s
+            WHERE {' AND '.join(clauses)}
+            ORDER BY s.id DESC
+            """,
+            tuple(params),
+        )
+        for row in cursor.fetchall():
+            conflicto = _detectar_conflicto_desde_fila(
+                desde_min=desde_min,
+                hasta_min=hasta_min,
+                completo=completo,
+                existente=row,
+            )
+            if conflicto is None:
+                continue
+            logger.info(
+                "Conflicto de solicitud detectado type=%s id_existente=%s persona_id=%s fecha=%s desde=%s hasta=%s completo=%s",
+                conflicto.tipo,
+                conflicto.id_existente,
+                conflicto.persona_id,
+                conflicto.fecha,
+                conflicto.desde,
+                conflicto.hasta,
+                conflicto.completo,
+            )
+            return conflicto
+        return None
+
     def find_duplicate(
         self,
         persona_id: int,
@@ -357,44 +454,10 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         hasta_min: int | None,
         completo: bool,
     ) -> Solicitud | None:
-        cursor = self._connection.cursor()
-        candidate = build_solicitud_candidate(persona_id, fecha_pedida, desde_min, hasta_min, completo)
-
-        clauses = [
-            "s.persona_id = ?",
-            "s.fecha_pedida = ?",
-            "(s.deleted = 0 OR s.deleted IS NULL)",
-        ]
-        params: list[object] = [persona_id, fecha_pedida]
-        cursor.execute(
-            f"""
-            SELECT s.id, s.uuid, p.uuid AS delegada_uuid,
-                   s.persona_id, s.fecha_solicitud, s.fecha_pedida,
-                   s.desde_min, s.hasta_min, s.completo,
-                   s.horas_solicitadas_min, s.observaciones, s.notas, s.pdf_path, s.pdf_hash, s.generated
-            FROM solicitudes s
-            LEFT JOIN personas p ON p.id = s.persona_id
-            WHERE {' AND '.join(clauses)}
-            ORDER BY s.id DESC
-            """,
-            params,
-        )
-        for duplicate in cursor.fetchall():
-            solicitud = self._row_to_solicitud(duplicate)
-            if not es_duplicada(candidate, solicitud):
-                continue
-            logger.info(
-                "Duplicado detectado id=%s solicitud_uuid=%s delegada_uuid=%s persona_id=%s fecha=%s completo=%s generated=%s",
-                duplicate["id"],
-                duplicate["uuid"],
-                duplicate["delegada_uuid"],
-                persona_id,
-                fecha_pedida,
-                completo,
-                duplicate["generated"],
-            )
-            return solicitud
-        return None
+        conflicto = self.detectar_conflicto_pendiente(persona_id, fecha_pedida, desde_min, hasta_min, completo)
+        if conflicto is None or conflicto.tipo != "DUPLICADO":
+            return None
+        return self.get_by_id(conflicto.id_existente)
 
     def exists_duplicate(
         self,
@@ -404,7 +467,8 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         hasta_min: int | None,
         completo: bool,
     ) -> bool:
-        return self.find_duplicate(persona_id, fecha_pedida, desde_min, hasta_min, completo) is not None
+        conflicto = self.detectar_conflicto_pendiente(persona_id, fecha_pedida, desde_min, hasta_min, completo)
+        return conflicto is not None and conflicto.tipo == "DUPLICADO"
 
     def create(self, solicitud: Solicitud) -> Solicitud:
         logger.info(

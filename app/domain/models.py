@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Literal, Optional
 
 
 @dataclass(frozen=True)
@@ -59,6 +59,17 @@ class Solicitud:
     pdf_path: Optional[str] = None
     pdf_hash: Optional[str] = None
     generated: bool = False
+
+
+@dataclass(frozen=True)
+class ConflictoSolicitud:
+    tipo: Literal["DUPLICADO", "SOLAPE"]
+    id_existente: int
+    persona_id: int
+    fecha: str
+    desde: str
+    hasta: str
+    completo: bool
 
 
 @dataclass(frozen=True)
