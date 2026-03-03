@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QPushBu
 
 from app.ui.copy_catalog import copy_text
 from app.ui.toasts.ejecutar_callback_seguro import ejecutar_callback_seguro
-from app.ui.toasts.toast_actions import cerrar_toast_desde_ui
+from app.ui.toasts.toast_actions import cerrar_toast
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ class TarjetaToast(QFrame):
         root.addLayout(acciones)
 
     def _on_close_clicked(self) -> None:
-        cerrar_toast_desde_ui(self, self.notificacion.id)
+        cerrar_toast(self, self.notificacion.id)
 
     def _ejecutar_accion(self) -> None:
         logger.info(

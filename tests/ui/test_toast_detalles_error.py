@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from app.ui.qt import slot_seguro
-from app.ui.toasts.toast_actions import cerrar_toast_desde_ui
+from app.ui.toasts.toast_actions import cerrar_toast
 
 
 pytestmark = pytest.mark.headless_safe
@@ -40,7 +40,7 @@ def test_toast_cerrar_ejecuta_close() -> None:
         def close(self) -> None:
             estado["closed"] = True
 
-    cerrar_toast_desde_ui(_TarjetaFalsa(), "toast-1")
+    cerrar_toast(_TarjetaFalsa(), "toast-1")
 
     assert signal.payloads == ["toast-1"]
     assert estado["closed"] is True
