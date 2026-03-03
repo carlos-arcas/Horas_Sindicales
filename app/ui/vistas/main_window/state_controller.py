@@ -53,6 +53,7 @@ from app.application.use_cases.retry_sync_use_case import RetrySyncUseCase
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
+from app.application.use_cases.confirmacion_pdf.caso_uso import ConfirmarPendientesPdfCasoUso
 from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
     GuardarPreferenciaPantallaCompleta,
     ObtenerPreferenciaPantallaCompleta,
@@ -207,6 +208,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         health_check_use_case: HealthCheckUseCase | None = None,
         alert_engine: AlertEngine | None = None,
         validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase | None = None,
+        confirmar_pendientes_pdf_caso_uso: ConfirmarPendientesPdfCasoUso | None = None,
         guardar_preferencia_pantalla_completa: GuardarPreferenciaPantallaCompleta | None = None,
         obtener_preferencia_pantalla_completa: ObtenerPreferenciaPantallaCompleta | None = None,
         servicio_i18n: ProveedorI18N | None = None,
@@ -224,6 +226,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._validacion_preventiva_lock_use_case = (
             validacion_preventiva_lock_use_case or ValidacionPreventivaLockUseCase()
         )
+        self._confirmar_pendientes_pdf_caso_uso = confirmar_pendientes_pdf_caso_uso
         self._alert_snooze: dict[str, str] = {}
         self._guardar_preferencia_pantalla_completa = guardar_preferencia_pantalla_completa
         self._obtener_preferencia_pantalla_completa = obtener_preferencia_pantalla_completa

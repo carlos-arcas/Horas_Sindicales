@@ -518,6 +518,7 @@ def run_ui(container=None) -> int:
             resolved_container.health_check_use_case,
             resolved_container.alert_engine,
             resolved_container.validacion_preventiva_lock_use_case,
+            resolved_container.confirmar_pendientes_pdf_caso_uso,
             guardar_preferencia_pantalla_completa=deps_arranque.guardar_preferencia_pantalla_completa,
             obtener_preferencia_pantalla_completa=deps_arranque.obtener_preferencia_pantalla_completa,
             servicio_i18n=resolved_container.servicio_i18n,
