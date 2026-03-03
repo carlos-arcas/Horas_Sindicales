@@ -10,6 +10,7 @@ import pytest
 pytestmark = pytest.mark.headless_safe
 
 from app.application.dto import ResultadoCrearSolicitudDTO, SolicitudDTO
+from app.domain.models import ConflictoSolicitud
 from app.domain.services import BusinessRuleError
 from app.ui.controllers.solicitudes_controller import SolicitudesController
 
@@ -64,6 +65,42 @@ def _build_window_for_add(solicitud: SolicitudDTO | None) -> SimpleNamespace:
         toast=Mock(),
     )
 
+
+
+
+def test_add_pendiente_sin_conflicto_persiste() -> None:
+    solicitud = _solicitud_base()
+    window = _build_window_for_add(solicitud)
+
+    controller = SolicitudesController(window)
+    controller.on_add_pendiente()
+
+    window._solicitud_use_cases.buscar_conflicto_pendiente.assert_called_once()
+    window._resolve_backend_conflict.assert_called_once_with(solicitud.persona_id, solicitud)
+    window._solicitud_use_cases.crear_resultado.assert_called_once()
+    window._reload_pending_views.assert_called_once()
+    window.toast.warning.assert_not_called()
+
+
+def test_add_pendiente_con_conflicto_dup_no_persiste() -> None:
+    solicitud = _solicitud_base()
+    window = _build_window_for_add(solicitud)
+    window._solicitud_use_cases.buscar_conflicto_pendiente.return_value = ConflictoSolicitud(
+        tipo="DUPLICADO",
+        id_existente=11,
+        persona_id=solicitud.persona_id,
+        fecha=solicitud.fecha_pedida,
+        desde=solicitud.desde or "-",
+        hasta=solicitud.hasta or "-",
+        completo=solicitud.completo,
+    )
+
+    controller = SolicitudesController(window)
+    controller.on_add_pendiente()
+
+    window._solicitud_use_cases.crear_resultado.assert_not_called()
+    window.toast.warning.assert_called_once()
+    assert callable(window.toast.warning.call_args.kwargs.get("action_callback"))
 
 def test_on_add_pendiente_success() -> None:
     solicitud = _solicitud_base()
