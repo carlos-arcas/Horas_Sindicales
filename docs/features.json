@@ -1,0 +1,43 @@
+[
+  {
+    "id": "FTR-001",
+    "nombre": "Registro y gestión de solicitudes sindicales",
+    "estado": "DONE",
+    "tipo": "LOGICA",
+    "tests": [
+      "tests/application/test_solicitudes_use_case_calculos.py",
+      "tests/domain/test_request_duration.py"
+    ],
+    "notas": "Cobertura funcional base de solicitudes, validaciones y cálculo de duración."
+  },
+  {
+    "id": "FTR-002",
+    "nombre": "Sincronización con Google Sheets",
+    "estado": "WIP",
+    "tipo": "INFRA",
+    "tests": [
+      "tests/application/test_sync_sheets_use_case_scenarios.py",
+      "tests/application/use_cases/sync_sheets/test_sync_sheets_use_case_planning.py"
+    ],
+    "notas": "En evolución continua para robustez de conflictos y reporting."
+  },
+  {
+    "id": "FTR-003",
+    "nombre": "Golden tests de interacción en botones clave",
+    "estado": "DONE",
+    "tipo": "UI",
+    "tests": [
+      "tests/golden/botones/test_boton_aniadir_pendiente_golden.py",
+      "tests/golden/botones/test_boton_sync_golden.py"
+    ]
+  },
+  {
+    "id": "FTR-004",
+    "nombre": "Controles de seguridad y secretos en repo",
+    "estado": "DONE",
+    "tipo": "SEGURIDAD",
+    "tests": [
+      "tests/test_no_secrets_content_scan.py"
+    ]
+  }
+]
