@@ -379,10 +379,20 @@ class SolicitudUseCases:
         )
 
     def buscar_duplicado(self, dto: SolicitudDTO) -> SolicitudDTO | None:
-        conflicto = self.buscar_conflicto_pendiente(dto)
-        if conflicto is None or conflicto.tipo != "DUPLICADO":
-            return None
-        duplicate = self._repo.get_by_id(conflicto.id_existente)
+        _, fecha, completo, desde, hasta = solicitud_key(
+            dto,
+            persona=self._persona_repo.get_by_id(dto.persona_id),
+            delegada_uuid=self._delegada_uuid(dto.persona_id),
+        )
+        desde_min = None if completo else parse_hhmm(str(desde))
+        hasta_min = None if completo else parse_hhmm(str(hasta))
+        duplicate = self._repo.find_duplicate(
+            dto.persona_id,
+            str(fecha),
+            desde_min,
+            hasta_min,
+            completo,
+        )
         if duplicate is None:
             return None
         return _solicitud_to_dto(duplicate)

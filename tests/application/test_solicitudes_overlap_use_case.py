@@ -94,6 +94,9 @@ def test_completo_colisiona_con_cualquier_parcial_del_dia(solicitud_use_cases, p
     solicitud_use_cases.agregar_solicitud(_dto(persona_id, "2026-03-02", None, None, completo=True))
 
     candidato = _dto(persona_id, "2026-03-02", "10:00", "12:00")
-    assert solicitud_use_cases.buscar_duplicado(candidato) is not None
-    with pytest.raises(BusinessRuleError, match="Duplicado|Conflicto completo/parcial"):
+    conflicto = solicitud_use_cases.buscar_conflicto_pendiente(candidato)
+    assert conflicto is not None
+    assert conflicto.tipo == "SOLAPE"
+
+    with pytest.raises(BusinessRuleError):
         solicitud_use_cases.agregar_solicitud(candidato)

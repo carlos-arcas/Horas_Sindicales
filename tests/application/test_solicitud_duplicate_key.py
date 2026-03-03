@@ -56,12 +56,16 @@ def test_no_duplicado_si_dias_distintos_mismo_tramo_misma_delegada(solicitud_use
 
 def test_duplicado_si_mismo_dia_mismo_tramo_misma_delegada(solicitud_use_cases, persona_id: int) -> None:
     base = _build_solicitud(persona_id, fecha="2026-03-03", desde="17:00", hasta="18:00")
-    solapada = _build_solicitud(persona_id, fecha="2026-03-03", desde="17:30", hasta="18:30")
+    duplicada = _build_solicitud(persona_id, fecha="2026-03-03", desde="17:00", hasta="18:00")
 
     solicitud_use_cases.agregar_solicitud(base)
 
-    with pytest.raises(BusinessRuleError, match="Duplicado"):
-        solicitud_use_cases.agregar_solicitud(solapada)
+    conflicto = solicitud_use_cases.buscar_conflicto_pendiente(duplicada)
+    assert conflicto is not None
+    assert conflicto.tipo == "DUPLICADO"
+
+    with pytest.raises(BusinessRuleError):
+        solicitud_use_cases.agregar_solicitud(duplicada)
 
 
 def test_no_duplicado_si_mismo_dia_pero_tramos_no_solapan(solicitud_use_cases, persona_id: int) -> None:
