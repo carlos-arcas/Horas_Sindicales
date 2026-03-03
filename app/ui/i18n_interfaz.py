@@ -4,7 +4,7 @@ import logging
 from typing import Callable
 
 from aplicacion.puertos.proveedor_i18n import ProveedorI18N
-from presentacion.i18n import CATALOGO
+from presentacion.i18n.catalogo import CATALOGO
 
 LOGGER = logging.getLogger(__name__)
 _FALLBACK_TEXTO_KEY = "ui.texto_no_disponible"

@@ -10,6 +10,8 @@ from app.bootstrap.container import build_container
 from app.infrastructure.db import get_connection
 from app.infrastructure.local_config import RepositorioPreferenciasIni
 
+pytestmark = pytest.mark.ui
+
 
 def _connection_factory(tmp_path: Path):
     db_path = tmp_path / "preferencias_wiring.db"
@@ -35,7 +37,7 @@ def test_build_container_usa_fallback_ini_si_qsettings_no_esta(
     monkeypatch.setattr(container_module.importlib, "import_module", _import_module)
 
     with caplog.at_level("WARNING"):
-        container = build_container(connection_factory=_connection_factory(tmp_path))
+        container = build_container(connection_factory=_connection_factory(tmp_path), preferencias_headless=False)
 
     assert isinstance(container.repositorio_preferencias, RepositorioPreferenciasIni)
     assert "persistencia headless INI" in caplog.text
@@ -46,7 +48,7 @@ def test_build_container_usa_qsettings_si_esta_disponible(tmp_path: Path) -> Non
     if not hasattr(modulo, "RepositorioPreferenciasQSettings"):
         pytest.skip("No existe RepositorioPreferenciasQSettings en el entorno actual")
 
-    container = build_container(connection_factory=_connection_factory(tmp_path))
+    container = build_container(connection_factory=_connection_factory(tmp_path), preferencias_headless=False)
 
     assert (
         container.repositorio_preferencias.__class__.__name__

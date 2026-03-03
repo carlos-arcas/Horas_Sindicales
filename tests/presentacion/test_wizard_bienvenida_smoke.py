@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.ui
+
 try:
     from PySide6.QtWidgets import QApplication, QPushButton
 except Exception as exc:  # pragma: no cover

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from app.entrypoints.arranque_hilo import TrabajadorArranque
+import pytest
+
+pytestmark = pytest.mark.ui
 
 
 class _DummyContainer:
@@ -8,6 +10,10 @@ class _DummyContainer:
 
 
 def test_worker_arranque_emite_failed_si_build_container_falla(monkeypatch) -> None:
+    TrabajadorArranque = pytest.importorskip(
+        "app.entrypoints.arranque_hilo",
+        reason="Requiere backend Qt para señales QObject.",
+    ).TrabajadorArranque
     worker = TrabajadorArranque(container_seed=None)
     capturas: list[tuple[str, str, str]] = []
 
