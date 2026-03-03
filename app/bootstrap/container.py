@@ -17,8 +17,13 @@ from app.application.use_cases.personas import PersonaUseCases
 from app.application.use_cases.solicitudes import SolicitudUseCases
 from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
 from app.application.use_cases.alert_engine import AlertEngine
+from app.application.use_cases.confirmacion_pdf.caso_uso import ConfirmarPendientesPdfCasoUso
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.infrastructure.cargador_datos_demo_sqlite import CargadorDatosDemoSQLite
+from app.infrastructure.confirmacion_pdf.adaptadores import (
+    GeneradorPdfDesdeCasosUso,
+    RepositorioSolicitudesDesdeCasosUso,
+)
 from app.infrastructure.db import _default_db_path, get_connection
 from app.infrastructure.health_probes import DefaultConnectivityProbe, SheetsConfigProbe, SQLiteLocalDbProbe
 from app.infrastructure.i18n import CargadorI18nDesdeArchivos, ServicioI18nEstable
@@ -59,6 +64,7 @@ class AppContainer:
     health_check_use_case: HealthCheckUseCase
     alert_engine: AlertEngine
     validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase
+    confirmar_pendientes_pdf_caso_uso: ConfirmarPendientesPdfCasoUso
     repositorio_preferencias: IRepositorioPreferencias
     cargar_datos_demo_caso_uso: CargarDatosDemoCasoUso
     exportar_compartir_periodo_caso_uso: ExportarCompartirPeriodoCasoUso
@@ -87,6 +93,11 @@ def build_container(
     persona_use_cases = PersonaUseCases(persona_repo, base_cuadrantes_service)
     generador_pdf = GeneradorPdfReportlab()
     solicitud_use_cases = SolicitudUseCases(solicitud_repo, persona_repo, grupo_repo, generador_pdf)
+    confirmar_pendientes_pdf_caso_uso = ConfirmarPendientesPdfCasoUso(
+        repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases),
+        generador_pdf=GeneradorPdfDesdeCasosUso(solicitud_use_cases),
+        sistema_archivos=SistemaArchivosLocal(),
+    )
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)
 
     config_store = LocalConfigStore()
@@ -138,6 +149,7 @@ def build_container(
         health_check_use_case=health_check_use_case,
         alert_engine=alert_engine,
         validacion_preventiva_lock_use_case=validacion_preventiva_lock_use_case,
+        confirmar_pendientes_pdf_caso_uso=confirmar_pendientes_pdf_caso_uso,
         repositorio_preferencias=repositorio_preferencias,
         cargar_datos_demo_caso_uso=cargar_datos_demo_caso_uso,
         exportar_compartir_periodo_caso_uso=exportar_compartir_periodo_caso_uso,

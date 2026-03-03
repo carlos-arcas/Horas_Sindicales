@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from app.core.observability import OperationContext, log_event
+from app.application.use_cases.confirmacion_pdf.dto import ConfirmarPdfRequestDTO
 from app.application.use_cases.solicitudes.validaciones import validar_seleccion_confirmacion
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.bootstrap.logging import log_operational_error
@@ -97,13 +98,35 @@ def execute_confirmar_with_pdf(
                 {"count": len(selected), "destino": pdf_path},
                 operation.correlation_id,
             )
-            confirmadas_ids, errores, generado, creadas, pendientes_restantes = window._solicitudes_controller.confirmar_lote(
-                selected,
-                correlation_id=operation.correlation_id,
-                generar_pdf=True,
-                pdf_path=pdf_path,
-                filtro_delegada=None if window._pending_view_all else (persona.id or None),
-            )
+            caso_uso = getattr(window, "_confirmar_pendientes_pdf_caso_uso", None)
+            if caso_uso is None:
+                confirmadas_ids, errores, generado, creadas, pendientes_restantes = window._solicitudes_controller.confirmar_lote(
+                    selected,
+                    correlation_id=operation.correlation_id,
+                    generar_pdf=True,
+                    pdf_path=pdf_path,
+                    filtro_delegada=None if window._pending_view_all else (persona.id or None),
+                )
+            else:
+                request = ConfirmarPdfRequestDTO(
+                    pendientes_ids=[solicitud.id for solicitud in selected if solicitud.id is not None],
+                    generar_pdf=True,
+                    destino_pdf=Path(pdf_path),
+                    correlation_id=operation.correlation_id,
+                )
+                result = caso_uso.execute(request)
+                confirmadas_ids = result.confirmadas_ids
+                errores = result.errores
+                generado = result.ruta_pdf
+                pendientes_restantes_ids = set(result.pendientes_restantes or [])
+                creadas = [solicitud for solicitud in selected if solicitud.id in set(confirmadas_ids)]
+                pendientes_restantes = [
+                    solicitud
+                    for solicitud in window._pending_all_solicitudes
+                    if solicitud.id is None or solicitud.id in pendientes_restantes_ids
+                ]
+                if result.pendientes_restantes is None:
+                    pendientes_restantes = None
             logger.debug("_execute_confirmar_with_pdf paso=llamada_servicio_confirmar ok=True")
             logger.debug("_execute_confirmar_with_pdf paso=llamada_generador_pdf ruta=%s", str(generado) if generado else "")
             log_event(
