@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 @dataclass(frozen=True)
-class ConfirmarPdfRequestDTO:
+class SolicitudConfirmarPdfPeticion:
     pendientes_ids: list[int]
     generar_pdf: bool
     destino_pdf: Path | None = None
@@ -13,7 +13,7 @@ class ConfirmarPdfRequestDTO:
 
 
 @dataclass(frozen=True)
-class ConfirmarPdfResultDTO:
+class SolicitudConfirmarPdfResultado:
     confirmadas_ids: list[int] = field(default_factory=list)
     errores: list[str] = field(default_factory=list)
     ruta_pdf: Path | None = None

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.application.use_cases.confirmacion_pdf.dto import ConfirmarPdfRequestDTO, ConfirmarPdfResultDTO
+from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion, SolicitudConfirmarPdfResultado
 from app.application.use_cases.confirmacion_pdf.puertos import GeneradorPdfPuerto, RepositorioSolicitudes, SistemaArchivosPuerto
 
 
@@ -12,10 +12,10 @@ class ConfirmarPendientesPdfCasoUso:
     generador_pdf: GeneradorPdfPuerto
     sistema_archivos: SistemaArchivosPuerto
 
-    def execute(self, request: ConfirmarPdfRequestDTO) -> ConfirmarPdfResultDTO:
+    def execute(self, request: SolicitudConfirmarPdfPeticion) -> SolicitudConfirmarPdfResultado:
         errores_preflight = self._validar_preflight(request)
         if errores_preflight:
-            return ConfirmarPdfResultDTO(errores=errores_preflight)
+            return SolicitudConfirmarPdfResultado(errores=errores_preflight)
 
         pendientes = self.repositorio.listar_pendientes()
         pendientes_por_id = {solicitud.id: solicitud for solicitud in pendientes if solicitud.id is not None}
@@ -26,7 +26,7 @@ class ConfirmarPendientesPdfCasoUso:
         ]
         faltantes = [solicitud_id for solicitud_id in request.pendientes_ids if solicitud_id not in pendientes_por_id]
         if faltantes:
-            return ConfirmarPdfResultDTO(
+            return SolicitudConfirmarPdfResultado(
                 errores=[f"Pendientes inexistentes: {', '.join(str(item) for item in faltantes)}"],
                 pendientes_restantes=sorted(pendientes_por_id),
             )
@@ -36,7 +36,7 @@ class ConfirmarPendientesPdfCasoUso:
                 pendientes_seleccionados,
                 correlation_id=request.correlation_id,
             )
-            return ConfirmarPdfResultDTO(
+            return SolicitudConfirmarPdfResultado(
                 confirmadas_ids=[sol.id for sol in creadas if sol.id is not None],
                 errores=errores,
                 pendientes_restantes=[sol.id for sol in pendientes_restantes if sol.id is not None],
@@ -51,14 +51,14 @@ class ConfirmarPendientesPdfCasoUso:
         )
         errores = [] if confirmadas_ids else [resumen]
         restantes = [solicitud_id for solicitud_id in sorted(pendientes_por_id) if solicitud_id not in set(confirmadas_ids)]
-        return ConfirmarPdfResultDTO(
+        return SolicitudConfirmarPdfResultado(
             confirmadas_ids=confirmadas_ids,
             errores=errores,
             ruta_pdf=ruta_pdf,
             pendientes_restantes=restantes,
         )
 
-    def _validar_preflight(self, request: ConfirmarPdfRequestDTO) -> list[str]:
+    def _validar_preflight(self, request: SolicitudConfirmarPdfPeticion) -> list[str]:
         errores: list[str] = []
         if not request.pendientes_ids:
             errores.append("Selecciona al menos una solicitud pendiente.")
