@@ -20,3 +20,15 @@ def test_run_init_refresh_calls_historico_and_logs_in_order() -> None:
         "historico",
         "UI_INIT_REFRESH_DONE",
     ]
+
+
+def test_run_init_refresh_admite_emit_log_opcional() -> None:
+    llamadas: list[str] = []
+
+    run_init_refresh(
+        refresh_resumen=lambda: llamadas.append("resumen"),
+        refresh_pendientes=lambda: llamadas.append("pendientes"),
+        refresh_historico=lambda: llamadas.append("historico"),
+    )
+
+    assert llamadas == ["resumen", "pendientes", "historico"]
