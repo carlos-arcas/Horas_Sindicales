@@ -7,6 +7,8 @@ on:
 jobs:
   core:
     runs-on: ubuntu-latest
+    env:
+      QUALITY_GATE_STRICT: '1'
     strategy:
       fail-fast: false
       matrix:
@@ -82,6 +84,7 @@ jobs:
   ui_smoke:
     runs-on: ubuntu-latest
     env:
+      QUALITY_GATE_STRICT: '1'
       CI: 'true'
       QT_QPA_PLATFORM: offscreen
       QT_OPENGL: software

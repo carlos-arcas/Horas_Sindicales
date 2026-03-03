@@ -31,6 +31,10 @@ BASELINE_I18N_HARDCODE_PATH = ROOT / ".config" / "i18n_hardcode_baseline.json"
 LOGS_DIR = ROOT / "logs"
 QUALITY_REPORT_JSON = LOGS_DIR / "quality_report.json"
 QUALITY_REPORT_MD = LOGS_DIR / "quality_report.md"
+QUALITY_REPORT_TXT = LOGS_DIR / "quality_report.txt"
+
+STRICT_ENV_VAR = "QUALITY_GATE_STRICT"
+REASON_CODE_DEGRADED_MISSING_DEPS = "QUALITY_GATE_DEGRADED_MISSING_DEPS"
 
 LOGGER = logging.getLogger("quality_gate")
 
@@ -75,12 +79,23 @@ def load_core_coverage_targets(config: dict[str, object]) -> list[str]:
     return raw_targets
 
 
+def _is_truthy(value: str) -> bool:
+    return value in {"1", "true", "TRUE", "yes", "YES"}
+
+
+def _strict_mode_enabled() -> bool:
+    return os.getenv(STRICT_ENV_VAR, "1") != "0"
+
+
 def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
     if pytest.main(["--version"]) != 0:
         LOGGER.error(
             "Falta pytest en el entorno activo. Ejecuta: python -m pip install -r requirements-dev.txt"
         )
         raise SystemExit(2)
+
+    missing_dependencies: list[str] = []
+    strict_mode = _strict_mode_enabled()
 
     if importlib.util.find_spec("pytest_cov") is None:
         if os.getenv("HS_AUTO_INSTALL_DEPS", "") in {"1", "true", "TRUE", "yes", "YES"}:
@@ -94,34 +109,55 @@ def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
                 )
             elif importlib.util.find_spec("pytest_cov") is not None:
                 LOGGER.info("pytest-cov auto-instalado correctamente.")
-                return {"degraded_mode": False, "degraded_reason": None}
+                return {
+                    "degraded_mode": False,
+                    "degraded_reason": None,
+                    "missing_dependencies": [],
+                    "reason_code": None,
+                    "strict_mode": strict_mode,
+                }
 
-        if allow_missing_pytest_cov:
-            LOGGER.warning(
-                "pytest-cov no disponible; ejecutado en modo degradado por bandera/env explícito."
+        missing_dependencies.append("pytest-cov")
+
+    if importlib.util.find_spec("radon") is None:
+        missing_dependencies.append("radon")
+
+    if importlib.util.find_spec("pip_audit") is None:
+        missing_dependencies.append("pip-audit")
+
+    if missing_dependencies:
+        for dependency in missing_dependencies:
+            LOGGER.error(
+                "Falta %s en el entorno activo. Instala dependencias dev con: "
+                "python -m pip install -r requirements-dev.txt",
+                dependency,
             )
-            return {
-                "degraded_mode": True,
-                "degraded_reason": "pytest-cov no disponible; ejecutado en modo degradado",
-            }
-
-        LOGGER.error(
-            "Falta pytest-cov en el entorno activo. "
-            "Instala dependencias dev con: python -m pip install -r requirements-dev.txt"
-        )
         LOGGER.error(
             "En CI, verifica que el job ejecute 'pip install -r requirements-dev.txt' antes del quality gate."
         )
+
+    allow_degraded = allow_missing_pytest_cov or not strict_mode
+    if missing_dependencies and not allow_degraded:
         raise SystemExit(2)
 
-    if importlib.util.find_spec("radon") is None:
-        LOGGER.error(
-            "Falta radon en el entorno activo. Instala dependencias dev con: "
-            "python -m pip install -r requirements-dev.txt"
-        )
-        raise SystemExit(2)
+    if missing_dependencies and allow_degraded:
+        reason = "Dependencias ausentes: " + ", ".join(missing_dependencies)
+        LOGGER.warning("Modo degradado activo. %s", reason)
+        return {
+            "degraded_mode": True,
+            "degraded_reason": reason,
+            "missing_dependencies": missing_dependencies,
+            "reason_code": REASON_CODE_DEGRADED_MISSING_DEPS,
+            "strict_mode": strict_mode,
+        }
 
-    return {"degraded_mode": False, "degraded_reason": None}
+    return {
+        "degraded_mode": False,
+        "degraded_reason": None,
+        "missing_dependencies": [],
+        "reason_code": None,
+        "strict_mode": strict_mode,
+    }
 
 
 def _timestamp() -> str:
@@ -335,6 +371,15 @@ def write_reports(payload: dict[str, Any], records: list[dict[str, str]]) -> Non
     lines.append(f"- activo: **{str(payload['degraded_mode']).lower()}**")
     if payload.get("degraded_reason"):
         lines.append(f"- razón: {payload['degraded_reason']}")
+    lines.append(f"- strict_mode: **{str(payload.get('strict_mode', True)).lower()}**")
+    lines.append("")
+    lines.append("## checks_omitidos")
+    omitted_checks = payload.get("checks_omitidos", [])
+    if omitted_checks:
+        for check in omitted_checks:
+            lines.append(f"- {check}")
+    else:
+        lines.append("- ninguno")
     lines.append("")
     lines.append("## Eventos")
     lines.append("| timestamp | area | status | detalle |")
@@ -347,11 +392,23 @@ def write_reports(payload: dict[str, Any], records: list[dict[str, str]]) -> Non
     lines.extend(["", "## Resumen JSON", "```json", json.dumps(payload, ensure_ascii=False, indent=2), "```"])
     QUALITY_REPORT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+    txt_lines = [
+        "QUALITY GATE UNIFICADO",
+        f"global_status={payload['global_status']}",
+        f"degraded_mode={str(payload['degraded_mode']).lower()}",
+        f"strict_mode={str(payload.get('strict_mode', True)).lower()}",
+        "checks_omitidos=" + (", ".join(omitted_checks) if omitted_checks else "ninguno"),
+    ]
+    QUALITY_REPORT_TXT.write_text("\n".join(txt_lines) + "\n", encoding="utf-8")
+
 
 def build_report(
     pytest_runner: Callable[[list[str]], int] | None = None,
     degraded_mode: bool = False,
     degraded_reason: str | None = None,
+    checks_omitidos: list[str] | None = None,
+    reason_code: str | None = None,
+    strict_mode: bool = True,
 ) -> dict[str, Any]:
     config = load_config()
     threshold = load_coverage_threshold(config)
@@ -360,6 +417,7 @@ def build_report(
     records: list[dict[str, str]] = []
 
     results: dict[str, Any] = {}
+    checks_omitidos = checks_omitidos or []
     if degraded_mode:
         detail = degraded_reason or "pytest-cov no disponible; ejecutado en modo degradado"
         _record(records, "coverage", "SKIP", detail)
@@ -391,9 +449,15 @@ def build_report(
     has_coverage_skip = results["coverage"]["status"] == "SKIP"
     results["degraded_mode"] = degraded_mode
     results["degraded_reason"] = degraded_reason if degraded_mode else None
-    results["global_status"] = (
-        "PASS" if all(item == "PASS" for item in statuses) and not has_coverage_skip else "FAIL"
-    )
+    results["checks_omitidos"] = checks_omitidos
+    results["reason_code"] = reason_code if degraded_mode else None
+    results["strict_mode"] = strict_mode
+    if all(item == "PASS" for item in statuses) and not has_coverage_skip:
+        results["global_status"] = "PASS"
+    elif all(item in {"PASS", "SKIP"} for item in statuses) and has_coverage_skip and degraded_mode:
+        results["global_status"] = "DEGRADED"
+    else:
+        results["global_status"] = "FAIL"
 
     write_reports(results, records)
     return results
@@ -424,7 +488,7 @@ def _parse_args(argv: list[str] | None = None) -> Any:
     parser.add_argument(
         "--allow-missing-pytest-cov",
         action="store_true",
-        help="Permite modo degradado si falta pytest-cov (coverage=SKIP, global=FAIL).",
+        help="Permite modo degradado si faltan dependencias opcionales (coverage=SKIP, global=DEGRADED).",
     )
     return parser.parse_args(argv)
 
@@ -432,14 +496,17 @@ def _parse_args(argv: list[str] | None = None) -> Any:
 def main(argv: list[str] | None = None) -> int:
     configure_logging()
     args = _parse_args(argv)
-    allow_missing_pytest_cov = args.allow_missing_pytest_cov or os.getenv(
-        "ALLOW_MISSING_PYTEST_COV", ""
-    ) in {"1", "true", "TRUE", "yes", "YES"}
+    allow_missing_pytest_cov = args.allow_missing_pytest_cov or _is_truthy(
+        os.getenv("ALLOW_MISSING_PYTEST_COV", "")
+    )
 
     preflight_info = preflight_pytest(allow_missing_pytest_cov=allow_missing_pytest_cov)
     results = build_report(
         degraded_mode=bool(preflight_info["degraded_mode"]),
         degraded_reason=preflight_info["degraded_reason"],
+        checks_omitidos=preflight_info["missing_dependencies"],
+        reason_code=preflight_info["reason_code"],
+        strict_mode=bool(preflight_info["strict_mode"]),
     )
     print_human_summary(results)
     return 0 if results["global_status"] == "PASS" else 1
