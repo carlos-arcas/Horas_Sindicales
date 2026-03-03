@@ -91,8 +91,10 @@ def update_conflicts_reminder(window: Any, logger_obj: logging.Logger) -> None:
     if reminder_widget is None:
         return
     try:
-        _ = window._i18n
+        i18n_actual = window._i18n
     except AttributeError:
+        return
+    if i18n_actual is None:
         return
     try:
         total_conflictos_pendientes = int(window._conflicts_service.count_conflicts()) if hasattr(window, "_conflicts_service") and window._conflicts_service is not None else 0

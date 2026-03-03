@@ -231,9 +231,12 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._servicio_i18n = servicio_i18n
         if servicio_i18n is not None:
             try:
-                self._i18n
+                i18n_actual = self._i18n
             except AttributeError:
                 self._i18n = servicio_i18n
+            else:
+                if i18n_actual is None:
+                    self._i18n = servicio_i18n
         if servicio_i18n is not None:
             configurar_i18n_interfaz(servicio_i18n)
         self._personas: list[PersonaDTO] = []
