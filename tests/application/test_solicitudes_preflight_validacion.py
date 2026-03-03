@@ -33,7 +33,7 @@ class FakeGeneradorPdf:
         destino.write_bytes(b"%PDF-1.4 fake")
         return destino
 
-    def generar_pdf_historico(self, solicitudes, persona, destino, intro_text=None, logo_path=None):
+    def generar_pdf_historico(self, solicitudes, persona, destino, intro_text=None, logo_path=None, personas_por_id=None):
         _ = (solicitudes, persona, intro_text, logo_path)
         destino.write_bytes(b"%PDF-1.4 fake")
         return destino

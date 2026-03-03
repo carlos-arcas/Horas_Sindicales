@@ -21,6 +21,7 @@ class RequestExportacionPdfHistorico:
     solicitudes: list[SolicitudDTO]
     persona: Persona | None
     destino: Path
+    personas_por_id: dict[int, Persona] | None = None
     dry_run: bool = True
     overwrite: bool = False
     intro_text: str | None = None
@@ -112,6 +113,7 @@ class ExportacionPdfHistoricoOperacion(OperacionConPlan[RequestExportacionPdfHis
             Path(rutas.archivos[0]),
             intro_text=request.intro_text,
             logo_path=request.logo_path,
+            personas_por_id=request.personas_por_id,
         )
 
         return ResultadoOperacion(

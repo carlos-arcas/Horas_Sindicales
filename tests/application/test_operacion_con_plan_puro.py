@@ -74,7 +74,7 @@ class GeneradorPdfDummy:
     def generar_pdf_solicitudes(self, solicitudes, persona, destino, intro_text=None, logo_path=None, include_hours_in_horario=None):
         raise AssertionError("No debe ejecutarse en test puro")
 
-    def generar_pdf_historico(self, solicitudes, persona, destino, intro_text=None, logo_path=None):
+    def generar_pdf_historico(self, solicitudes, persona, destino, intro_text=None, logo_path=None, personas_por_id=None):
         raise AssertionError("No debe ejecutarse en test puro")
 
 

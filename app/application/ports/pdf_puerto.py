@@ -29,5 +29,6 @@ class GeneradorPdfPuerto(Protocol):
         destino: Path,
         intro_text: str | None = None,
         logo_path: str | None = None,
+        personas_por_id: dict[int, Persona] | None = None,
     ) -> Path:
         ...

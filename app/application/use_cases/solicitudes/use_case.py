@@ -172,6 +172,24 @@ class SolicitudUseCases:
 
         return solicitudes
 
+    def _personas_por_solicitudes(self, solicitudes: list[SolicitudDTO]) -> dict[int, Persona]:
+        persona_ids = {solicitud.persona_id for solicitud in solicitudes}
+        personas: dict[int, Persona] = {}
+        if hasattr(self._persona_repo, "list_all"):
+            for persona in self._persona_repo.list_all(include_inactive=True):
+                if persona.id is None:
+                    continue
+                persona_id = int(persona.id)
+                if persona_id in persona_ids:
+                    personas[persona_id] = persona
+            if personas:
+                return personas
+        for persona_id in persona_ids:
+            persona = self._persona_repo.get_by_id(persona_id)
+            if persona is not None:
+                personas[persona_id] = persona
+        return personas
+
     def listar_pendientes_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
         return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_by_persona(persona_id)]
 
@@ -863,7 +881,8 @@ class SolicitudUseCases:
             log_event(logger, "generar_pdf_historico_started", {"count": len(solicitudes_list)}, correlation_id)
         if not solicitudes_list:
             raise BusinessRuleError("No hay solicitudes para generar el PDF.")
-        persona = self._persona_repo.get_by_id(solicitudes_list[0].persona_id)
+        personas_por_id = self._personas_por_solicitudes(solicitudes_list)
+        persona = personas_por_id.get(solicitudes_list[0].persona_id)
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
         pdf_options = self._config_repo.get() if self._config_repo else None
@@ -878,6 +897,7 @@ class SolicitudUseCases:
                 overwrite=True,
                 intro_text=_pdf_intro_text(pdf_options),
                 logo_path=pdf_options.pdf_logo_path if pdf_options else None,
+                personas_por_id=personas_por_id,
             )
         )
         if resultado.conflictos.no_ejecutable:
@@ -909,6 +929,7 @@ class SolicitudUseCases:
         solicitudes_list = [_solicitud_to_dto(s) for s in solicitudes]
         if not solicitudes_list:
             raise BusinessRuleError("No hay solicitudes para generar el PDF.")
+        personas_por_id = self._personas_por_solicitudes(solicitudes_list)
         pdf_options = self._config_repo.get() if self._config_repo else None
         operacion = ExportacionPdfHistoricoOperacion(fs=self._fs, generador_pdf=self._generador_pdf)
         started_at = time.perf_counter()
@@ -921,6 +942,7 @@ class SolicitudUseCases:
                 overwrite=True,
                 intro_text=_pdf_intro_text(pdf_options),
                 logo_path=pdf_options.pdf_logo_path if pdf_options else None,
+                personas_por_id=personas_por_id,
             )
         )
         if resultado.conflictos.no_ejecutable:
