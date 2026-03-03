@@ -281,6 +281,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self.saldos_card: SaldosCard | None = None
         self.horas_input: object | None = None
         self.sidebar: QFrame | None = None
+        self.stack: QWidget | None = None
         self.stacked_pages: QWidget | None = None
         self.page_historico: QWidget | None = None
         self.page_configuracion: QWidget | None = None
@@ -305,6 +306,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._optional_confirm_dialog_class = OptionalConfirmDialog
         self.setWindowTitle(copy_text("ui.sync.window_title"))
         self._build_ui()
+        self.stack = self.stacked_pages or self.centralWidget() or self.main_tabs
         registrar_refresco_idioma(self._refrescar_textos_sync)
         self._refrescar_textos_sync()
         self._inicializar_preferencia_pantalla_completa()
@@ -522,9 +524,12 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         layout_builder.build_shell(self)
 
     def _switch_sidebar_page(self, index: int) -> None:
-        target_tab_index = resolve_sidebar_tab_index(index)
-        if target_tab_index is None and index != 0:
-            return
+        target_tab_index = index
+        if self.main_tabs is not None and not (0 <= target_tab_index < self.main_tabs.count()):
+            mapped_tab_index = resolve_sidebar_tab_index(index)
+            if mapped_tab_index is None and index != 0:
+                return
+            target_tab_index = mapped_tab_index
 
         self._active_sidebar_index = index
 
