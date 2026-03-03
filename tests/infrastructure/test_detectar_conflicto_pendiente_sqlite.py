@@ -11,6 +11,7 @@ def _crear_solicitud(
     desde_min: int | None,
     hasta_min: int | None,
     completo: bool,
+    generated: bool = False,
 ) -> Solicitud:
     return solicitud_repo.create(
         Solicitud(
@@ -26,7 +27,7 @@ def _crear_solicitud(
             notas=None,
             pdf_path=None,
             pdf_hash=None,
-            generated=False,
+            generated=generated,
         )
     )
 
@@ -111,3 +112,88 @@ def test_excluye_soft_deleted(solicitud_repo, persona_id: int) -> None:
     conflicto = solicitud_repo.detectar_conflicto_pendiente(persona_id, "2026-05-14", 9 * 60, 10 * 60, False)
 
     assert conflicto is None
+
+
+def test_no_conflicto_fecha_distinta_comparando_con_existentes(solicitud_repo, persona_id: int) -> None:
+    _crear_solicitud(
+        solicitud_repo,
+        persona_id=persona_id,
+        fecha="2026-03-03",
+        desde_min=9 * 60,
+        hasta_min=10 * 60,
+        completo=False,
+        generated=True,
+    )
+
+    conflicto = solicitud_repo.detectar_conflicto_pendiente(persona_id, "2026-07-17", 9 * 60, 17 * 60, False)
+
+    assert conflicto is None
+
+
+def test_no_conflicto_tramos_contiguos_misma_fecha(solicitud_repo, persona_id: int) -> None:
+    _crear_solicitud(
+        solicitud_repo,
+        persona_id=persona_id,
+        fecha="2026-07-17",
+        desde_min=9 * 60,
+        hasta_min=10 * 60,
+        completo=False,
+        generated=False,
+    )
+
+    conflicto = solicitud_repo.detectar_conflicto_pendiente(persona_id, "2026-07-17", 10 * 60, 11 * 60, False)
+
+    assert conflicto is None
+
+
+def test_conflicto_si_solape_en_historico(solicitud_repo, persona_id: int) -> None:
+    existente = _crear_solicitud(
+        solicitud_repo,
+        persona_id=persona_id,
+        fecha="2026-07-17",
+        desde_min=9 * 60,
+        hasta_min=11 * 60,
+        completo=False,
+        generated=True,
+    )
+
+    conflicto = solicitud_repo.detectar_conflicto_pendiente(persona_id, "2026-07-17", 10 * 60, 12 * 60, False)
+
+    assert conflicto is not None
+    assert conflicto.tipo == "SOLAPE"
+    assert conflicto.id_existente == existente.id
+
+
+def test_conflicto_si_solape_en_pendientes(solicitud_repo, persona_id: int) -> None:
+    _crear_solicitud(
+        solicitud_repo,
+        persona_id=persona_id,
+        fecha="2026-07-17",
+        desde_min=9 * 60,
+        hasta_min=11 * 60,
+        completo=False,
+        generated=False,
+    )
+
+    conflicto = solicitud_repo.detectar_conflicto_pendiente(persona_id, "2026-07-17", 10 * 60, 12 * 60, False)
+
+    assert conflicto is not None
+    assert conflicto.tipo == "SOLAPE"
+
+
+def test_conflicto_si_duplicado_exacto_en_historico_o_pendientes(solicitud_repo, persona_id: int) -> None:
+    existente = _crear_solicitud(
+        solicitud_repo,
+        persona_id=persona_id,
+        fecha="2026-07-17",
+        desde_min=17 * 60,
+        hasta_min=18 * 60,
+        completo=False,
+        generated=True,
+    )
+
+    conflicto = solicitud_repo.detectar_conflicto_pendiente(persona_id, "2026-07-17", 17 * 60, 18 * 60, False)
+
+    assert conflicto is not None
+    assert conflicto.tipo == "DUPLICADO"
+    assert conflicto.id_existente == existente.id
