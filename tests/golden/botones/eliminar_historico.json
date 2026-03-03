@@ -1,0 +1,49 @@
+[
+  {
+    "data": {
+      "nombre": "Eliminar histórico"
+    },
+    "tipo": "click_boton"
+  },
+  {
+    "data": {
+      "nombre": "eliminar_solicitud",
+      "payload_minimo": {
+        "correlation_id": "<ID>",
+        "solicitud_id": 101
+      }
+    },
+    "tipo": "use_case_llamado"
+  },
+  {
+    "data": {
+      "nombre": "eliminar_solicitud",
+      "payload_minimo": {
+        "correlation_id": "<ID>",
+        "solicitud_id": 102
+      }
+    },
+    "tipo": "use_case_llamado"
+  },
+  {
+    "data": {
+      "clave": "historico_table.selection",
+      "valor": "cleared"
+    },
+    "tipo": "estado_ui_cambiado"
+  },
+  {
+    "data": {
+      "clave": "eliminar_button.text",
+      "valor": "Eliminar (0)"
+    },
+    "tipo": "estado_ui_cambiado"
+  },
+  {
+    "data": {
+      "clave": "historico_eliminados",
+      "valor": 2
+    },
+    "tipo": "estado_ui_cambiado"
+  }
+]

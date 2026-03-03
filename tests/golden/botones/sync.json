@@ -1,0 +1,24 @@
+[
+  {
+    "data": {
+      "nombre": "Sync"
+    },
+    "tipo": "click_boton"
+  },
+  {
+    "data": {
+      "clave": "sync_in_progress",
+      "valor": true
+    },
+    "tipo": "estado_ui_cambiado"
+  },
+  {
+    "data": {
+      "nombre": "sync_bidirectional",
+      "payload_minimo": {
+        "status": "ok"
+      }
+    },
+    "tipo": "use_case_llamado"
+  }
+]

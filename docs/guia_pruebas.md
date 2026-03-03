@@ -128,3 +128,28 @@ Reglas anti-flakiness aplicadas por normalización (`tests/utilidades/normalizar
 - Fechas ISO → `<FECHA>`.
 - Rutas absolutas → `<RUTA>`.
 - Orden determinista de listas con `id_check`.
+
+
+## Golden de botones (headless-safe)
+
+Se añadió un "golden gate" para contratos de interacción de botones sin depender de Qt real ni red:
+
+- `tests/golden/botones/test_boton_aniadir_pendiente_golden.py`
+- `tests/golden/botones/test_boton_eliminar_historico_golden.py`
+- `tests/golden/botones/test_boton_sync_golden.py`
+
+Cada test ejecuta un handler/controlador con `FakeMainWindow`/stubs y registra eventos en orden usando `EventRecorder` (`tests/utilidades/event_recorder.py`).
+
+Comprobación (sin modificar snapshots):
+
+```bash
+PYTHONPATH=. pytest -q tests/golden/botones
+```
+
+Actualización explícita de snapshots:
+
+```bash
+UPDATE_GOLDEN=1 PYTHONPATH=. pytest -q tests/golden/botones
+```
+
+Sin `UPDATE_GOLDEN=1`, cualquier cambio de comportamiento rompe el gate.
