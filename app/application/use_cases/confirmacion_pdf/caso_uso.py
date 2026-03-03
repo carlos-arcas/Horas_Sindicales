@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import logging
 
 from app.core.observability import generate_correlation_id, log_event
+from app.application.dto import SolicitudDTO
 from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion, SolicitudConfirmarPdfResultado
 from app.application.use_cases.confirmacion_pdf.puertos import GeneradorPdfPuerto, RepositorioSolicitudes, SistemaArchivosPuerto
 
@@ -34,23 +35,13 @@ class ConfirmarPendientesPdfCasoUso:
 
         pendientes = self.repositorio.listar_pendientes()
         pendientes_por_id = {solicitud.id: solicitud for solicitud in pendientes if solicitud.id is not None}
-        pendientes_seleccionados = [
-            pendientes_por_id[solicitud_id]
-            for solicitud_id in request.pendientes_ids
-            if solicitud_id in pendientes_por_id
-        ]
-        faltantes = [solicitud_id for solicitud_id in request.pendientes_ids if solicitud_id not in pendientes_por_id]
-        if faltantes:
-            log_event(
-                logger,
-                "confirmacion_pdf_pendientes_inexistentes",
-                {"faltantes": faltantes},
-                correlation_id,
-            )
-            return SolicitudConfirmarPdfResultado(
-                errores=[f"Pendientes inexistentes: {', '.join(str(item) for item in faltantes)}"],
-                pendientes_restantes=sorted(pendientes_por_id),
-            )
+        pendientes_seleccionados, resultado_error = self._seleccionar_pendientes_o_error(
+            pendientes_por_id,
+            request.pendientes_ids,
+            correlation_id,
+        )
+        if resultado_error is not None:
+            return resultado_error
 
         if not request.generar_pdf:
             creadas, _pendientes_restantes, errores = self.repositorio.confirmar_sin_pdf(
@@ -98,6 +89,32 @@ class ConfirmarPendientesPdfCasoUso:
             errores=errores,
             ruta_pdf=ruta_pdf,
             pendientes_restantes=restantes,
+        )
+
+    def _seleccionar_pendientes_o_error(
+        self,
+        pendientes_por_id: dict[int, SolicitudDTO],
+        pendientes_ids: list[int],
+        correlation_id: str,
+    ) -> tuple[list[SolicitudDTO], SolicitudConfirmarPdfResultado | None]:
+        pendientes_seleccionados = [
+            pendientes_por_id[solicitud_id]
+            for solicitud_id in pendientes_ids
+            if solicitud_id in pendientes_por_id
+        ]
+        faltantes = [solicitud_id for solicitud_id in pendientes_ids if solicitud_id not in pendientes_por_id]
+        if not faltantes:
+            return pendientes_seleccionados, None
+
+        log_event(
+            logger,
+            "confirmacion_pdf_pendientes_inexistentes",
+            {"faltantes": faltantes},
+            correlation_id,
+        )
+        return pendientes_seleccionados, SolicitudConfirmarPdfResultado(
+            errores=[f"Pendientes inexistentes: {', '.join(str(item) for item in faltantes)}"],
+            pendientes_restantes=sorted(pendientes_por_id),
         )
 
     def _validar_preflight(self, request: SolicitudConfirmarPdfPeticion) -> list[str]:
