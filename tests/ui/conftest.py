@@ -1,42 +1,8 @@
 import os
 import sys
-from importlib import import_module
 from pathlib import Path
 
 import pytest
-
-
-def _clear_pyside6_modules() -> None:
-    for module_name in [name for name in list(sys.modules) if name == "PySide6" or name.startswith("PySide6.")]:
-        sys.modules.pop(module_name, None)
-
-
-def _assert_real_qt_disponible() -> None:
-    _clear_pyside6_modules()
-    try:
-        qt_widgets = import_module("PySide6.QtWidgets")
-    except Exception as exc:  # pragma: no cover - depende del host
-        raise RuntimeError(
-            "PySide6 real no disponible; se detectó stub o instalación incompleta"
-        ) from exc
-    if not hasattr(qt_widgets, "QCheckBox"):
-        raise RuntimeError("PySide6 real no disponible; se detectó stub o instalación incompleta")
-
-
-def pytest_sessionstart(session: pytest.Session) -> None:
-    _assert_real_qt_disponible()
-
-
-def _qt_ready() -> bool:
-    try:
-        _assert_real_qt_disponible()
-        from PySide6.QtCore import QEvent
-        from PySide6.QtWidgets import QApplication
-
-        _ = (QApplication, QEvent)
-        return True
-    except Exception:
-        return False
 
 
 def require_qt():
@@ -80,7 +46,6 @@ def _is_ui_item(item: pytest.Item) -> bool:
 
 
 def pytest_collection_modifyitems(config, items):
-    qt_ready = _qt_ready()
     smoke_only_in_ci = os.getenv("CI") == "true" and os.getenv("RUN_UI_TESTS") != "1"
     smoke_only_allowlist = {
         "tests/ui/test_ui_arranque_minimo.py",
@@ -91,9 +56,6 @@ def pytest_collection_modifyitems(config, items):
     skip_non_smoke = pytest.mark.skip(
         reason="Modo smoke en CI: exporta RUN_UI_TESTS=1 para ejecutar toda la suite UI."
     )
-    skip_qt = pytest.mark.skip(
-        reason="PySide6 no disponible correctamente en entorno CI"
-    )
 
     for item in items:
         if not _is_ui_item(item):
@@ -103,8 +65,3 @@ def pytest_collection_modifyitems(config, items):
         in_smoke_allowlist = any(item_path.endswith(path) for path in smoke_only_allowlist)
         if smoke_only_in_ci and not in_smoke_allowlist:
             item.add_marker(skip_non_smoke)
-            continue
-
-        keywords = getattr(item, "keywords", {})
-        if not qt_ready and "headless_safe" not in keywords:
-            item.add_marker(skip_qt)
