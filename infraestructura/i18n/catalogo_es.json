@@ -68,5 +68,16 @@
   "ui.conflictos.titulo_revisa_formulario": "Revisa el formulario",
   "ui.conflictos.duplicado_mensaje": "Ya existe un registro con los mismos datos. ID {id} · Fecha {fecha} · Desde {desde} · Hasta {hasta} · Completo {completo}.",
   "ui.conflictos.solape_mensaje": "El tramo horario se solapa con un registro existente. ID {id} · Fecha {fecha} · Desde {desde} · Hasta {hasta} · Completo {completo}.",
-  "ui.conflictos.boton_ver_registro": "Ver registro"
+  "ui.conflictos.boton_ver_registro": "Ver registro",
+  "ui.solicitudes.no_puede_aniadir": "No se puede añadir la solicitud.",
+  "ui.solicitudes.falta_delegada": "Falta seleccionar una delegada.",
+  "ui.solicitudes.selecciona_delegada": "Selecciona una delegada en Configuración y vuelve a intentarlo.",
+  "ui.solicitudes.revisa_formulario": "Revisa fecha/tramo y corrige los campos marcados.",
+  "ui.solicitudes.no_pudo_guardar": "No se pudo guardar la solicitud.",
+  "ui.solicitudes.solicitud_con_advertencias": "Solicitud registrada con advertencias",
+  "ui.solicitudes.no_se_guardo": "No se guardó la solicitud.",
+  "ui.solicitudes.corrige_formulario": "Corrige el formulario y vuelve a pulsar 'Añadir pendiente'.",
+  "ui.solicitudes.operacion_completada": "Operación completada",
+  "ui.solicitudes.pendiente_actualizada": "Pendiente actualizada",
+  "ui.solicitudes.pdf_path_obligatorio": "pdf_path es obligatorio cuando generar_pdf=True"
 }
