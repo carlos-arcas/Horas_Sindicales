@@ -424,11 +424,6 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
             self.tramo_field_error.clear()
         self._update_solicitud_preview()
 
-    def _on_historico_todas_delegadas_toggled(self, checked: bool) -> None:
-        if self.historico_delegada_combo is not None:
-            self.historico_delegada_combo.setEnabled(not checked)
-        self._apply_historico_filters()
-
     def _on_add_pendiente(self, *args, **kwargs) -> None:
         _ = (args, kwargs)
         controller = getattr(self, "_solicitudes_controller", None)

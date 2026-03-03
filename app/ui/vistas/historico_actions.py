@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QDate, QItemSelectionModel
+from PySide6.QtCore import QDate, QItemSelectionModel, QTimer
 from PySide6.QtWidgets import QAbstractItemView, QDialog, QMessageBox
 
 from app.core.observability import OperationContext, log_event
@@ -19,11 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 def apply_historico_filters(window: Any) -> None:
-    year_mode, year, month = window._historico_period_filter_state()
-    ver_todas = window.historico_todas_delegadas_check.isChecked()
-    delegada_id = None if ver_todas else window.historico_delegada_combo.currentData()
-    date_from = window.historico_desde_date.date()
-    date_to = window.historico_hasta_date.date()
+    filtros = build_historico_filters(window)
+    year_mode = filtros["year_mode"]
+    date_from = filtros["date_from"]
+    date_to = filtros["date_to"]
 
     if year_mode == "RANGE" and date_from.isValid() and date_to.isValid() and date_from > date_to:
         # Para juniors: corregimos automáticamente para no bloquear al usuario ni colapsar la UI.
@@ -37,18 +36,32 @@ def apply_historico_filters(window: Any) -> None:
         )
 
     window.historico_proxy_model.set_filters(
-        delegada_id=delegada_id,
-        ver_todas=ver_todas,
+        delegada_id=filtros["delegada_id"],
+        ver_todas=filtros["ver_todas"],
         year_mode=year_mode,
-        year=year,
-        month=month,
+        year=filtros["year"],
+        month=filtros["month"],
         date_from=date_from,
         date_to=date_to,
     )
     window.historico_proxy_model.set_estado_code(window.historico_estado_combo.currentData())
-    window._settings.setValue("historico/delegada", delegada_id)
+    window._settings.setValue("historico/delegada", filtros["delegada_id"])
     window._apply_historico_text_filter()
     window._update_historico_empty_state()
+
+
+def build_historico_filters(window: Any) -> dict[str, Any]:
+    year_mode, year, month = window._historico_period_filter_state()
+    delegada_id = window.historico_delegada_combo.currentData()
+    return {
+        "year_mode": year_mode,
+        "year": year,
+        "month": month,
+        "date_from": window.historico_desde_date.date(),
+        "date_to": window.historico_hasta_date.date(),
+        "delegada_id": delegada_id if isinstance(delegada_id, int) else None,
+        "ver_todas": delegada_id is None,
+    }
 
 
 def apply_historico_default_range(window: Any) -> None:
@@ -90,15 +103,31 @@ def on_historico_periodo_mode_changed(
     window.historico_periodo_mes_combo.setEnabled(mes_activo)
     window.historico_desde_date.setEnabled(rango_activo)
     window.historico_hasta_date.setEnabled(rango_activo)
-    window._apply_historico_filters()
+    trigger_historico_filter_refresh(window)
+
+
+def on_historico_filter_changed(window: Any, *_args: object, **_kwargs: object) -> None:
+    trigger_historico_filter_refresh(window)
+
+
+def on_historico_search_text_changed(window: Any, *_args: object, **_kwargs: object) -> None:
+    timer = getattr(window, "_historico_filtro_timer", None)
+    if timer is None:
+        trigger_historico_filter_refresh(window)
+        return
+    timer.start(300)
+
+
+def trigger_historico_filter_refresh(window: Any) -> None:
+    QTimer.singleShot(0, window._apply_historico_filters)
 
 
 def on_historico_apply_filters(window: Any) -> None:
     year_mode, year, month = window._historico_period_filter_state()
-    delegada_id = None if window.historico_todas_delegadas_check.isChecked() else window.historico_delegada_combo.currentData()
+    delegada_id = window.historico_delegada_combo.currentData()
     logger.info(
         "UI_HISTORICO_APPLY_FILTERS todas=%s delegada_id=%s año=%s mes=%s desde=%s hasta=%s modo=%s",
-        window.historico_todas_delegadas_check.isChecked(),
+        delegada_id is None,
         delegada_id,
         year,
         month,
@@ -114,8 +143,7 @@ def configure_historico_focus_order(window: Any) -> None:
     window.setTabOrder(window.historico_estado_combo, window.historico_delegada_combo)
     window.setTabOrder(window.historico_delegada_combo, window.historico_desde_date)
     window.setTabOrder(window.historico_desde_date, window.historico_hasta_date)
-    window.setTabOrder(window.historico_hasta_date, window.historico_apply_filters_button)
-    window.setTabOrder(window.historico_apply_filters_button, window.historico_table)
+    window.setTabOrder(window.historico_hasta_date, window.historico_table)
 
 
 def focus_historico_search(window: Any) -> None:

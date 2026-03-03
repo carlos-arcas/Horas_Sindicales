@@ -287,7 +287,6 @@ def normalize_input_heights(window: MainWindow) -> None:
         window.historico_delegada_combo,
         window.historico_desde_date,
         window.historico_hasta_date,
-        window.historico_apply_filters_button,
         window.open_saldos_modal_button,
         window.add_persona_button,
         window.edit_persona_button,
