@@ -131,8 +131,8 @@ def on_historico_apply_filters(window: Any) -> None:
         delegada_id,
         year,
         month,
-        window.historico_desde_date.date().toString("yyyy-MM-dd"),
-        window.historico_hasta_date.date().toString("yyyy-MM-dd"),
+        window.historico_desde_date.date().toString(copy_text("ui.formatos.qt_fecha_ymd")),
+        window.historico_hasta_date.date().toString(copy_text("ui.formatos.qt_fecha_ymd")),
         year_mode,
     )
     window._apply_historico_filters()
@@ -257,9 +257,9 @@ def notify_historico_filter_if_hidden(window: Any, solicitudes_insertadas: list[
         sorted(inserted_ids - visibles_ids),
     )
     window._show_optional_notice(
-        "confirmaciones/no_visible_filtros",
-        "Solicitud confirmada",
-        "Solicitud confirmada. Ajusta filtros para verla en Histórico.",
+        copy_text("ui.confirmaciones.no_visible_filtros"),
+        copy_text("ui.historico.solicitud_confirmada_titulo"),
+        copy_text("ui.historico.solicitud_confirmada_mensaje"),
     )
 
 
@@ -269,7 +269,11 @@ def on_export_historico_pdf(window: Any) -> None:
         export_handler()
         return
     logger.warning("export_historico_pdf_not_available")
-    QMessageBox.information(window, "Exportación", "Función no disponible")
+    QMessageBox.information(
+        window,
+        copy_text("ui.historico.exportacion_titulo"),
+        copy_text("ui.historico.funcion_no_disponible"),
+    )
 
 
 def on_generar_pdf_historico(window: Any) -> None:
@@ -278,12 +282,15 @@ def on_generar_pdf_historico(window: Any) -> None:
         return
     selected = window._selected_historico_solicitudes()
     if not selected:
-        window.toast.info("No hay solicitudes para exportar.", title="Histórico")
+        window.toast.info(
+            copy_text("ui.export_share.sin_registros"),
+            title=copy_text("ui.historico.titulo"),
+        )
         return
     try:
         default_name = window._solicitud_use_cases.sugerir_nombre_pdf(selected)
     except (ValidacionError, BusinessRuleError) as exc:
-        window.toast.warning(str(exc), title="Validación")
+        window.toast.warning(str(exc), title=copy_text("ui.historico.validacion_titulo"))
         return
     except Exception as exc:  # pragma: no cover - fallback
         logger.exception("Error preparando PDF histórico")
@@ -308,13 +315,13 @@ def on_generar_pdf_historico(window: Any) -> None:
         preview = window._pdf_preview_dialog_class(_generate_preview, default_name, window)
         result = preview.exec()
     except (ValidacionError, BusinessRuleError) as exc:
-        window.toast.warning(str(exc), title="Validación")
+        window.toast.warning(str(exc), title=copy_text("ui.historico.validacion_titulo"))
         return
     except Exception as exc:  # pragma: no cover - fallback
         if isinstance(exc, OSError):
             log_operational_error(
                 logger,
-                "File export failed during PDF preview",
+                copy_text("ui.historico.preview_export_error"),
                 exc=exc,
                 extra={"operation": "exportar_historico_pdf", "persona_id": persona.id or 0},
             )
@@ -324,9 +331,9 @@ def on_generar_pdf_historico(window: Any) -> None:
         return
     if result == QDialog.DialogCode.Accepted:
         window._show_optional_notice(
-            "confirmaciones/export_pdf_ok",
-            "Exportación",
-            "Exportación PDF OK",
+            copy_text("ui.confirmaciones.export_pdf_ok"),
+            copy_text("ui.historico.export_pdf_ok_titulo"),
+            copy_text("ui.historico.export_pdf_ok_mensaje"),
         )
 
 
@@ -337,16 +344,17 @@ def on_open_historico_detalle(window: Any) -> None:
     estado = status_badge("CONFIRMED") if solicitud.generated else status_badge("PENDING")
     payload = {
         "ID": str(solicitud.id or "-"),
-        "Delegada": window.historico_model.persona_name_for_id(solicitud.persona_id) or str(solicitud.persona_id),
-        "Fecha solicitada": solicitud.fecha_solicitud,
-        "Fecha pedida": solicitud.fecha_pedida,
-        "Desde": solicitud.desde or "-",
-        "Hasta": solicitud.hasta or "-",
-        "Completo": "Sí" if solicitud.completo else "No",
-        "Horas": str(solicitud.horas),
-        "Estado": estado,
-        "Observaciones": solicitud.observaciones or "",
-        "Notas": solicitud.notas or "",
+        copy_text("ui.historico.col_delegada"): window.historico_model.persona_name_for_id(solicitud.persona_id)
+        or str(solicitud.persona_id),
+        copy_text("ui.historico.col_fecha_solicitada"): solicitud.fecha_solicitud,
+        copy_text("ui.historico.col_fecha_pedida"): solicitud.fecha_pedida,
+        copy_text("ui.historico.col_desde"): solicitud.desde or "-",
+        copy_text("ui.historico.col_hasta"): solicitud.hasta or "-",
+        copy_text("ui.historico.col_completo"): "Sí" if solicitud.completo else "No",
+        copy_text("ui.historico.col_horas"): str(solicitud.horas),
+        copy_text("ui.historico.col_estado"): estado,
+        copy_text("ui.historico.col_observaciones"): solicitud.observaciones or "",
+        copy_text("ui.historico.col_notas"): solicitud.notas or "",
     }
     dialog = window._historico_detalle_dialog_class(payload, window)
     dialog.exec()
@@ -366,7 +374,7 @@ def on_eliminar(window: Any) -> None:
                     solicitud_id, correlation_id=operation.correlation_id
                 )
     except (ValidacionError, BusinessRuleError) as exc:
-        window.toast.warning(str(exc), title="Validación")
+        window.toast.warning(str(exc), title=copy_text("ui.historico.validacion_titulo"))
         return
     except Exception as exc:  # pragma: no cover - fallback
         logger.exception("Error eliminando solicitud")
@@ -384,10 +392,10 @@ def on_eliminar(window: Any) -> None:
     window._update_action_state()
     window.notifications.notify_operation(
         OperationFeedback(
-            title="Solicitudes eliminadas",
-            happened="Las solicitudes seleccionadas se eliminaron del histórico.",
+            title=copy_text("ui.historico.eliminadas_titulo"),
+            happened=copy_text("ui.historico.eliminadas_mensaje"),
             affected_count=len(ids_seleccionados),
-            incidents="Sin incidencias.",
-            next_step="Puedes continuar o revisar histórico.",
+            incidents=copy_text("ui.historico.sin_incidencias_titulo"),
+            next_step=copy_text("ui.historico.sin_incidencias_mensaje"),
         )
     )
