@@ -243,6 +243,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._pending_solicitudes: list[SolicitudDTO] = []
         self._pending_all_solicitudes: list[SolicitudDTO] = []
         self._hidden_pendientes: list[SolicitudDTO] = []
+        self._historico_ids_seleccionados: set[int] = set()
         self._pending_conflict_rows: set[int] = set()
         self._pending_view_all = False
         self._orphan_pendientes: list[SolicitudDTO] = []
@@ -722,7 +723,8 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _on_historico_select_all_visible_toggled(self, checked: bool) -> None:
         return state_historico.alternar_seleccion_visible_historico(self, checked)
 
-    def _on_historico_selection_changed(self) -> None:
+    def _on_historico_selection_changed(self, *_args: object) -> None:
+        state_historico.actualizar_estado_seleccion_historico(self)
         self._update_action_state()
 
     def _on_open_historico_detalle(self) -> None:

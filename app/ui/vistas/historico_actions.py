@@ -12,6 +12,7 @@ from app.domain.services import BusinessRuleError, ValidacionError
 from app.bootstrap.logging import log_operational_error
 from app.ui.patterns import status_badge
 from app.ui.notification_service import OperationFeedback
+from app.ui.copy_catalog import copy_text
 
 
 logger = logging.getLogger(__name__)
@@ -324,17 +325,17 @@ def on_open_historico_detalle(window: Any) -> None:
 
 
 def on_eliminar(window: Any) -> None:
-    logger.info("CLICK eliminar_historico handler=_on_eliminar selected=%s", len(window._selected_historico_solicitudes()))
-    seleccionadas = [sol for sol in window._selected_historico_solicitudes() if sol.id is not None]
-    if not seleccionadas:
+    ids_seleccionados = set(getattr(window, "_historico_ids_seleccionados", set()))
+    logger.info("CLICK eliminar_historico handler=_on_eliminar selected=%s", len(ids_seleccionados))
+    if not ids_seleccionados:
         logger.info("_on_eliminar early_return motivo=sin_seleccion")
         return
     try:
         window._set_processing_state(True)
-        for solicitud in seleccionadas:
+        for solicitud_id in sorted(ids_seleccionados):
             with OperationContext("eliminar_solicitud") as operation:
                 window._solicitud_use_cases.eliminar_solicitud(
-                    solicitud.id or 0, correlation_id=operation.correlation_id
+                    solicitud_id, correlation_id=operation.correlation_id
                 )
     except (ValidacionError, BusinessRuleError) as exc:
         window.toast.warning(str(exc), title="Validación")
@@ -345,14 +346,19 @@ def on_eliminar(window: Any) -> None:
         return
     finally:
         window._set_processing_state(False)
+    window._historico_ids_seleccionados = set()
+    clear_selection = getattr(window.historico_table, "clearSelection", None)
+    if callable(clear_selection):
+        clear_selection()
     window._refresh_historico()
     window._refresh_saldos()
+    window.eliminar_button.setText(copy_text("ui.historico.eliminar_boton").format(n=0))
     window._update_action_state()
     window.notifications.notify_operation(
         OperationFeedback(
             title="Solicitudes eliminadas",
             happened="Las solicitudes seleccionadas se eliminaron del histórico.",
-            affected_count=len(seleccionadas),
+            affected_count=len(ids_seleccionados),
             incidents="Sin incidencias.",
             next_step="Puedes continuar o revisar histórico.",
         )

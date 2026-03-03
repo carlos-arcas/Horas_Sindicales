@@ -79,5 +79,6 @@
   "ui.solicitudes.corrige_formulario": "Corrige el formulario y vuelve a pulsar 'Añadir pendiente'.",
   "ui.solicitudes.operacion_completada": "Operación completada",
   "ui.solicitudes.pendiente_actualizada": "Pendiente actualizada",
-  "ui.solicitudes.pdf_path_obligatorio": "pdf_path es obligatorio cuando generar_pdf=True"
+  "ui.solicitudes.pdf_path_obligatorio": "pdf_path es obligatorio cuando generar_pdf=True",
+  "ui.historico.eliminar_boton": "Eliminar ({n})"
 }

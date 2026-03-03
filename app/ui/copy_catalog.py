@@ -83,6 +83,7 @@ _COPY: dict[str, str] = {
     "ui.historico.aplicar": "Aplicar",
     "ui.historico.export_hint": "Para exportar, selecciona los registros que quieras exportar.",
     "ui.historico.eliminar_cero": "Eliminar (0)",
+    "ui.historico.eliminar_boton": "Eliminar ({n})",
     "ui.historico.exportar_pdf_cero": "Exportar histórico PDF (0)",
     "ui.historico.select_visible": "Seleccionar todo (visible)",
     "ui.historico.sync": "Sincronizar con Google Sheets",

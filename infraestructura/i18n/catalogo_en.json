@@ -79,5 +79,6 @@
   "ui.solicitudes.corrige_formulario": "Fix the form and click 'Add pending' again.",
   "ui.solicitudes.operacion_completada": "Operation completed",
   "ui.solicitudes.pendiente_actualizada": "Pending request updated",
-  "ui.solicitudes.pdf_path_obligatorio": "pdf_path is required when generar_pdf=True"
+  "ui.solicitudes.pdf_path_obligatorio": "pdf_path is required when generar_pdf=True",
+  "ui.historico.eliminar_boton": "Delete ({n})"
 }

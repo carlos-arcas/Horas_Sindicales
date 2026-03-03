@@ -46,10 +46,7 @@ def set_processing_state(window: Any, in_progress: bool) -> None:
 
 def update_action_state(window: Any) -> None:
     """Sincroniza habilitación de acciones según estado actual del formulario."""
-    selected_rows: list[int] = []
-    selected_pending = getattr(window, "_selected_pending_row_indexes", None)
-    if callable(selected_pending):
-        selected_rows = selected_pending() or []
+    selected_historico_ids = set(getattr(window, "_historico_ids_seleccionados", set()))
 
     has_persona = False
     current_persona = getattr(window, "_current_persona", None)
@@ -57,7 +54,7 @@ def update_action_state(window: Any) -> None:
         has_persona = current_persona() is not None
 
     has_pending = bool(getattr(window, "_pending_solicitudes", []))
-    has_selection = bool(selected_rows)
+    has_selection = bool(selected_historico_ids)
     has_blocking_errors = bool(getattr(window, "_blocking_errors", {}))
     sync_in_progress = bool(getattr(window, "_sync_in_progress", False))
 
