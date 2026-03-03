@@ -404,10 +404,16 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         *,
         excluir_solicitud_id: int | None = None,
     ) -> ConflictoSolicitud | None:
+        """Detecta conflicto sobre solicitudes pendientes (generated=0) de la misma persona/fecha.
+
+        Esta validación está orientada al flujo "Añadir pendiente", por lo que excluye
+        histórico confirmado y registros soft-deleted.
+        """
         cursor = self._connection.cursor()
         clauses = [
             "s.persona_id = ?",
             "s.fecha_pedida = ?",
+            "s.generated = 0",
             "(s.deleted = 0 OR s.deleted IS NULL)",
         ]
         params: list[object] = [persona_id, fecha_pedida]
@@ -417,7 +423,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
 
         cursor.execute(
             f"""
-            SELECT s.id, s.persona_id, s.fecha_pedida, s.desde_min, s.hasta_min, s.completo
+            SELECT s.id, s.persona_id, s.fecha_pedida, s.desde_min, s.hasta_min, s.completo, s.generated
             FROM solicitudes s
             WHERE {' AND '.join(clauses)}
             ORDER BY s.id DESC
@@ -433,15 +439,18 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             )
             if conflicto is None:
                 continue
-            logger.info(
-                "Conflicto de solicitud detectado type=%s id_existente=%s persona_id=%s fecha=%s desde=%s hasta=%s completo=%s",
+            estado_existente = "PENDIENTE" if int(row["generated"]) == 0 else "CONFIRMADA"
+            logger.debug(
+                "detectar_conflicto_pendiente persona_id=%s fecha=%s desde=%s hasta=%s completo=%s "
+                "tipo_conflicto=%s id_existente=%s estado_existente=%s",
+                persona_id,
+                fecha_pedida,
+                minutes_to_hhmm(desde_min),
+                minutes_to_hhmm(hasta_min),
+                completo,
                 conflicto.tipo,
                 conflicto.id_existente,
-                conflicto.persona_id,
-                conflicto.fecha,
-                conflicto.desde,
-                conflicto.hasta,
-                conflicto.completo,
+                estado_existente,
             )
             return conflicto
         return None
