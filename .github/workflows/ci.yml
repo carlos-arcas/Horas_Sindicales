@@ -110,7 +110,13 @@ jobs:
       - name: Install Qt/Linux system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb libgl1 libxkbcommon-x11-0
+          PAQUETES_QT="xvfb libgl1 libegl1 libgl1-mesa-dri libxkbcommon-x11-0"
+          for paquete_opcional in libegl1-mesa libegl-mesa0; do
+            if apt-cache show "$paquete_opcional" >/dev/null 2>&1; then
+              PAQUETES_QT="$PAQUETES_QT $paquete_opcional"
+            fi
+          done
+          sudo apt-get install -y --no-install-recommends $PAQUETES_QT
 
       - name: Install dependencies
         run: |
@@ -120,6 +126,10 @@ jobs:
 
       - name: Lint (ui smoke job)
         run: ruff check .
+
+      - name: Qt import smoke check
+        run: |
+          python -c "from PySide6.QtWidgets import QApplication, QCheckBox; print('qt_ok')"
 
       - name: UI smoke tests (headless via xvfb)
         run: |
