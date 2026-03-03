@@ -15,15 +15,15 @@ def run_init_refresh(
 
     emit_log_safe = emit_log_noop if emit_log is None else emit_log
     if scheduler is None:
-        emit_log_safe("UI_INIT_REFRESH_START")
+        emit_log_safe("ui.init_refresh.start")
         refresh_resumen()
         refresh_pendientes()
         refresh_historico()
-        emit_log_safe("UI_INIT_REFRESH_DONE")
+        emit_log_safe("ui.init_refresh.done")
         return
 
     def step_resumen() -> None:
-        emit_log_safe("UI_INIT_REFRESH_START")
+        emit_log_safe("ui.init_refresh.start")
         refresh_resumen()
         scheduler(step_pendientes)
 
@@ -33,6 +33,6 @@ def run_init_refresh(
 
     def step_historico() -> None:
         refresh_historico()
-        emit_log_safe("UI_INIT_REFRESH_DONE")
+        emit_log_safe("ui.init_refresh.done")
 
     scheduler(step_resumen)
