@@ -1,5 +1,6 @@
 import os
 import sys
+from ctypes.util import find_library
 from pathlib import Path
 
 import pytest
@@ -45,6 +46,27 @@ def _is_ui_item(item: pytest.Item) -> bool:
     return False
 
 
+def _qt_ready() -> bool:
+    """Chequeo mínimo y seguro para decidir si se deben coleccionar tests UI en CI."""
+
+    if os.getenv("CI") != "true":
+        return True
+
+    display = os.getenv("DISPLAY", "").strip()
+    platform = os.getenv("QT_QPA_PLATFORM", "").strip().lower()
+    if not display and platform not in {"offscreen", "xcb"}:
+        return False
+
+    # Verificación opcional de librerías gráficas: no interrumpe ejecución.
+    try:
+        if not (find_library("EGL") or find_library("GL")):
+            return False
+    except Exception:
+        pass
+
+    return True
+
+
 def pytest_collection_modifyitems(config, items):
     smoke_only_in_ci = os.getenv("CI") == "true" and os.getenv("RUN_UI_TESTS") != "1"
     smoke_only_allowlist = {
@@ -56,9 +78,18 @@ def pytest_collection_modifyitems(config, items):
     skip_non_smoke = pytest.mark.skip(
         reason="Modo smoke en CI: exporta RUN_UI_TESTS=1 para ejecutar toda la suite UI."
     )
+    skip_ui_env = pytest.mark.skip(
+        reason="Entorno UI no listo en CI (DISPLAY/QT_QPA_PLATFORM/librerías gráficas)."
+    )
+
+    qt_ready = _qt_ready()
 
     for item in items:
         if not _is_ui_item(item):
+            continue
+
+        if not qt_ready:
+            item.add_marker(skip_ui_env)
             continue
 
         item_path = Path(str(getattr(item, "path", ""))).as_posix()
