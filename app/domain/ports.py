@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Protocol, Iterable
 
 from app.domain.sync_models import SyncExecutionPlan, SyncSummary
-from app.domain.models import GrupoConfig, Persona, SheetsConfig, Solicitud
+from app.domain.models import ConflictoSolicitud, GrupoConfig, Persona, SheetsConfig, Solicitud
 
 
 class PersonaRepository(Protocol):
@@ -80,6 +80,18 @@ class SolicitudRepository(Protocol):
         hasta_min: int | None,
         completo: bool,
     ) -> Solicitud | None:
+        ...
+
+    def detectar_conflicto_pendiente(
+        self,
+        persona_id: int,
+        fecha_pedida: str,
+        desde_min: int | None,
+        hasta_min: int | None,
+        completo: bool,
+        *,
+        excluir_solicitud_id: int | None = None,
+    ) -> ConflictoSolicitud | None:
         ...
 
     def create(self, solicitud: Solicitud) -> Solicitud:
