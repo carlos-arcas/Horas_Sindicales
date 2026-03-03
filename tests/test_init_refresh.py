@@ -16,11 +16,11 @@ def test_run_init_refresh_calls_historico_and_logs_in_order() -> None:
     )
 
     assert calls == [
-        "UI_INIT_REFRESH_START",
+        "ui.init_refresh.start",
         "resumen",
         "pendientes",
         "historico",
-        "UI_INIT_REFRESH_DONE",
+        "ui.init_refresh.done",
     ]
 
 
@@ -57,9 +57,9 @@ def test_run_init_refresh_con_scheduler_difiere_ejecucion() -> None:
         pendientes.pop(0)()
 
     assert calls == [
-        "UI_INIT_REFRESH_START",
+        "ui.init_refresh.start",
         "resumen",
         "pendientes",
         "historico",
-        "UI_INIT_REFRESH_DONE",
+        "ui.init_refresh.done",
     ]
