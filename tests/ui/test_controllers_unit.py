@@ -16,7 +16,7 @@ def _build_window_for_solicitudes(solicitud: SolicitudDTO | None) -> SimpleNames
     use_cases = Mock()
     use_cases.calcular_minutos_solicitud.return_value = 60
     use_cases.minutes_to_hours_float.return_value = 1.0
-    use_cases.buscar_duplicado.return_value = None
+    use_cases.buscar_conflicto_pendiente.return_value = None
     creada = replace(solicitud, id=55) if solicitud else None
     use_cases.crear_resultado.return_value = ResultadoCrearSolicitudDTO(
         success=True,
@@ -34,6 +34,7 @@ def _build_window_for_solicitudes(solicitud: SolicitudDTO | None) -> SimpleNames
         _refresh_saldos=Mock(),
         _update_action_state=Mock(),
         _handle_duplicate_detected=Mock(return_value=False),
+        ir_a_pendiente_existente=Mock(),
         _selected_pending_for_editing=Mock(return_value=None),
         _undo_last_added_pending=Mock(),
         notas_input=SimpleNamespace(toPlainText=Mock(return_value=""), setPlainText=Mock()),
@@ -90,7 +91,7 @@ def test_solicitudes_controller_no_permite_anadir_sin_delegada() -> None:
     window._solicitud_use_cases.crear_resultado.assert_not_called()
 
 
-def test_solicitudes_controller_duplicate_guides_to_existing() -> None:
+def test_solicitudes_controller_conflict_toast_guides_to_existing() -> None:
     solicitud = SolicitudDTO(
         id=None,
         persona_id=1,
@@ -106,17 +107,64 @@ def test_solicitudes_controller_duplicate_guides_to_existing() -> None:
         notas=None,
     )
     window = _build_window_for_solicitudes(solicitud)
-    window._solicitud_use_cases.buscar_duplicado.return_value = replace(solicitud, id=3, generated=False)
-    window._handle_duplicate_detected.return_value = False
+    window._solicitud_use_cases.buscar_conflicto_pendiente.return_value = SimpleNamespace(
+        tipo="DUPLICADO",
+        id_existente=11,
+        fecha="2024-01-01",
+        desde="10:00",
+        hasta="11:00",
+        completo=False,
+    )
 
     controller = SolicitudesController(window)
     controller.on_add_pendiente()
 
-    window._handle_duplicate_detected.assert_called_once()
+    window.toast.warning.assert_called_once()
+    kwargs = window.toast.warning.call_args.kwargs
+    assert kwargs["action_label"]
+    action_callback = kwargs["action_callback"]
+    action_callback()
+    window.ir_a_pendiente_existente.assert_called_once_with(11)
     window._solicitud_use_cases.crear_resultado.assert_not_called()
 
 
 
+
+
+def test_solicitudes_controller_conflict_debounce_avoids_duplicate_toast(monkeypatch) -> None:
+    solicitud = SolicitudDTO(
+        id=None,
+        persona_id=1,
+        fecha_solicitud="2024-01-01",
+        fecha_pedida="2024-01-01",
+        desde="10:00",
+        hasta="11:00",
+        completo=False,
+        horas=0,
+        observaciones=None,
+        pdf_path=None,
+        pdf_hash=None,
+        notas=None,
+    )
+    window = _build_window_for_solicitudes(solicitud)
+    conflicto = SimpleNamespace(
+        tipo="SOLAPE",
+        id_existente=22,
+        fecha="2024-01-01",
+        desde="09:00",
+        hasta="12:00",
+        completo=False,
+    )
+    window._solicitud_use_cases.buscar_conflicto_pendiente.return_value = conflicto
+
+    tiempos = iter([100.0, 100.2])
+    monkeypatch.setattr("app.ui.controllers.solicitudes_controller.monotonic", lambda: next(tiempos))
+
+    controller = SolicitudesController(window)
+    controller.on_add_pendiente()
+    controller.on_add_pendiente()
+
+    window.toast.warning.assert_called_once()
 
 def test_solicitudes_controller_muestra_warning_no_bloqueante() -> None:
     solicitud = SolicitudDTO(

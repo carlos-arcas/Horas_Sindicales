@@ -18,5 +18,9 @@
   "ui.sync.panel.sync_failed_inicio_ui": "Sync failed: failed to start from UI",
   "ui.sync.panel.sync_no_disponible": "Sync unavailable",
   "ui.sync.panel.sync_pantalla_no_disponible": "Synchronization is not available on this screen yet.",
-  "ui.placeholder_hora_hhmm": "HH:MM"
+  "ui.placeholder_hora_hhmm": "HH:MM",
+  "ui.conflictos.titulo_revisa_formulario": "Review the form",
+  "ui.conflictos.duplicado_mensaje": "There is already a matching record. ID {id} · Date {fecha} · From {desde} · To {hasta} · Full day {completo}.",
+  "ui.conflictos.solape_mensaje": "The time range overlaps with an existing record. ID {id} · Date {fecha} · From {desde} · To {hasta} · Full day {completo}.",
+  "ui.conflictos.boton_ver_registro": "View record"
 }
