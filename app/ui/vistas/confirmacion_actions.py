@@ -31,7 +31,7 @@ def prompt_confirm_pdf_path(window: Any, selected: list[SolicitudDTO]) -> str | 
     try:
         default_name = window._solicitud_use_cases.sugerir_nombre_pdf(selected)
     except (ValidacionError, BusinessRuleError) as exc:
-        window.toast.warning(str(exc), title="Validación")
+        window.toast.warning(str(exc), title=copy_text("ui.validacion.validacion"))
         return None
     except Exception as exc:  # pragma: no cover - fallback
         logger.exception("Error preparando PDF")
@@ -39,7 +39,12 @@ def prompt_confirm_pdf_path(window: Any, selected: list[SolicitudDTO]) -> str | 
         return None
 
     default_path = str(Path.home() / default_name)
-    pdf_path, _ = QFileDialog.getSaveFileName(window, "Guardar PDF", default_path, "PDF (*.pdf)")
+    pdf_path, _ = QFileDialog.getSaveFileName(
+        window,
+        copy_text("ui.confirmacion.guardar_pdf"),
+        default_path,
+        copy_text("ui.confirmacion.filtro_pdf"),
+    )
     if not pdf_path:
         return None
     return _resolver_colision_destino_pdf(window, pdf_path)
@@ -53,16 +58,19 @@ def _resolver_colision_destino_pdf(window: Any, pdf_path: str) -> str | None:
     alternativa = resolucion.ruta_alternativa
     dialog = QMessageBox(window)
     dialog.setIcon(QMessageBox.Icon.Warning)
-    dialog.setWindowTitle("Archivo ya existe")
-    dialog.setText("Ya existe un PDF con ese nombre en la carpeta elegida.")
-    dialog.setInformativeText("Elige cómo continuar para evitar perder información.")
+    dialog.setWindowTitle(copy_text("ui.confirmacion.archivo_ya_existe_titulo"))
+    dialog.setText(copy_text("ui.confirmacion.archivo_ya_existe_texto"))
+    dialog.setInformativeText(copy_text("ui.confirmacion.archivo_ya_existe_info"))
 
     rename_button = None
     if alternativa is not None:
-        rename_button = dialog.addButton(f"Guardar como {alternativa.name}", QMessageBox.ButtonRole.AcceptRole)
-    change_folder_button = dialog.addButton("Cambiar carpeta", QMessageBox.ButtonRole.ActionRole)
-    overwrite_button = dialog.addButton("Sobrescribir", QMessageBox.ButtonRole.DestructiveRole)
-    cancel_button = dialog.addButton("Cancelar", QMessageBox.ButtonRole.RejectRole)
+        rename_button = dialog.addButton(
+            copy_text("ui.confirmacion.guardar_como", nombre=alternativa.name),
+            QMessageBox.ButtonRole.AcceptRole,
+        )
+    change_folder_button = dialog.addButton(copy_text("ui.confirmacion.cambiar_carpeta"), QMessageBox.ButtonRole.ActionRole)
+    overwrite_button = dialog.addButton(copy_text("ui.confirmacion.sobrescribir"), QMessageBox.ButtonRole.DestructiveRole)
+    cancel_button = dialog.addButton(copy_text("ui.confirmacion.cancelar"), QMessageBox.ButtonRole.RejectRole)
 
     dialog.exec()
     clicked = dialog.clickedButton()
@@ -114,7 +122,7 @@ def execute_confirmar_with_pdf(
                     destino_pdf=Path(pdf_path),
                     correlation_id=operation.correlation_id,
                 )
-                result = caso_uso.execute(request)
+                result = caso_uso(request)
                 confirmadas_ids = result.confirmadas_ids
                 errores = result.errores
                 generado = result.ruta_pdf
@@ -140,7 +148,7 @@ def execute_confirmar_with_pdf(
         if isinstance(exc, OSError):
             log_operational_error(
                 logger,
-                "File export failed during confirm+PDF",
+                "ui.confirmacion.file_export_failed_during_confirm_pdf",
                 exc=exc,
                 extra={
                     "operation": "confirmar_y_generar_pdf",
@@ -182,7 +190,10 @@ def finalize_confirmar_with_pdf(
                 correlation_id,
             )
         window._ask_push_after_pdf()
-        window._toast_success("PDF generado correctamente", title="Confirmación")
+        window._toast_success(
+            copy_text("ui.confirmacion.ok_pdf_generado"),
+            title=copy_text("ui.preferencias.confirmacion"),
+        )
         if generado.exists():
             window._show_pdf_actions_dialog(generado)
     window._procesar_resultado_confirmacion(confirmadas_ids, errores, pendientes_restantes)
@@ -199,11 +210,11 @@ def show_pdf_actions_dialog(window: Any, generated_path: Path) -> None:
     if not generated_path.exists():
         return
     dialog = QMessageBox(window)
-    dialog.setWindowTitle("PDF generado")
-    dialog.setText("PDF generado correctamente")
-    open_pdf_button = dialog.addButton("Abrir PDF", QMessageBox.ButtonRole.ActionRole)
-    open_folder_button = dialog.addButton("Abrir carpeta", QMessageBox.ButtonRole.ActionRole)
-    close_button = dialog.addButton("Cerrar", QMessageBox.ButtonRole.RejectRole)
+    dialog.setWindowTitle(copy_text("ui.confirmacion.pdf_generado_titulo"))
+    dialog.setText(copy_text("ui.confirmacion.ok_pdf_generado"))
+    open_pdf_button = dialog.addButton(copy_text("ui.confirmacion.abrir_pdf"), QMessageBox.ButtonRole.ActionRole)
+    open_folder_button = dialog.addButton(copy_text("ui.confirmacion.abrir_carpeta"), QMessageBox.ButtonRole.ActionRole)
+    close_button = dialog.addButton(copy_text("ui.confirmacion.cerrar"), QMessageBox.ButtonRole.RejectRole)
     dialog.exec()
     clicked = dialog.clickedButton()
     if clicked is open_pdf_button:
@@ -269,8 +280,11 @@ def build_confirmation_payload(
         saldo_disponible=window.saldos_card.saldo_periodo_restante_text(),
         errores=errores,
         status=status,
-        timestamp=datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-        result_id=f"CFM-{datetime.now().strftime('%y%m%d%H%M%S')}",
+        timestamp=datetime.now().strftime(copy_text("ui.formatos.datetime_humano")),
+        result_id=(
+            f"{copy_text('ui.formatos.prefijo_confirmacion')}"
+            f"{datetime.now().strftime(copy_text('ui.formatos.timestamp_corto'))}"
+        ),
         correlation_id=correlation_id,
         on_view_history=window._focus_historico_search,
         on_sync_now=window._on_push_now,
@@ -282,7 +296,10 @@ def build_confirmation_payload(
 
 def undo_confirmation(window: Any, solicitud_ids: list[int]) -> None:
     if window._sync_in_progress:
-        window.toast.warning("La sincronización está en curso. Ahora no se puede deshacer.", title="Deshacer no disponible")
+        window.toast.warning(
+            copy_text("ui.confirmacion.deshacer_no_disponible_mensaje"),
+            title=copy_text("ui.confirmacion.deshacer_no_disponible_titulo"),
+        )
         return
     removed = 0
     for solicitud_id in solicitud_ids:
@@ -296,15 +313,15 @@ def undo_confirmation(window: Any, solicitud_ids: list[int]) -> None:
     window._refresh_historico()
     window._refresh_saldos()
     if removed:
-        toast_success(window.toast, f"Se deshicieron {removed} confirmaciones.")
+        toast_success(window.toast, copy_text("ui.confirmacion.se_deshicieron", cantidad=removed))
 
 
 def ask_push_after_pdf(window: Any) -> None:
     dialog = QMessageBox(window)
-    dialog.setWindowTitle("PDF generado")
-    dialog.setText("PDF generado. ¿Quieres sincronizar ahora con Google Sheets?")
-    subir_button = dialog.addButton("Subir ahora", QMessageBox.AcceptRole)
-    dialog.addButton("Más tarde", QMessageBox.RejectRole)
+    dialog.setWindowTitle(copy_text("ui.confirmacion.pdf_generado_titulo"))
+    dialog.setText(copy_text("ui.confirmacion.sync_despues_pdf_pregunta"))
+    subir_button = dialog.addButton(copy_text("ui.confirmacion.subir_ahora"), QMessageBox.AcceptRole)
+    dialog.addButton(copy_text("ui.confirmacion.mas_tarde"), QMessageBox.RejectRole)
     dialog.exec()
     if dialog.clickedButton() != subir_button:
         return
@@ -324,14 +341,14 @@ def on_insertar_sin_pdf(window: Any) -> None:
         return
     warning_message = validar_seleccion_confirmacion(len(selected))
     if warning_message:
-        window.toast.warning(warning_message, title="Selección requerida")
+        window.toast.warning(warning_message, title=copy_text("ui.confirmacion.seleccion_requerida"))
         logger.info("_on_insertar_sin_pdf early_return motivo=sin_seleccion")
         return
     if window._pending_conflict_rows:
         logger.info("_on_insertar_sin_pdf early_return motivo=conflictos_pendientes")
         window.toast.warning(
-            "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar.",
-            title="Conflictos detectados",
+            copy_text("ui.confirmacion.conflictos_detectados_mensaje"),
+            title=copy_text("ui.confirmacion.conflictos_detectados_titulo"),
         )
         return
 
@@ -388,9 +405,9 @@ def on_confirmar(window: Any) -> None:
             "filtro_delegada": filtro_delegada,
             "editing_id": editing.id if editing is not None else None,
             "persona_id": persona.id if persona is not None else None,
-            "fecha": window.fecha_input.date().toString("yyyy-MM-dd"),
-            "desde": window.desde_input.time().toString("HH:mm"),
-            "hasta": window.hasta_input.time().toString("HH:mm"),
+            "fecha": window.fecha_input.date().toString(copy_text("ui.formatos.qt_fecha_ymd")),
+            "desde": window.desde_input.time().toString(copy_text("ui.formatos.qt_hora_hm")),
+            "hasta": window.hasta_input.time().toString(copy_text("ui.formatos.qt_hora_hm")),
         }
         logger.info("UI_CLICK_CONFIRMAR_PDF", extra=log_extra)
         logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", window._selected_pending_row_indexes(), selected_ids)

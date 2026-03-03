@@ -12,6 +12,9 @@ class ConfirmarPendientesPdfCasoUso:
     generador_pdf: GeneradorPdfPuerto
     sistema_archivos: SistemaArchivosPuerto
 
+    def __call__(self, request: SolicitudConfirmarPdfPeticion) -> SolicitudConfirmarPdfResultado:
+        return self.execute(request)
+
     def execute(self, request: SolicitudConfirmarPdfPeticion) -> SolicitudConfirmarPdfResultado:
         errores_preflight = self._validar_preflight(request)
         if errores_preflight:
