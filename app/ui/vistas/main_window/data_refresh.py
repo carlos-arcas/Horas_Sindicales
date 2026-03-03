@@ -22,8 +22,8 @@ def refresh_historico(window, *, force: bool = False) -> None:
     historico_filters = build_historico_filters_payload(
         delegada_id=window.historico_delegada_combo.currentData(),
         estado=window.historico_estado_combo.currentData(),
-        desde=window.historico_desde_date.date().toString("yyyy-MM-dd"),
-        hasta=window.historico_hasta_date.date().toString("yyyy-MM-dd"),
+        desde=window.historico_desde_date.date().toString(copy_text("ui.formatos.qt_fecha_ymd")),
+        hasta=window.historico_hasta_date.date().toString(copy_text("ui.formatos.qt_fecha_ymd")),
         search=window.historico_search_input.text().strip(),
         force=force,
         tab_index=window.main_tabs.currentIndex() if window.main_tabs is not None else None,
@@ -86,7 +86,7 @@ def refresh_saldos(window) -> None:
     try:
         resumen = window._solicitud_use_cases.calcular_resumen_saldos(persona.id or 0, filtro)
     except BusinessRuleError as exc:
-        window.toast.warning(str(exc), title="Validación")
+        window.toast.warning(str(exc), title=copy_text("ui.data_refresh.validacion_titulo"))
         window._set_saldos_labels(None)
         return
     window._set_saldos_labels(resumen)
@@ -113,8 +113,12 @@ def reload_pending_views(window) -> None:
     window.pending_filter_warning.setVisible(should_warn_hidden)
     window.revisar_ocultas_button.setVisible(should_warn_hidden)
     if should_warn_hidden:
-        window.pending_filter_warning.setText(f"Hay pendientes en otras delegadas: {hidden_count}")
-        window.revisar_ocultas_button.setText(f"Revisar pendientes ocultas ({hidden_count})")
+        window.pending_filter_warning.setText(
+            f"{copy_text('ui.data_refresh.pendientes_otras_delegadas')} {hidden_count}"
+        )
+        window.revisar_ocultas_button.setText(
+            f"{copy_text('ui.data_refresh.revisar_pendientes_ocultas_prefix')}{hidden_count})"
+        )
         logger.warning(
             "Pendientes no visibles por filtro actual delegada_id=%s hidden=%s",
             persona.id if persona is not None else None,
