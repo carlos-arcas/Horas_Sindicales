@@ -43,9 +43,9 @@ class SolicitudesController:
         w = self.window
         if solicitud is None:
             w.notifications.notify_validation_error(
-                what="No se puede añadir la solicitud.",
-                why="Falta seleccionar una delegada.",
-                how="Selecciona una delegada en Configuración y vuelve a intentarlo.",
+                what=self._copy("ui.solicitudes.no_puede_aniadir"),
+                why=self._copy("ui.solicitudes.falta_delegada"),
+                how=self._copy("ui.solicitudes.selecciona_delegada"),
             )
             return None, None
         return solicitud, w._selected_pending_for_editing()
@@ -72,7 +72,7 @@ class SolicitudesController:
             logger.info("conflict_toast_debounced", extra={"tipo": tipo, "id_existente": id_existente})
             return False
 
-        title = self._copy("ui.conflictos.titulo_revisa_formulario", fallback="Revisa el formulario")
+        title = self._copy("ui.conflictos.titulo_revisa_formulario", fallback="")
         message_key = "ui.conflictos.duplicado_mensaje" if tipo == "DUPLICADO" else "ui.conflictos.solape_mensaje"
         message_template = self._copy(message_key)
         message = message_template.format(
@@ -82,7 +82,7 @@ class SolicitudesController:
             hasta=getattr(conflicto, "hasta", "-"),
             completo=getattr(conflicto, "completo", False),
         )
-        action_label = self._copy("ui.conflictos.boton_ver_registro", fallback="Ver registro")
+        action_label = self._copy("ui.conflictos.boton_ver_registro", fallback="")
         self.window.toast.warning(
             message,
             title=title,
@@ -130,9 +130,9 @@ class SolicitudesController:
             minutos = w._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
         except (ValidacionError, BusinessRuleError) as exc:
             w.notifications.notify_validation_error(
-                what="No se puede añadir la solicitud.",
+                what=self._copy("ui.solicitudes.no_puede_aniadir"),
                 why=f"{str(exc)}.",
-                how="Revisa fecha/tramo y corrige los campos marcados.",
+                how=self._copy("ui.solicitudes.revisa_formulario"),
             )
             if not solicitud.completo:
                 w.desde_input.setFocus()
@@ -180,19 +180,24 @@ class SolicitudesController:
                     contexto=operation_ctx,
                 )
                 if not resultado.success:
-                    raise BusinessRuleError(resultado.errores[0] if resultado.errores else "No se pudo guardar la solicitud.")
+                    raise BusinessRuleError(
+                        resultado.errores[0] if resultado.errores else self._copy("ui.solicitudes.no_pudo_guardar")
+                    )
                 creada = resultado.entidad
                 if creada is None:
-                    raise BusinessRuleError("No se pudo guardar la solicitud.")
+                    raise BusinessRuleError(self._copy("ui.solicitudes.no_pudo_guardar"))
                 if resultado.warnings:
-                    w.toast.info("\n".join(resultado.warnings), title="Solicitud registrada con advertencias")
+                    w.toast.info(
+                        "\n".join(resultado.warnings),
+                        title=self._copy("ui.solicitudes.solicitud_con_advertencias"),
+                    )
                 log_event(logger, "agregar_pendiente_succeeded", {}, operation.correlation_id)
             w._reload_pending_views()
         except (ValidacionError, BusinessRuleError) as exc:
             w.notifications.notify_validation_error(
-                what="No se guardó la solicitud.",
+                what=self._copy("ui.solicitudes.no_se_guardo"),
                 why=f"{str(exc)}.",
-                how="Corrige el formulario y vuelve a pulsar 'Añadir pendiente'.",
+                how=self._copy("ui.solicitudes.corrige_formulario"),
             )
             return None
         except Exception as exc:  # pragma: no cover - fallback
@@ -215,7 +220,11 @@ class SolicitudesController:
         w._update_action_state()
         w.notifications.notify_added_pending(creada, on_undo=lambda: w._undo_last_added_pending(creada.id))
         if pendiente_en_edicion is not None:
-            toast_success(w.toast, "Pendiente actualizada", title="Operación completada")
+            toast_success(
+                w.toast,
+                self._copy("ui.solicitudes.pendiente_actualizada"),
+                title=self._copy("ui.solicitudes.operacion_completada"),
+            )
 
     def refresh_historico(self) -> list[SolicitudDTO]:
         return list(self.window._solicitud_use_cases.listar_historico())
@@ -253,7 +262,7 @@ class SolicitudesController:
     ) -> tuple[list[int], list[str], Path | None, list[SolicitudDTO], list[SolicitudDTO] | None]:
         if generar_pdf:
             if not pdf_path:
-                raise ValueError("pdf_path es obligatorio cuando generar_pdf=True")
+                raise ValueError(self._copy("ui.solicitudes.pdf_path_obligatorio"))
             ruta, confirmadas_ids, resumen = self.window._solicitud_use_cases.confirmar_y_generar_pdf_por_filtro(
                 filtro_delegada=filtro_delegada,
                 pendientes=pendientes_actuales,

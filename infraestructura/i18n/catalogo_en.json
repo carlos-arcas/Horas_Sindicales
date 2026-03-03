@@ -68,5 +68,16 @@
   "ui.conflictos.titulo_revisa_formulario": "Review the form",
   "ui.conflictos.duplicado_mensaje": "There is already a matching record. ID {id} · Date {fecha} · From {desde} · To {hasta} · Full day {completo}.",
   "ui.conflictos.solape_mensaje": "The time range overlaps with an existing record. ID {id} · Date {fecha} · From {desde} · To {hasta} · Full day {completo}.",
-  "ui.conflictos.boton_ver_registro": "View record"
+  "ui.conflictos.boton_ver_registro": "View record",
+  "ui.solicitudes.no_puede_aniadir": "The request cannot be added.",
+  "ui.solicitudes.falta_delegada": "A delegate must be selected.",
+  "ui.solicitudes.selecciona_delegada": "Select a delegate in Settings and try again.",
+  "ui.solicitudes.revisa_formulario": "Review date/time range and fix the highlighted fields.",
+  "ui.solicitudes.no_pudo_guardar": "The request could not be saved.",
+  "ui.solicitudes.solicitud_con_advertencias": "Request saved with warnings",
+  "ui.solicitudes.no_se_guardo": "The request was not saved.",
+  "ui.solicitudes.corrige_formulario": "Fix the form and click 'Add pending' again.",
+  "ui.solicitudes.operacion_completada": "Operation completed",
+  "ui.solicitudes.pendiente_actualizada": "Pending request updated",
+  "ui.solicitudes.pdf_path_obligatorio": "pdf_path is required when generar_pdf=True"
 }
