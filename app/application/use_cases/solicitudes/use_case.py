@@ -87,7 +87,7 @@ from app.application.use_cases.solicitudes.servicio_saldos import (
     sumar_consumo_solicitudes as _sumar_consumo_solicitudes,
     sugerir_nombre_pdf_historico as _sugerir_nombre_pdf_historico,
 )
-from app.application.use_cases.solicitudes.use_case_helpers import (
+from app.application.use_cases.solicitudes.auxiliares_caso_uso import (
     NOMBRE_PDF_POR_DEFECTO,
     ErrorAplicacionSolicitud,
     ResolucionDestinoPdf,
