@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any
 
 from app.bootstrap.logging import log_operational_error
@@ -77,10 +78,26 @@ def apply_solicitudes_tooltips(window: Any, enabled: bool | None = None) -> None
 
 def warmup_sync_client(window: Any, logger_obj: logging.Logger) -> None:
     try:
-        if hasattr(window._sync_service, "ensure_connection"):
-            window._sync_service.ensure_connection()
-    except Exception as exc:  # pragma: no cover
-        log_operational_error(logger_obj, "SYNC_WARMUP_FAILED", exc=exc, extra={"operation": "sync_warmup"})
+        if window._sync_warmup_iniciado:
+            return
+    except AttributeError:
+        pass
+    window._sync_warmup_iniciado = True
+
+    try:
+        ensure_connection = window._sync_service.ensure_connection
+    except AttributeError:
+        return
+    if not callable(ensure_connection):
+        return
+
+    def _run_warmup() -> None:
+        try:
+            ensure_connection()
+        except Exception as exc:  # pragma: no cover
+            log_operational_error(logger_obj, "SYNC_WARMUP_FAILED", exc=exc, extra={"operation": "sync_warmup"})
+
+    threading.Thread(target=_run_warmup, daemon=True).start()
 
 
 def update_conflicts_reminder(window: Any, logger_obj: logging.Logger) -> None:
