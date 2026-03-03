@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from app.core.observability import OperationContext, log_event
-from app.application.use_cases.confirmacion_pdf.dto import ConfirmarPdfRequestDTO
+from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion
 from app.application.use_cases.solicitudes.validaciones import validar_seleccion_confirmacion
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.bootstrap.logging import log_operational_error
@@ -108,7 +108,7 @@ def execute_confirmar_with_pdf(
                     filtro_delegada=None if window._pending_view_all else (persona.id or None),
                 )
             else:
-                request = ConfirmarPdfRequestDTO(
+                request = SolicitudConfirmarPdfPeticion(
                     pendientes_ids=[solicitud.id for solicitud in selected if solicitud.id is not None],
                     generar_pdf=True,
                     destino_pdf=Path(pdf_path),

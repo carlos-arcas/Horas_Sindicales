@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases.confirmacion_pdf.caso_uso import ConfirmarPendientesPdfCasoUso
-from app.application.use_cases.confirmacion_pdf.dto import ConfirmarPdfRequestDTO
+from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion
 
 
 class FakeRepositorio:
@@ -64,7 +64,7 @@ def test_caso_ok_con_pdf() -> None:
     caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
 
     result = caso_uso.execute(
-        ConfirmarPdfRequestDTO(pendientes_ids=[1], generar_pdf=True, destino_pdf=Path("/tmp/salida.pdf"))
+        SolicitudConfirmarPdfPeticion(pendientes_ids=[1], generar_pdf=True, destino_pdf=Path("/tmp/salida.pdf"))
     )
 
     assert result.ruta_pdf == Path("/tmp/salida.pdf")
@@ -78,7 +78,7 @@ def test_caso_error_seleccion_vacia() -> None:
     fs = FakeFs()
     caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
 
-    result = caso_uso.execute(ConfirmarPdfRequestDTO(pendientes_ids=[], generar_pdf=True, destino_pdf=Path("/tmp/a.pdf")))
+    result = caso_uso.execute(SolicitudConfirmarPdfPeticion(pendientes_ids=[], generar_pdf=True, destino_pdf=Path("/tmp/a.pdf")))
 
     assert result.confirmadas_ids == []
     assert result.errores
@@ -92,7 +92,7 @@ def test_caso_error_pdf_sin_destino() -> None:
     fs = FakeFs()
     caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
 
-    result = caso_uso.execute(ConfirmarPdfRequestDTO(pendientes_ids=[1], generar_pdf=True, destino_pdf=None))
+    result = caso_uso.execute(SolicitudConfirmarPdfPeticion(pendientes_ids=[1], generar_pdf=True, destino_pdf=None))
 
     assert result.errores
     assert generador.calls == 0
@@ -104,7 +104,7 @@ def test_caso_ok_sin_pdf() -> None:
     fs = FakeFs()
     caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
 
-    result = caso_uso.execute(ConfirmarPdfRequestDTO(pendientes_ids=[1, 2], generar_pdf=False))
+    result = caso_uso.execute(SolicitudConfirmarPdfPeticion(pendientes_ids=[1, 2], generar_pdf=False))
 
     assert sorted(result.confirmadas_ids) == [1, 2]
     assert result.ruta_pdf is None
@@ -117,6 +117,6 @@ def test_preflight_no_toca_disco() -> None:
     fs = FakeFs()
     caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
 
-    caso_uso.execute(ConfirmarPdfRequestDTO(pendientes_ids=[], generar_pdf=True, destino_pdf=None))
+    caso_uso.execute(SolicitudConfirmarPdfPeticion(pendientes_ids=[], generar_pdf=True, destino_pdf=None))
 
     assert fs.mkdir_calls == 0
