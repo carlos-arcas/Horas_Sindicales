@@ -36,9 +36,29 @@ class _PySide6Blocker(MetaPathFinder):
         return None
 
 
-def _enforce_core_without_qt(config: pytest.Config) -> None:
+def _is_ui_execution(config: pytest.Config) -> bool:
     markexpr = (config.option.markexpr or "").strip()
-    if "not ui" not in markexpr:
+    if "ui" in markexpr and "not ui" not in markexpr:
+        return True
+
+    normalized_args = [Path(str(arg)).as_posix() for arg in getattr(config, "args", [])]
+    return any(
+        arg == "tests/ui"
+        or arg.endswith("/tests/ui")
+        or arg.endswith("/tests/ui/")
+        or "/tests/ui/" in f"/{arg}"
+        for arg in normalized_args
+    )
+
+
+def _core_qt_block_enabled(config: pytest.Config) -> bool:
+    markexpr = (config.option.markexpr or "").strip()
+    core_only = "not ui" in markexpr or os.getenv("PYTEST_CORE_SIN_QT") == "1"
+    return core_only and not _is_ui_execution(config)
+
+
+def _enforce_core_without_qt(config: pytest.Config) -> None:
+    if not _core_qt_block_enabled(config):
         return
     for module_name in [name for name in list(sys.modules) if name == "PySide6" or name.startswith("PySide6.")]:
         sys.modules.pop(module_name, None)
@@ -55,8 +75,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool:
-    markexpr = (config.option.markexpr or "").strip()
-    if "not ui" not in markexpr:
+    if not _core_qt_block_enabled(config):
         return False
     relative_path = collection_path.as_posix()
     blocked_paths = (
@@ -84,8 +103,7 @@ def _detect_ui_backend_issue() -> str | None:
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     global _UI_BACKEND_ERROR
     skip_ui = None
-    markexpr = (config.option.markexpr or "").strip()
-    core_only_run = "not ui" in markexpr
+    core_only_run = _core_qt_block_enabled(config)
     has_ui_items = any("tests/ui/" in item.nodeid or item.get_closest_marker("ui") is not None for item in items)
     if has_ui_items and not core_only_run and _UI_BACKEND_ERROR is None:
         _UI_BACKEND_ERROR = _detect_ui_backend_issue()
