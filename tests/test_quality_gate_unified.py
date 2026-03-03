@@ -47,6 +47,11 @@ def test_quality_gate_unified_pass(monkeypatch, tmp_path: Path) -> None:
         "run_naming_guard",
         lambda *_args, **_kwargs: {"status": "PASS", "detail": "naming ok"},
     )
+    monkeypatch.setattr(
+        quality_gate,
+        "run_cc_targets_guard",
+        lambda *_args, **_kwargs: {"status": "PASS", "detail": "targets=1, failing=0"},
+    )
 
     results = quality_gate.build_report(pytest_runner=_Runner())
 
@@ -71,6 +76,11 @@ def test_quality_gate_unified_fail_naming(monkeypatch, tmp_path: Path) -> None:
         quality_gate,
         "run_naming_guard",
         lambda *_args, **_kwargs: {"status": "FAIL", "detail": "nuevos offenders"},
+    )
+    monkeypatch.setattr(
+        quality_gate,
+        "run_cc_targets_guard",
+        lambda *_args, **_kwargs: {"status": "PASS", "detail": "targets=1, failing=0"},
     )
 
     results = quality_gate.build_report(pytest_runner=_Runner())
@@ -98,6 +108,11 @@ def test_quality_gate_unified_fail_coverage(monkeypatch, tmp_path: Path) -> None
         "run_naming_guard",
         lambda *_args, **_kwargs: {"status": "PASS", "detail": "naming ok"},
     )
+    monkeypatch.setattr(
+        quality_gate,
+        "run_cc_targets_guard",
+        lambda *_args, **_kwargs: {"status": "PASS", "detail": "targets=1, failing=0"},
+    )
 
     results = quality_gate.build_report(pytest_runner=_Runner())
 
@@ -124,6 +139,11 @@ def test_quality_gate_unified_json_structure(monkeypatch, tmp_path: Path) -> Non
         "run_naming_guard",
         lambda *_args, **_kwargs: {"status": "PASS", "detail": "naming ok"},
     )
+    monkeypatch.setattr(
+        quality_gate,
+        "run_cc_targets_guard",
+        lambda *_args, **_kwargs: {"status": "PASS", "detail": "targets=1, failing=0"},
+    )
 
     quality_gate.build_report(pytest_runner=_Runner())
 
@@ -133,6 +153,7 @@ def test_quality_gate_unified_json_structure(monkeypatch, tmp_path: Path) -> Non
     assert set(results) >= {
         "coverage",
         "cc_budget",
+        "cc_targets",
         "architecture",
         "naming",
         "secrets",
@@ -176,6 +197,11 @@ def test_sin_pytest_cov_con_flag_modo_degradado(monkeypatch, tmp_path: Path) -> 
 
     monkeypatch.setattr(quality_gate, "run_contractual_test", _fake_contractual)
     monkeypatch.setattr(quality_gate, "run_naming_guard", _fake_naming)
+    monkeypatch.setattr(
+        quality_gate,
+        "run_cc_targets_guard",
+        lambda *_args, **_kwargs: {"status": "PASS", "detail": "targets=1, failing=0"},
+    )
     monkeypatch.setattr(quality_gate, "run_pytest_coverage", _should_not_run_coverage)
 
     exit_code = quality_gate.main(["--allow-missing-pytest-cov"])

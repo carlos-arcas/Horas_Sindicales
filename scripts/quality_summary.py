@@ -42,6 +42,7 @@ def _read_report(path: Path) -> dict[str, Any]:
         "global_status",
         "coverage",
         "cc_budget",
+        "cc_targets",
         "architecture",
         "secrets",
         "naming",
@@ -68,7 +69,11 @@ def _coverage_highlight(results: dict[str, Any]) -> str:
 
 def _cc_highlight(results: dict[str, Any]) -> str:
     cc_budget = results["cc_budget"]
-    return f"Objetivos CC: {cc_budget.get('status')} ({cc_budget.get('detail', 'sin detalle')})."
+    cc_targets = results["cc_targets"]
+    return (
+        f"Objetivos CC globales: {cc_budget.get('status')} ({cc_budget.get('detail', 'sin detalle')}) | "
+        f"targets explícitos: {cc_targets.get('status')} ({cc_targets.get('detail', 'sin detalle')})."
+    )
 
 
 def _naming_highlight(results: dict[str, Any]) -> str:
