@@ -87,5 +87,6 @@
   "ui.error_details.title": "Detalles del error",
   "ui.error_details.incident_value": "ID de incidente: {incident_id}",
   "ui.error_details.logs_path": "Ruta de logs: {logs_path}",
-  "ui.error_details.open_logs": "Abrir logs"
+  "ui.error_details.open_logs": "Abrir logs",
+  "ui.historico.delegada_todas": "Todas"
 }

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.ui.person_dialog import PersonaDialog
+from app.ui.copy_catalog import copy_text
 from app.ui.vistas.personas_presenter import PersonaOption, PersonasLoadInput, build_personas_load_output
 
 try:
@@ -64,9 +65,18 @@ def restore_draft_for_persona(window: MainWindow, persona_id: int | None) -> Non
 
 def _reload_historico_delegada_combo(window: MainWindow, items: tuple[tuple[str, int | None], ...]) -> None:
     window.historico_delegada_combo.blockSignals(True)
+    selected_id = window.historico_delegada_combo.currentData()
     window.historico_delegada_combo.clear()
+    window.historico_delegada_combo.addItem(copy_text("ui.historico.delegada_todas"), None)
     for nombre, persona_id in items:
+        if persona_id is None:
+            continue
         window.historico_delegada_combo.addItem(nombre, persona_id)
+    if selected_id is not None:
+        for index in range(window.historico_delegada_combo.count()):
+            if window.historico_delegada_combo.itemData(index) == selected_id:
+                window.historico_delegada_combo.setCurrentIndex(index)
+                break
     window.historico_delegada_combo.blockSignals(False)
 
 
@@ -287,7 +297,6 @@ def normalize_input_heights(window: MainWindow) -> None:
         window.historico_delegada_combo,
         window.historico_desde_date,
         window.historico_hasta_date,
-        window.historico_apply_filters_button,
         window.open_saldos_modal_button,
         window.add_persona_button,
         window.edit_persona_button,

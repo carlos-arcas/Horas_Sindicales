@@ -22,5 +22,6 @@
   "ui.conflictos.titulo_revisa_formulario": "Review the form",
   "ui.conflictos.duplicado_mensaje": "There is already a matching record. ID {id} · Date {fecha} · From {desde} · To {hasta} · Full day {completo}.",
   "ui.conflictos.solape_mensaje": "The time range overlaps with an existing record. ID {id} · Date {fecha} · From {desde} · To {hasta} · Full day {completo}.",
-  "ui.conflictos.boton_ver_registro": "View record"
+  "ui.conflictos.boton_ver_registro": "View record",
+  "ui.historico.delegada_todas": "All"
 }

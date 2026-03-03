@@ -30,8 +30,6 @@ def inicializar_placeholders(window) -> None:
     window.last_sync_metrics_label = window.conflicts_reminder_label = None
     window.historico_search_input = window.historico_estado_combo = window.historico_delegada_combo = None
     window.historico_desde_date = window.historico_hasta_date = None
-    window.historico_apply_filters_button = None
-    window.historico_todas_delegadas_check = None
     window.historico_periodo_anual_radio = window.historico_periodo_mes_radio = window.historico_periodo_rango_radio = None
     window.historico_periodo_anual_spin = window.historico_periodo_mes_ano_spin = window.historico_periodo_mes_combo = None
     window.historico_table = window.historico_model = window.historico_proxy_model = None
