@@ -73,7 +73,8 @@ class ConfirmarPendientesPdfCasoUso:
             correlation_id=correlation_id,
         )
         errores = [] if confirmadas_ids else [resumen]
-        restantes = [solicitud_id for solicitud_id in sorted(pendientes_por_id) if solicitud_id not in set(confirmadas_ids)]
+        pendientes_actuales = self.repositorio.listar_pendientes()
+        restantes = [sol.id for sol in pendientes_actuales if sol.id is not None]
         log_event(
             logger,
             "confirmacion_pdf_confirmadas_con_pdf",

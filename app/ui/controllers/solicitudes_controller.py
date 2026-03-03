@@ -6,6 +6,9 @@ from pathlib import Path
 from time import monotonic
 
 from app.application.dto import SolicitudDTO
+from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import (
+    SolicitudCrearPendientePeticion,
+)
 
 from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.core.observability import OperationContext, log_event
@@ -191,7 +194,7 @@ class SolicitudesController:
             ) as operation:
                 log_event(
                     logger,
-                    "agregar_pendiente_started",
+                    "crear_pendiente_started",
                     {"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
                     operation.correlation_id,
                 )
@@ -204,31 +207,52 @@ class SolicitudesController:
                     "persist_start",
                     extra={"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
                 )
-                resultado = w._solicitud_use_cases.crear_resultado(
-                    solicitud,
-                    correlation_id=operation.correlation_id,
-                    contexto=operation_ctx,
-                )
-                if not resultado.success:
-                    logger.warning(
-                        "crear_resultado_failed",
-                        extra={
-                            "reason_code": getattr(resultado, "reason_code", None),
-                            "errores": list(getattr(resultado, "errores", []) or []),
-                        },
+                crear_pendiente_caso_uso = getattr(w, "_crear_pendiente_caso_uso", None)
+                if crear_pendiente_caso_uso is None:
+                    resultado = w._solicitud_use_cases.crear_resultado(
+                        solicitud,
+                        correlation_id=operation.correlation_id,
+                        contexto=operation_ctx,
                     )
-                    raise BusinessRuleError(
-                        resultado.errores[0] if resultado.errores else self._copy("ui.solicitudes.no_pudo_guardar")
+                    if not resultado.success:
+                        logger.warning(
+                            "crear_resultado_failed",
+                            extra={
+                                "reason_code": getattr(resultado, "reason_code", None),
+                                "errores": list(getattr(resultado, "errores", []) or []),
+                            },
+                        )
+                        raise BusinessRuleError(
+                            resultado.errores[0] if resultado.errores else self._copy("ui.solicitudes.no_pudo_guardar")
+                        )
+                    creada = resultado.entidad
+                    if creada is None:
+                        raise BusinessRuleError(self._copy("ui.solicitudes.no_pudo_guardar"))
+                    warnings = resultado.warnings
+                else:
+                    resultado_creacion = crear_pendiente_caso_uso.execute(
+                        SolicitudCrearPendientePeticion(
+                            solicitud=solicitud,
+                            correlation_id=operation.correlation_id,
+                        )
                     )
-                creada = resultado.entidad
-                if creada is None:
-                    raise BusinessRuleError(self._copy("ui.solicitudes.no_pudo_guardar"))
-                if resultado.warnings:
+                    if resultado_creacion.errores:
+                        raise BusinessRuleError(resultado_creacion.errores[0])
+                    creada = resultado_creacion.solicitud_creada
+                    if creada is None:
+                        raise BusinessRuleError(self._copy("ui.solicitudes.no_pudo_guardar"))
+                    warnings = []
+                if warnings:
                     w.toast.info(
-                        "\n".join(resultado.warnings),
+                        "\n".join(warnings),
                         title=self._copy("ui.solicitudes.solicitud_con_advertencias"),
                     )
-                log_event(logger, "agregar_pendiente_succeeded", {}, operation.correlation_id)
+                log_event(
+                    logger,
+                    "crear_pendiente_finished",
+                    {"solicitud_id": creada.id, "ok": True},
+                    operation.correlation_id,
+                )
             w._reload_pending_views()
         except (ValidacionError, BusinessRuleError) as exc:
             w.notifications.notify_validation_error(
@@ -238,7 +262,7 @@ class SolicitudesController:
             )
             return None
         except Exception as exc:  # pragma: no cover - fallback
-            log_event(logger, "agregar_pendiente_failed", {"error": str(exc)}, operation.correlation_id)
+            log_event(logger, "crear_pendiente_finished", {"error": str(exc), "ok": False}, operation.correlation_id)
             logger.error("Error insertando petición en base de datos", exc_info=True)
             w._show_critical_error(exc)
             return None

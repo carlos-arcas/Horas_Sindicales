@@ -18,6 +18,7 @@ from app.application.use_cases.solicitudes import SolicitudUseCases
 from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
 from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.confirmacion_pdf.caso_uso import ConfirmarPendientesPdfCasoUso
+from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import CrearPendienteCasoUso
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.infrastructure.cargador_datos_demo_sqlite import CargadorDatosDemoSQLite
 from app.infrastructure.confirmacion_pdf.adaptadores import (
@@ -65,6 +66,7 @@ class AppContainer:
     alert_engine: AlertEngine
     validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase
     confirmar_pendientes_pdf_caso_uso: ConfirmarPendientesPdfCasoUso
+    crear_pendiente_caso_uso: CrearPendienteCasoUso
     repositorio_preferencias: IRepositorioPreferencias
     cargar_datos_demo_caso_uso: CargarDatosDemoCasoUso
     exportar_compartir_periodo_caso_uso: ExportarCompartirPeriodoCasoUso
@@ -97,6 +99,9 @@ def build_container(
         repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases),
         generador_pdf=GeneradorPdfDesdeCasosUso(solicitud_use_cases),
         sistema_archivos=SistemaArchivosLocal(),
+    )
+    crear_pendiente_caso_uso = CrearPendienteCasoUso(
+        repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases)
     )
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)
 
@@ -150,6 +155,7 @@ def build_container(
         alert_engine=alert_engine,
         validacion_preventiva_lock_use_case=validacion_preventiva_lock_use_case,
         confirmar_pendientes_pdf_caso_uso=confirmar_pendientes_pdf_caso_uso,
+        crear_pendiente_caso_uso=crear_pendiente_caso_uso,
         repositorio_preferencias=repositorio_preferencias,
         cargar_datos_demo_caso_uso=cargar_datos_demo_caso_uso,
         exportar_compartir_periodo_caso_uso=exportar_compartir_periodo_caso_uso,

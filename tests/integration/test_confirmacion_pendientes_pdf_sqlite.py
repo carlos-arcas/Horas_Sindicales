@@ -6,6 +6,10 @@ from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
 from app.application.use_cases.confirmacion_pdf.caso_uso import ConfirmarPendientesPdfCasoUso
 from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion
+from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import (
+    CrearPendienteCasoUso,
+    SolicitudCrearPendientePeticion,
+)
 from app.domain.models import Persona
 from app.infrastructure.confirmacion_pdf.adaptadores import RepositorioSolicitudesDesdeCasosUso
 
@@ -98,6 +102,25 @@ def test_crear_pendiente_y_listar_pendientes_sqlite(connection, solicitud_repo, 
 
     assert creada.id is not None
     assert any(item.id == creada.id for item in pendientes)
+
+
+def test_regresion_crear_pendiente_retorna_ids_para_refresco_tabla(connection, solicitud_repo, persona_repo) -> None:
+    persona_id = _crear_persona(persona_repo)
+    solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo)
+    adapter = RepositorioSolicitudesDesdeCasosUso(solicitudes_uc)
+    caso = CrearPendienteCasoUso(repositorio=adapter)
+
+    resultado = caso.execute(
+        SolicitudCrearPendientePeticion(
+            solicitud=_solicitud(persona_id, "2026-01-15"),
+            correlation_id="corr-crear-pendiente",
+        )
+    )
+
+    ids_reales = [item.id for item in solicitudes_uc.listar_pendientes_all() if item.id is not None]
+    assert resultado.solicitud_id is not None
+    assert resultado.solicitud_id in resultado.pendientes_ids
+    assert resultado.pendientes_ids == ids_reales
 
 
 def test_confirmar_sin_pdf_actualiza_pendientes_restantes(connection, solicitud_repo, persona_repo) -> None:

@@ -103,7 +103,11 @@ def execute_confirmar_with_pdf(
             log_event(
                 logger,
                 "confirmar_y_generar_pdf_started",
-                {"count": len(selected), "destino": pdf_path},
+                {
+                    "count": len(selected),
+                    "pendientes_ids": [sol.id for sol in selected if sol.id is not None],
+                    "destino": pdf_path,
+                },
                 operation.correlation_id,
             )
             caso_uso = getattr(window, "_confirmar_pendientes_pdf_caso_uso", None)
@@ -140,7 +144,13 @@ def execute_confirmar_with_pdf(
             log_event(
                 logger,
                 "confirmar_y_generar_pdf_finished",
-                {"creadas": len(creadas), "errores": len(errores), "pdf_generado": bool(generado)},
+                {
+                    "creadas": len(creadas),
+                    "confirmadas_ids": confirmadas_ids,
+                    "pendientes_restantes": len(pendientes_restantes or []),
+                    "errores": len(errores),
+                    "pdf_generado": bool(generado),
+                },
                 operation.correlation_id,
             )
             return correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes
