@@ -121,9 +121,6 @@ jobs:
       - name: Lint (ui smoke job)
         run: ruff check .
 
-      - name: Tests rápidos sin UI
-        run: pytest -q
-
       - name: UI smoke tests (headless via xvfb)
         run: |
           xvfb-run -a pytest -q tests/ui
