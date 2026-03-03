@@ -23,12 +23,22 @@ from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
 from app.bootstrap.settings import project_root
 from app.entrypoints.arranque_nucleo import ResultadoArranque
+from app.entrypoints.post_login import (
+    ControladorSesionInterfaz,
+    ErrorTransicionPostLogin,
+    ejecutar_transicion_post_login,
+)
 from app.entrypoints.post_show import preparar_mostrar_ventana, programar_post_init
 from app.ui.qt_message_handler import instalar_qt_message_handler
 from app.ui.qt_safe import safe_call
 from app.ui.qt_safe_ops import es_objeto_qt_valido, safe_hide, safe_quit_thread
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _registrar_evento_arranque(action: str, **payload: object) -> None:
+    extra = {"action": action, **payload}
+    LOGGER.info("ui_startup_event", extra={"extra": extra})
 
 
 def _es_objeto_qt_valido(objeto) -> bool:
@@ -86,6 +96,7 @@ class _CoordinadorArranqueConCierreDeterminista:
 
         def _aplicar_resultado_en_ui() -> None:
             self._detener_watchdog_idempotente()
+            self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
             resolved_container = startup_payload.container
             marcar_stage("UI_CONTAINER_RESUELTO")
@@ -101,37 +112,86 @@ class _CoordinadorArranqueConCierreDeterminista:
                 self._cerrar_splash_idempotente()
                 self.app.exit(0)
                 return
-            window = self.main_window_factory(
-                resolved_container,
-                deps_arranque,
-            )
-            marcar_stage("ui.mainwindow.construida")
-            self.app.setProperty("_main_window_ref", window)
-            self.instalar_menu_ayuda(
-                window,
-                self.i18n,
-                ReiniciarOnboarding(resolved_container.repositorio_preferencias),
-                resolved_container.cargar_datos_demo_caso_uso,
-            )
-            from app.ui.qt_compat import QTimer
+            if hasattr(self.app, "setQuitOnLastWindowClosed"):
+                self.app.setQuitOnLastWindowClosed(False)
+            sesion = ControladorSesionInterfaz()
 
-            def scheduler(fn: Callable[[], None]) -> None:
-                QTimer.singleShot(0, fn)
-            if orquestador.debe_iniciar_maximizada():
-                window.showMaximized()
-            preparar_mostrar_ventana(
-                window=window,
-                splash=self.splash,
-                scheduler=scheduler,
-                marcar_stage=marcar_stage,
+            def _crear_main_window() -> object:
+                window = self.main_window_factory(
+                    resolved_container,
+                    deps_arranque,
+                )
+                marcar_stage("ui.mainwindow.construida")
+                self.instalar_menu_ayuda(
+                    window,
+                    self.i18n,
+                    ReiniciarOnboarding(resolved_container.repositorio_preferencias),
+                    resolved_container.cargar_datos_demo_caso_uso,
+                )
+                return window
+
+            def _registrar_ventana(window: object) -> bool:
+                guardada = sesion.guardar_ventana_principal(window)
+                if not guardada:
+                    return False
+                self.app.ventana_principal = window
+                self.app.setProperty("_main_window_ref", window)
+                return True
+
+            def _mostrar_ventana(window: object) -> None:
+                from app.ui.qt_compat import QTimer
+
+                def scheduler(fn: Callable[[], None]) -> None:
+                    QTimer.singleShot(0, fn)
+
+                if orquestador.debe_iniciar_maximizada() and hasattr(window, "showMaximized"):
+                    window.showMaximized()
+                preparar_mostrar_ventana(
+                    window=window,
+                    splash=self.splash,
+                    scheduler=scheduler,
+                    marcar_stage=marcar_stage,
+                )
+                self._splash_cerrado = True
+                if hasattr(self.app, "processEvents"):
+                    self.app.processEvents()
+                programar_post_init(
+                    window=window,
+                    scheduler=scheduler,
+                    marcar_stage=marcar_stage,
+                )
+                if hasattr(self.app, "setQuitOnLastWindowClosed"):
+                    self.app.setQuitOnLastWindowClosed(True)
+
+            def _informar_error(error: ErrorTransicionPostLogin) -> bool:
+                from PySide6.QtWidgets import QMessageBox
+
+                QMessageBox.warning(
+                    None,
+                    self.i18n.t("post_login_error_titulo"),
+                    self.i18n.t("post_login_error_mensaje"),
+                )
+                respuesta = QMessageBox.question(
+                    None,
+                    self.i18n.t("post_login_error_titulo"),
+                    self.i18n.t("post_login_error_reintento"),
+                    QMessageBox.Retry | QMessageBox.Cancel,
+                    QMessageBox.Retry,
+                )
+                return respuesta == QMessageBox.Retry
+
+            ejecuto_transicion = ejecutar_transicion_post_login(
+                crear_ventana_principal=_crear_main_window,
+                registrar_ventana_principal=_registrar_ventana,
+                mostrar_ventana_principal=_mostrar_ventana,
+                registrar_evento=lambda action, payload: _registrar_evento_arranque(
+                    action,
+                    **payload,
+                ),
+                informar_error=_informar_error,
             )
-            self._splash_cerrado = True
-            self.app.processEvents()
-            programar_post_init(
-                window=window,
-                scheduler=scheduler,
-                marcar_stage=marcar_stage,
-            )
+            if not ejecuto_transicion:
+                _registrar_evento_arranque("post_login_transition_cancelled")
 
         try:
             _enqueue_on_ui_thread(self.app, _aplicar_resultado_en_ui)
@@ -478,6 +538,19 @@ def run_ui(container=None) -> int:
     startup_timeout_ms = _resolver_startup_timeout_ms()
 
     app = QApplication([])
+    app.ventana_principal = None
+
+    def _on_about_to_quit() -> None:
+        top_levels = list(QApplication.topLevelWidgets())
+        visibles = sum(1 for widget in top_levels if widget.isVisible())
+        _registrar_evento_arranque(
+            "app_about_to_quit",
+            top_level_count=len(top_levels),
+            visible_top_level_count=visibles,
+            reason_code="unknown",
+        )
+
+    app.aboutToQuit.connect(_on_about_to_quit)
     marcar_stage("UI_QT_INICIALIZADO")
     instalar_qt_message_handler(LOGGER, getattr(container, "boot_trace_writer", None))
     assert_hilo_ui_o_log("run_ui.bootstrap", LOGGER)

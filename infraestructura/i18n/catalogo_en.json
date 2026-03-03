@@ -64,5 +64,8 @@
   "sync.email_no_disponible": "<email unavailable>",
   "sync.error_operacion_log": "Sync failed",
   "sync.permisos_bloqueados_log": "Synchronization blocked by Google Sheets permissions",
-  "ui.texto_no_disponible": "(text unavailable)"
+  "ui.texto_no_disponible": "(text unavailable)",
+  "post_login_error_titulo": "Session could not be opened",
+  "post_login_error_mensaje": "The session could not be opened. Please retry.",
+  "post_login_error_reintento": "Do you want to retry opening the session now?"
 }
