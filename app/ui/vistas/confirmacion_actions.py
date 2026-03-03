@@ -12,6 +12,7 @@ from app.core.observability import OperationContext, log_event
 from app.application.use_cases.solicitudes.validaciones import validar_seleccion_confirmacion
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.bootstrap.logging import log_operational_error
+from app.ui.copy_catalog import copy_text
 from app.ui.notification_service import ConfirmationSummaryPayload
 from app.ui.toast_helpers import toast_success
 from app.ui.vistas.confirmacion_presenter import ConfirmAction, ConfirmacionEntrada, plan_confirmacion
@@ -347,18 +348,21 @@ def on_confirmar(window: Any) -> None:
         for pendiente in pendientes_en_tabla:
             logger.debug("DEBUG_PENDIENTE %s", pendiente)
 
-        selected = [
-            window.pendientes_model.solicitud_at(item["row"])
-            for item in pendientes_en_tabla
-            if window.pendientes_model is not None
-        ]
+        selected = window._selected_pending_solicitudes()
         selected = [sol for sol in selected if sol is not None]
-        selected_ids = [sol.id for sol in selected]
+        selected_ids = window._obtener_ids_seleccionados_pendientes()
         editing = window._selected_pending_for_editing()
         persona = window._current_persona()
+        pdf_path_actual = getattr(window, "_last_selected_pdf_path", None)
+        filtro_delegada = None if window._pending_view_all else (persona.id if persona is not None else None)
         log_extra = {
             "selected_count": len(selected),
             "selected_ids": selected_ids,
+            "seleccion_ids_count": len(selected_ids),
+            "pendientes_count": len(pendientes_en_tabla),
+            "generar_pdf": True,
+            "pdf_path": pdf_path_actual,
+            "filtro_delegada": filtro_delegada,
             "editing_id": editing.id if editing is not None else None,
             "persona_id": persona.id if persona is not None else None,
             "fecha": window.fecha_input.date().toString("yyyy-MM-dd"),
@@ -451,17 +455,45 @@ def _run_confirmacion_plan(
 
 def _apply_show_error(window: Any, action: ConfirmAction) -> None:
     if action.message:
-        window.toast.warning(action.message, title=action.title or "Validación")
+        title = action.title or copy_text("ui.validacion.validacion")
+        window.toast.warning(action.message, title=title)
 
 
 def _apply_prompt_pdf(window: Any, selected: list[SolicitudDTO]) -> str | None:
-    return window._prompt_confirm_pdf_path(selected)
+    if not selected:
+        window.toast.warning(
+            copy_text("ui.confirmacion.sin_seleccion"),
+            title=copy_text("ui.validacion.validacion"),
+        )
+        return None
+    pdf_path = window._prompt_confirm_pdf_path(selected)
+    window._last_selected_pdf_path = pdf_path
+    if not pdf_path:
+        window.toast.warning(
+            copy_text("ui.confirmacion.pdf_destino_obligatorio"),
+            title=copy_text("ui.validacion.validacion"),
+        )
+    return pdf_path
 
 
 def _apply_confirm(window: Any, persona: PersonaDTO | None, selected: list[SolicitudDTO], pdf_path: str | None) -> tuple[str | None, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None] | None:
     if persona is None or pdf_path is None:
         return None
-    return window._execute_confirmar_with_pdf(persona, selected, pdf_path)
+    try:
+        return window._execute_confirmar_with_pdf(persona, selected, pdf_path)
+    except Exception as exc:
+        log_operational_error(
+            logger,
+            "UI_CONFIRMAR_GENERAR_PDF_FALLO",
+            exc=exc,
+            extra={"selected_ids_count": len(selected), "pdf_path": pdf_path},
+        )
+        window._set_processing_state(False)
+        window._toast_error(
+            copy_text("ui.confirmacion.error_generar_pdf"),
+            title=copy_text("ui.validacion.validacion"),
+        )
+        return None
 
 
 def _apply_finalize(
@@ -474,6 +506,11 @@ def _apply_finalize(
     correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes = outcome
     logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(generado) if generado else None)
     window._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes)
+    if generado is not None:
+        window._toast_success(
+            copy_text("ui.confirmacion.ok_pdf_generado"),
+            title=copy_text("ui.preferencias.confirmacion"),
+        )
 
 
 def iterar_pendientes_en_tabla(window: Any) -> list[dict[str, object]]:
