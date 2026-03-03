@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 
+from app.core.observability import generate_correlation_id, log_event
 from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion, SolicitudConfirmarPdfResultado
 from app.application.use_cases.confirmacion_pdf.puertos import GeneradorPdfPuerto, RepositorioSolicitudes, SistemaArchivosPuerto
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -16,8 +21,15 @@ class ConfirmarPendientesPdfCasoUso:
         return self.execute(request)
 
     def execute(self, request: SolicitudConfirmarPdfPeticion) -> SolicitudConfirmarPdfResultado:
+        correlation_id = request.correlation_id or generate_correlation_id()
         errores_preflight = self._validar_preflight(request)
         if errores_preflight:
+            log_event(
+                logger,
+                "confirmacion_pdf_preflight_fallido",
+                {"errores": len(errores_preflight)},
+                correlation_id,
+            )
             return SolicitudConfirmarPdfResultado(errores=errores_preflight)
 
         pendientes = self.repositorio.listar_pendientes()
@@ -29,31 +41,58 @@ class ConfirmarPendientesPdfCasoUso:
         ]
         faltantes = [solicitud_id for solicitud_id in request.pendientes_ids if solicitud_id not in pendientes_por_id]
         if faltantes:
+            log_event(
+                logger,
+                "confirmacion_pdf_pendientes_inexistentes",
+                {"faltantes": faltantes},
+                correlation_id,
+            )
             return SolicitudConfirmarPdfResultado(
                 errores=[f"Pendientes inexistentes: {', '.join(str(item) for item in faltantes)}"],
                 pendientes_restantes=sorted(pendientes_por_id),
             )
 
         if not request.generar_pdf:
-            creadas, pendientes_restantes, errores = self.repositorio.confirmar_sin_pdf(
+            creadas, _pendientes_restantes, errores = self.repositorio.confirmar_sin_pdf(
                 pendientes_seleccionados,
-                correlation_id=request.correlation_id,
+                correlation_id=correlation_id,
+            )
+            pendientes_actuales = self.repositorio.listar_pendientes()
+            log_event(
+                logger,
+                "confirmacion_pdf_confirmadas_sin_pdf",
+                {
+                    "confirmadas": len(creadas),
+                    "pendientes_restantes": len(pendientes_actuales),
+                    "errores": len(errores),
+                },
+                correlation_id,
             )
             return SolicitudConfirmarPdfResultado(
                 confirmadas_ids=[sol.id for sol in creadas if sol.id is not None],
                 errores=errores,
-                pendientes_restantes=[sol.id for sol in pendientes_restantes if sol.id is not None],
+                pendientes_restantes=[sol.id for sol in pendientes_actuales if sol.id is not None],
             )
 
         assert request.destino_pdf is not None
         self.sistema_archivos.mkdir(request.destino_pdf.parent, parents=True, exist_ok=True)
-        ruta_pdf, confirmadas_ids, resumen = self.generador_pdf.generar_pdf_pendientes(
+        ruta_pdf, confirmadas_ids, resumen = self.repositorio.confirmar_con_pdf(
             pendientes_seleccionados,
-            request.destino_pdf,
-            correlation_id=request.correlation_id,
+            destino_pdf=request.destino_pdf,
+            correlation_id=correlation_id,
         )
         errores = [] if confirmadas_ids else [resumen]
         restantes = [solicitud_id for solicitud_id in sorted(pendientes_por_id) if solicitud_id not in set(confirmadas_ids)]
+        log_event(
+            logger,
+            "confirmacion_pdf_confirmadas_con_pdf",
+            {
+                "confirmadas": len(confirmadas_ids),
+                "pendientes_restantes": len(restantes),
+                "ruta_pdf": str(ruta_pdf) if ruta_pdf else None,
+            },
+            correlation_id,
+        )
         return SolicitudConfirmarPdfResultado(
             confirmadas_ids=confirmadas_ids,
             errores=errores,

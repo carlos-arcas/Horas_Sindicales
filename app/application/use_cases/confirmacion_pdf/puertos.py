@@ -12,6 +12,13 @@ class RepositorioSolicitudes(Protocol):
 
     def confirmar_sin_pdf(self, pendientes: list[SolicitudDTO], correlation_id: str | None = None) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]: ...
 
+    def confirmar_con_pdf(
+        self,
+        pendientes: list[SolicitudDTO],
+        destino_pdf: Path,
+        correlation_id: str | None = None,
+    ) -> tuple[Path | None, list[int], str]: ...
+
 
 class GeneradorPdfPuerto(Protocol):
     def generar_pdf_pendientes(self, pendientes: list[SolicitudDTO], destino: Path, correlation_id: str | None = None) -> tuple[Path | None, list[int], str]: ...

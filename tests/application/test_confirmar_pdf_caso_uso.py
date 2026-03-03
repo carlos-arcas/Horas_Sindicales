@@ -23,6 +23,11 @@ class FakeRepositorio:
         self._pendientes = restantes
         return creadas, restantes, []
 
+    def confirmar_con_pdf(self, pendientes: list[SolicitudDTO], destino_pdf: Path, correlation_id: str | None = None):
+        ids = {sol.id for sol in pendientes}
+        self._pendientes = [sol for sol in self._pendientes if sol.id not in ids]
+        return destino_pdf, sorted(item for item in ids if item is not None), "OK"
+
 
 class FakeGeneradorPdf:
     def __init__(self) -> None:

@@ -21,6 +21,19 @@ class RepositorioSolicitudesDesdeCasosUso(RepositorioSolicitudes):
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]:
         return self._solicitud_use_cases.confirmar_sin_pdf(pendientes, correlation_id=correlation_id)
 
+    def confirmar_con_pdf(
+        self,
+        pendientes: list[SolicitudDTO],
+        destino_pdf: Path,
+        correlation_id: str | None = None,
+    ) -> tuple[Path | None, list[int], str]:
+        return self._solicitud_use_cases.confirmar_y_generar_pdf_por_filtro(
+            filtro_delegada=None,
+            pendientes=pendientes,
+            destino=destino_pdf,
+            correlation_id=correlation_id,
+        )
+
 
 class GeneradorPdfDesdeCasosUso(GeneradorPdfPuerto):
     def __init__(self, solicitud_use_cases: SolicitudUseCases) -> None:
