@@ -4,6 +4,9 @@ from typing import Any
 
 from PySide6.QtCore import QDate, QItemSelectionModel
 
+from app.core.observability import OperationContext
+from app.ui.copy_catalog import copy_text
+
 
 def aplicar_rango_por_defecto_historico(window: Any) -> None:
     today = QDate.currentDate()
@@ -45,7 +48,10 @@ def manejar_escape_historico(window: Any) -> None:
 
 
 def obtener_solicitudes_historico_seleccionadas(window: Any) -> list[Any]:
-    selection = window.historico_table.selectionModel().selectedRows()
+    selection_model = window.historico_table.selectionModel()
+    if selection_model is None:
+        return []
+    selection = selection_model.selectedRows()
     if not selection:
         return []
     solicitudes: list[Any] = []
@@ -55,6 +61,26 @@ def obtener_solicitudes_historico_seleccionadas(window: Any) -> list[Any]:
         if solicitud is not None:
             solicitudes.append(solicitud)
     return solicitudes
+
+
+def obtener_ids_solicitudes_historico_seleccionadas(window: Any) -> set[int]:
+    selection_model = window.historico_table.selectionModel()
+    if selection_model is None:
+        return set()
+    selection = selection_model.selectedRows()
+    if not selection:
+        return set()
+
+    ids: set[int] = set()
+    for proxy_index in selection:
+        source_index = window.historico_proxy_model.mapToSource(proxy_index)
+        if not hasattr(source_index, "isValid") or not source_index.isValid():
+            continue
+        solicitud = window.historico_model.solicitud_at(source_index.row())
+        solicitud_id = getattr(solicitud, "id", None)
+        if isinstance(solicitud_id, int):
+            ids.add(solicitud_id)
+    return ids
 
 
 def obtener_solicitud_historico_seleccionada(window: Any) -> Any | None:
@@ -83,7 +109,32 @@ def sincronizar_estado_seleccion_visible_historico(window: Any) -> None:
         window.historico_select_all_visible_check.setEnabled(False)
         window.historico_select_all_visible_check.blockSignals(False)
         return
-    selected_count = len(window.historico_table.selectionModel().selectedRows())
+    selection_model = window.historico_table.selectionModel()
+    selected_count = len(selection_model.selectedRows()) if selection_model is not None else 0
     window.historico_select_all_visible_check.setEnabled(True)
     window.historico_select_all_visible_check.setChecked(selected_count == visible_rows)
     window.historico_select_all_visible_check.blockSignals(False)
+
+
+def actualizar_estado_seleccion_historico(window: Any) -> None:
+    window._historico_ids_seleccionados = obtener_ids_solicitudes_historico_seleccionadas(window)
+    if getattr(window, "eliminar_button", None) is not None:
+        window.eliminar_button.setText(copy_text("ui.historico.eliminar_boton").format(n=len(window._historico_ids_seleccionados)))
+
+
+def eliminar_historico_seleccionado(window: Any) -> int:
+    ids_seleccionados = set(getattr(window, "_historico_ids_seleccionados", set()))
+    if not ids_seleccionados:
+        return 0
+
+    for solicitud_id in sorted(ids_seleccionados):
+        with OperationContext("eliminar_solicitud") as operation:
+            window._solicitud_use_cases.eliminar_solicitud(solicitud_id, correlation_id=operation.correlation_id)
+
+    window._historico_ids_seleccionados = set()
+    clear_selection = getattr(getattr(window, "historico_table", None), "clearSelection", None)
+    if callable(clear_selection):
+        clear_selection()
+    if getattr(window, "eliminar_button", None) is not None:
+        window.eliminar_button.setText(copy_text("ui.historico.eliminar_boton").format(n=0))
+    return len(ids_seleccionados)

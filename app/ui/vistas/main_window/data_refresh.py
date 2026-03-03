@@ -7,6 +7,7 @@ except Exception:  # pragma: no cover
     QTimer = Qt = object
 
 from app.domain.services import BusinessRuleError
+from app.ui.copy_catalog import copy_text
 from app.ui.toast_helpers import toast_error
 from app.ui.vistas.main_window_helpers import build_historico_filters_payload, handle_historico_render_mismatch
 
@@ -55,6 +56,10 @@ def refresh_historico(window, *, force: bool = False) -> None:
         table.setUpdatesEnabled(True)
 
     QTimer.singleShot(0, lambda: table.sortByColumn(0, Qt.DescendingOrder))
+    if hasattr(window, "_historico_ids_seleccionados"):
+        window._historico_ids_seleccionados = set()
+    if getattr(window, "eliminar_button", None) is not None:
+        window.eliminar_button.setText(copy_text("ui.historico.eliminar_boton").format(n=0))
     window._update_action_state()
     row_count = proxy_model.rowCount()
     logger.info("UI_HISTORICO_TABLE_RENDER row_count=%s", row_count)
