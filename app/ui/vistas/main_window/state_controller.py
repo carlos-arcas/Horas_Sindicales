@@ -863,6 +863,20 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
     def _selected_pending_row_indexes(self) -> list[int]:
         return state_pendientes.obtener_indices_filas_pendientes_seleccionadas(self)
 
+    def _selected_pending_solicitudes(self) -> list[SolicitudDTO]:
+        selected_rows = self._selected_pending_row_indexes()
+        return [self._pending_solicitudes[row] for row in selected_rows if 0 <= row < len(self._pending_solicitudes)]
+
+    def _obtener_ids_seleccionados_pendientes(self) -> list[int]:
+        ids_ordenados = sorted(
+            {
+                solicitud.id
+                for solicitud in self._selected_pending_solicitudes()
+                if solicitud is not None and solicitud.id is not None
+            }
+        )
+        return ids_ordenados
+
     def _selected_pending_for_editing(self) -> SolicitudDTO | None:
         return state_pendientes.obtener_pendiente_para_edicion(self)
 
