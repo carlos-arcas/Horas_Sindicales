@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+pytestmark = pytest.mark.ui
+
 try:
     import PySide6  # noqa: F401
 except Exception as exc:  # pragma: no cover

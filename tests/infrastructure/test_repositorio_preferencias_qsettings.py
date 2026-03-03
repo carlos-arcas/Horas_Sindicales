@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QSettings
+import pytest
+QSettings = pytest.importorskip("PySide6.QtCore", exc_type=ImportError).QSettings
 
 from aplicacion.preferencias_claves import ONBOARDING_COMPLETADO, PANTALLA_COMPLETA
 from infraestructura.repositorio_preferencias_qsettings import RepositorioPreferenciasQSettings
+
+pytestmark = pytest.mark.ui
 
 
 def _build_repo(tmp_path: Path) -> RepositorioPreferenciasQSettings:

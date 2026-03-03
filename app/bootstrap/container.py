@@ -71,7 +71,7 @@ ConnectionFactory = Callable[[], object]
 def build_container(
     connection_factory: ConnectionFactory = get_connection,
     *,
-    preferencias_headless: bool = False,
+    preferencias_headless: bool = True,
 ) -> AppContainer:
     connection = connection_factory()
     run_migrations(connection)

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import importlib
 import os
 import platform
 import sqlite3
 import sys
+from importlib.abc import MetaPathFinder
+from importlib.machinery import ModuleSpec
 from pathlib import Path
 
 import pytest
@@ -28,8 +29,51 @@ if _is_linux_headless():
 _UI_BACKEND_ERROR: str | None = None
 
 
+class _PySide6Blocker(MetaPathFinder):
+    def find_spec(self, fullname: str, path: object | None, target: object | None = None) -> ModuleSpec | None:
+        if fullname == "PySide6" or fullname.startswith("PySide6."):
+            raise ImportError("PySide6 bloqueado en ejecución core (pytest -m 'not ui').")
+        return None
+
+
+def _enforce_core_without_qt(config: pytest.Config) -> None:
+    markexpr = (config.option.markexpr or "").strip()
+    if "not ui" not in markexpr:
+        return
+    for module_name in [name for name in list(sys.modules) if name == "PySide6" or name.startswith("PySide6.")]:
+        sys.modules.pop(module_name, None)
+    if not any(isinstance(finder, _PySide6Blocker) for finder in sys.meta_path):
+        sys.meta_path.insert(0, _PySide6Blocker())
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line("markers", "ui: tests de interfaz PySide6")
+    config.addinivalue_line("markers", "headless_safe: test UI que no requiere backend Qt")
+    config.addinivalue_line("markers", "metrics: tests de métricas/calidad (radon opcional)")
+    config.addinivalue_line("markers", "smoke: pruebas smoke rápidas y deterministas")
+    _enforce_core_without_qt(config)
+
+
+def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool:
+    markexpr = (config.option.markexpr or "").strip()
+    if "not ui" not in markexpr:
+        return False
+    relative_path = collection_path.as_posix()
+    blocked_paths = (
+        "/tests/ui/",
+        "/tests/presentacion/",
+        "/tests/test_ui_structure.py",
+        "/tests/entrypoints/test_arranque_worker.py",
+        "/tests/infrastructure/test_repositorio_preferencias_qsettings.py",
+    )
+    normalized_path = f"/{relative_path}"
+    return any(token in normalized_path for token in blocked_paths) or relative_path.endswith(("/tests/ui", "/tests/presentacion"))
+
+
 def _detect_ui_backend_issue() -> str | None:
     try:
+        import importlib
+
         importlib.import_module("PySide6")
         importlib.import_module("PySide6.QtWidgets")
         return None
@@ -37,17 +81,14 @@ def _detect_ui_backend_issue() -> str | None:
         return f"PySide6/Qt no disponible para tests UI: {exc}"
 
 
-def pytest_configure(config: pytest.Config) -> None:
-    global _UI_BACKEND_ERROR
-    config.addinivalue_line("markers", "ui: tests de interfaz PySide6")
-    config.addinivalue_line("markers", "headless_safe: test UI que no requiere backend Qt")
-    config.addinivalue_line("markers", "metrics: tests de métricas/calidad (radon opcional)")
-    config.addinivalue_line("markers", "smoke: pruebas smoke rápidas y deterministas")
-    _UI_BACKEND_ERROR = _detect_ui_backend_issue()
-
-
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    global _UI_BACKEND_ERROR
     skip_ui = None
+    markexpr = (config.option.markexpr or "").strip()
+    core_only_run = "not ui" in markexpr
+    has_ui_items = any("tests/ui/" in item.nodeid or item.get_closest_marker("ui") is not None for item in items)
+    if has_ui_items and not core_only_run and _UI_BACKEND_ERROR is None:
+        _UI_BACKEND_ERROR = _detect_ui_backend_issue()
     if _UI_BACKEND_ERROR is not None:
         skip_ui = pytest.mark.skip(reason=_UI_BACKEND_ERROR)
 
@@ -56,6 +97,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(pytest.mark.ui)
         if skip_ui is not None and item.get_closest_marker("ui") is not None:
             item.add_marker(skip_ui)
+
+    guard_nodeid = "tests/test_000_no_qt_in_core.py::test_core_suite_no_importa_pyside6"
+    guard_items = [item for item in items if item.nodeid.endswith(guard_nodeid)]
+    if guard_items:
+        items[:] = guard_items + [item for item in items if item not in guard_items]
 
 
 from app.application.dto import SolicitudDTO

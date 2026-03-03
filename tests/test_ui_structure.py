@@ -4,6 +4,8 @@ import sqlite3
 
 import pytest
 
+pytestmark = pytest.mark.ui
+
 qt = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
 QApplication = qt.QApplication
 QScrollArea = qt.QScrollArea
