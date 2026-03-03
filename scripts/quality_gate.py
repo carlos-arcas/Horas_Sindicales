@@ -114,6 +114,13 @@ def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
         )
         raise SystemExit(2)
 
+    if importlib.util.find_spec("radon") is None:
+        LOGGER.error(
+            "Falta radon en el entorno activo. Instala dependencias dev con: "
+            "python -m pip install -r requirements-dev.txt"
+        )
+        raise SystemExit(2)
+
     return {"degraded_mode": False, "degraded_reason": None}
 
 
@@ -187,6 +194,40 @@ def run_contractual_test(
     detail = f"{test_ref} exit_code={exit_code}"
     _record(records, area, status, detail)
     return _make_result(status, detail, exit_code=exit_code)
+
+
+def run_cc_targets_guard(config: dict[str, object], records: list[dict[str, str]]) -> dict[str, Any]:
+    from scripts import report_quality
+
+    raw_targets = config.get("cc_targets", {})
+    if not isinstance(raw_targets, dict):
+        raise SystemExit("El campo cc_targets en .config/quality_gate.json debe ser un objeto JSON")
+
+    cc_targets: dict[str, int] = {}
+    for key, value in raw_targets.items():
+        if not isinstance(key, str) or not isinstance(value, int):
+            raise SystemExit("Cada target de cc_targets debe ser string y cada límite debe ser entero")
+        cc_targets[key] = value
+
+    evaluated, has_failures = report_quality._evaluate_config_targets(
+        cc_targets,
+        report_quality._target_complexity,
+    )
+    failures = [row for row in evaluated if not row[3]]
+    status = "FAIL" if has_failures else "PASS"
+    detail = f"targets={len(evaluated)}, failing={len(failures)}"
+    _record(records, "cc_targets", status, detail)
+
+    measurements = [
+        {
+            "identifier": identifier,
+            "complexity": complexity,
+            "limit": limit,
+            "status": "PASS" if ok else "FAIL",
+        }
+        for identifier, complexity, limit, ok in evaluated
+    ]
+    return _make_result(status, detail, measurements=measurements)
 
 
 def _load_i18n_check_config(config: dict[str, object]) -> ConfigCheck:
@@ -329,6 +370,7 @@ def build_report(
     results["cc_budget"] = run_contractual_test(
         "cc_budget", "tests/test_quality_gate_metrics.py::test_quality_gate_size_and_complexity", records, runner
     )
+    results["cc_targets"] = run_cc_targets_guard(config, records)
     results["architecture"] = run_contractual_test(
         "architecture", "tests/test_architecture_imports.py", records, runner
     )
@@ -362,6 +404,7 @@ def print_human_summary(results: dict[str, Any]) -> None:
     for area in [
         "coverage",
         "cc_budget",
+        "cc_targets",
         "architecture",
         "secrets",
         "naming",

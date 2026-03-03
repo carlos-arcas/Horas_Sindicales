@@ -62,10 +62,7 @@ jobs:
 
       - name: Enforce CC target budgets
         run: |
-          python scripts/report_quality.py --target app/ui/vistas/confirmacion_actions.py:iterar_pendientes_en_tabla --out logs/quality_report.txt
-          python scripts/report_quality.py --target app/ui/vistas/pendientes_iter_presenter.py:plan_iter_pendientes --out logs/quality_report_target_2.txt
-          cat logs/quality_report.txt logs/quality_report_target_2.txt > logs/quality_report_ci.txt
-          mv logs/quality_report_ci.txt logs/quality_report.txt
+          python scripts/report_quality.py --enforce-config-targets --out logs/quality_report.txt
 
       - name: Quality Gate unificado (reportes MD/JSON)
         run: |

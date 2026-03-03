@@ -22,6 +22,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Objetivo puntual con formato archivo.py:funcion_o_metodo (ej: app/x.py:f o app/x.py:Clase.m)",
     )
+    parser.add_argument(
+        "--enforce-config-targets",
+        action="store_true",
+        help="Evalúa y hace cumplir todos los targets CC definidos en .config/quality_gate.json.",
+    )
     return parser.parse_args()
 
 
@@ -230,6 +235,20 @@ def _load_cc_targets() -> dict[str, int]:
     return parsed_targets
 
 
+def _evaluate_config_targets(
+    cc_targets: dict[str, int],
+    complexity_resolver: Any,
+) -> tuple[list[tuple[str, int, int, bool]], bool]:
+    rows: list[tuple[str, int, int, bool]] = []
+    has_failures = False
+    for target_identifier, target_limit in sorted(cc_targets.items()):
+        _, measured_identifier, measured_cc = complexity_resolver(target_identifier)
+        target_ok = measured_cc <= target_limit
+        rows.append((measured_identifier, measured_cc, target_limit, target_ok))
+        has_failures = has_failures or not target_ok
+    return rows, has_failures
+
+
 def _package_name(file_path: str) -> str | None:
     normalized = file_path.replace("\\", "/")
     if not normalized.startswith("app/"):
@@ -281,6 +300,7 @@ def _format_report(
     coverage_rows: dict[str, float],
     target_result: tuple[str, str, int] | None,
     budget_status: tuple[str, int, int, bool] | None,
+    config_budget_rows: list[tuple[str, int, int, bool]] | None,
     sync_hotspot_rows: list[tuple[str, int]],
 ) -> str:
     lines: list[str] = []
@@ -322,6 +342,15 @@ def _format_report(
         lines.append(f"- Medido: {target_cc}")
         lines.append(f"- Resultado: {'PASS' if target_ok else 'FAIL'}")
 
+    if config_budget_rows is not None:
+        lines.append("")
+        lines.append("## Presupuestos CC configurados")
+        for target_identifier, target_cc, target_limit, target_ok in config_budget_rows:
+            lines.append(
+                f"- {target_identifier} -> medido={target_cc}, límite={target_limit}, "
+                f"resultado={'PASS' if target_ok else 'FAIL'}"
+            )
+
     return "\n".join(lines) + "\n"
 
 
@@ -345,6 +374,7 @@ def main() -> int:
         return 2
 
     budget_status: tuple[str, int, int, bool] | None = None
+    config_budget_rows: list[tuple[str, int, int, bool]] | None = None
     budget_failed = False
     if target_result is not None:
         _, target_identifier, target_cc = target_result
@@ -354,8 +384,22 @@ def main() -> int:
             budget_status = (target_identifier, target_cc, target_limit, target_ok)
             budget_failed = not target_ok
 
+    if args.enforce_config_targets:
+        config_budget_rows, has_failures = _evaluate_config_targets(cc_targets, _target_complexity)
+        budget_failed = budget_failed or has_failures
+
     sync_hotspot_rows = _sync_hotspot_loc()
-    report = _format_report(loc_rows, cc_note, cc_rows, coverage_note, coverage_rows, target_result, budget_status, sync_hotspot_rows)
+    report = _format_report(
+        loc_rows,
+        cc_note,
+        cc_rows,
+        coverage_note,
+        coverage_rows,
+        target_result,
+        budget_status,
+        config_budget_rows,
+        sync_hotspot_rows,
+    )
     out_path = ROOT / args.out
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(report, encoding="utf-8")

@@ -17,6 +17,7 @@ def test_quality_summary_includes_hotspots_sections(monkeypatch, tmp_path: Path)
             "global_status": "PASS",
             "coverage": {"status": "PASS", "value": 90, "threshold": 85},
             "cc_budget": {"status": "PASS", "detail": "ok"},
+            "cc_targets": {"status": "PASS", "detail": "targets=1, failing=0"},
             "architecture": {"status": "PASS", "detail": "ok"},
             "secrets": {"status": "PASS", "detail": "ok"},
             "naming": {
