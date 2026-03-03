@@ -10,6 +10,7 @@ def _instalar_stub_pyside6() -> None:
     qtcore = ModuleType("PySide6.QtCore")
     qtcore.QDate = SimpleNamespace(currentDate=lambda: None)
     qtcore.QItemSelectionModel = SimpleNamespace(SelectionFlag=SimpleNamespace(Select=1, Deselect=2, Rows=4))
+    qtcore.QTimer = SimpleNamespace(singleShot=lambda _delay, fn: fn())
 
     qtwidgets = ModuleType("PySide6.QtWidgets")
     qtwidgets.QAbstractItemView = SimpleNamespace(ScrollHint=SimpleNamespace(PositionAtCenter=1))

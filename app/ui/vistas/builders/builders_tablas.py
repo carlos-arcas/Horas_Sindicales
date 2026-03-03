@@ -90,12 +90,9 @@ def create_tablas(window: "MainWindow") -> None:
     filtros_row_1.setSpacing(8)
     filtros_row_1.addWidget(QLabel(copy_text("solicitudes.label_delegada")))
 
-    window.historico_todas_delegadas_check = QCheckBox(copy_text("ui.historico.todas_delegadas"))
-    window.historico_todas_delegadas_check.setChecked(True)
-    filtros_row_1.addWidget(window.historico_todas_delegadas_check)
-
     window.historico_delegada_combo = QComboBox()
-    window.historico_delegada_combo.addItem(copy_text("ui.historico.todas"), None)
+    window.historico_delegada_combo.addItem(copy_text("ui.historico.delegada_todas"), None)
+    window.historico_delegada_combo.setCurrentIndex(0)
     filtros_row_1.addWidget(window.historico_delegada_combo)
     filtros_row_1.addStretch(1)
     filtros_layout.addLayout(filtros_row_1)
@@ -138,10 +135,6 @@ def create_tablas(window: "MainWindow") -> None:
     filtros_row_2.addWidget(QLabel(copy_text("solicitudes.label_hasta")))
     filtros_row_2.addWidget(window.historico_hasta_date)
     window._apply_historico_default_range()
-
-    window.historico_apply_filters_button = QPushButton(copy_text("ui.historico.aplicar"))
-    window.historico_apply_filters_button.setProperty("variant", "secondary")
-    filtros_row_2.addWidget(window.historico_apply_filters_button)
 
     filtros_row_2.addStretch(1)
     filtros_layout.addLayout(filtros_row_2)

@@ -399,6 +399,12 @@
   "ui.app.validacion_preventiva.y_m_d_68234978": "%Y-%m-%d",
   "ui.app.validacion_preventiva.yyyy_mm_dd_7e746d34": "yyyy-MM-dd",
   "ui.app.wizard.wizardbienvenida_init_d541154f": "WizardBienvenida.__init__",
+  "ui.conflictos.boton_ver_registro": "Ver registro",
+  "ui.conflictos.duplicado_mensaje": "Ya existe un registro con los mismos datos. ID {id} · Fecha {fecha} · Desde {desde} · Hasta {hasta} · Completo {completo}.",
+  "ui.conflictos.solape_mensaje": "El tramo horario se solapa con un registro existente. ID {id} · Fecha {fecha} · Desde {desde} · Hasta {hasta} · Completo {completo}.",
+  "ui.conflictos.titulo_revisa_formulario": "Revisa el formulario",
+  "ui.historico.delegada_todas": "Todas",
+  "ui.placeholder_hora_hhmm": "HH:MM",
   "ui.sync.panel.confirmar_inicio_sync": "¿Deseas iniciar la sincronización con Google Sheets ahora?",
   "ui.sync.panel.confirmar_sincronizacion": "Confirmar sincronización",
   "ui.sync.panel.conflictos_pendientes": "Hay {cantidad} conflictos pendientes. Revisa antes de sincronizar.",
@@ -417,10 +423,5 @@
   "ui.sync.panel.sincronizando_sheets": "Sincronizando con Google Sheets…",
   "ui.sync.panel.sync_failed_inicio_ui": "Sync failed: no se pudo iniciar desde UI",
   "ui.sync.panel.sync_no_disponible": "Sync no disponible",
-  "ui.sync.panel.sync_pantalla_no_disponible": "La sincronización aún no está disponible en esta pantalla.",
-  "ui.placeholder_hora_hhmm": "HH:MM",
-  "ui.conflictos.titulo_revisa_formulario": "Revisa el formulario",
-  "ui.conflictos.duplicado_mensaje": "Ya existe un registro con los mismos datos. ID {id} · Fecha {fecha} · Desde {desde} · Hasta {hasta} · Completo {completo}.",
-  "ui.conflictos.solape_mensaje": "El tramo horario se solapa con un registro existente. ID {id} · Fecha {fecha} · Desde {desde} · Hasta {hasta} · Completo {completo}.",
-  "ui.conflictos.boton_ver_registro": "Ver registro"
+  "ui.sync.panel.sync_pantalla_no_disponible": "La sincronización aún no está disponible en esta pantalla."
 }

@@ -76,6 +76,7 @@ _COPY: dict[str, str] = {
     "ui.historico.estado": "Estado",
     "ui.historico.todas_delegadas": "Todas las delegadas (todos los registros)",
     "ui.historico.todas": "Todas",
+    "ui.historico.delegada_todas": "Todas",
     "ui.historico.periodo_anual": "Año completo",
     "ui.historico.periodo_mes": "Año/mes",
     "ui.historico.periodo_rango": "Rango fechas",
