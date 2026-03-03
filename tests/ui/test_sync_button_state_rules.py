@@ -34,7 +34,11 @@ def _entrada_base(**overrides) -> EstadoBotonSyncEntrada:
         ({}, True, "sync_listo"),
         ({"sync_configurado": False}, False, "sync_no_configurado"),
         ({"sync_en_progreso": True}, False, "sync_en_progreso"),
-        ({"sync_configurado": False, "sync_en_progreso": True}, False, "sync_no_configurado"),
+        (
+            {"sync_configurado": False, "sync_en_progreso": True},
+            False,
+            "sync_no_configurado",
+        ),
         ({"texto_sync_actual": "Actualizar"}, True, "sync_listo"),
         ({"tooltip_sync_actual": "Manual"}, True, "sync_listo"),
     ],
@@ -98,12 +102,26 @@ def test_decidir_estado_confirm_sync(
         ({}, False, "retry_sin_fallos"),
         ({"ultimo_reporte_tiene_fallos": True}, True, "retry_listo"),
         ({"ultimo_reporte_presente": False}, False, "retry_sin_fallos"),
-        ({"sync_en_progreso": True, "ultimo_reporte_tiene_fallos": True}, False, "retry_bloqueado_en_progreso"),
-        ({"sync_en_progreso": True, "ultimo_reporte_tiene_fallos": False}, False, "retry_bloqueado_en_progreso"),
-        ({"sync_configurado": False, "ultimo_reporte_tiene_fallos": True}, True, "retry_listo"),
+        (
+            {"sync_en_progreso": True, "ultimo_reporte_tiene_fallos": True},
+            False,
+            "retry_bloqueado_en_progreso",
+        ),
+        (
+            {"sync_en_progreso": True, "ultimo_reporte_tiene_fallos": False},
+            False,
+            "retry_bloqueado_en_progreso",
+        ),
+        (
+            {"sync_configurado": False, "ultimo_reporte_tiene_fallos": True},
+            True,
+            "retry_listo",
+        ),
     ],
 )
-def test_decidir_estado_retry(overrides: dict, retry_enabled: bool, retry_reason: str) -> None:
+def test_decidir_estado_retry(
+    overrides: dict, retry_enabled: bool, retry_reason: str
+) -> None:
     decision = decidir_estado_botones_sync(_entrada_base(**overrides))
 
     assert decision.retry_failed.enabled is retry_enabled
@@ -111,22 +129,30 @@ def test_decidir_estado_retry(overrides: dict, retry_enabled: bool, retry_reason
 
 
 @pytest.mark.parametrize(
-    ("overrides", "review_enabled", "review_text", "review_reason", "review_severity"),
+    ("overrides", "review_enabled", "review_reason", "review_severity"),
     [
-        ({}, False, "Revisar conflictos (sin pendientes)", "review_conflictos_sin_pendientes", None),
-        ({"conflictos_pendientes_total": 1}, True, "Revisar conflictos", "review_conflictos_pendientes", "warning"),
-        ({"conflictos_pendientes_total": 5}, True, "Revisar conflictos", "review_conflictos_pendientes", "warning"),
+        ({}, False, "review_conflictos_sin_pendientes", None),
+        (
+            {"conflictos_pendientes_total": 1},
+            True,
+            "review_conflictos_pendientes",
+            "warning",
+        ),
+        (
+            {"conflictos_pendientes_total": 5},
+            True,
+            "review_conflictos_pendientes",
+            "warning",
+        ),
         (
             {"sync_en_progreso": True, "conflictos_pendientes_total": 0},
             False,
-            "Revisar conflictos (sin pendientes)",
             "review_conflictos_bloqueado_en_progreso",
             None,
         ),
         (
             {"sync_en_progreso": True, "conflictos_pendientes_total": 3},
             False,
-            "Revisar conflictos",
             "review_conflictos_bloqueado_en_progreso",
             "warning",
         ),
@@ -135,14 +161,13 @@ def test_decidir_estado_retry(overrides: dict, retry_enabled: bool, retry_reason
 def test_decidir_estado_conflictos(
     overrides: dict,
     review_enabled: bool,
-    review_text: str,
     review_reason: str,
     review_severity: str | None,
 ) -> None:
     decision = decidir_estado_botones_sync(_entrada_base(**overrides))
 
     assert decision.review_conflicts.enabled is review_enabled
-    assert decision.review_conflicts.text == review_text
+    assert decision.review_conflicts.text == ""
     assert decision.review_conflicts.reason_code == review_reason
     assert decision.review_conflicts.severity == review_severity
 
@@ -152,12 +177,26 @@ def test_decidir_estado_conflictos(
     [
         ({}, True, "reporte_listo"),
         ({"ultimo_reporte_presente": False}, False, "reporte_no_disponible"),
-        ({"sync_en_progreso": True, "ultimo_reporte_presente": True}, False, "reporte_bloqueado_en_progreso"),
-        ({"sync_en_progreso": True, "ultimo_reporte_presente": False}, False, "reporte_bloqueado_en_progreso"),
-        ({"sync_configurado": False, "ultimo_reporte_presente": True}, True, "reporte_listo"),
+        (
+            {"sync_en_progreso": True, "ultimo_reporte_presente": True},
+            False,
+            "reporte_bloqueado_en_progreso",
+        ),
+        (
+            {"sync_en_progreso": True, "ultimo_reporte_presente": False},
+            False,
+            "reporte_bloqueado_en_progreso",
+        ),
+        (
+            {"sync_configurado": False, "ultimo_reporte_presente": True},
+            True,
+            "reporte_listo",
+        ),
     ],
 )
-def test_decidir_estado_reportes(overrides: dict, enabled: bool, reason_code: str) -> None:
+def test_decidir_estado_reportes(
+    overrides: dict, enabled: bool, reason_code: str
+) -> None:
     decision = decidir_estado_botones_sync(_entrada_base(**overrides))
 
     assert decision.sync_details.enabled is enabled
@@ -219,7 +258,10 @@ def test_contrato_reason_code_review_prioriza_bloqueado_sobre_pendientes() -> No
         _entrada_base(sync_en_progreso=True, conflictos_pendientes_total=3)
     )
 
-    assert decision.review_conflicts.reason_code == "review_conflictos_bloqueado_en_progreso"
+    assert (
+        decision.review_conflicts.reason_code
+        == "review_conflictos_bloqueado_en_progreso"
+    )
 
 
 def test_decidir_estado_conflictos_acepta_entrada_legacy_lista() -> None:
