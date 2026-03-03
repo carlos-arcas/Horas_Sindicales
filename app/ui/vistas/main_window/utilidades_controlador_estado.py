@@ -200,7 +200,7 @@ def configure_operativa_focus_order(window: Any) -> None:
 
 
 def configure_historico_focus_order(window: Any, logger_obj: logging.Logger) -> None:
-    focus_chain = (("historico_search_input", "historico_estado_combo"), ("historico_estado_combo", "historico_delegada_combo"), ("historico_delegada_combo", "historico_desde_date"), ("historico_desde_date", "historico_hasta_date"), ("historico_hasta_date", "historico_apply_filters_button"), ("historico_apply_filters_button", "historico_table"))
+    focus_chain = (("historico_search_input", "historico_estado_combo"), ("historico_estado_combo", "historico_delegada_combo"), ("historico_delegada_combo", "historico_desde_date"), ("historico_desde_date", "historico_hasta_date"), ("historico_hasta_date", "historico_table"))
     set_tab_order = getattr(window, "setTabOrder", None)
     if not callable(set_tab_order):
         logger_obj.warning("UI_SET_TAB_ORDER_NOT_AVAILABLE")

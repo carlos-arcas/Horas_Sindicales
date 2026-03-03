@@ -422,5 +422,6 @@
   "ui.conflictos.titulo_revisa_formulario": "Revisa el formulario",
   "ui.conflictos.duplicado_mensaje": "Ya existe un registro con los mismos datos. ID {id} · Fecha {fecha} · Desde {desde} · Hasta {hasta} · Completo {completo}.",
   "ui.conflictos.solape_mensaje": "El tramo horario se solapa con un registro existente. ID {id} · Fecha {fecha} · Desde {desde} · Hasta {hasta} · Completo {completo}.",
-  "ui.conflictos.boton_ver_registro": "Ver registro"
+  "ui.conflictos.boton_ver_registro": "Ver registro",
+  "ui.historico.delegada_todas": "Todas"
 }

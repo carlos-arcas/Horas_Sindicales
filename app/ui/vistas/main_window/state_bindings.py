@@ -60,6 +60,10 @@ def registrar_state_bindings(clase: type) -> None:
 
     bindings: dict[str, Callable[..., Any]] = {
         "_apply_historico_filters": historico_actions.apply_historico_filters,
+        "_aplicar_filtros_historico": historico_actions.aplicar_filtros_historico,
+        "_schedule_historico_refresh": historico_actions.schedule_historico_refresh,
+        "_on_historico_search_changed": historico_actions.on_historico_search_changed,
+        "_on_historico_filter_changed": historico_actions.on_historico_filter_changed,
         "_apply_historico_default_range": historico_actions.apply_historico_default_range,
         "_apply_historico_last_30_days": historico_actions.apply_historico_last_30_days,
         "_on_historico_periodo_mode_changed": historico_actions.on_historico_periodo_mode_changed,
