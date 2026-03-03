@@ -15,6 +15,7 @@ from app.ui.vistas.main_window import (
     TAB_HISTORICO,
     resolve_active_delegada_id,
 )
+from app.ui.qt_compat import QTimer
 from app.ui.vistas.init_refresh import run_init_refresh
 from typing import Callable
 
@@ -78,10 +79,14 @@ class MainWindow(_MainWindowBase):
         return super()._show_error_detail(title, message, details)
 
     def _post_init_load(self) -> None:
+        def scheduler(step: Callable[[], None]) -> None:
+            QTimer.singleShot(0, step)
+
         run_init_refresh(
             refresh_resumen=self._refresh_saldos,
             refresh_pendientes=self._reload_pending_views,
             refresh_historico=lambda: self._refresh_historico(force=True),
+            scheduler=scheduler,
         )
 
     def _on_main_tab_changed(self, index: int) -> None:
