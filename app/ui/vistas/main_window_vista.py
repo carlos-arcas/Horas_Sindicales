@@ -17,7 +17,11 @@ from app.ui.vistas.main_window import (
 )
 from app.ui.qt_compat import QTimer
 from app.ui.vistas.init_refresh import run_init_refresh
+import logging
 from typing import Callable
+
+
+logger = logging.getLogger(__name__)
 
 
 class MainWindow(_MainWindowBase):
@@ -116,6 +120,21 @@ class MainWindow(_MainWindowBase):
 
     def _verificar_handlers_ui(self) -> None:
         return super()._verificar_handlers_ui()
+
+    def _update_sync_button_state(self) -> None:
+        """Alias de compatibilidad para smoke tests y wiring legado."""
+        sync_controller = getattr(self, "_sync_controller", None)
+        update_sync_state = getattr(sync_controller, "update_sync_button_state", None)
+        if callable(update_sync_state):
+            update_sync_state()
+            return
+
+        update_actions = getattr(self, "_update_action_state", None)
+        if callable(update_actions):
+            update_actions()
+            return
+
+        logger.debug("MainWindow._update_sync_button_state alias sin destino")
 
     def eventFilter(self, watched, event):  # noqa: N802 - Qt API
         return super().eventFilter(watched, event)
