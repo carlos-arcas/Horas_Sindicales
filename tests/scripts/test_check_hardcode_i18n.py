@@ -25,14 +25,14 @@ def test_check_i18n_fail_reporta_linea_correcta(tmp_path: Path) -> None:
     _crear_archivo(
         tmp_path,
         "app/ui/dialogo.py",
-        'def build():\n    return "Confirmar"\n',
+        'def build():\n    return "Confirmar acción"\n',
     )
     hallazgos = analizar_rutas([tmp_path / "app" / "ui"], ConfigCheck())
     salida = renderizar_hallazgos(hallazgos)
 
     assert len(hallazgos) == 1
     assert hallazgos[0].lineno == 2
-    assert salida == '[I18N_HARDCODE] app/ui/dialogo.py:2 -> "Confirmar"'
+    assert salida == '[I18N_HARDCODE] app/ui/dialogo.py:2 -> "Confirmar acción"'
 
 
 def test_check_i18n_omite_literal_en_logger(tmp_path: Path) -> None:
@@ -56,13 +56,13 @@ def test_check_i18n_omite_clave_i18n(tmp_path: Path) -> None:
 
 
 def test_check_i18n_render_orden_estable(tmp_path: Path) -> None:
-    _crear_archivo(tmp_path, "app/ui/z.py", 'def a():\n    return "Zulu"\n')
-    _crear_archivo(tmp_path, "app/ui/a.py", 'def b():\n    return "Alfa"\n')
+    _crear_archivo(tmp_path, "app/ui/z.py", 'def a():\n    return "Texto Zulu"\n')
+    _crear_archivo(tmp_path, "app/ui/a.py", 'def b():\n    return "Texto Alfa"\n')
 
     hallazgos = analizar_rutas([tmp_path / "app" / "ui"], ConfigCheck())
     salida = renderizar_hallazgos(hallazgos).splitlines()
 
     assert salida == [
-        '[I18N_HARDCODE] app/ui/a.py:2 -> "Alfa"',
-        '[I18N_HARDCODE] app/ui/z.py:2 -> "Zulu"',
+        '[I18N_HARDCODE] app/ui/a.py:2 -> "Texto Alfa"',
+        '[I18N_HARDCODE] app/ui/z.py:2 -> "Texto Zulu"',
     ]

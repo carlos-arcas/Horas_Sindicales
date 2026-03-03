@@ -11,6 +11,9 @@ from pathlib import Path
 METODOS_LOGGER = {"debug", "info", "warning", "error", "exception", "critical", "log"}
 PATRON_CLAVE_I18N = r"^[a-z0-9_]+(\.[a-z0-9_]+)+$"
 PATRONES_TECNICOS_DEFAULT = (r"^%[YmdHMS:\-_/ ]+$", r"^(utf-8|ascii|latin-1)$")
+PATRON_IDENTIFICADOR_SIMPLE = r"^[a-zA-Z_][a-zA-Z0-9_]*$"
+PATRON_SOLO_SIMBOLOS_COMUNES = r"^[-\.:,]+$"
+PATRON_COLOR_HEX = r"^#[0-9a-fA-F]{6}$"
 
 
 @dataclass(frozen=True)
@@ -107,9 +110,7 @@ class _VisitanteHardcode(ast.NodeVisitor):
     def _es_hardcode_visible(self, node: ast.AST, texto: str) -> bool:
         if not texto.strip() or _es_docstring(node, self._padres):
             return False
-        if re.fullmatch(self._config.patron_clave_i18n, texto):
-            return False
-        if _coincide_alguno(texto, self._config.patrones_tecnicos_permitidos):
+        if not es_literal_visible(texto, self._config):
             return False
         return not _en_contexto_logger(node, self._padres, self._config)
 
@@ -242,6 +243,23 @@ def _nombre_llamada(funcion: ast.AST) -> str | None:
 
 def _coincide_alguno(texto: str, patrones: tuple[str, ...]) -> bool:
     return any(re.fullmatch(patron, texto) for patron in patrones)
+
+
+def es_literal_visible(texto: str, config: ConfigCheck) -> bool:
+    texto_limpio = texto.strip()
+    if not texto_limpio:
+        return False
+    if re.fullmatch(PATRON_IDENTIFICADOR_SIMPLE, texto_limpio):
+        return False
+    if re.fullmatch(config.patron_clave_i18n, texto_limpio):
+        return False
+    if len(texto_limpio) <= 3 and re.fullmatch(PATRON_SOLO_SIMBOLOS_COMUNES, texto_limpio):
+        return False
+    if re.fullmatch(PATRON_COLOR_HEX, texto_limpio):
+        return False
+    if _coincide_alguno(texto_limpio, config.patrones_tecnicos_permitidos):
+        return False
+    return True
 
 
 def _recortar_texto(texto: str, maximo: int) -> str:
