@@ -220,3 +220,12 @@ def test_contrato_reason_code_review_prioriza_bloqueado_sobre_pendientes() -> No
     )
 
     assert decision.review_conflicts.reason_code == "review_conflictos_bloqueado_en_progreso"
+
+
+def test_decidir_estado_conflictos_acepta_entrada_legacy_lista() -> None:
+    decision = decidir_estado_botones_sync(
+        _entrada_base(conflictos_pendientes_total=[])
+    )
+
+    assert decision.review_conflicts.enabled is False
+    assert decision.review_conflicts.reason_code == "review_conflictos_sin_pendientes"

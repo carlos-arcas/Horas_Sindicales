@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import traceback
 import logging
+from collections.abc import Set
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 
@@ -136,6 +137,9 @@ class SyncController:
         w = self.window
         pending_plan = getattr(w, "_pending_sync_plan", None)
         report = getattr(w, "_last_sync_report", None)
+        conflictos_pendientes_total = _normalizar_conflictos_pendientes_total(
+            w._conflicts_service.count_conflicts()
+        )
         entrada = EstadoBotonSyncEntrada(
             sync_configurado=w._sync_service.is_configured(),
             sync_en_progreso=w._sync_in_progress,
@@ -144,7 +148,7 @@ class SyncController:
             plan_tiene_conflictos=bool(pending_plan is not None and pending_plan.conflicts),
             ultimo_reporte_presente=report is not None,
             ultimo_reporte_tiene_fallos=bool(report and (report.errors or report.conflicts)),
-            conflictos_pendientes_total=w._conflicts_service.count_conflicts(),
+            conflictos_pendientes_total=conflictos_pendientes_total,
             texto_sync_actual=_leer_texto_boton(getattr(w, "sync_button", None)),
             tooltip_sync_actual=_leer_tooltip_boton(getattr(w, "sync_button", None)),
         )
@@ -246,6 +250,18 @@ def _extract_error(payload: object) -> Exception | None:
     if isinstance(payload, Exception):
         return payload
     return None
+
+
+def _normalizar_conflictos_pendientes_total(conflictos_pendientes: object) -> int:
+    """Normaliza entradas legacy para entregar siempre un contador entero."""
+
+    if isinstance(conflictos_pendientes, int):
+        return conflictos_pendientes
+    if conflictos_pendientes is None:
+        return 0
+    if isinstance(conflictos_pendientes, (list, tuple, set, frozenset, Set)):
+        return len(conflictos_pendientes)
+    return 0
 
 
 def _resolve_service_account_email(window) -> str:
