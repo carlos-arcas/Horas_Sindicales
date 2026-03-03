@@ -114,6 +114,27 @@ def _detectar_conflicto_desde_fila(
     return None
 
 
+def _normalizar_fecha_iso(fecha: str) -> str:
+    fecha_norm = str(fecha).strip()
+    for pattern in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(fecha_norm, pattern).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return fecha_norm
+
+
+def _normalizar_minutos(valor: int | str | None) -> int | None:
+    if valor is None:
+        return None
+    if isinstance(valor, int):
+        return valor
+    valor_str = str(valor).strip().replace(".", ":")
+    if valor_str.isdigit():
+        return int(valor_str)
+    return int(valor_str.split(":", maxsplit=1)[0]) * 60 + int(valor_str.split(":", maxsplit=1)[1])
+
+
 def _solapan_intervalos(
     nuevo_desde: int | None,
     nuevo_hasta: int | None,
@@ -404,20 +425,24 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         *,
         excluir_solicitud_id: int | None = None,
     ) -> ConflictoSolicitud | None:
+        """Detecta conflicto comparando contra solicitudes existentes (pendientes + histórico)."""
+        fecha_normalizada = _normalizar_fecha_iso(fecha_pedida)
+        desde_normalizado = _normalizar_minutos(desde_min)
+        hasta_normalizado = _normalizar_minutos(hasta_min)
         cursor = self._connection.cursor()
         clauses = [
             "s.persona_id = ?",
             "s.fecha_pedida = ?",
             "(s.deleted = 0 OR s.deleted IS NULL)",
         ]
-        params: list[object] = [persona_id, fecha_pedida]
+        params: list[object] = [persona_id, fecha_normalizada]
         if excluir_solicitud_id is not None:
             clauses.append("s.id != ?")
             params.append(excluir_solicitud_id)
 
         cursor.execute(
             f"""
-            SELECT s.id, s.persona_id, s.fecha_pedida, s.desde_min, s.hasta_min, s.completo
+            SELECT s.id, s.persona_id, s.fecha_pedida, s.desde_min, s.hasta_min, s.completo, s.generated
             FROM solicitudes s
             WHERE {' AND '.join(clauses)}
             ORDER BY s.id DESC
@@ -426,22 +451,28 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         )
         for row in cursor.fetchall():
             conflicto = _detectar_conflicto_desde_fila(
-                desde_min=desde_min,
-                hasta_min=hasta_min,
+                desde_min=desde_normalizado,
+                hasta_min=hasta_normalizado,
                 completo=completo,
                 existente=row,
             )
             if conflicto is None:
                 continue
-            logger.info(
-                "Conflicto de solicitud detectado type=%s id_existente=%s persona_id=%s fecha=%s desde=%s hasta=%s completo=%s",
+            fuente = "historico" if bool(row["generated"]) else "pendiente"
+            logger.debug(
+                "Conflicto de solicitud detectado persona_id=%s fecha=%s desde=%s hasta=%s completo=%s tipo=%s "
+                "id_existente=%s fuente=%s fecha_normalizada=%s desde_normalizado=%s hasta_normalizado=%s",
+                persona_id,
+                fecha_pedida,
+                desde_min,
+                hasta_min,
+                completo,
                 conflicto.tipo,
                 conflicto.id_existente,
-                conflicto.persona_id,
-                conflicto.fecha,
-                conflicto.desde,
-                conflicto.hasta,
-                conflicto.completo,
+                fuente,
+                fecha_normalizada,
+                desde_normalizado,
+                hasta_normalizado,
             )
             return conflicto
         return None
