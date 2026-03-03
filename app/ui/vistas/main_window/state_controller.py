@@ -329,6 +329,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._sync_controller.update_sync_button_state()
         self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
+        self._post_init_ui()
 
     def cambiar_idioma(self, idioma: str) -> None:
         cambiar_idioma_interfaz(idioma)
@@ -344,6 +345,25 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
 
     def _safe_conflicts_count(self) -> int:
         return safe_conflicts_count(self)
+
+
+    def _post_init_ui(self) -> None:
+        main_tabs = getattr(self, "main_tabs", None)
+        if main_tabs is None or not hasattr(main_tabs, "count"):
+            return
+        if main_tabs.count() >= 1:
+            return
+
+        fallback_page = getattr(self, "page_solicitudes", None)
+        if fallback_page is None:
+            fallback_page = QWidget(self)
+            fallback_page.setObjectName("page_solicitudes_fallback")
+
+        tab_text = ""
+        if hasattr(fallback_page, "windowTitle"):
+            tab_text = fallback_page.windowTitle()
+        if hasattr(main_tabs, "addTab") and hasattr(main_tabs, "indexOf") and main_tabs.indexOf(fallback_page) == -1:
+            main_tabs.addTab(fallback_page, tab_text)
 
 
     def _inicializar_preferencia_pantalla_completa(self) -> None:
