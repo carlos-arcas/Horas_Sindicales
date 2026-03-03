@@ -23,6 +23,7 @@ from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
 from app.bootstrap.settings import project_root
 from app.entrypoints.arranque_nucleo import ResultadoArranque
+from app.entrypoints.post_show import preparar_mostrar_ventana, programar_post_init
 from app.ui.qt_message_handler import instalar_qt_message_handler
 from app.ui.qt_safe import safe_call
 from app.ui.qt_safe_ops import es_objeto_qt_valido, safe_hide, safe_quit_thread
@@ -85,7 +86,6 @@ class _CoordinadorArranqueConCierreDeterminista:
 
         def _aplicar_resultado_en_ui() -> None:
             self._detener_watchdog_idempotente()
-            self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
             resolved_container = startup_payload.container
             marcar_stage("UI_CONTAINER_RESUELTO")
@@ -97,16 +97,15 @@ class _CoordinadorArranqueConCierreDeterminista:
             idioma = deps_arranque.obtener_idioma_ui.ejecutar()
             self.i18n.set_idioma(idioma)
             orquestador = self.orquestador_factory(deps_arranque, self.i18n)
-            self._cerrar_splash_idempotente()
             if not orquestador.resolver_onboarding():
+                self._cerrar_splash_idempotente()
                 self.app.exit(0)
                 return
-            self._cerrar_splash_idempotente()
             window = self.main_window_factory(
                 resolved_container,
                 deps_arranque,
             )
-            marcar_stage("UI_MAINWINDOW_CONSTRUIDA")
+            marcar_stage("ui.mainwindow.construida")
             self.app.setProperty("_main_window_ref", window)
             self.instalar_menu_ayuda(
                 window,
@@ -114,11 +113,25 @@ class _CoordinadorArranqueConCierreDeterminista:
                 ReiniciarOnboarding(resolved_container.repositorio_preferencias),
                 resolved_container.cargar_datos_demo_caso_uso,
             )
+            from app.ui.qt_compat import QTimer
+
+            def scheduler(fn: Callable[[], None]) -> None:
+                QTimer.singleShot(0, fn)
             if orquestador.debe_iniciar_maximizada():
                 window.showMaximized()
-            else:
-                window.show()
-            marcar_stage("UI_MAINWINDOW_MOSTRADA")
+            preparar_mostrar_ventana(
+                window=window,
+                splash=self.splash,
+                scheduler=scheduler,
+                marcar_stage=marcar_stage,
+            )
+            self._splash_cerrado = True
+            self.app.processEvents()
+            programar_post_init(
+                window=window,
+                scheduler=scheduler,
+                marcar_stage=marcar_stage,
+            )
 
         try:
             _enqueue_on_ui_thread(self.app, _aplicar_resultado_en_ui)
