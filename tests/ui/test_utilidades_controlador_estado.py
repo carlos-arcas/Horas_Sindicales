@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import sys
 import types
 
@@ -18,7 +19,7 @@ class _QtDummyModule(types.ModuleType):
         return type(name, (), {})
 
 
-def _instalar_stub_pyside() -> None:
+def _crear_stub_pyside() -> tuple[types.ModuleType, types.ModuleType, types.ModuleType, types.ModuleType]:
     pyside = types.ModuleType("PySide6")
     qt_widgets = _QtDummyModule("PySide6.QtWidgets")
     qt_core = _QtDummyModule("PySide6.QtCore")
@@ -30,18 +31,25 @@ def _instalar_stub_pyside() -> None:
     pyside.QtWidgets = qt_widgets
     pyside.QtCore = qt_core
     pyside.QtGui = qt_gui
+    return pyside, qt_widgets, qt_core, qt_gui
 
-    sys.modules["PySide6"] = pyside
-    sys.modules["PySide6.QtWidgets"] = qt_widgets
-    sys.modules["PySide6.QtCore"] = qt_core
-    sys.modules["PySide6.QtGui"] = qt_gui
-
-
-_instalar_stub_pyside()
-
-from app.ui.vistas.main_window import utilidades_controlador_estado as estado_utils
 
 pytestmark = pytest.mark.headless_safe
+
+
+@pytest.fixture
+def estado_utils(monkeypatch: pytest.MonkeyPatch):
+    pyside, qt_widgets, qt_core, qt_gui = _crear_stub_pyside()
+
+    monkeypatch.setitem(sys.modules, "PySide6", pyside)
+    monkeypatch.setitem(sys.modules, "PySide6.QtWidgets", qt_widgets)
+    monkeypatch.setitem(sys.modules, "PySide6.QtCore", qt_core)
+    monkeypatch.setitem(sys.modules, "PySide6.QtGui", qt_gui)
+
+    modulo = importlib.import_module("app.ui.vistas.main_window.utilidades_controlador_estado")
+    yield modulo
+    importlib.invalidate_caches()
+    sys.modules.pop("app.ui.vistas.main_window.utilidades_controlador_estado", None)
 
 
 class _FakeI18n:
@@ -74,7 +82,10 @@ class _FakeWindow:
         self.hasta_input = _FakeTimeInput()
 
 
-def test_configure_time_placeholders_resuelve_desde_i18n_sin_excepcion(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_configure_time_placeholders_resuelve_desde_i18n_sin_excepcion(
+    monkeypatch: pytest.MonkeyPatch,
+    estado_utils,
+) -> None:
     window = _FakeWindow()
     monkeypatch.setattr(estado_utils.handlers_layout, "configure_time_placeholders", lambda _window: None)
 
@@ -109,7 +120,7 @@ class _WindowWithoutI18n:
         self.conflicts_reminder_label = _FakeReminderLabel()
 
 
-def test_update_conflicts_reminder_sin_i18n_sale_sin_error() -> None:
+def test_update_conflicts_reminder_sin_i18n_sale_sin_error(estado_utils) -> None:
     logger = _FakeLogger()
     window = _WindowWithoutI18n()
 
@@ -154,7 +165,7 @@ class _ThreadEspia:
         _ThreadEspia.starts += 1
 
 
-def test_warmup_sync_client_lanza_hilo_y_no_bloquea(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_warmup_sync_client_lanza_hilo_y_no_bloquea(monkeypatch: pytest.MonkeyPatch, estado_utils) -> None:
     service = _SyncServiceContador()
     window = _SyncWindow(service)
 
@@ -173,7 +184,7 @@ def test_warmup_sync_client_lanza_hilo_y_no_bloquea(monkeypatch: pytest.MonkeyPa
     assert service.calls == 1
 
 
-def test_warmup_sync_client_es_idempotente(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_warmup_sync_client_es_idempotente(monkeypatch: pytest.MonkeyPatch, estado_utils) -> None:
     service = _SyncServiceContador()
     window = _SyncWindow(service)
 
@@ -194,7 +205,10 @@ class _SyncServiceEnsureNoCallable:
     ensure_connection = 123
 
 
-def test_warmup_sync_client_sin_ensure_connection_no_revienta(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_warmup_sync_client_sin_ensure_connection_no_revienta(
+    monkeypatch: pytest.MonkeyPatch,
+    estado_utils,
+) -> None:
     window_sin_ensure = _SyncWindow(_SyncServiceSinEnsure())
     window_no_callable = _SyncWindow(_SyncServiceEnsureNoCallable())
 
