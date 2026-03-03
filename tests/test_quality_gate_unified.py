@@ -18,6 +18,7 @@ def _set_temp_reports(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(quality_gate, "LOGS_DIR", logs)
     monkeypatch.setattr(quality_gate, "QUALITY_REPORT_JSON", logs / "quality_report.json")
     monkeypatch.setattr(quality_gate, "QUALITY_REPORT_MD", logs / "quality_report.md")
+    monkeypatch.setattr(quality_gate, "QUALITY_REPORT_TXT", logs / "quality_report.txt")
 
 
 def _mock_i18n_guard_pass(monkeypatch) -> None:
@@ -160,12 +161,16 @@ def test_quality_gate_unified_json_structure(monkeypatch, tmp_path: Path) -> Non
         "release_contract",
         "degraded_mode",
         "degraded_reason",
+        "checks_omitidos",
+        "reason_code",
+        "strict_mode",
         "global_status",
     }
 
 
-def test_sin_pytest_cov_y_sin_flag_hace_hard_fail(monkeypatch, tmp_path: Path) -> None:
+def test_sin_pytest_cov_modo_strict_hace_hard_fail(monkeypatch, tmp_path: Path) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
+    monkeypatch.setenv("QUALITY_GATE_STRICT", "1")
     monkeypatch.setattr(quality_gate.pytest, "main", lambda *_args, **_kwargs: 0)
     monkeypatch.setattr(quality_gate.importlib.util, "find_spec", lambda _name: None)
 
@@ -175,9 +180,10 @@ def test_sin_pytest_cov_y_sin_flag_hace_hard_fail(monkeypatch, tmp_path: Path) -
     assert exc.value.code == 2
 
 
-def test_sin_pytest_cov_con_flag_modo_degradado(monkeypatch, tmp_path: Path) -> None:
+def test_sin_pytest_cov_non_strict_modo_degradado(monkeypatch, tmp_path: Path) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
     _mock_i18n_guard_pass(monkeypatch)
+    monkeypatch.setenv("QUALITY_GATE_STRICT", "0")
     monkeypatch.setattr(quality_gate.pytest, "main", lambda *_args, **_kwargs: 0)
     monkeypatch.setattr(quality_gate.importlib.util, "find_spec", lambda _name: None)
     monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
@@ -204,15 +210,21 @@ def test_sin_pytest_cov_con_flag_modo_degradado(monkeypatch, tmp_path: Path) -> 
     )
     monkeypatch.setattr(quality_gate, "run_pytest_coverage", _should_not_run_coverage)
 
-    exit_code = quality_gate.main(["--allow-missing-pytest-cov"])
+    exit_code = quality_gate.main([])
 
     assert exit_code == 1
     payload = json.loads((tmp_path / "logs" / "quality_report.json").read_text(encoding="utf-8"))
     results = payload["results"]
 
     assert results["coverage"]["status"] == "SKIP"
-    assert results["global_status"] == "FAIL"
+    assert results["global_status"] == "DEGRADED"
     assert results["degraded_mode"] is True
-    assert "pytest-cov no disponible" in results["degraded_reason"]
+    assert results["checks_omitidos"] == ["pytest-cov", "radon", "pip-audit"]
+    assert results["reason_code"] == "QUALITY_GATE_DEGRADED_MISSING_DEPS"
+    report_md = (tmp_path / "logs" / "quality_report.md").read_text(encoding="utf-8")
+    report_txt = (tmp_path / "logs" / "quality_report.txt").read_text(encoding="utf-8")
+    assert "## checks_omitidos" in report_md
+    assert "pytest-cov" in report_md
+    assert "checks_omitidos=pytest-cov, radon, pip-audit" in report_txt
     assert counters["contractual"] == 4
     assert counters["naming"] == 1
