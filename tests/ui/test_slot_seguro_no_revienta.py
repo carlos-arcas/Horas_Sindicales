@@ -14,7 +14,7 @@ class ToastQueFalla:
     def __init__(self) -> None:
         self.llamadas = 0
 
-    def error(self, mensaje: str) -> None:
+    def error(self, mensaje: str, **kwargs: object) -> None:
         self.llamadas += 1
         raise ValueError("toast_error")
 

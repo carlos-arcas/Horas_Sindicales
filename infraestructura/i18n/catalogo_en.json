@@ -80,5 +80,12 @@
   "ui.solicitudes.operacion_completada": "Operation completed",
   "ui.solicitudes.pendiente_actualizada": "Pending request updated",
   "ui.solicitudes.pdf_path_obligatorio": "pdf_path is required when generar_pdf=True",
-  "ui.historico.eliminar_boton": "Delete ({n})"
+  "ui.historico.eliminar_boton": "Delete ({n})",
+  "ui.toast.cerrar": "Close",
+  "ui.error_details.toast_title": "Error",
+  "ui.error_details.view_details": "View details",
+  "ui.error_details.title": "Error details",
+  "ui.error_details.incident_value": "Incident ID: {incident_id}",
+  "ui.error_details.logs_path": "Logs path: {logs_path}",
+  "ui.error_details.open_logs": "Open logs"
 }

@@ -80,5 +80,12 @@
   "ui.solicitudes.operacion_completada": "Operación completada",
   "ui.solicitudes.pendiente_actualizada": "Pendiente actualizada",
   "ui.solicitudes.pdf_path_obligatorio": "pdf_path es obligatorio cuando generar_pdf=True",
-  "ui.historico.eliminar_boton": "Eliminar ({n})"
+  "ui.historico.eliminar_boton": "Eliminar ({n})",
+  "ui.toast.cerrar": "Cerrar",
+  "ui.error_details.toast_title": "Error",
+  "ui.error_details.view_details": "Ver detalles",
+  "ui.error_details.title": "Detalles del error",
+  "ui.error_details.incident_value": "ID de incidente: {incident_id}",
+  "ui.error_details.logs_path": "Ruta de logs: {logs_path}",
+  "ui.error_details.open_logs": "Abrir logs"
 }
