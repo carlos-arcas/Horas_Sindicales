@@ -92,6 +92,14 @@ class SolicitudRepository(Protocol):
         *,
         excluir_solicitud_id: int | None = None,
     ) -> ConflictoSolicitud | None:
+        """Detecta conflicto SOLO contra solicitudes pendientes (no confirmadas/histórico).
+
+        Alcance funcional esperado para el flujo "Añadir pendiente":
+        - compara dentro de la misma persona y misma fecha pedida,
+        - ignora solicitudes soft-deleted,
+        - ignora solicitudes confirmadas/histórico (generated=1),
+        - devuelve conflicto por DUPLICADO exacto o SOLAPE real.
+        """
         ...
 
     def create(self, solicitud: Solicitud) -> Solicitud:

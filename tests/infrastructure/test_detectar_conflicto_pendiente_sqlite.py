@@ -111,3 +111,49 @@ def test_excluye_soft_deleted(solicitud_repo, persona_id: int) -> None:
     conflicto = solicitud_repo.detectar_conflicto_pendiente(persona_id, "2026-05-14", 9 * 60, 10 * 60, False)
 
     assert conflicto is None
+
+
+def test_no_conflicto_fecha_distinta(solicitud_repo, persona_id: int) -> None:
+    _crear_solicitud(
+        solicitud_repo,
+        persona_id=persona_id,
+        fecha="2026-03-03",
+        desde_min=9 * 60,
+        hasta_min=17 * 60,
+        completo=False,
+    )
+
+    conflicto = solicitud_repo.detectar_conflicto_pendiente(persona_id, "2026-07-17", 9 * 60, 17 * 60, False)
+
+    assert conflicto is None
+
+
+def test_no_conflicto_tramos_separados_misma_fecha(solicitud_repo, persona_id: int) -> None:
+    _crear_solicitud(
+        solicitud_repo,
+        persona_id=persona_id,
+        fecha="2026-07-17",
+        desde_min=9 * 60,
+        hasta_min=10 * 60,
+        completo=False,
+    )
+
+    conflicto = solicitud_repo.detectar_conflicto_pendiente(persona_id, "2026-07-17", 10 * 60, 11 * 60, False)
+
+    assert conflicto is None
+
+
+def test_no_conflicto_si_registro_existente_esta_confirmado(solicitud_repo, persona_id: int) -> None:
+    existente = _crear_solicitud(
+        solicitud_repo,
+        persona_id=persona_id,
+        fecha="2026-07-17",
+        desde_min=9 * 60,
+        hasta_min=17 * 60,
+        completo=False,
+    )
+    solicitud_repo.mark_generated(int(existente.id or 0), True)
+
+    conflicto = solicitud_repo.detectar_conflicto_pendiente(persona_id, "2026-07-17", 9 * 60, 17 * 60, False)
+
+    assert conflicto is None
