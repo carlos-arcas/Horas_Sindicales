@@ -664,27 +664,11 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         return False
 
     def _resolve_backend_conflict(self, persona_id: int, solicitud: object) -> bool:
-        logger.warning(
-            "backend_conflict_blocked",
+        logger.debug(
+            "backend_conflict_check_passthrough",
             extra={"persona_id": persona_id, "solicitud_type": type(solicitud).__name__},
         )
-        notifier = getattr(self, "notifications", None)
-        notify_validation_error = getattr(notifier, "notify_validation_error", None)
-        if callable(notify_validation_error):
-            notify_validation_error(
-                what=copy_text("ui.validacion.conflicto"),
-                why=copy_text("solicitudes.validation_conflict"),
-                how=copy_text("ui.validacion.corrige_dato"),
-            )
-            return False
-
-        toast_warning = getattr(getattr(self, "toast", None), "warning", None)
-        if callable(toast_warning):
-            toast_warning(
-                copy_text("solicitudes.validation_conflict"),
-                title=copy_text("ui.validacion.conflicto"),
-            )
-        return False
+        return True
 
     def _restaurar_contexto_guardado(self) -> None:
         return acciones_personas.restaurar_contexto_guardado(self)

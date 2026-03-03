@@ -52,11 +52,33 @@ class SolicitudesController:
 
     def _handle_duplicate(self, solicitud: SolicitudDTO, pendiente_en_edicion: SolicitudDTO | None) -> bool:
         w = self.window
+        logger.info(
+            "buscar_conflicto_pendiente_start",
+            extra={
+                "persona_id": solicitud.persona_id,
+                "fecha_pedida": solicitud.fecha_pedida,
+                "desde": solicitud.desde,
+                "hasta": solicitud.hasta,
+                "completo": solicitud.completo,
+                "pendiente_edicion_id": getattr(pendiente_en_edicion, "id", None),
+            },
+        )
         conflicto = w._solicitud_use_cases.buscar_conflicto_pendiente(
             solicitud,
             excluir_solicitud_id=getattr(pendiente_en_edicion, "id", None),
         )
         if conflicto is not None:
+            logger.info(
+                "buscar_conflicto_pendiente_detectado",
+                extra={
+                    "tipo": getattr(conflicto, "tipo", None),
+                    "id_existente": getattr(conflicto, "id_existente", None),
+                    "fecha": getattr(conflicto, "fecha", None),
+                    "desde": getattr(conflicto, "desde", None),
+                    "hasta": getattr(conflicto, "hasta", None),
+                    "completo": getattr(conflicto, "completo", None),
+                },
+            )
             return self._handle_conflict_detected(conflicto)
         return True
 
@@ -150,6 +172,10 @@ class SolicitudesController:
         )
 
         if not w._resolve_backend_conflict(solicitud.persona_id, solicitud):
+            logger.info(
+                "backend_conflict_abort",
+                extra={"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
+            )
             return
 
         try:
@@ -174,12 +200,23 @@ class SolicitudesController:
                         pendiente_en_edicion.id,
                         correlation_id=operation.correlation_id,
                     )
+                logger.info(
+                    "persist_start",
+                    extra={"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
+                )
                 resultado = w._solicitud_use_cases.crear_resultado(
                     solicitud,
                     correlation_id=operation.correlation_id,
                     contexto=operation_ctx,
                 )
                 if not resultado.success:
+                    logger.warning(
+                        "crear_resultado_failed",
+                        extra={
+                            "reason_code": getattr(resultado, "reason_code", None),
+                            "errores": list(getattr(resultado, "errores", []) or []),
+                        },
+                    )
                     raise BusinessRuleError(
                         resultado.errores[0] if resultado.errores else self._copy("ui.solicitudes.no_pudo_guardar")
                     )
