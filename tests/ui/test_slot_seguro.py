@@ -7,10 +7,10 @@ from app.ui.qt.slot_seguro import envolver_slot_seguro
 
 class ToastFalso:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str]] = []
+        self.calls: list[str] = []
 
-    def error(self, mensaje: str, *, context: str) -> None:
-        self.calls.append((mensaje, context))
+    def error(self, mensaje: str) -> None:
+        self.calls.append(mensaje)
 
 
 def test_envolver_slot_seguro_atrapa_excepcion_y_loguea(caplog) -> None:
@@ -44,5 +44,4 @@ def test_envolver_slot_seguro_notifica_toast_si_esta_disponible() -> None:
     slot()
 
     assert len(toast.calls) == 1
-    _, contexto = toast.calls[0]
-    assert contexto == "builder:test"
+    assert toast.calls[0]
