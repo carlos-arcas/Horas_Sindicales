@@ -12,8 +12,10 @@ METODOS_LOGGER = {"debug", "info", "warning", "error", "exception", "critical", 
 PATRON_CLAVE_I18N = r"^[a-z0-9_]+(\.[a-z0-9_]+)+$"
 PATRONES_TECNICOS_DEFAULT = (r"^%[YmdHMS:\-_/ ]+$", r"^(utf-8|ascii|latin-1)$")
 PATRON_IDENTIFICADOR_SIMPLE = r"^[a-zA-Z_][a-zA-Z0-9_]*$"
-PATRON_SOLO_SIMBOLOS_COMUNES = r"^[-\.:,]+$"
+PATRON_SOLO_SIMBOLOS_COMUNES = r"^[-\.:,/\\()\[\]{}<>|_]+$"
 PATRON_COLOR_HEX = r"^#[0-9a-fA-F]{6}$"
+PATRON_FORMATO_STRFTIME = r"^(?:%[A-Za-z])(?:[A-Za-z0-9\-_/.:\s%])*$"
+PATRON_PLACEHOLDER_HORA = r"^(?:HH|hh):(?:MM|mm)$"
 
 
 @dataclass(frozen=True)
@@ -246,20 +248,51 @@ def _coincide_alguno(texto: str, patrones: tuple[str, ...]) -> bool:
 
 
 def es_literal_visible(texto: str, config: ConfigCheck) -> bool:
+    if not es_texto_visible_ui(texto):
+        return False
+
+    texto_limpio = texto.strip()
+    if _coincide_alguno(texto_limpio, config.patrones_tecnicos_permitidos):
+        return False
+    return True
+
+
+def es_texto_visible_ui(texto: str) -> bool:
+    """Determina si un string representa texto visible para UI.
+
+    Se ignoran placeholders técnicos de hora (ej. ``HH:MM``) para evitar ruido,
+    ya que suelen ser formatos de entrada y no copy final para usuario.
+    """
+
     texto_limpio = texto.strip()
     if not texto_limpio:
         return False
+
     if re.fullmatch(PATRON_IDENTIFICADOR_SIMPLE, texto_limpio):
         return False
-    if re.fullmatch(config.patron_clave_i18n, texto_limpio):
+    if re.fullmatch(PATRON_CLAVE_I18N, texto_limpio):
         return False
     if len(texto_limpio) <= 3 and re.fullmatch(PATRON_SOLO_SIMBOLOS_COMUNES, texto_limpio):
         return False
     if re.fullmatch(PATRON_COLOR_HEX, texto_limpio):
         return False
-    if _coincide_alguno(texto_limpio, config.patrones_tecnicos_permitidos):
+    if re.fullmatch(PATRON_FORMATO_STRFTIME, texto_limpio):
         return False
-    return True
+    if re.fullmatch(PATRON_PLACEHOLDER_HORA, texto_limpio):
+        return False
+
+    if len(texto_limpio) >= 6 and " " in texto_limpio:
+        return True
+    if (
+        len(texto_limpio) >= 6
+        and re.search(r"[A-Za-zÁÉÍÓÚáéíóúÑñ]", texto_limpio)
+        and re.search(r"[\.,;:¡!¿?]", texto_limpio)
+    ):
+        return True
+    if len(texto_limpio) >= 4 and re.search(r"[^A-Za-z0-9_\-\.:,/\\()\[\]{}<>|\s]", texto_limpio):
+        return True
+
+    return False
 
 
 def _recortar_texto(texto: str, maximo: int) -> str:

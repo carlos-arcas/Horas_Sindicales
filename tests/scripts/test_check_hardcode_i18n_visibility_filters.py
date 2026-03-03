@@ -51,8 +51,7 @@ def test_simbolo_corto_no_visible_se_ignora(tmp_path: Path) -> None:
     assert hallazgos == []
 
 
-def test_hh_mm_se_trata_como_visible(tmp_path: Path) -> None:
+def test_hh_mm_se_trata_como_tecnico_e_ignorado(tmp_path: Path) -> None:
     hallazgos = _hallazgos_para_literal(tmp_path, "HH:MM")
 
-    assert len(hallazgos) == 1
-    assert hallazgos[0].texto == "HH:MM"
+    assert hallazgos == []
