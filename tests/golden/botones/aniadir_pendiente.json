@@ -1,0 +1,17 @@
+[
+  {
+    "data": {
+      "nombre": "Añadir pendiente"
+    },
+    "tipo": "click_boton"
+  },
+  {
+    "data": {
+      "nombre": "on_add_pendiente",
+      "payload_minimo": {
+        "origen": "solicitudes_controller"
+      }
+    },
+    "tipo": "use_case_llamado"
+  }
+]
