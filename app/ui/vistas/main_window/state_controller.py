@@ -320,8 +320,6 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._sync_controller.update_sync_button_state()
         self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
-        self._post_init_load()
-        QTimer.singleShot(0, self._warmup_sync_client)
 
     def cambiar_idioma(self, idioma: str) -> None:
         cambiar_idioma_interfaz(idioma)
@@ -373,6 +371,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
             refresh_historico=lambda: self._refresh_historico(force=True),
             emit_log=logger.info,
         )
+        QTimer.singleShot(0, self._warmup_sync_client)
 
     def _init_refresh(self) -> None:
         self._post_init_load()
