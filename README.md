@@ -74,3 +74,13 @@ python scripts/migrar_ui_strings_baseline.py
 El script actualiza:
 - `configuracion/i18n/es.json`
 - `configuracion/i18n/_legacy_map.json`
+
+## Endpoints de reportes y moderación (backoffice)
+
+> Módulo técnico orientado a integración API. Implementa contratos para:
+>
+> - `POST /api/reportes/` (crear reporte idempotente).
+> - `GET /api/admin/reportes/` (listado con filtros + paginación).
+> - `POST /api/admin/reportes/<reporte_id>/resolver/` (descartar u ocultar recurso).
+>
+> En este repositorio se entrega la base de dominio/aplicación/infraestructura SQLite para soportar estos flujos y su auditoría de seguridad.

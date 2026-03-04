@@ -58,3 +58,15 @@ El script de tests ejecuta cobertura con gate mínimo:
 pytest --cov=. --cov-report=term-missing --cov-fail-under=85
 ```
 
+
+## Eventos de logging para reportes
+
+Canal operativo/app:
+
+- `reportes.crear` (`ok/fail`, `reason_code` sin PII)
+- `admin.reportes.listar` (`ok/fail`)
+- `admin.reportes.resolver` (`ok/fail`)
+
+Canal auditoría seguridad persistida:
+
+- `admin_reporte_resuelto` con `reason_code` (`descartar` u `ocultar_recurso`).
