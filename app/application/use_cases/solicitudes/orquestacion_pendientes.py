@@ -36,7 +36,7 @@ def listar_pendientes_huerfanas(repo: SolicitudRepository, *, solicitud_to_dto) 
     return [solicitud_to_dto(solicitud) for solicitud in repo.list_pendientes_huerfanas()]
 
 
-def resolver_dto_y_persona_para_creacion(dto: SolicitudDTO, *, persona_repo, validar_solicitud_dto, validar_conflicto_dia, buscar_duplicado) -> tuple[SolicitudDTO, Persona]:
+def resolver_peticion_y_persona_para_creacion(dto: SolicitudDTO, *, persona_repo, validar_solicitud_dto, validar_conflicto_dia, buscar_duplicado) -> tuple[SolicitudDTO, Persona]:
     mensaje_error = mensaje_persona_invalida(dto.persona_id)
     if mensaje_error is not None:
         raise BusinessRuleError(mensaje_error)

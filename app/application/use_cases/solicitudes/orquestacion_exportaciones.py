@@ -7,7 +7,7 @@ from app.application.dto import PeriodoFiltro, SolicitudDTO
 from app.application.operaciones.exportacion_pdf_historico_operacion import (
     ExportacionPdfHistoricoOperacion,
 )
-from app.core.metrics import metrics_registry
+from app.core import metrics as metrics_module
 from app.core.observability import log_event
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError
@@ -64,8 +64,8 @@ def generar_pdf_historico(
         personas_por_id=personas_por_id,
         intro_text=pdf_intro_text(pdf_options),
         logo_path=pdf_options.pdf_logo_path if pdf_options else None,
-        incrementar_metrica=metrics_registry.incrementar,
-        registrar_tiempo=metrics_registry.registrar_tiempo,
+        incrementar_metrica=metrics_module.metrics_registry.incrementar,
+        registrar_tiempo=metrics_module.metrics_registry.registrar_tiempo,
     )
     if correlation_id:
         log_event(logger, "generar_pdf_historico_succeeded", {"path": str(pdf_path)}, correlation_id)
@@ -111,8 +111,8 @@ def exportar_historico_pdf(
         personas_por_id=personas_por_id,
         intro_text=pdf_intro_text(pdf_options),
         logo_path=pdf_options.pdf_logo_path if pdf_options else None,
-        incrementar_metrica=metrics_registry.incrementar,
-        registrar_tiempo=metrics_registry.registrar_tiempo,
+        incrementar_metrica=metrics_module.metrics_registry.incrementar,
+        registrar_tiempo=metrics_module.metrics_registry.registrar_tiempo,
     )
     if correlation_id:
         log_event(logger, "exportar_historico_pdf_succeeded", {"path": str(pdf_path)}, correlation_id)

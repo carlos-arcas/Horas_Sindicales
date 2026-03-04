@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from app.ui.vistas.confirmacion_presenter_pendientes import (
+from app.ui.vistas.confirmacion_presentador_pendientes import (
     calcular_filtro_delegada_para_confirmacion,
     contar_pendientes_restantes,
     filtrar_pendientes_restantes,

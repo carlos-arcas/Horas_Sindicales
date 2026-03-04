@@ -19,8 +19,8 @@ from app.application.conflicts_service import ConflictsService, ConflictRecord
 from app.ui.conflict_guidance import build_what_happened, build_why_happened
 
 from .adaptador_i18n import t
-from .contratos import ViewModelConflictoFila
-from .presenter_conflictos import (
+from .contratos import ModeloVistaConflictoFila
+from .presentador_conflictos import (
     construir_filas_conflicto,
     construir_resumen_panel_inicial,
     construir_resumen_resolucion,
@@ -28,8 +28,8 @@ from .presenter_conflictos import (
 )
 
 
-class ConflictsTableModel(QAbstractTableModel):
-    def __init__(self, rows: list[ViewModelConflictoFila]) -> None:
+class ModeloTablaConflictos(QAbstractTableModel):
+    def __init__(self, rows: list[ModeloVistaConflictoFila]) -> None:
         super().__init__()
         self._rows = rows
         self._headers = [
@@ -73,12 +73,12 @@ class ConflictsTableModel(QAbstractTableModel):
             return self._rows[row].record
         return None
 
-    def set_rows(self, rows: list[ViewModelConflictoFila]) -> None:
+    def set_rows(self, rows: list[ModeloVistaConflictoFila]) -> None:
         self.beginResetModel()
         self._rows = rows
         self.endResetModel()
 
-    def rows(self) -> list[ViewModelConflictoFila]:
+    def rows(self) -> list[ModeloVistaConflictoFila]:
         return list(self._rows)
 
 
@@ -88,7 +88,7 @@ class ConflictsDialog(QDialog):
         self._conflicts_service = conflicts_service
         self._manual_review_ids: set[int] = set()
         self._resolved_count = 0
-        self._table_model = ConflictsTableModel([])
+        self._table_model = ModeloTablaConflictos([])
         self.setWindowTitle(t("ui.conflictos.titulo_resolver"))
         self._build_ui()
         self._load_conflicts()
@@ -216,10 +216,10 @@ class ConflictsDialog(QDialog):
         self.local_view.setPlainText(build_what_happened(conflict))
         self.remote_view.setPlainText(build_why_happened(conflict))
 
-    def _refresh_panel_summary(self, rows: list[ViewModelConflictoFila]) -> None:
+    def _refresh_panel_summary(self, rows: list[ModeloVistaConflictoFila]) -> None:
         self.summary_label.setText(construir_resumen_panel_inicial(rows, t))
 
-    def _refresh_resolution_summary(self, rows: list[ViewModelConflictoFila]) -> None:
+    def _refresh_resolution_summary(self, rows: list[ModeloVistaConflictoFila]) -> None:
         resumen = construir_resumen_resolucion(rows, self._manual_review_ids, self._resolved_count)
         self.resolution_summary_label.setText(
             t("ui.conflictos.resumen_conflictos_resueltos").format(
@@ -229,7 +229,7 @@ class ConflictsDialog(QDialog):
             )
         )
 
-    def _current_rows(self) -> list[ViewModelConflictoFila]:
+    def _current_rows(self) -> list[ModeloVistaConflictoFila]:
         return self._table_model.rows()
 
     def _selected_conflict(self) -> ConflictRecord | None:

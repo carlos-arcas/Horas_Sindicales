@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 from app.ui.copy_catalog import copy_text
 from app.ui.vistas.builders.sync_panel.bindings_senales import conectar_evento_sync_panel
 from app.ui.vistas.builders.sync_panel.builders_diagnostico import construir_seccion_diagnostico
-from app.ui.vistas.builders.sync_panel.helpers_qt import crear_boton_accion, crear_label_secundario
+from app.ui.vistas.builders.sync_panel.ayudantes_qt import crear_boton_accion, crear_label_secundario
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow

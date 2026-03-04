@@ -6,7 +6,7 @@ from app.application.conflicts_service import ConflictRecord
 
 
 @dataclass(frozen=True)
-class ViewModelConflictoFila:
+class ModeloVistaConflictoFila:
     record: ConflictRecord
     tipo: str
     fecha: str
@@ -16,12 +16,12 @@ class ViewModelConflictoFila:
 
 
 @dataclass(frozen=True)
-class ViewModelResumenPanel:
+class ModeloVistaResumenPanel:
     texto: str
 
 
 @dataclass(frozen=True)
-class ViewModelResumenResolucion:
+class ModeloVistaResumenResolucion:
     resueltos: int
     pendientes: int
     revision_manual: int

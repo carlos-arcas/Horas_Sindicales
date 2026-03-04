@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.application.conflicts_service import ConflictRecord
-from app.ui.conflicts_dialog.presenter_conflictos import (
+from app.ui.conflicts_dialog.presentador_conflictos import (
     construir_fila_conflicto,
     construir_filas_conflicto,
     construir_resumen_panel_inicial,

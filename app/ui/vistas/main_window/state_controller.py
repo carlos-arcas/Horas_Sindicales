@@ -7,6 +7,7 @@ from pathlib import Path
 
 from app.ui.qt_compat import (
     QLabel,
+    QDate,
     QMainWindow,
     QProgressBar,
     QSettings,
@@ -283,6 +284,89 @@ class MainWindow(
         self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
         self._post_init_ui()
+
+
+    def _apply_sync_report(self, report: object) -> None: return super()._apply_sync_report(report)
+    def _show_sync_details_dialog(self) -> object: return super()._show_sync_details_dialog()
+    def _on_sync_finished(self, report: object) -> None: return super()._on_sync_finished(report)
+    def _on_sync_failed(self, reason: object) -> None: return super()._on_sync_failed(reason)
+    def _on_sync(self) -> None: return super()._on_sync()
+    def _on_simulate_sync(self) -> None: return super()._on_simulate_sync()
+    def _on_confirm_sync(self) -> None: return super()._on_confirm_sync()
+
+    def _apply_historico_text_filter(self) -> None: return super()._apply_historico_text_filter()
+    def _historico_period_filter_state(self) -> tuple[str | None, str | None]: return super()._historico_period_filter_state()
+    def _update_historico_empty_state(self) -> None: return super()._update_historico_empty_state()
+    def _on_historico_escape(self) -> None: return super()._on_historico_escape()
+    def _selected_historico(self) -> list[SolicitudDTO]: return super()._selected_historico()
+    def _selected_historico_solicitudes(self) -> list[SolicitudDTO]: return super()._selected_historico_solicitudes()
+    def _on_historico_select_all_visible_toggled(self, checked: object) -> None: return super()._on_historico_select_all_visible_toggled(checked)
+    def _sync_historico_select_all_visible_state(self) -> None: return super()._sync_historico_select_all_visible_state()
+    def _notify_historico_filter_if_hidden(self) -> None: return super()._notify_historico_filter_if_hidden()
+    def _on_export_historico_pdf(self) -> None: return super()._on_export_historico_pdf()
+    def _on_eliminar(self) -> None: return super()._on_eliminar()
+
+    def _selected_pending_row_indexes(self) -> list[int]: return super()._selected_pending_row_indexes()
+    def _selected_pending_for_editing(self) -> SolicitudDTO | None: return super()._selected_pending_for_editing()
+    def _find_pending_row_by_id(self, solicitud_id: int | None) -> int | None: return super()._find_pending_row_by_id(solicitud_id)
+    def _focus_pending_row(self, row: int) -> None: return super()._focus_pending_row(row)
+    def _focus_pending_by_id(self, solicitud_id: int | None) -> bool: return super()._focus_pending_by_id(solicitud_id)
+    def _on_review_hidden_pendientes(self) -> None: return super()._on_review_hidden_pendientes()
+    def _on_remove_huerfana(self) -> None: return super()._on_remove_huerfana()
+    def _clear_pendientes(self) -> None: return super()._clear_pendientes()
+    def _update_pending_totals(self) -> None: return super()._update_pending_totals()
+    def _refresh_pending_conflicts(self) -> None: return super()._refresh_pending_conflicts()
+    def _refresh_pending_ui_state(self) -> None: return super()._refresh_pending_ui_state()
+
+    def _is_form_dirty(self) -> bool: return super()._is_form_dirty()
+    def _confirmar_cambio_delegada(self, nueva_persona: PersonaDTO) -> bool: return super()._confirmar_cambio_delegada(nueva_persona)
+    def _save_current_draft(self) -> None: return super()._save_current_draft()
+    def _restore_draft_for_persona(self, persona_id: int) -> None: return super()._restore_draft_for_persona(persona_id)
+    def _load_personas(self, select_id: int | None = None) -> None: return super()._load_personas(select_id)
+    def _current_persona(self) -> PersonaDTO | None: return super()._current_persona()
+    def _on_persona_changed(self) -> None: return super()._on_persona_changed()
+    def _on_add_persona(self) -> None: return super()._on_add_persona()
+    def _on_edit_persona(self) -> None: return super()._on_edit_persona()
+    def _on_delete_persona(self) -> None: return super()._on_delete_persona()
+    def _sync_config_persona_actions(self) -> None: return super()._sync_config_persona_actions()
+    def _selected_config_persona(self) -> PersonaDTO | None: return super()._selected_config_persona()
+    def _on_config_delegada_changed(self, *_args: object) -> None: return super()._on_config_delegada_changed(*_args)
+    def _restaurar_contexto_guardado(self) -> None: return super()._restaurar_contexto_guardado()
+
+    def _bind_preventive_validation_events(self) -> None: return super()._bind_preventive_validation_events()
+    def _mark_field_touched(self, field_name: str) -> None: return super()._mark_field_touched(field_name)
+    def _schedule_preventive_validation(self, debounce_ms: int | None = None) -> None: return super()._schedule_preventive_validation(debounce_ms)
+    def _run_preventive_validation(self) -> None: return super()._run_preventive_validation()
+    def _collect_base_preventive_errors(self) -> list[str]: return super()._collect_base_preventive_errors()
+    def _collect_preventive_validation(self) -> tuple[dict[str, str], dict[str, str], list[SolicitudDTO], object]: return super()._collect_preventive_validation()
+    def _collect_preventive_business_rules(self) -> tuple[dict[str, str], dict[str, str]]: return super()._collect_preventive_business_rules()
+    def _collect_pending_duplicates_warning(self) -> tuple[str | None, list[SolicitudDTO]]: return super()._collect_pending_duplicates_warning()
+    def _on_go_to_existing_duplicate(self) -> None: return super()._on_go_to_existing_duplicate()
+    def _render_preventive_validation(self, blocking: dict[str, str], warnings: dict[str, str], duplicate_target: SolicitudDTO | None) -> None: return super()._render_preventive_validation(blocking, warnings, duplicate_target)
+    def _run_preconfirm_checks(self) -> bool: return super()._run_preconfirm_checks()
+
+    def _on_fecha_changed(self, qdate: QDate) -> None:
+        self._fecha_seleccionada = qdate
+        self._update_solicitud_preview()
+        return super()._on_fecha_changed(qdate)
+
+    def _on_help_toggle_changed(self, checked: object) -> None: return super()._on_help_toggle_changed(checked)
+    def _on_completo_changed(self, checked: object = False) -> None: return super()._on_completo_changed(checked)
+    def _on_add_pendiente(self) -> None: return super()._on_add_pendiente()
+    def _on_confirmar(self) -> None: return super()._on_confirmar()
+    def _update_solicitud_preview(self) -> None: return super()._update_solicitud_preview()
+    def _apply_historico_default_range(self) -> None: return super()._apply_historico_default_range()
+    def _status_to_label(self, status: str) -> str: return super()._status_to_label(status)
+    def _normalize_input_heights(self) -> None: return super()._normalize_input_heights()
+    def _update_responsive_columns(self) -> None: return super()._update_responsive_columns()
+    def _configure_time_placeholders(self) -> None: return super()._configure_time_placeholders()
+    def _configure_operativa_focus_order(self) -> None: return super()._configure_operativa_focus_order()
+    def _configure_historico_focus_order(self) -> None: return super()._configure_historico_focus_order()
+    def _on_historico_selection_changed(self, *_args: object) -> None: return super()._on_historico_selection_changed(*_args)
+    def _on_open_historico_detalle(self) -> None: return super()._on_open_historico_detalle()
+    def _on_generar_pdf_historico(self) -> None: return super()._on_generar_pdf_historico()
+    def _on_open_saldos_modal(self) -> None: return super()._on_open_saldos_modal()
+    def _on_main_tab_changed(self, index: int) -> None: return super()._on_main_tab_changed(index)
 
 
 registrar_state_bindings(MainWindow)

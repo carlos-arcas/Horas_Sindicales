@@ -3,15 +3,15 @@ from __future__ import annotations
 from app.application.conflicts_service import ConflictRecord
 from app.ui.conflict_guidance import classify_conflict, delegada_name, recommended_action
 
-from .contratos import ViewModelConflictoFila, ViewModelResumenResolucion
+from .contratos import ModeloVistaConflictoFila, ModeloVistaResumenResolucion
 
 
-def construir_filas_conflicto(conflicts: list[ConflictRecord]) -> list[ViewModelConflictoFila]:
+def construir_filas_conflicto(conflicts: list[ConflictRecord]) -> list[ModeloVistaConflictoFila]:
     return [construir_fila_conflicto(conflict) for conflict in conflicts]
 
 
-def construir_fila_conflicto(conflict: ConflictRecord) -> ViewModelConflictoFila:
-    return ViewModelConflictoFila(
+def construir_fila_conflicto(conflict: ConflictRecord) -> ModeloVistaConflictoFila:
+    return ModeloVistaConflictoFila(
         record=conflict,
         tipo=formatear_tipo(conflict.entity_type),
         fecha=extraer_fecha(conflict.local_snapshot, conflict.remote_snapshot),
@@ -57,7 +57,7 @@ def extraer_campo(conflict: ConflictRecord) -> str:
     return ""
 
 
-def construir_resumen_panel_inicial(filas: list[ViewModelConflictoFila], t) -> str:
+def construir_resumen_panel_inicial(filas: list[ModeloVistaConflictoFila], t) -> str:
     if not filas:
         return t("ui.conflictos.sin_conflictos")
     first = filas[0].record
@@ -72,13 +72,13 @@ def construir_resumen_panel_inicial(filas: list[ViewModelConflictoFila], t) -> s
 
 
 def construir_resumen_resolucion(
-    filas: list[ViewModelConflictoFila],
+    filas: list[ModeloVistaConflictoFila],
     ids_revision_manual: set[int],
     total_resueltos: int,
-) -> ViewModelResumenResolucion:
+) -> ModeloVistaResumenResolucion:
     pending_ids = {fila.record.id for fila in filas}
     manual_pending = len(ids_revision_manual & pending_ids)
-    return ViewModelResumenResolucion(
+    return ModeloVistaResumenResolucion(
         resueltos=total_resueltos,
         pendientes=len(filas),
         revision_manual=manual_pending,

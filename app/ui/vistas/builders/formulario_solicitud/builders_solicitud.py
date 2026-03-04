@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from app.ui.copy_catalog import copy_text
 from app.ui.vistas.builders.formulario_solicitud.bindings_senales import conectar_accion
 from app.ui.vistas.builders.formulario_solicitud.contratos import TarjetaSeccion
-from app.ui.vistas.builders.formulario_solicitud.helpers_qt import (
+from app.ui.vistas.builders.formulario_solicitud.ayudantes_qt import (
     configurar_altura_notas_compacta,
     crear_contenedor_hora,
     crear_placeholder_hora,

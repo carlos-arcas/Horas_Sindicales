@@ -6,8 +6,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QToolButton, QTreeWidget, QVBoxLayout, QWidget
 
 from app.ui.copy_catalog import copy_text
-from app.ui.vistas.builders.sync_panel.helpers_puros import claves_columnas_salud
-from app.ui.vistas.builders.sync_panel.helpers_qt import crear_boton_accion, crear_label_secundario
+from app.ui.vistas.builders.sync_panel.ayudantes_puros import claves_columnas_salud
+from app.ui.vistas.builders.sync_panel.ayudantes_qt import crear_boton_accion, crear_label_secundario
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow

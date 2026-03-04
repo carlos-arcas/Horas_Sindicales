@@ -1,4 +1,4 @@
-from app.ui.vistas.builders.sync_panel.helpers_puros import claves_columnas_salud
+from app.ui.vistas.builders.sync_panel.ayudantes_puros import claves_columnas_salud
 
 
 def test_claves_columnas_salud_en_orden_estable() -> None:

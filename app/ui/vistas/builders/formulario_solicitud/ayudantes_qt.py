@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QWidget
 
 from app.ui.copy_catalog import copy_text
-from app.ui.vistas.builders.formulario_solicitud.helpers_puros import calcular_altura_compacta_texto
+from app.ui.vistas.builders.formulario_solicitud.ayudantes_puros import calcular_altura_compacta_texto
 
 
 def crear_contenedor_hora(label_key: str, time_edit: object) -> QWidget:
