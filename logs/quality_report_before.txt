@@ -2,7 +2,7 @@
 
 ## Top 20 archivos por LOC
 01. app/ui/vistas/main_window/state_controller.py -> 843 LOC
-02. app/application/use_cases/solicitudes/use_case.py -> 828 LOC
+02. app/application/use_cases/solicitudes/use_case.py -> 718 LOC
 03. app/infrastructure/repos_sqlite.py -> 599 LOC
 04. app/ui/sync_reporting.py -> 593 LOC
 05. app/ui/vistas/confirmacion_actions.py -> 562 LOC
@@ -25,7 +25,7 @@
 ## Top 20 por complejidad
 - Nota: radon no disponible: se muestra fallback por LOC (aproximación simple de complejidad).
 01. app/ui/vistas/main_window/state_controller.py -> 843
-02. app/application/use_cases/solicitudes/use_case.py -> 828
+02. app/application/use_cases/solicitudes/use_case.py -> 718
 03. app/infrastructure/repos_sqlite.py -> 599
 04. app/ui/sync_reporting.py -> 593
 05. app/ui/vistas/confirmacion_actions.py -> 562
