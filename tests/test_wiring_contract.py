@@ -4,13 +4,11 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
+from tests.helpers_main_window_ast import metodos_main_window_directos, metodos_main_window_mixins
+
 _RUTAS_WIRING = (
     Path("app/ui/vistas/builders"),
     Path("app/ui/vistas/main_window"),
-)
-_CLASES_MAIN_WINDOW = (
-    (Path("app/ui/vistas/main_window/state_controller.py"), "MainWindow"),
-    (Path("app/ui/vistas/main_window_health_mixin.py"), "MainWindowHealthMixin"),
 )
 _ARCHIVO_BINDINGS = Path("app/ui/vistas/main_window/state_bindings.py")
 _ARCHIVO_HISTORICO_ACTIONS = Path("app/ui/vistas/historico_actions.py")
@@ -118,23 +116,12 @@ def _firma_from_args(args: ast.arguments) -> FirmaFuncion:
     return FirmaFuncion(posicionables=posicionables, acepta_varargs=acepta_varargs)
 
 
-def _collect_class_methods(path: Path, class_name: str) -> dict[str, FirmaFuncion]:
-    tree = _parse_file(path)
-    methods: dict[str, FirmaFuncion] = {}
-    for node in tree.body:
-        if not isinstance(node, ast.ClassDef) or node.name != class_name:
-            continue
-        for item in node.body:
-            if isinstance(item, ast.FunctionDef):
-                methods[item.name] = _firma_from_args(item.args)
-    return methods
-
-
 def _collect_handlers_main_window() -> dict[str, FirmaFuncion]:
     handlers: dict[str, FirmaFuncion] = {}
-    for path, class_name in _CLASES_MAIN_WINDOW:
-        if path.exists():
-            handlers.update(_collect_class_methods(path, class_name))
+    for encontrado in metodos_main_window_mixins().values():
+        handlers[encontrado.nombre] = _firma_from_args(encontrado.nodo.args)
+    for encontrado in metodos_main_window_directos().values():
+        handlers[encontrado.nombre] = _firma_from_args(encontrado.nodo.args)
     return handlers
 
 
