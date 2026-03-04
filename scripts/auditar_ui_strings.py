@@ -28,20 +28,16 @@ def _iterar_archivos_ui(raiz: Path) -> list[Path]:
     return sorted(
         archivo
         for archivo in base.rglob("*.py")
-        if "tests" not in archivo.parts and archivo.name != "copy_catalog.py"
+        if "tests" not in archivo.parts and "copy_catalog" not in archivo.parts
     )
 
 
 def _extraer_copy_keys(raiz: Path) -> set[str]:
-    ruta = raiz / "app" / "ui" / "copy_catalog.py"
-    modulo = ast.parse(ruta.read_text(encoding="utf-8"), filename=ruta.as_posix())
-    claves: set[str] = set()
-    for node in ast.walk(modulo):
-        if isinstance(node, ast.Dict):
-            for key in node.keys:
-                if isinstance(key, ast.Constant) and isinstance(key.value, str):
-                    claves.add(key.value)
-    return claves
+    ruta = raiz / "app" / "ui" / "copy_catalog" / "catalogo.json"
+    data = json.loads(ruta.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return set()
+    return {str(clave) for clave in data.keys()}
 
 
 def _es_docstring(node: ast.Constant, parent: ast.AST | None) -> bool:

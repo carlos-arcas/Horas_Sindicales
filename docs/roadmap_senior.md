@@ -81,3 +81,16 @@
   - `app/ui/conflicts_dialog/contratos.py`
   - `app/ui/conflicts_dialog/adaptador_i18n.py`
 - Resultado: separación Qt/presenter puro con API pública estable (`from app.ui.conflicts_dialog import ConflictsDialog`).
+
+## 2026-03-04 — Refactor UI deuda copy_catalog
+- UI deuda: `app/ui/copy_catalog.py` **antes 469 LOC -> después 41 LOC** (fachada en `app/ui/copy_catalog/__init__.py`).
+- Módulos creados:
+  - `app/ui/copy_catalog/orquestacion_catalogo.py`
+  - `app/ui/copy_catalog/parseo_catalogo.py`
+  - `app/ui/copy_catalog/diff_catalogo.py`
+  - `app/ui/copy_catalog/storage_catalogo.py`
+  - `app/ui/copy_catalog/modelos.py`
+  - `app/ui/copy_catalog/catalogo.json`
+- Tests añadidos:
+  - `tests/application/test_copy_catalog_puros.py`
+- Resultado: catálogo i18n de UI mantenido con API pública (`copy_text`, `copy_keys`) y separación de parseo/diffs/storage en módulos puros testeables sin Qt.
