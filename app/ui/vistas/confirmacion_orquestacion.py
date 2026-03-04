@@ -21,6 +21,8 @@ from app.ui.vistas.confirmacion_presentador_pendientes import (
     seleccionar_creadas_por_ids,
 )
 
+# Evitamos imports de DTOs solo de tipado en runtime para no introducir
+# cargas/ciclos durante el arranque de la UI.
 if TYPE_CHECKING:
     from app.application.dto import PersonaDTO, SolicitudDTO
 
