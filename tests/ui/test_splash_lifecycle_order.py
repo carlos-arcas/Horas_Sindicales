@@ -64,10 +64,14 @@ class _CoordinatorFake(ui_main._CoordinadorArranqueConCierreDeterminista):
         self.i18n = SimpleNamespace(
             set_idioma=lambda _idioma: events.append("set_idioma")
         )
+        self._quit_on_last_window_closed = True
         self.app = SimpleNamespace(
             exit=lambda _code: events.append("app_exit"),
             processEvents=lambda: events.append("process_events"),
             setProperty=lambda *_: None,
+            quitOnLastWindowClosed=lambda: self._quit_on_last_window_closed,
+            setQuitOnLastWindowClosed=lambda value: setattr(self, "_quit_on_last_window_closed", value),
+            topLevelWidgets=lambda: [],
         )
         self.orquestador_factory = lambda _deps, _i18n: SimpleNamespace(
             resolver_onboarding=lambda: events.append("wizard") or True,
@@ -156,3 +160,41 @@ def test_stop_watchdog_en_main_thread_usa_singleshot_si_hay_qtimer(monkeypatch) 
     ui_main._stop_watchdog_en_main_thread(timer)
 
     assert eventos == ["single_shot", "watchdog_stop"]
+
+
+def test_on_finished_restaura_quit_on_last_window_closed(monkeypatch) -> None:
+    class _QTimerFake:
+        @staticmethod
+        def singleShot(_ms, callback):
+            callback()
+
+    monkeypatch.setitem(sys.modules, "app.ui.qt_compat", SimpleNamespace(QTimer=_QTimerFake))
+    monkeypatch.setitem(sys.modules, "PySide6.QtCore", SimpleNamespace(QTimer=_QTimerFake))
+
+    events: list[str] = []
+    stages: list[str] = []
+    monkeypatch.setattr(ui_main, "marcar_stage", stages.append)
+    monkeypatch.setattr(ui_main, "ReiniciarOnboarding", lambda _repo: object())
+
+    splash = FakeSplash(events=events)
+    timer = FakeTimer(events=events)
+    coord = _CoordinatorFake(splash=splash, timer=timer, events=events)
+    coord.desactivar_quit_on_last_window_closed_temporalmente()
+
+    deps_arranque = SimpleNamespace(
+        obtener_idioma_ui=SimpleNamespace(ejecutar=lambda: "es"),
+        obtener_estado_onboarding=SimpleNamespace(ejecutar=lambda: True),
+    )
+    payload = ResultadoArranque(
+        container=SimpleNamespace(
+            repositorio_preferencias=None, cargar_datos_demo_caso_uso=None
+        ),
+        deps_arranque=deps_arranque,
+        idioma="es",
+    )
+
+    coord.on_finished(payload)
+
+    assert "quit_on_last_window_closed_temporal_false" in stages
+    assert "quit_on_last_window_closed_restored" in stages
+    assert coord._quit_on_last_window_closed is True
