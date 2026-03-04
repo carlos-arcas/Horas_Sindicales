@@ -39,3 +39,12 @@
   - `app/ui/vistas/confirmacion_eventos_auditoria.py`
   - `app/ui/vistas/confirmacion_qt_adapter.py`
 - Resultado: `confirmacion_actions.py` queda como fachada fina con API pública estable y delegación a módulos por responsabilidad.
+
+## 2026-03-04 — Refactor UI deuda sync_reporting
+- UI deuda: `sync_reporting.py` **antes 593 LOC -> después 65 LOC**.
+- Módulos creados:
+  - `app/ui/sync_reporting_orquestacion.py` (casos de construcción de `SyncReport` y delegación de métricas).
+  - `app/ui/sync_reporting_formatters.py` (helpers puros de texto/i18n, markdown y fechas ISO).
+  - `app/ui/sync_reporting_storage.py` (persistencia/carga de reportes e historial en filesystem).
+  - `app/ui/sync_reporting_builders.py` (builders puros de warnings/errors/conflicts y entradas de simulación).
+- Resultado: `app/ui/sync_reporting.py` queda como fachada fina y mantiene API pública compatible.
