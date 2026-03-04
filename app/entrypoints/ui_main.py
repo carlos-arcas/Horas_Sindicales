@@ -64,6 +64,12 @@ def _stop_watchdog_en_main_thread(watchdog_timer) -> None:
 
 
 class _CoordinadorArranqueConCierreDeterminista:
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.startup_thread = self.thread
+        self.main_window = None
+        self.wizard = None
+
     def _detener_watchdog_idempotente(self) -> None:
         if not _es_objeto_qt_valido(self.watchdog_timer):
             return
@@ -75,10 +81,18 @@ class _CoordinadorArranqueConCierreDeterminista:
     def _cerrar_splash_idempotente(self) -> None:
         if self._splash_cerrado:
             return
-        self._splash_cerrado = True
         if not _es_objeto_qt_valido(self.splash):
+            self._splash_cerrado = True
             return
-        _cerrar_splash_seguro(self.splash)
+        splash = self.splash
+        safe_hide(splash)
+        if hasattr(splash, "deleteLater"):
+            safe_call(splash, "deleteLater")
+        self.splash = None
+        self._splash_cerrado = True
+        self.app._startup_splash_closed = True
+        marcar_stage("splash_closed")
+        self.app.processEvents()
 
     def on_finished(self, startup_payload: ResultadoArranque) -> None:
         marcar_stage("on_finished_enter")
@@ -96,15 +110,20 @@ class _CoordinadorArranqueConCierreDeterminista:
             )
             idioma = deps_arranque.obtener_idioma_ui.ejecutar()
             self.i18n.set_idioma(idioma)
+            self._cerrar_splash_idempotente()
             orquestador = self.orquestador_factory(deps_arranque, self.i18n)
+            if not deps_arranque.obtener_estado_onboarding.ejecutar():
+                marcar_stage("wizard_created")
+                marcar_stage("wizard_shown")
             if not orquestador.resolver_onboarding():
-                self._cerrar_splash_idempotente()
                 self.app.exit(0)
                 return
-            window = self.main_window_factory(
+            self.main_window = self.main_window_factory(
                 resolved_container,
                 deps_arranque,
             )
+            window = self.main_window
+            marcar_stage("main_window_created")
             marcar_stage("ui.mainwindow.construida")
             self.app.setProperty("_main_window_ref", window)
             self.instalar_menu_ayuda(
@@ -117,16 +136,23 @@ class _CoordinadorArranqueConCierreDeterminista:
 
             def scheduler(fn: Callable[[], None]) -> None:
                 QTimer.singleShot(0, fn)
-            if orquestador.debe_iniciar_maximizada():
-                window.showMaximized()
+
+            def _mostrar_main_window() -> None:
+                if orquestador.debe_iniciar_maximizada():
+                    window.showMaximized()
+                else:
+                    window.show()
+                safe_call(window, "raise_")
+                safe_call(window, "activateWindow")
+                marcar_stage("main_window_shown")
+
             preparar_mostrar_ventana(
                 window=window,
-                splash=self.splash,
+                splash=None,
                 scheduler=scheduler,
                 marcar_stage=marcar_stage,
             )
-            self._splash_cerrado = True
-            self.app.processEvents()
+            QTimer.singleShot(0, _mostrar_main_window)
             programar_post_init(
                 window=window,
                 scheduler=scheduler,
@@ -543,8 +569,28 @@ def run_ui(container=None) -> int:
     startup_worker.failed.connect(
         controlador.on_failed, Qt.ConnectionType.QueuedConnection
     )
-    startup_thread.finished.connect(startup_worker.deleteLater)
-    startup_thread.finished.connect(startup_thread.deleteLater)
+
+    conexiones_arranque = (
+        (watchdog_timer.timeout, controlador.on_timeout),
+        (startup_worker.progreso, controlador.on_progreso),
+        (startup_worker.finished, controlador.on_finished),
+        (startup_worker.failed, controlador.on_failed),
+    )
+
+    def _limpiar_arranque() -> None:
+        if getattr(controlador, "_arranque_limpio", False):
+            return
+        controlador._arranque_limpio = True
+        for signal, slot in conexiones_arranque:
+            try:
+                signal.disconnect(slot)
+            except (RuntimeError, TypeError):
+                continue
+        safe_call(startup_worker, "deleteLater")
+        safe_call(startup_thread, "deleteLater")
+
+    startup_worker.finished.connect(_limpiar_arranque, Qt.ConnectionType.QueuedConnection)
+    startup_worker.failed.connect(_limpiar_arranque, Qt.ConnectionType.QueuedConnection)
     startup_thread.started.connect(startup_worker.run)
 
     try:
