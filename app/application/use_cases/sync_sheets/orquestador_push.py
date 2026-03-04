@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 class OrquestadorPushSheets:
+        def __getattr__(self, name: str) -> Any:
+            raise AttributeError(name)
+
         def _push_with_spreadsheet(self, spreadsheet: Any) -> SyncSummary:
             self._reset_write_batch_state()
             write_calls_before = self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else 0

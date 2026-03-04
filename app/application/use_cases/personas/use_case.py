@@ -137,6 +137,7 @@ class PersonaUseCases:
         logger.info("Editando persona id=%s uuid_antes=%s", dto.id, uuid_antes)
         dto_normalizado = _normalizar_cuadrante_persona(dto)
         if not dto_normalizado.trabaja_finde:
+            assert dto_normalizado.id is not None
             actual = self._repo.get_by_id(dto_normalizado.id)
             if actual is None:
                 raise BusinessRuleError("Persona no encontrada.")

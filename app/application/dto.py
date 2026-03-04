@@ -9,6 +9,9 @@ from app.domain.time_utils import horas_decimales_a_minutos
 class _FechaAlias(str):
     """Alias transitorio: compara igual contra fecha_pedida y fecha_solicitud."""
 
+    __slots__ = ("_secondary",)
+    _secondary: str
+
     def __new__(cls, primary: str, secondary: str) -> "_FechaAlias":
         obj = str.__new__(cls, primary)
         obj._secondary = secondary

@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 class OrquestadorPersistenciaSync:
+        def __getattr__(self, name: str) -> Any:
+            raise AttributeError(name)
+
         def _find_solicitud_by_composite_key(self, row: dict[str, Any]) -> Any | None:
             delegada_uuid = str(row.get("delegada_uuid", "")).strip() or None
             persona_id = self._persona_id_from_uuid(delegada_uuid)
@@ -76,6 +79,9 @@ class OrquestadorPersistenciaSync:
             if not fecha_normalizada:
                 logger.warning("Solicitud %s descartada por fecha inválida en pull: %s", uuid_value, row.get("fecha"))
                 return False, 0, 1
+            assert fecha_normalizada is not None
+            if created_normalizada is None:
+                created_normalizada = fecha_normalizada
             desde_min, hasta_min = calcular_bloque_horario_solicitud(row, sync_sheets_core.join_minutes)
             payload = construir_payload_insercion_solicitud(
                 uuid_value,
@@ -103,6 +109,9 @@ class OrquestadorPersistenciaSync:
             if not fecha_normalizada:
                 logger.warning("Solicitud id=%s no actualizada por fecha inválida en pull: %s", solicitud_id, row.get("fecha"))
                 return False, 0, 1
+            assert fecha_normalizada is not None
+            if created_normalizada is None:
+                created_normalizada = fecha_normalizada
             desde_min, hasta_min = calcular_bloque_horario_solicitud(row, sync_sheets_core.join_minutes)
             payload = construir_payload_actualizacion_solicitud(
                 solicitud_id,

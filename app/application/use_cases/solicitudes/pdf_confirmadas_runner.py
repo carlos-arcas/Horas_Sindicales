@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Protocol, Sequence
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases.solicitudes.confirmacion_pdf_service import actualizar_pdf_en_repo
@@ -14,6 +14,20 @@ from app.domain.ports import SolicitudRepository
 from app.domain.services import BusinessRuleError
 
 
+
+
+class GeneradorPdfSolicitudesPuerto(Protocol):
+    def generar_pdf_solicitudes(
+        self,
+        solicitudes: Sequence[SolicitudDTO],
+        persona: object,
+        destino: Path,
+        *,
+        intro_text: str | None = None,
+        logo_path: str | None = None,
+        include_hours_in_horario: bool | None = None,
+    ) -> Path: ...
+
 MessageByReason = {
     "PERSONA_NO_ENCONTRADA": "Persona no encontrada.",
     "GENERADOR_NO_CONFIGURADO": "No hay generador PDF configurado.",
@@ -24,7 +38,7 @@ MessageByReason = {
 def run_pdf_confirmadas_plan(
     plan: PdfConfirmadasPlan,
     *,
-    generador_pdf: object | None,
+    generador_pdf: GeneradorPdfSolicitudesPuerto | None,
     repo: SolicitudRepository,
     correlation_id: str | None,
     logger: logging.Logger,

@@ -10,7 +10,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 import time
-from typing import Any
+from typing import Any, Protocol, cast
 
 from app.application.dto import ConflictoDiaDTO, PeriodoFiltro, ResumenSaldosDTO, SolicitudDTO, TotalesGlobalesDTO
 from app.application.dtos.contexto_operacion import ContextoOperacion
@@ -33,6 +33,17 @@ class ResolucionDestinoPdf:
     ruta_original: Path
     ruta_alternativa: Path | None
 
+
+
+
+class _ConflictosExportacionPdf(Protocol):
+    no_ejecutable: bool
+    conflictos: list[str]
+
+
+class ResultadoExportacionPdfHistorico(Protocol):
+    conflictos: _ConflictosExportacionPdf
+    artefactos_generados: list[str]
 
 class ErrorAplicacionSolicitud(BusinessRuleError):
     def __init__(self, mensaje: str, *, incident_id: str) -> None:
@@ -152,18 +163,18 @@ def resumen_confirmacion_pdf(creadas: Iterable[SolicitudDTO], errores: Iterable[
 
 def ejecutar_exportacion_pdf_historico(
     *,
-    operacion: Callable[[RequestExportacionPdfHistorico], object],
+    operacion: Callable[[RequestExportacionPdfHistorico], Any],
     solicitudes: list[SolicitudDTO],
     persona: Persona,
     destino: Path,
     personas_por_id: dict[int, Persona],
-    intro_text: str,
+    intro_text: str | None,
     logo_path: str | None,
     incrementar_metrica: Callable[[str], None],
     registrar_tiempo: Callable[[str, float], None],
 ) -> Path:
     started_at = time.perf_counter()
-    resultado = operacion(
+    resultado = cast(ResultadoExportacionPdfHistorico, operacion(
         RequestExportacionPdfHistorico(
             solicitudes=solicitudes,
             persona=persona,
@@ -174,7 +185,7 @@ def ejecutar_exportacion_pdf_historico(
             logo_path=logo_path,
             personas_por_id=personas_por_id,
         )
-    )
+    ))
     if resultado.conflictos.no_ejecutable:
         raise BusinessRuleError("; ".join(resultado.conflictos.conflictos))
     incrementar_metrica("pdfs_generados")

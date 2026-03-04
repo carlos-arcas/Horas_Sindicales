@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 
 
 class OrquestadorPreflightSync:
+        def __getattr__(self, name: str) -> Any:
+            raise AttributeError(name)
+
         def preflight_permisos_escritura(self, spreadsheet: Any | None = None) -> SyncPreflightResult:
             if not hasattr(self._client, "check_write_access"):
                 return SyncPreflightResult.ok_result()

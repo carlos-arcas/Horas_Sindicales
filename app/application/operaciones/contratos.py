@@ -9,7 +9,7 @@ from app.application.operaciones.modelos import (
     RutasOperacion,
 )
 
-RequestT = TypeVar("RequestT")
+RequestT = TypeVar("RequestT", contravariant=True)
 
 
 class OperacionConPlan(Protocol[RequestT]):
