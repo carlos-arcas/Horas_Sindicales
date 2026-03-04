@@ -39,7 +39,7 @@ def test_preflight_ok_con_pytest_dependencias(monkeypatch) -> None:
     data = quality_gate.preflight_pytest()
 
     assert data["degraded_mode"] is False
-    assert data["missing_dependencies"] == []
+    assert data["checks_omitidos"] == []
 
 
 def test_preflight_falla_si_no_esta_radon(monkeypatch, caplog) -> None:
