@@ -39,5 +39,17 @@
     "tests": [
       "tests/test_no_secrets_content_scan.py"
     ]
+  },
+  {
+    "id": "FTR-005",
+    "nombre": "Vertical slice de personajes (stack Django en transición)",
+    "estado": "WIP",
+    "tipo": "UI",
+    "tests": [
+      "tests/application/personajes/test_casos_uso_personajes.py",
+      "tests/domain/personajes/test_servicios_personaje.py",
+      "tests/web/test_personajes.py"
+    ],
+    "notas": "Porting incremental con strangler, pendiente integración completa de Django runtime."
   }
 ]
