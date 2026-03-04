@@ -1,5 +1,8 @@
 # Roadmap Senior
 
+## 2026-03-04 — Fix boot splash + guard anti-crash
+- Fix boot: splash closed before wizard/main + guard anti-crash 0xc0000374.
+
 ## 2026-03-04 — Coverage CORE
 - Coverage CORE (estimación local con `trace`): **antes ~88% -> después ~89%** en `app/domain` + `app/application`.
 - Tests añadidos:

@@ -9,27 +9,38 @@ import pytest
 from app.entrypoints import ui_main
 from app.entrypoints.arranque_nucleo import ResultadoArranque
 
-pytestmark = pytest.mark.headless_safe
+pytestmark = [pytest.mark.headless_safe, pytest.mark.ui, pytest.mark.smoke]
 
 
 class FakeSplash:
     def __init__(self, *, fail=False, events=None) -> None:
         self.hide_called = 0
         self.close_called = 0
+        self.delete_later_called = 0
         self.fail = fail
         self.events = events if events is not None else []
+        self._visible = True
 
     def hide(self) -> None:
         self.hide_called += 1
+        self._visible = False
         self.events.append("splash_hide")
         if self.fail:
             raise RuntimeError("deleted")
 
     def close(self) -> None:
         self.close_called += 1
+        self._visible = False
         self.events.append("splash_close")
         if self.fail:
             raise RuntimeError("deleted")
+
+    def deleteLater(self) -> None:
+        self.delete_later_called += 1
+        self.events.append("splash_delete_later")
+
+    def isVisible(self) -> bool:
+        return self._visible
 
 
 class FakeTimer:
@@ -54,7 +65,9 @@ class _CoordinatorFake(ui_main._CoordinadorArranqueConCierreDeterminista):
             set_idioma=lambda _idioma: events.append("set_idioma")
         )
         self.app = SimpleNamespace(
-            exit=lambda _code: events.append("app_exit"), setProperty=lambda *_: None
+            exit=lambda _code: events.append("app_exit"),
+            processEvents=lambda: events.append("process_events"),
+            setProperty=lambda *_: None,
         )
         self.orquestador_factory = lambda _deps, _i18n: SimpleNamespace(
             resolver_onboarding=lambda: events.append("wizard") or True,
@@ -80,6 +93,8 @@ def test_on_finished_cierra_splash_antes_de_wizard_y_main(monkeypatch) -> None:
     )
 
     events: list[str] = []
+    stages: list[str] = []
+    monkeypatch.setattr(ui_main, "marcar_stage", stages.append)
     splash = FakeSplash(events=events)
     timer = FakeTimer(events=events)
     coord = _CoordinatorFake(splash=splash, timer=timer, events=events)
@@ -87,6 +102,7 @@ def test_on_finished_cierra_splash_antes_de_wizard_y_main(monkeypatch) -> None:
 
     deps_arranque = SimpleNamespace(
         obtener_idioma_ui=SimpleNamespace(ejecutar=lambda: "es"),
+        obtener_estado_onboarding=SimpleNamespace(ejecutar=lambda: True),
     )
     payload = ResultadoArranque(
         container=SimpleNamespace(
@@ -100,6 +116,9 @@ def test_on_finished_cierra_splash_antes_de_wizard_y_main(monkeypatch) -> None:
     assert "wizard" in events and "main_window" in events
     assert events.index("splash_hide") < events.index("wizard")
     assert events.index("splash_hide") < events.index("main_window")
+    assert coord._splash_cerrado is True
+    assert getattr(coord.app, "_startup_splash_closed", False) is True
+    assert "splash_closed" in stages
 
 
 def test_cerrar_splash_seguro_es_idempotente_y_tolera_runtime_error() -> None:
