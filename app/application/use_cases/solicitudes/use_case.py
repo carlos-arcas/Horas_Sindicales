@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import replace
 from pathlib import Path
 from typing import Iterable
 
@@ -16,13 +15,6 @@ from app.application.dto import (
     TotalesGlobalesDTO,
 )
 from app.application.dtos.contexto_operacion import ContextoOperacion
-from app.application.operaciones.exportacion_pdf_historico_operacion import (
-    ExportacionPdfHistoricoOperacion,
-)
-from app.application.operaciones.confirmacion_pdf_operacion import (
-    ConfirmacionPdfOperacion,
-    RequestConfirmacionPdf,
-)
 from app.application.ports.sistema_archivos_puerto import SistemaArchivosPuerto
 from app.application.ports.pdf_puerto import GeneradorPdfPuerto
 from app.core.errors import InfraError, PersistenceError
@@ -63,14 +55,8 @@ from app.application.use_cases.solicitudes.confirmacion_pdf_service import (
     hash_file as _hash_file,
     pdf_intro_text as _pdf_intro_text,
 )
-from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import (
-    ConfirmarSinPdfAction,
-    plan_confirmar_sin_pdf,
-)
-from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
-    PdfConfirmadasEntrada,
-    plan_pdf_confirmadas,
-)
+from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import plan_confirmar_sin_pdf
+from app.application.use_cases.solicitudes.pdf_confirmadas_builder import plan_pdf_confirmadas
 from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
 from app.application.use_cases.solicitudes.pdf_destino_policy import (
     resolver_colision_pdf,
@@ -89,7 +75,6 @@ from app.application.use_cases.solicitudes.servicio_saldos import (
 )
 from app.application.use_cases.solicitudes.auxiliares_caso_uso import (
     NOMBRE_PDF_POR_DEFECTO,
-    ErrorAplicacionSolicitud,
     ResolucionDestinoPdf,
     calcular_totales_globales_desde_fuentes,
     calcular_resumen_saldos_desde_fuentes,
@@ -108,6 +93,24 @@ from app.application.use_cases.solicitudes.auxiliares_caso_uso import (
     confirmar_solicitudes_lote_con_manejador,
     confirmar_sin_pdf_con_manejador,
     ejecutar_confirmar_sin_pdf_action,
+)
+from app.application.use_cases.solicitudes.orquestacion_confirmacion import (
+    confirmar_lote_y_generar_pdf as confirmar_lote_y_generar_pdf_orquestado,
+    confirmar_sin_pdf as confirmar_sin_pdf_orquestado,
+    confirmar_solicitudes_lote as confirmar_solicitudes_lote_orquestado,
+    generar_pdf_confirmadas as generar_pdf_confirmadas_orquestado,
+    resolver_o_crear_solicitud as resolver_o_crear_solicitud_orquestado,
+    run_confirmar_sin_pdf_action as run_confirmar_sin_pdf_action_orquestado,
+)
+from app.application.use_cases.solicitudes.orquestacion_exportaciones import (
+    exportar_historico_pdf as exportar_historico_pdf_orquestado,
+    generar_pdf_historico as generar_pdf_historico_orquestado,
+    personas_por_solicitudes,
+)
+from app.application.use_cases.solicitudes.orquestacion_pendientes import (
+    listar_pendientes_all as listar_pendientes_all_orquestado,
+    listar_pendientes_huerfanas as listar_pendientes_huerfanas_orquestado,
+    listar_pendientes_por_persona as listar_pendientes_por_persona_orquestado,
 )
 from app.application.use_cases.solicitudes.validacion_service import (
     build_periodo_filtro as _build_periodo_filtro,
@@ -165,28 +168,20 @@ class SolicitudUseCases:
         return solicitudes
 
     def _personas_por_solicitudes(self, solicitudes: list[SolicitudDTO]) -> dict[int, Persona]:
-        persona_ids = {solicitud.persona_id for solicitud in solicitudes}
-        personas: dict[int, Persona] = {}
-        if hasattr(self._persona_repo, "list_all"):
-            for persona in self._persona_repo.list_all(include_inactive=True):
-                if persona.id is None:
-                    continue
-                persona_id = int(persona.id)
-                if persona_id in persona_ids:
-                    personas[persona_id] = persona
-            if personas:
-                return personas
-        for persona_id in persona_ids:
-            persona_en_repo = self._persona_repo.get_by_id(persona_id)
-            if persona_en_repo is not None:
-                personas[persona_id] = persona_en_repo
-        return personas
+        return personas_por_solicitudes(solicitudes=solicitudes, persona_repo=self._persona_repo)
 
-    def listar_pendientes_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]: return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_by_persona(persona_id)]
+    def listar_pendientes_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
+        return listar_pendientes_por_persona_orquestado(
+            self._repo,
+            persona_id,
+            solicitud_to_dto=_solicitud_to_dto,
+        )
 
-    def listar_pendientes_all(self) -> Iterable[SolicitudDTO]: return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_all()]
+    def listar_pendientes_all(self) -> Iterable[SolicitudDTO]:
+        return listar_pendientes_all_orquestado(self._repo, solicitud_to_dto=_solicitud_to_dto)
 
-    def listar_pendientes_huerfanas(self) -> Iterable[SolicitudDTO]: return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_huerfanas()]
+    def listar_pendientes_huerfanas(self) -> Iterable[SolicitudDTO]:
+        return listar_pendientes_huerfanas_orquestado(self._repo, solicitud_to_dto=_solicitud_to_dto)
 
     def crear(
         self,
@@ -601,119 +596,57 @@ class SolicitudUseCases:
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:
         if is_read_only_enabled():
             raise BusinessRuleError("Modo solo lectura activado")
-        solicitudes_list = list(solicitudes)
         if not correlation_id:
             correlation_id = str(uuid.uuid4())
-        if correlation_id:
-            log_event(logger, "confirmar_lote_pdf_started", {"count": len(solicitudes_list)}, correlation_id)
-
-        for solicitud in solicitudes_list:
-            validar_solicitud_dto_declarativo(solicitud)
-
-        resolucion_destino = self.resolver_destino_pdf(destino, overwrite=False, auto_rename=True)
-        destino_resuelto = resolucion_destino.ruta_destino
-        if resolucion_destino.colision_detectada and correlation_id:
-            log_event(
-                logger,
-                "pdf_destino_colision_resuelta",
-                {
-                    "reason_code": "PDF_DESTINO_RENOMBRADO_POR_COLISION",
-                    "ruta_original": str(resolucion_destino.ruta_original),
-                    "ruta_final": str(destino_resuelto),
-                },
-                correlation_id,
-            )
-
-        preflight = ConfirmacionPdfOperacion(fs=self._fs, generador_pdf=self._generador_pdf).ejecutar(
-            RequestConfirmacionPdf(
-                solicitudes=solicitudes_list,
-                destino=destino_resuelto,
-                dry_run=True,
-                overwrite=False,
-            )
-        )
-        if preflight.conflictos.no_ejecutable:
-            raise BusinessRuleError("; ".join(preflight.conflictos.conflictos))
-
-        creadas, pendientes, errores = self._confirmar_solicitudes_lote(
-            solicitudes_list,
+        return confirmar_lote_y_generar_pdf_orquestado(
+            solicitudes=solicitudes,
+            destino=destino,
+            resolver_destino_pdf=self.resolver_destino_pdf,
+            fs=self._fs,
+            generador_pdf=self._generador_pdf,
+            validar_solicitud=validar_solicitud_dto_declarativo,
+            confirmar_solicitudes_lote=self._confirmar_solicitudes_lote,
+            generar_pdf_confirmadas=self._generar_pdf_confirmadas,
+            logger=logger,
             correlation_id=correlation_id,
         )
-        pdf_path, creadas = self._generar_pdf_confirmadas(
-            creadas,
-            destino_resuelto,
-            correlation_id=correlation_id,
-        )
-
-        if correlation_id:
-            log_event(
-                logger,
-                "confirmar_lote_pdf_succeeded",
-                {"creadas": len(creadas), "pendientes": len(pendientes), "errores": len(errores)},
-                correlation_id,
-            )
-        return creadas, pendientes, errores, pdf_path
 
     def _confirmar_solicitudes_lote(self, solicitudes: list[SolicitudDTO], *, correlation_id: str | None) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]:
-        def _construir_error_infra() -> str:
-            incident_id = _generar_incident_id()
-            logger.exception("Error técnico creando solicitud")
-            if correlation_id:
-                log_event(
-                    logger,
-                    "confirmar_lote_pdf_failed",
-                    {"error": "crear_solicitud", "incident_id": incident_id},
-                    correlation_id,
-                )
-            return f"Se produjo un error técnico al guardar la solicitud. ID de incidente: {incident_id}"
-
-        return confirmar_solicitudes_lote_con_manejador(
-            solicitudes,
-            resolver_o_crear=lambda solicitud: self._resolver_o_crear_solicitud(
-                solicitud,
-                correlation_id=correlation_id,
-            ),
-            construir_error_infra=_construir_error_infra,
+        return confirmar_solicitudes_lote_orquestado(
+            solicitudes=solicitudes,
+            resolver_o_crear=self._resolver_o_crear_solicitud,
+            confirmar_lote_con_manejador=confirmar_solicitudes_lote_con_manejador,
+            generar_incident_id=_generar_incident_id,
+            logger=logger,
+            correlation_id=correlation_id,
         )
 
     def _resolver_o_crear_solicitud(self, solicitud: SolicitudDTO, *, correlation_id: str | None) -> SolicitudDTO:
-        if solicitud.id is not None:
-            existente = self._repo.get_by_id(solicitud.id)
-            if existente is None:
-                raise BusinessRuleError("La solicitud pendiente ya no existe.")
-            return _solicitud_to_dto(existente)
-        creada, _ = self.agregar_solicitud(solicitud, correlation_id=correlation_id)
-        return creada
+        return resolver_o_crear_solicitud_orquestado(
+            solicitud,
+            correlation_id=correlation_id,
+            get_by_id=self._repo.get_by_id,
+            solicitud_to_dto=_solicitud_to_dto,
+            agregar_solicitud=self.agregar_solicitud,
+        )
 
     def _generar_pdf_confirmadas(self, creadas: list[SolicitudDTO], destino: Path, *, correlation_id: str | None) -> tuple[Path | None, list[SolicitudDTO]]:
         """Genera y persiste PDF de solicitudes confirmadas."""
-        pdf_options = self._config_repo.get() if self._config_repo else None
-        entrada = PdfConfirmadasEntrada(
-            creadas=tuple(creadas),
+        return generar_pdf_confirmadas_orquestado(
+            creadas=creadas,
             destino=destino,
-            persona=self._persona_repo.get_by_id(creadas[0].persona_id) if creadas else None,
-            generador_configurado=self._generador_pdf is not None,
-            intro_text=_pdf_intro_text(pdf_options),
-            logo_path=pdf_options.pdf_logo_path if pdf_options else None,
-            include_hours_in_horario=(pdf_options.pdf_include_hours_in_horario if pdf_options else None),
-        )
-        plan = plan_pdf_confirmadas(entrada)
-        pdf_path, actualizadas = run_pdf_confirmadas_plan(
-            plan,
+            config_repo=self._config_repo,
+            persona_repo=self._persona_repo,
             generador_pdf=self._generador_pdf,
             repo=self._repo,
-            correlation_id=correlation_id,
-            logger=logger,
+            pdf_intro_text=_pdf_intro_text,
             hash_file=_hash_file,
-            incident_id_factory=_generar_incident_id,
-            app_error_factory=lambda incident_id: ErrorAplicacionSolicitud(
-                "No se pudo generar el PDF por un error técnico",
-                incident_id=incident_id,
-            ),
+            generar_incident_id=_generar_incident_id,
+            planificador_pdf=plan_pdf_confirmadas,
+            runner_pdf=run_pdf_confirmadas_plan,
+            logger=logger,
+            correlation_id=correlation_id,
         )
-        if pdf_path is None:
-            return None, creadas
-        return pdf_path, actualizadas
 
     def confirmar_sin_pdf(
         self,
@@ -722,56 +655,25 @@ class SolicitudUseCases:
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]:
         if is_read_only_enabled():
             raise BusinessRuleError("Modo solo lectura activado")
-        solicitudes_list = list(solicitudes)
-        if correlation_id:
-            log_event(logger, "confirmar_sin_pdf_started", {"count": len(solicitudes_list)}, correlation_id)
-
-        plan = plan_confirmar_sin_pdf(solicitudes_list)
-        def _construir_error_infra(exc: InfraError) -> str:
-            logger.exception("Error técnico confirmando solicitud sin PDF")
-            if correlation_id:
-                log_event(logger, "confirmar_sin_pdf_failed", {"error": str(exc)}, correlation_id)
-            return "Se produjo un error técnico al confirmar la solicitud."
-
-        creadas_confirmadas, pendientes_restantes, errores = confirmar_sin_pdf_con_manejador(
-            plan,
-            ejecutar_accion=lambda action: self._run_confirmar_sin_pdf_action(
-                action,
-                correlation_id=correlation_id,
-            ),
-            obtener_solicitud=lambda action: action.solicitud,
-            construir_error_infra=_construir_error_infra,
+        return confirmar_sin_pdf_orquestado(
+            solicitudes=solicitudes,
+            planner=plan_confirmar_sin_pdf,
+            run_action=self._run_confirmar_sin_pdf_action,
+            confirmar_sin_pdf_con_manejador=confirmar_sin_pdf_con_manejador,
+            logger=logger,
+            correlation_id=correlation_id,
         )
 
-        if correlation_id:
-            log_event(
-                logger,
-                "confirmar_sin_pdf_succeeded",
-                {"creadas": len(creadas_confirmadas), "pendientes": len(pendientes_restantes), "errores": len(errores)},
-                correlation_id,
-            )
-        return creadas_confirmadas, pendientes_restantes, errores
-
-    def _run_confirmar_sin_pdf_action(
-        self,
-        action: ConfirmarSinPdfAction,
-        *,
-        correlation_id: str | None,
-    ) -> SolicitudDTO:
-        creada = ejecutar_confirmar_sin_pdf_action(
-            action.action_type,
-            action.payload.solicitud_id,
-            action.payload.solicitud,
-            obtener_existente=lambda solicitud_id: (
-                _solicitud_to_dto(existente) if (existente := self._repo.get_by_id(solicitud_id)) else None
-            ),
-            agregar_solicitud=lambda solicitud: self.agregar_solicitud(
-                solicitud,
-                correlation_id=correlation_id,
-            )[0],
+    def _run_confirmar_sin_pdf_action(self, action, *, correlation_id: str | None) -> SolicitudDTO:
+        return run_confirmar_sin_pdf_action_orquestado(
+            action,
+            correlation_id=correlation_id,
+            ejecutar_confirmar_sin_pdf_action=ejecutar_confirmar_sin_pdf_action,
+            get_by_id=self._repo.get_by_id,
+            solicitud_to_dto=_solicitud_to_dto,
+            agregar_solicitud=self.agregar_solicitud,
             marcar_generada=lambda solicitud_id: self._repo.mark_generated(solicitud_id, True),
         )
-        return replace(creada, generated=True)
 
     def confirmar_y_generar_pdf(self, solicitudes: Iterable[SolicitudDTO], destino: Path, correlation_id: str | None = None) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]: return self.confirmar_lote_y_generar_pdf(solicitudes, destino, correlation_id=correlation_id)
 
@@ -804,29 +706,20 @@ class SolicitudUseCases:
         destino: Path,
         correlation_id: str | None = None,
     ) -> Path:
-        solicitudes_list = list(solicitudes)
-        if correlation_id:
-            log_event(logger, "generar_pdf_historico_started", {"count": len(solicitudes_list)}, correlation_id)
-        if not solicitudes_list:
-            raise BusinessRuleError("No hay solicitudes para generar el PDF.")
-        personas_por_id = self._personas_por_solicitudes(solicitudes_list)
-        persona = obtener_persona_o_error(personas_por_id.get(solicitudes_list[0].persona_id))
-        pdf_options = self._config_repo.get() if self._config_repo else None
-        operacion = ExportacionPdfHistoricoOperacion(fs=self._fs, generador_pdf=self._generador_pdf)
-        pdf_path = ejecutar_exportacion_pdf_historico(
-            operacion=operacion.ejecutar,
-            solicitudes=solicitudes_list,
-            persona=persona,
+        return generar_pdf_historico_orquestado(
+            solicitudes=solicitudes,
             destino=destino,
-            personas_por_id=personas_por_id,
-            intro_text=_pdf_intro_text(pdf_options),
-            logo_path=pdf_options.pdf_logo_path if pdf_options else None,
-            incrementar_metrica=metrics_registry.incrementar,
-            registrar_tiempo=metrics_registry.registrar_tiempo,
+            correlation_id=correlation_id,
+            persona_repo=self._persona_repo,
+            config_repo=self._config_repo,
+            fs=self._fs,
+            generador_pdf=self._generador_pdf,
+            obtener_persona_o_error=obtener_persona_o_error,
+            solicitud_to_dto=_solicitud_to_dto,
+            ejecutar_exportacion_pdf_historico=ejecutar_exportacion_pdf_historico,
+            pdf_intro_text=_pdf_intro_text,
+            logger=logger,
         )
-        if correlation_id:
-            log_event(logger, "generar_pdf_historico_succeeded", {"path": str(pdf_path)}, correlation_id)
-        return pdf_path
 
     def exportar_historico_pdf(
         self,
@@ -835,34 +728,22 @@ class SolicitudUseCases:
         destino: Path,
         correlation_id: str | None = None,
     ) -> Path:
-        if correlation_id:
-            log_event(logger, "exportar_historico_pdf_started", {"persona_id": persona_id}, correlation_id)
-        persona = obtener_persona_o_error(self._persona_repo.get_by_id(persona_id))
-        solicitudes = self._repo.list_by_persona_and_period(
-            persona_id,
-            filtro.year,
-            filtro.month if filtro.modo == "MENSUAL" else None,
-        )
-        solicitudes_list = [_solicitud_to_dto(s) for s in solicitudes]
-        if not solicitudes_list:
-            raise BusinessRuleError("No hay solicitudes para generar el PDF.")
-        personas_por_id = self._personas_por_solicitudes(solicitudes_list)
-        pdf_options = self._config_repo.get() if self._config_repo else None
-        operacion = ExportacionPdfHistoricoOperacion(fs=self._fs, generador_pdf=self._generador_pdf)
-        pdf_path = ejecutar_exportacion_pdf_historico(
-            operacion=operacion.ejecutar,
-            solicitudes=solicitudes_list,
-            persona=persona,
+        return exportar_historico_pdf_orquestado(
+            persona_id=persona_id,
+            filtro=filtro,
             destino=destino,
-            personas_por_id=personas_por_id,
-            intro_text=_pdf_intro_text(pdf_options),
-            logo_path=pdf_options.pdf_logo_path if pdf_options else None,
-            incrementar_metrica=metrics_registry.incrementar,
-            registrar_tiempo=metrics_registry.registrar_tiempo,
+            correlation_id=correlation_id,
+            persona_repo=self._persona_repo,
+            repo=self._repo,
+            config_repo=self._config_repo,
+            fs=self._fs,
+            generador_pdf=self._generador_pdf,
+            obtener_persona_o_error=obtener_persona_o_error,
+            solicitud_to_dto=_solicitud_to_dto,
+            ejecutar_exportacion_pdf_historico=ejecutar_exportacion_pdf_historico,
+            pdf_intro_text=_pdf_intro_text,
+            logger=logger,
         )
-        if correlation_id:
-            log_event(logger, "exportar_historico_pdf_succeeded", {"path": str(pdf_path)}, correlation_id)
-        return pdf_path
 
     def sugerir_nombre_pdf_historico(self, filtro: PeriodoFiltro) -> str:
         return _sugerir_nombre_pdf_historico(filtro)

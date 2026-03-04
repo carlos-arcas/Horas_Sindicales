@@ -12,3 +12,12 @@
 - Tests añadidos: **ninguno**; ciclo detenido por falta de `pytest-cov` (comando canónico falla al parsear `--cov`).
 - Objetivo de auditoría: dejar evidencia explícita del bloqueo para destrabar CI reproduciendo el prerequisito de cobertura en entorno con dependencias de dev.
 
+
+## 2026-03-04 — Refactor SolicitudUseCases (orquestadores)
+- `SolicitudUseCases` (CORE) pasó de **828 LOC -> 718 LOC** (`app/application/use_cases/solicitudes/use_case.py`).
+- CC top antes/después: **N/D -> N/D** (radon no disponible en este entorno; `report_quality` usa fallback por LOC).
+- Módulos creados:
+  - `app/application/use_cases/solicitudes/orquestacion_confirmacion.py` (flujo de confirmar lote/sin PDF y generación de PDF confirmadas).
+  - `app/application/use_cases/solicitudes/orquestacion_pendientes.py` (listar pendientes y helpers de consultas de pendientes).
+  - `app/application/use_cases/solicitudes/orquestacion_exportaciones.py` (exportaciones PDF histórico y resolución de personas por lote).
+- Resultado: `SolicitudUseCases` queda más fino como orquestador y delega responsabilidades en módulos especializados, manteniendo contratos públicos y comportamiento observable.
