@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, TypeAlias
 
 from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion
 from app.application.use_cases.solicitudes.validaciones import validar_seleccion_confirmacion
@@ -25,7 +25,14 @@ if TYPE_CHECKING:
     from app.application.dto import PersonaDTO, SolicitudDTO
 
 logger = logging.getLogger(__name__)
-ResultadoConfirmacionPdf = tuple[str | None, Path | None, list["SolicitudDTO"], list[int], list[str], list["SolicitudDTO"] | None]
+ResultadoConfirmacionPdf: TypeAlias = tuple[
+    str | None,
+    Path | None,
+    list["SolicitudDTO"],
+    list[int],
+    list[str],
+    list["SolicitudDTO"] | None,
+]
 
 
 def execute_confirmar_with_pdf(window: Any, persona: PersonaDTO, selected: list[SolicitudDTO], pdf_path: str) -> ResultadoConfirmacionPdf | None:
