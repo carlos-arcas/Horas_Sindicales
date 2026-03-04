@@ -72,3 +72,12 @@
   - `app/ui/vistas/builders/sync_panel/contratos.py`
   - `app/ui/vistas/builders/sync_panel/__init__.py`
 - Resultado: `builders_sync_panel.py` queda como fachada fina y mantiene el contrato público (`create_sync_panel`) delegando construcción, bindings y utilidades por responsabilidad.
+
+## 2026-03-04 — Refactor UI deuda conflicts_dialog
+- UI deuda: `app/ui/conflicts_dialog.py` **antes 339 LOC -> después 3 LOC** (fachada vía `app/ui/conflicts_dialog/__init__.py`).
+- Módulos creados:
+  - `app/ui/conflicts_dialog/dialogo_qt.py`
+  - `app/ui/conflicts_dialog/presenter_conflictos.py`
+  - `app/ui/conflicts_dialog/contratos.py`
+  - `app/ui/conflicts_dialog/adaptador_i18n.py`
+- Resultado: separación Qt/presenter puro con API pública estable (`from app.ui.conflicts_dialog import ConflictsDialog`).
