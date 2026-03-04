@@ -245,6 +245,10 @@ def canonical_remote_solicitud_person_fields(row: dict[str, Any]) -> tuple[Any, 
 def canonical_remote_solicitud_time_parts(row: dict[str, Any]) -> tuple[Any, Any, Any, Any]:
     desde_hhmm = remote_hhmm(row.get("desde_h"), row.get("desde_m"), row.get("desde") or row.get("hora_desde"))
     hasta_hhmm = remote_hhmm(row.get("hasta_h"), row.get("hasta_m"), row.get("hasta") or row.get("hora_hasta"))
+    desde_h: Any
+    desde_m: Any
+    hasta_h: Any
+    hasta_m: Any
     if not desde_hhmm:
         desde_h, desde_m = "", ""
     else:

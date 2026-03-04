@@ -177,9 +177,9 @@ class SolicitudUseCases:
             if personas:
                 return personas
         for persona_id in persona_ids:
-            persona = self._persona_repo.get_by_id(persona_id)
-            if persona is not None:
-                personas[persona_id] = persona
+            persona_en_repo = self._persona_repo.get_by_id(persona_id)
+            if persona_en_repo is not None:
+                personas[persona_id] = persona_en_repo
         return personas
 
     def listar_pendientes_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]: return [_solicitud_to_dto(s) for s in self._repo.list_pendientes_by_persona(persona_id)]
@@ -369,9 +369,12 @@ class SolicitudUseCases:
         *,
         excluir_solicitud_id: int | None = None,
     ) -> ConflictoSolicitud | None:
+        persona = self._persona_repo.get_by_id(dto.persona_id)
+        if persona is None:
+            raise BusinessRuleError("Persona no encontrada.")
         _, fecha, completo, desde, hasta = solicitud_key(
             dto,
-            persona=self._persona_repo.get_by_id(dto.persona_id),
+            persona=persona,
             delegada_uuid=self._delegada_uuid(dto.persona_id),
         )
         desde_min = None if completo else parse_hhmm(str(desde))
@@ -386,9 +389,12 @@ class SolicitudUseCases:
         )
 
     def buscar_duplicado(self, dto: SolicitudDTO) -> SolicitudDTO | None:
+        persona = self._persona_repo.get_by_id(dto.persona_id)
+        if persona is None:
+            raise BusinessRuleError("Persona no encontrada.")
         _, fecha, completo, desde, hasta = solicitud_key(
             dto,
-            persona=self._persona_repo.get_by_id(dto.persona_id),
+            persona=persona,
             delegada_uuid=self._delegada_uuid(dto.persona_id),
         )
         desde_min = None if completo else parse_hhmm(str(desde))

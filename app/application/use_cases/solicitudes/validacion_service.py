@@ -67,7 +67,7 @@ def derived_interval_for_key(dto: SolicitudDTO, persona: Persona) -> tuple[str, 
     return normalize_time(dto.desde), normalize_time(dto.hasta)
 
 
-def solicitud_key(dto: SolicitudDTO, *, persona: Persona, delegada_uuid: str) -> tuple[object, ...]:
+def solicitud_key(dto: SolicitudDTO, *, persona: Persona, delegada_uuid: str) -> tuple[str, str, bool, str, str]:
     fecha = normalize_date(dto.fecha_pedida)
     desde, hasta = derived_interval_for_key(dto, persona)
     return (delegada_uuid, fecha, bool(dto.completo), desde, hasta)

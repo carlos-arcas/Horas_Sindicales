@@ -5,6 +5,7 @@ from datetime import date, datetime
 import json
 import logging
 from pathlib import Path
+from typing import Protocol
 
 from app.application.dto import SolicitudDTO
 from app.application.operaciones.exportacion_pdf_historico_operacion import (
@@ -19,7 +20,14 @@ from app.domain.models import Persona
 logger = logging.getLogger(__name__)
 
 
-class RelojPuerto:
+def _artefactos_desde_payload(payload: dict[str, object]) -> list[str]:
+    artefactos = payload.get("artefactos_generados")
+    if isinstance(artefactos, list):
+        return [str(ruta) for ruta in artefactos]
+    return []
+
+
+class RelojPuerto(Protocol):
     def ahora_utc(self) -> datetime: ...
 
 
@@ -202,7 +210,7 @@ class ExportarCompartirPeriodoCasoUso:
                 f"- Estado: **{payload['estado_global']}**",
                 "",
                 "## Artefactos",
-                *[f"- {ruta}" for ruta in payload["artefactos_generados"]],
+                *[f"- {ruta}" for ruta in _artefactos_desde_payload(payload)],
             ]
         )
 

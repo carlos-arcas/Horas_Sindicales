@@ -24,6 +24,7 @@ def validate_request_inputs(
         errors["hasta"] = "La hora hasta es obligatoria."
     if errors:
         return errors
+    assert desde is not None and hasta is not None
     try:
         desde_min = parse_hhmm(desde)
         hasta_min = parse_hhmm(hasta)

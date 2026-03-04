@@ -25,6 +25,11 @@ logger = logging.getLogger(__name__)
 
 
 class OrquestadorPullSheets:
+        _pull_apply_context: PullApplyContext | None
+
+        def __getattr__(self, name: str) -> Any:
+            raise AttributeError(name)
+
         def _pull_with_spreadsheet(self, spreadsheet: Any) -> SyncSummary:
             self._reset_write_batch_state()
             write_calls_before = self._client.get_write_calls_count() if hasattr(self._client, "get_write_calls_count") else 0
