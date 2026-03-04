@@ -21,3 +21,12 @@
   - `app/application/use_cases/solicitudes/orquestacion_pendientes.py` (listar pendientes y helpers de consultas de pendientes).
   - `app/application/use_cases/solicitudes/orquestacion_exportaciones.py` (exportaciones PDF histórico y resolución de personas por lote).
 - Resultado: `SolicitudUseCases` queda más fino como orquestador y delega responsabilidades en módulos especializados, manteniendo contratos públicos y comportamiento observable.
+
+## 2026-03-04 — Refactor UI MainWindow state_controller
+- UI Deuda: `state_controller.py` **antes 843 LOC -> después 251 LOC**.
+- Módulos creados:
+  - `app/ui/vistas/main_window/navegacion_mixin.py`
+  - `app/ui/vistas/main_window/refresco_mixin.py`
+  - `app/ui/vistas/main_window/acciones_mixin.py`
+  - `app/ui/vistas/main_window/inicializacion_mixin.py`
+  - `app/ui/vistas/main_window/estado_mixin.py`

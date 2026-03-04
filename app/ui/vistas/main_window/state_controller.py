@@ -6,156 +6,83 @@ import logging
 from pathlib import Path
 
 from app.ui.qt_compat import (
-    QAbstractItemView,
-    QApplication,
-    QCheckBox,
-    QComboBox,
-    QDate,
-    QDateEdit,
-    QDialog,
-    QDialogButtonBox,
-    QEvent,
-    QFileDialog,
-    QFrame,
-    QHBoxLayout,
-    QHeaderView,
-    QItemSelectionModel,
-    QKeyEvent,
     QLabel,
     QMainWindow,
-    QMessageBox,
-    QObject,
-    QPlainTextEdit,
     QProgressBar,
-    QPushButton,
     QSettings,
-    QSizePolicy,
     QSplitter,
-    QTableView,
-    QTextEdit,
     QThread,
-    QTime,
-    QTimeEdit,
     QTimer,
-    QTreeWidget,
-    QTreeWidgetItem,
-    QVBoxLayout,
+    QPushButton,
     QWidget,
-    Qt,
-)  # noqa: F401
+)
 
 from app.application.conflicts_service import ConflictsService
 from app.application.dto import PersonaDTO, SolicitudDTO
 from app.application.sheets_service import SheetsService
 from app.application.sync_sheets_use_case import SyncSheetsUseCase
-from app.application.use_cases.conflict_resolution_policy import ConflictResolutionPolicy
-from app.application.use_cases.retry_sync_use_case import RetrySyncUseCase
-from app.application.use_cases.health_check import HealthCheckUseCase
+from app.application.use_cases import (
+    GrupoConfigUseCases,
+    PersonaUseCases,
+    SolicitudUseCases,
+)
 from app.application.use_cases.alert_engine import AlertEngine
-from app.application.use_cases.validacion_preventiva_lock_use_case import ValidacionPreventivaLockUseCase
-from app.application.use_cases.confirmacion_pdf.caso_uso import ConfirmarPendientesPdfCasoUso
-from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import CrearPendienteCasoUso
+from app.application.use_cases.confirmacion_pdf.caso_uso import (
+    ConfirmarPendientesPdfCasoUso,
+)
+from app.application.use_cases.conflict_resolution_policy import (
+    ConflictResolutionPolicy,
+)
+from app.application.use_cases.health_check import HealthCheckUseCase
+from app.application.use_cases.retry_sync_use_case import RetrySyncUseCase
+from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import (
+    CrearPendienteCasoUso,
+)
+from app.application.use_cases.validacion_preventiva_lock_use_case import (
+    ValidacionPreventivaLockUseCase,
+)
+from app.bootstrap.logging import log_operational_error
+from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan
+from app.ui.copy_catalog import copy_text
+from app.ui.i18n_interfaz import configurar_i18n_interfaz, registrar_refresco_idioma
+from app.ui.qt_hilos import assert_hilo_ui_o_log
+from app.ui.vistas.main_window.importaciones import (
+    GestorToasts,
+    MainWindowHealthMixin,
+    NotificationService,
+    PdfController,
+    PersonasController,
+    PushWorker,
+    SaldosCard,
+    SolicitudesController,
+    SyncController,
+)
 from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
     GuardarPreferenciaPantallaCompleta,
     ObtenerPreferenciaPantallaCompleta,
 )
-from app.application.use_cases import GrupoConfigUseCases, PersonaUseCases, SolicitudUseCases
-from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan
-from app.ui.vistas.main_window.importaciones import (
-    ActionStateInput,
-    ConfirmationSummaryPayload,
-    ConflictsDialog,
-    GestorToasts,
-    GrupoConfigDialog,
-    MainWindowHealthMixin,
-    NotificationService,
-    OperationFeedback,
-    PdfConfigDialog,
-    PdfController,
-    PersonasController,
-    PushWorker,
-    STATUS_PATTERNS,
-    SaldosCard,
-    SolicitudesController,
-    SyncController,
-    UiErrorMessage,
-    abrir_archivo_local,
-    acciones_pendientes,
-    acciones_personas,
-    acciones_sincronizacion,
-    apply_modal_behavior,
-    ask_push_after_pdf,
-    build_action_state,
-    build_config_incomplete_report,
-    build_confirmation_payload,
-    build_estado_pendientes_debug_payload,
-    build_failed_report,
-    build_historico_filters_payload,
-    build_main_window_widgets,
-    build_modal_actions,
-    build_shell_layout,
-    build_simulation_report,
-    build_status_bar,
-    build_sync_report,
-    debe_habilitar_confirmar_pdf,
-    execute_confirmar_with_pdf,
-    finalize_confirmar_with_pdf,
-    handle_historico_render_mismatch,
-    historico_actions,
-    iterar_pendientes_en_tabla,
-    list_sync_history,
-    load_sync_report,
-    log_estado_pendientes,
-    map_error_to_ui_message,
-    on_confirmar,
-    on_insertar_sin_pdf,
-    persist_report,
-    prompt_confirm_pdf_path,
-    run_init_refresh,
-    show_confirmation_closure,
-    show_pdf_actions_dialog,
-    show_sync_error_dialog_from_exception,
-    status_badge,
-    sum_solicitudes_minutes,
-    to_markdown,
-    toast_error,
-    toast_success,
-    undo_confirmation,
-    validacion_preventiva,
-)  # noqa: F401
-
-from . import data_refresh, form_handlers, handlers_layout, layout_builder, wiring
-from app.bootstrap.logging import log_operational_error
-from app.ui.copy_catalog import copy_text
-from app.ui.i18n_interfaz import cambiar_idioma_interfaz, configurar_i18n_interfaz, registrar_refresco_idioma, texto_interfaz
-from app.ui.qt_hilos import assert_hilo_ui_o_log
-from .init_placeholders import inicializar_placeholders
-
-from .layout_builder import HistoricoDetalleDialog, OptionalConfirmDialog, PdfPreviewDialog
-from . import state_historico, state_pendientes
-from .header_state import resolve_section_title, resolve_sidebar_tab_index
-from .utilidades_controlador_estado import (
-    apply_help_preferences,
-    apply_solicitudes_tooltips,
-    configure_historico_focus_order,
-    configure_operativa_focus_order,
-    configure_solicitudes_table,
-    configure_time_placeholders,
-    normalize_input_heights,
-    on_fecha_changed,
-    on_help_toggle_changed,
-    safe_conflicts_count,
-    status_to_label,
-    update_conflicts_reminder,
-    update_responsive_columns,
-    warmup_sync_client,
-)
 from aplicacion.puertos.proveedor_i18n import ProveedorI18N
+
+from .acciones_mixin import AccionesMainWindowMixin
+from .estado_mixin import EstadoMainWindowMixin
+from .inicializacion_mixin import InicializacionMainWindowMixin
+from .layout_builder import (
+    HistoricoDetalleDialog,
+    OptionalConfirmDialog,
+    PdfPreviewDialog,
+)
+from .navegacion_mixin import NavegacionMainWindowMixin
+from .refresco_mixin import RefrescoMainWindowMixin
+from .init_placeholders import inicializar_placeholders
 
 logger = logging.getLogger(__name__)
 
 try:
-    from .state_helpers import resolve_active_delegada_id, set_processing_state, update_action_state
+    from .state_helpers import (
+        resolve_active_delegada_id,
+        set_processing_state,
+        update_action_state,
+    )
 except Exception as exc:  # pragma: no cover
     log_operational_error(logger, "MAINWINDOW_STATE_HELPERS_IMPORT_FAILED", exc=exc)
 
@@ -165,8 +92,11 @@ except Exception as exc:  # pragma: no cover
     def update_action_state(_window) -> None:
         return
 
-    def resolve_active_delegada_id(_delegada_ids: list[int], _preferred_id: object) -> int | None:
+    def resolve_active_delegada_id(
+        _delegada_ids: list[int], _preferred_id: object
+    ) -> int | None:
         return None
+
 
 try:
     from .state_actions import MainWindowStateActionsMixin
@@ -193,11 +123,19 @@ except Exception as exc:  # pragma: no cover
 
     def registrar_state_bindings(_cls) -> None:
         return
-TAB_HISTORICO = 1
 
 
-
-class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, MainWindowHealthMixin, QMainWindow):
+class MainWindow(
+    QMainWindow,
+    NavegacionMainWindowMixin,
+    RefrescoMainWindowMixin,
+    AccionesMainWindowMixin,
+    EstadoMainWindowMixin,
+    InicializacionMainWindowMixin,
+    MainWindowStateActionsMixin,
+    MainWindowStateValidationMixin,
+    MainWindowHealthMixin,
+):
     def __init__(
         self,
         persona_use_cases: PersonaUseCases,
@@ -208,11 +146,14 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         conflicts_service: ConflictsService,
         health_check_use_case: HealthCheckUseCase | None = None,
         alert_engine: AlertEngine | None = None,
-        validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase | None = None,
+        validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase
+        | None = None,
         confirmar_pendientes_pdf_caso_uso: ConfirmarPendientesPdfCasoUso | None = None,
         crear_pendiente_caso_uso: CrearPendienteCasoUso | None = None,
-        guardar_preferencia_pantalla_completa: GuardarPreferenciaPantallaCompleta | None = None,
-        obtener_preferencia_pantalla_completa: ObtenerPreferenciaPantallaCompleta | None = None,
+        guardar_preferencia_pantalla_completa: GuardarPreferenciaPantallaCompleta
+        | None = None,
+        obtener_preferencia_pantalla_completa: ObtenerPreferenciaPantallaCompleta
+        | None = None,
         servicio_i18n: ProveedorI18N | None = None,
     ) -> None:
         super().__init__()
@@ -231,8 +172,12 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._confirmar_pendientes_pdf_caso_uso = confirmar_pendientes_pdf_caso_uso
         self._crear_pendiente_caso_uso = crear_pendiente_caso_uso
         self._alert_snooze: dict[str, str] = {}
-        self._guardar_preferencia_pantalla_completa = guardar_preferencia_pantalla_completa
-        self._obtener_preferencia_pantalla_completa = obtener_preferencia_pantalla_completa
+        self._guardar_preferencia_pantalla_completa = (
+            guardar_preferencia_pantalla_completa
+        )
+        self._obtener_preferencia_pantalla_completa = (
+            obtener_preferencia_pantalla_completa
+        )
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._servicio_i18n = servicio_i18n
         if servicio_i18n is not None:
@@ -243,8 +188,8 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
             else:
                 if i18n_actual is None:
                     self._i18n = servicio_i18n
-        if servicio_i18n is not None:
             configurar_i18n_interfaz(servicio_i18n)
+
         self._personas: list[PersonaDTO] = []
         self._pending_solicitudes: list[SolicitudDTO] = []
         self._pending_all_solicitudes: list[SolicitudDTO] = []
@@ -273,7 +218,9 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._preventive_validation_debounce_ms = 300
         self._preventive_validation_timer = QTimer(self)
         self._preventive_validation_timer.setSingleShot(True)
-        self._preventive_validation_timer.timeout.connect(self._run_preventive_validation)
+        self._preventive_validation_timer.timeout.connect(
+            self._run_preventive_validation
+        )
         self._ui_ready = False
         self._solicitudes_runtime_error = False
         self._solicitudes_last_action_saved = False
@@ -283,7 +230,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self.status_pending_label: QLabel | None = None
         self.saldos_card: SaldosCard | None = None
         self.horas_input: object | None = None
-        self.sidebar: QFrame | None = None
+        self.sidebar = None
         self.stack: QWidget | None = None
         self.stacked_pages: QWidget | None = None
         self.page_historico: QWidget | None = None
@@ -296,8 +243,9 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._active_sidebar_index = 1
         inicializar_placeholders(self)
         self._last_persona_id: int | None = None
-        self._fecha_seleccionada: QDate | None = None
+        self._fecha_seleccionada = None
         self._draft_solicitud_por_persona: dict[int, dict[str, object]] = {}
+
         self.toast = GestorToasts()
         self.notifications = NotificationService(self.toast, self)
         self._personas_controller = PersonasController(self)
@@ -307,6 +255,7 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._pdf_preview_dialog_class = PdfPreviewDialog
         self._historico_detalle_dialog_class = HistoricoDetalleDialog
         self._optional_confirm_dialog_class = OptionalConfirmDialog
+
         self.setWindowTitle(copy_text("ui.sync.window_title"))
         self._build_ui()
         self.stack = self.stacked_pages or self.centralWidget() or self.main_tabs
@@ -320,8 +269,12 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._load_personas()
         self._reload_pending_views()
         self._update_global_context()
-        self.sync_source_label.setText(f"{copy_text('ui.sync.fuente_prefix')} {self._sync_source_text()}")
-        self.sync_scope_label.setText(f"{copy_text('ui.sync.rango_prefix')} {self._sync_scope_text()}")
+        self.sync_source_label.setText(
+            f"{copy_text('ui.sync.fuente_prefix')} {self._sync_source_text()}"
+        )
+        self.sync_scope_label.setText(
+            f"{copy_text('ui.sync.rango_prefix')} {self._sync_scope_text()}"
+        )
         self.sync_idempotency_label.setText(copy_text("ui.sync.idempotencia_regla"))
         if not self._sync_service.is_configured():
             self._set_config_incomplete_state()
@@ -330,690 +283,6 @@ class MainWindow(MainWindowStateActionsMixin, MainWindowStateValidationMixin, Ma
         self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
         self._post_init_ui()
-
-    def cambiar_idioma(self, idioma: str) -> None:
-        cambiar_idioma_interfaz(idioma)
-
-    def _refrescar_textos_sync(self) -> None:
-        if hasattr(self, "sync_panel_status"):
-            self.sync_panel_status.setText(texto_interfaz("ui.sync.panel.estado_pendiente"))
-        if hasattr(self, "sync_status_label"):
-            self.sync_status_label.setText(texto_interfaz("ui.sync.panel.sincronizando"))
-        reminder = getattr(self, "conflicts_reminder_label", None)
-        if reminder is not None and reminder.isVisible():
-            reminder.setText(texto_interfaz("ui.sync.panel.conflictos_pendientes", cantidad=self._safe_conflicts_count()))
-
-    def _safe_conflicts_count(self) -> int:
-        return safe_conflicts_count(self)
-
-
-    def _post_init_ui(self) -> None:
-        main_tabs = getattr(self, "main_tabs", None)
-        if main_tabs is None or not hasattr(main_tabs, "count"):
-            return
-        if main_tabs.count() >= 1:
-            return
-
-        fallback_page = getattr(self, "page_solicitudes", None)
-        if fallback_page is None:
-            fallback_page = QWidget(self)
-            fallback_page.setObjectName("page_solicitudes_fallback")
-
-        tab_text = ""
-        if hasattr(fallback_page, "windowTitle"):
-            tab_text = fallback_page.windowTitle()
-        if hasattr(main_tabs, "addTab") and hasattr(main_tabs, "indexOf") and main_tabs.indexOf(fallback_page) == -1:
-            main_tabs.addTab(fallback_page, tab_text)
-
-
-    def _inicializar_preferencia_pantalla_completa(self) -> None:
-        if self.preferencia_pantalla_completa_check is None:
-            return
-        if self._obtener_preferencia_pantalla_completa is None:
-            return
-        preferencia = self._obtener_preferencia_pantalla_completa.ejecutar()
-        self.preferencia_pantalla_completa_check.blockSignals(True)
-        self.preferencia_pantalla_completa_check.setChecked(preferencia)
-        self.preferencia_pantalla_completa_check.blockSignals(False)
-
-    def _on_toggle_preferencia_pantalla_completa(self, valor: bool) -> None:
-        if self._guardar_preferencia_pantalla_completa is None:
-            return
-        self._guardar_preferencia_pantalla_completa.ejecutar(valor)
-
-    def _apply_help_preferences(self) -> None:
-        apply_help_preferences(self)
-
-    def _on_help_toggle_changed(self, enabled: bool) -> None:
-        on_help_toggle_changed(self, enabled)
-
-    def _apply_solicitudes_tooltips(self, enabled: bool | None = None) -> None:
-        apply_solicitudes_tooltips(self, enabled)
-
-    def _warmup_sync_client(self) -> None:
-        warmup_sync_client(self, logger)
-
-    def _post_init_load(self) -> None:
-        run_init_refresh(
-            refresh_resumen=self._refresh_saldos,
-            refresh_pendientes=self._reload_pending_views,
-            refresh_historico=lambda: self._refresh_historico(force=True),
-            emit_log=logger.info,
-        )
-        QTimer.singleShot(0, self._warmup_sync_client)
-
-    def _init_refresh(self) -> None:
-        self._post_init_load()
-
-    def _sync_source_text(self) -> str:
-        return acciones_sincronizacion.sync_source_text(self)
-
-    def _sync_scope_text(self) -> str:
-        return acciones_sincronizacion.sync_scope_text()
-
-    def _sync_actor_text(self) -> str:
-        return acciones_sincronizacion.sync_actor_text(self)
-
-    def _update_conflicts_reminder(self) -> None:
-        update_conflicts_reminder(self, logger)
-
-    def _on_main_tab_changed(self, index: int) -> None:
-        if index != TAB_HISTORICO:
-            return
-        if not (self.historico_desde_date.date().isValid() and self.historico_hasta_date.date().isValid()):
-            self._apply_historico_last_30_days()
-        self._refresh_historico(force=False)
-
-    def _refresh_historico(self, *, force: bool = False) -> None:
-        data_refresh.refresh_historico(self, force=force)
-
-    def _refresh_saldos(self) -> None:
-        data_refresh.refresh_saldos(self)
-
-    def _reload_pending_views(self) -> None:
-        data_refresh.reload_pending_views(self)
-
-    def _update_action_state(self) -> None:
-        update_action_state(self)
-
-    def _update_solicitud_preview(self, *_args: object) -> None:
-        return validacion_preventiva._update_solicitud_preview(self)
-
-    def _on_open_saldos_modal(self) -> None:
-        self._refresh_saldos()
-
-    def _on_completo_changed(self, checked: bool) -> None:
-        self._field_touched.add("tramo")
-        self.desde_input.setEnabled(not checked)
-        self.hasta_input.setEnabled(not checked)
-
-        if checked:
-            self.tramo_field_error.setVisible(False)
-            self.tramo_field_error.clear()
-        self._update_solicitud_preview()
-
-    def _on_add_pendiente(self, *args, **kwargs) -> None:
-        _ = (args, kwargs)
-        controller = getattr(self, "_solicitudes_controller", None)
-        if controller is not None and hasattr(controller, "on_add_pendiente"):
-            controller.on_add_pendiente()
-            return
-
-        solicitud = self._build_preview_solicitud()
-        if solicitud is None:
-            return
-
-        notas_text = self.notas_input.toPlainText().strip() if self.notas_input is not None else ""
-        if notas_text:
-            solicitud = solicitud.model_copy(update={"notas": notas_text})
-        self._pending_solicitudes.append(solicitud)
-        self._pending_all_solicitudes.append(solicitud)
-        acciones_pendientes.helper_refresh_pending_ui_state(self)
-
-    def _validate_required_widgets(self) -> None:
-        required_widgets = (
-            "persona_combo",
-            "fecha_input",
-            "desde_input",
-            "hasta_input",
-            "completo_check",
-            "agregar_button",
-            "pendientes_table",
-            "main_tabs",
-            "sync_source_label",
-            "sync_scope_label",
-            "sync_idempotency_label",
-        )
-        for widget_name in required_widgets:
-            if not hasattr(self, widget_name):
-                raise RuntimeError(f"{copy_text('ui.sync.mainwindow_incompleta')} {widget_name}")
-
-    def _create_card(self, title: str) -> tuple[QFrame, QVBoxLayout]:
-        card = QFrame()
-        card.setProperty("card", True)
-        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(14, 14, 14, 14)
-        card_layout.setSpacing(10)
-
-        if title.strip():
-            title_label = QLabel(title)
-            title_label.setProperty("role", "cardTitle")
-            card_layout.addWidget(title_label)
-
-            separator = QFrame()
-            separator.setProperty("role", "cardSeparator")
-            separator.setFixedHeight(1)
-            card_layout.addWidget(separator)
-        return card, card_layout
-
-    def _configure_disclosure(
-        self,
-        button: QPushButton,
-        content: QWidget,
-        *,
-        collapsed_text: str = copy_text("ui.sync.ver_detalles"),
-        expanded_text: str = copy_text("ui.sync.ocultar_detalles"),
-        expandido_por_defecto: bool = False,
-    ) -> None:
-        button.setCheckable(True)
-
-        def _toggle(checked: bool) -> None:
-            content.setVisible(checked)
-            button.setText(expanded_text if checked else collapsed_text)
-
-        button.toggled.connect(_toggle)
-        _toggle(expandido_por_defecto)
-        button.setChecked(expandido_por_defecto)
-
-    def _build_ui(self) -> None:
-        wiring.build_ui(self)
-        self._update_conflicts_reminder()
-
-    def _build_layout(self) -> None:
-        layout_builder.build_layout_phase(self)
-
-    def _wire_signals(self) -> None:
-        wiring.wire_signals_phase(self)
-
-    def _apply_initial_state(self) -> None:
-        layout_builder.apply_initial_state_phase(self)
-
-    def _create_widgets(self) -> None:
-        layout_builder.create_widgets(self)
-
-    def _build_shell_layout(self) -> None:
-        layout_builder.build_shell(self)
-
-    def _switch_sidebar_page(self, index: int) -> None:
-        target_tab_index = index
-        if self.main_tabs is not None and not (0 <= target_tab_index < self.main_tabs.count()):
-            mapped_tab_index = resolve_sidebar_tab_index(index)
-            if mapped_tab_index is None and index != 0:
-                return
-            target_tab_index = mapped_tab_index
-
-        self._active_sidebar_index = index
-
-        if self.main_tabs is not None and target_tab_index is not None and self.main_tabs.currentIndex() != target_tab_index:
-            self.main_tabs.setCurrentIndex(target_tab_index)
-
-        self._refresh_header_title()
-
-    def _refresh_header_title(self) -> None:
-        header_title = getattr(self, "header_title_label", None)
-        if header_title is None:
-            return
-
-        title = resolve_section_title(self._active_sidebar_index)
-        if header_title.text() == title:
-            return
-        header_title.setText(title)
-
-    def _build_status_bar(self) -> None:
-        layout_builder.build_status(self)
-
-    def _configure_time_placeholders(self) -> None:
-        configure_time_placeholders(self)
-
-    def _normalize_input_heights(self) -> None:
-        """Unifica la altura de los campos del formulario de solicitud."""
-        normalize_input_heights(self, logger)
-
-    def _update_responsive_columns(self) -> None:
-        update_responsive_columns(self, logger)
-
-    def _configure_operativa_focus_order(self) -> None:
-        configure_operativa_focus_order(self)
-
-    def _configure_historico_focus_order(self) -> None:
-        configure_historico_focus_order(self, logger)
-
-    def _status_to_label(self, status: str) -> str:
-        return status_to_label(status)
-
-    def _configure_solicitudes_table(self, table: QTableView) -> None:
-        configure_solicitudes_table(table)
-
-    def _save_current_draft(self, persona_id: int | None) -> None:
-        return acciones_personas.save_current_draft(self, persona_id)
-
-
-    def _is_form_dirty(self) -> bool:
-        return acciones_personas.is_form_dirty(self)
-
-    def _confirmar_cambio_delegada(self, persona_id: int | None) -> bool:
-        return acciones_personas.confirmar_cambio_delegada(self, persona_id)
-
-    def _restore_draft_for_persona(self, persona_id: int | None) -> None:
-        return acciones_personas.restore_draft_for_persona(self, persona_id)
-
-    def _load_personas(self) -> None:
-        return acciones_personas.load_personas(self)
-
-    def _current_persona(self) -> PersonaDTO | None:
-        return acciones_personas.current_persona(self)
-
-    def _on_persona_changed(self) -> None:
-        return acciones_personas.on_persona_changed(self)
-
-    def _on_fecha_changed(self, qdate: QDate) -> None:
-        self._fecha_seleccionada = QDate(qdate) if hasattr(qdate, "isValid") and qdate.isValid() else None
-        update_preview = getattr(self, "_update_solicitud_preview", None)
-        if callable(update_preview):
-            self._update_solicitud_preview()
-
-    def _on_add_persona(self) -> None:
-        return acciones_personas.on_add_persona(self)
-
-    def _on_edit_persona(self) -> None:
-        return acciones_personas.on_edit_persona(self)
-
-    def _on_delete_persona(self) -> None:
-        return acciones_personas.on_delete_persona(self)
-
-    def _sync_config_persona_actions(self) -> None:
-        return acciones_personas.sync_config_persona_actions(self)
-
-    def _selected_config_persona(self) -> PersonaDTO | None:
-        return acciones_personas.selected_config_persona(self)
-
-    def _on_config_delegada_changed(self, *_args: object) -> None:
-        return acciones_personas.on_config_delegada_changed(self)
-
-    def _set_sync_in_progress(self, en_progreso: bool) -> None:
-        self._sync_in_progress = en_progreso
-        try:
-            acciones_sincronizacion.set_sync_in_progress(self, en_progreso)
-            return
-        except Exception:
-            logger.warning("sync_in_progress_ui_update_failed", extra={"in_progress": en_progreso}, exc_info=True)
-
-        button_names = (
-            "sync_button",
-            "simulate_sync_button",
-            "confirm_sync_button",
-            "retry_failed_button",
-        )
-        for button_name in button_names:
-            button = vars(self).get(button_name)
-            set_enabled = getattr(button, "setEnabled", None)
-            if callable(set_enabled):
-                set_enabled(not en_progreso)
-
-    def _set_sync_status_badge(self, status: str) -> None:
-        try:
-            acciones_sincronizacion.set_sync_status_badge(self, status)
-            return
-        except Exception:
-            logger.warning("sync_status_badge_update_failed", extra={"status": status}, exc_info=True)
-
-        badge = vars(self).get("sync_status_badge")
-        set_text = getattr(badge, "setText", None)
-        if callable(set_text):
-            set_text(self._status_to_label(status))
-
-    def _handle_duplicate_detected(self, duplicate: object) -> bool:
-        logger.info("duplicate_detected_abort", extra={"duplicate_type": type(duplicate).__name__})
-        notifier = getattr(self, "notifications", None)
-        notify_validation_error = getattr(notifier, "notify_validation_error", None)
-        if callable(notify_validation_error):
-            notify_validation_error(
-                what=copy_text("ui.validacion.solicitud_duplicada"),
-                why=copy_text("ui.validacion.duplicada_pendiente"),
-                how=copy_text("ui.validacion.duplicada_pendiente_info"),
-            )
-            return False
-
-        toast_warning = getattr(getattr(self, "toast", None), "warning", None)
-        if callable(toast_warning):
-            toast_warning(
-                copy_text("ui.validacion.duplicada_pendiente"),
-                title=copy_text("ui.validacion.solicitud_duplicada"),
-            )
-        return False
-
-    def _resolve_backend_conflict(self, persona_id: int, solicitud: object) -> bool:
-        logger.debug(
-            "backend_conflict_check_passthrough",
-            extra={"persona_id": persona_id, "solicitud_type": type(solicitud).__name__},
-        )
-        return True
-
-    def _restaurar_contexto_guardado(self) -> None:
-        return acciones_personas.restaurar_contexto_guardado(self)
-
-    def _apply_historico_text_filter(self) -> None:
-        return state_historico.aplicar_filtro_texto_historico(self)
-
-    def _apply_historico_default_range(self) -> None:
-        """Wrapper: aplica el rango por defecto del histórico."""
-        aplicar_ultimo_rango = getattr(self, "_apply_historico_last_30_days", None)
-        if callable(aplicar_ultimo_rango):
-            aplicar_ultimo_rango()
-            return
-        state_historico.aplicar_rango_por_defecto_historico(self)
-
-    def _historico_period_filter_state(self) -> tuple[str, int | None, int | None]:
-        return state_historico.estado_filtro_periodo_historico(self)
-
-    def _update_historico_empty_state(self) -> None:
-        return state_historico.actualizar_estado_vacio_historico(self)
-
-    def _on_historico_escape(self) -> None:
-        return state_historico.manejar_escape_historico(self)
-
-    def _selected_historico_solicitudes(self) -> list[SolicitudDTO]:
-        return state_historico.obtener_solicitudes_historico_seleccionadas(self)
-
-    def _selected_historico(self) -> SolicitudDTO | None:
-        return state_historico.obtener_solicitud_historico_seleccionada(self)
-
-    def _on_historico_select_all_visible_toggled(self, checked: bool) -> None:
-        return state_historico.alternar_seleccion_visible_historico(self, checked)
-
-    def _on_historico_selection_changed(self, *_args: object) -> None:
-        state_historico.actualizar_estado_seleccion_historico(self)
-        self._update_action_state()
-
-    def _on_open_historico_detalle(self) -> None:
-        return historico_actions.on_open_historico_detalle(self)
-
-    def _on_generar_pdf_historico(self) -> None:
-        return historico_actions.on_generar_pdf_historico(self)
-
-    def _sync_historico_select_all_visible_state(self) -> None:
-        return state_historico.sincronizar_estado_seleccion_visible_historico(self)
-
-    def _notify_historico_filter_if_hidden(self, solicitudes_insertadas: list[SolicitudDTO]) -> None:
-        return historico_actions.notify_historico_filter_if_hidden(self, solicitudes_insertadas)
-
-    def _on_export_historico_pdf(self) -> None:
-        return historico_actions.on_export_historico_pdf(self)
-
-    def _on_eliminar(self) -> None:
-        return historico_actions.on_eliminar(self)
-
-    def _bind_preventive_validation_events(self) -> None:
-        return validacion_preventiva._bind_preventive_validation_events(self)
-
-    def _mark_field_touched(self, field: str) -> None:
-        return validacion_preventiva._mark_field_touched(self, field)
-
-    def _schedule_preventive_validation(self) -> None:
-        return validacion_preventiva._schedule_preventive_validation(self)
-
-    def _run_preventive_validation(self) -> None:
-        return validacion_preventiva._run_preventive_validation(self)
-
-    def _collect_base_preventive_errors(self) -> dict[str, str]:
-        return validacion_preventiva._collect_base_preventive_errors(self)
-
-    def _collect_preventive_validation(self) -> tuple[dict[str, str], dict[str, str]]:
-        return validacion_preventiva._collect_preventive_validation(self)
-
-    def _build_preview_solicitud(self) -> SolicitudDTO | None:
-        return validacion_preventiva._build_preview_solicitud(self)
-
-    def _collect_preventive_business_rules(self, errors: dict[str, str], warnings: dict[str, str]) -> None:
-        return validacion_preventiva._collect_preventive_business_rules(self, errors, warnings)
-
-    def _collect_pending_duplicates_warning(self, warnings: dict[str, str]) -> None:
-        return validacion_preventiva._collect_pending_duplicates_warning(self, warnings)
-
-    def _build_preview_solicitud(self) -> SolicitudDTO | None:
-        return form_handlers.build_preview_solicitud(self)
-
-    def _on_go_to_existing_duplicate(self) -> None:
-        return validacion_preventiva._on_go_to_existing_duplicate(self)
-
-    def _on_pending_selection_changed(self) -> None:
-        self._update_action_state()
-
-    def _on_toggle_ver_todas_pendientes(self, checked: bool) -> None:
-        self._pending_view_all = checked
-        self._refresh_pending_ui_state()
-
-    def _on_remove_pendiente(self) -> None:
-        return acciones_pendientes.on_remove_pendiente(self)
-
-    def _on_insertar_sin_pdf(self) -> None:
-        return on_insertar_sin_pdf(self)
-
-    def _on_confirmar(self, *args, **kwargs) -> None:
-        _ = (args, kwargs)
-        try:
-            persona_actual = self._current_persona()
-            if persona_actual is None:
-                self.toast.warning(
-                    copy_text("ui.sync.delegada_no_seleccionada"),
-                    title=copy_text("ui.validacion.validacion"),
-                )
-                return
-            confirmar_action = globals().get("on_confirmar")
-            if not callable(confirmar_action):
-                mensaje = copy_text("ui.errores.no_se_pudo_completar_operacion")
-                detalle = copy_text("ui.errores.reintenta_contacta_soporte")
-                toast_error(self.toast, f"{mensaje}. {detalle}")
-                log_operational_error(
-                    logger,
-                    "UI_CONFIRMAR_HANDLER_NO_DISPONIBLE",
-                    extra={"handler": "on_confirmar", "contexto": "mainwindow._on_confirmar"},
-                )
-                return
-            confirmar_action(self)
-        except Exception as exc:
-            mensaje = copy_text("ui.errores.no_se_pudo_completar_operacion")
-            detalle = copy_text("ui.errores.reintenta_contacta_soporte")
-            toast_error(self.toast, f"{mensaje}. {detalle}")
-            log_operational_error(
-                logger,
-                "UI_CONFIRMAR_HANDLER_FALLO",
-                exc=exc,
-                extra={"handler": "on_confirmar", "contexto": "mainwindow._on_confirmar"},
-            )
-
-    def _render_preventive_validation(self) -> None:
-        return validacion_preventiva._render_preventive_validation(self)
-
-    def _run_preconfirm_checks(self) -> bool:
-        return validacion_preventiva._run_preconfirm_checks(self)
-
-    def _on_sync(self) -> None:
-        return acciones_sincronizacion.on_sync(self)
-
-    def _on_simulate_sync(self) -> None:
-        return acciones_sincronizacion.on_simulate_sync(self)
-
-    def _on_confirm_sync(self) -> None:
-        return acciones_sincronizacion.on_confirm_sync(self)
-
-    def _on_retry_failed(self) -> None:
-        return acciones_sincronizacion.on_retry_failed(self)
-
-    def _on_show_sync_details(self) -> None:
-        return acciones_sincronizacion.on_show_sync_details(self)
-
-    def _on_copy_sync_report(self) -> None:
-        return acciones_sincronizacion.on_copy_sync_report(self)
-
-    def _on_open_sync_logs(self) -> None:
-        return acciones_sincronizacion.on_open_sync_logs(self)
-
-    def _on_show_sync_history(self) -> None:
-        return acciones_sincronizacion.on_show_sync_history(self)
-
-    def _on_review_conflicts(self) -> None:
-        return acciones_sincronizacion.on_review_conflicts(self)
-
-    def _on_open_opciones(self) -> None:
-        return acciones_sincronizacion.on_open_opciones(self)
-
-    def _on_edit_grupo(self) -> None:
-        return self._on_open_opciones()
-
-    def _on_edit_pdf(self) -> None:
-        return self._on_open_opciones()
-
-    def _on_snooze_alerts_today(self) -> None:
-        return MainWindowHealthMixin._on_snooze_alerts_today(self)
-
-    def _on_sync_finished(self, summary) -> None:
-        return acciones_sincronizacion.on_sync_finished(self, summary)
-
-    def _on_sync_failed(self, payload: object) -> None:
-        return acciones_sincronizacion.on_sync_failed(self, payload)
-
-    def _show_sync_details_dialog(self) -> None:
-        return acciones_sincronizacion.show_sync_details_dialog(self)
-
-    def _apply_sync_report(self, report) -> None:
-        return acciones_sincronizacion.apply_sync_report(self, report)
-
-    def _selected_pending_row_indexes(self) -> list[int]:
-        return state_pendientes.obtener_indices_filas_pendientes_seleccionadas(self)
-
-    def _selected_pending_solicitudes(self) -> list[SolicitudDTO]:
-        selected_rows = self._selected_pending_row_indexes()
-        return [self._pending_solicitudes[row] for row in selected_rows if 0 <= row < len(self._pending_solicitudes)]
-
-    def _obtener_ids_seleccionados_pendientes(self) -> list[int]:
-        ids_ordenados = sorted(
-            {
-                solicitud.id
-                for solicitud in self._selected_pending_solicitudes()
-                if solicitud is not None and solicitud.id is not None
-            }
-        )
-        return ids_ordenados
-
-    def _selected_pending_for_editing(self) -> SolicitudDTO | None:
-        return state_pendientes.obtener_pendiente_para_edicion(self)
-
-    def _find_pending_row_by_id(self, solicitud_id: int | None) -> int | None:
-        return state_pendientes.buscar_fila_pendiente_por_id(self, solicitud_id)
-
-    def _focus_pending_row(self, row: int) -> None:
-        return state_pendientes.enfocar_fila_pendiente(self, row)
-
-    def _focus_pending_by_id(self, solicitud_id: int | None) -> bool:
-        return state_pendientes.enfocar_pendiente_por_id(self, solicitud_id)
-
-
-    def ir_a_pendiente_existente(self, solicitud_id: int) -> None:
-        try:
-            if self.main_tabs is not None and self.main_tabs.currentIndex() != 0:
-                self.main_tabs.setCurrentIndex(0)
-            if getattr(self, "ver_todas_pendientes_button", None) is not None and not self._pending_view_all:
-                self.ver_todas_pendientes_button.setChecked(True)
-            if self._pending_view_all:
-                self._reload_pending_views()
-            if not self._focus_pending_by_id(solicitud_id):
-                logger.warning("pending_row_not_found", extra={"solicitud_id": solicitud_id})
-                return
-            pendientes_table = getattr(self, "pendientes_table", None)
-            if pendientes_table is None:
-                logger.warning("pending_table_missing", extra={"solicitud_id": solicitud_id})
-                return
-            QTimer.singleShot(2500, pendientes_table.clearSelection)
-        except Exception:
-            logger.warning("navigate_to_existing_pending_failed", extra={"solicitud_id": solicitud_id}, exc_info=True)
-
-    def _dump_estado_pendientes(self, motivo: str) -> None:
-        try:
-            estado = build_estado_pendientes_debug_payload(
-                editing_pending=self._selected_pending_for_editing(),
-                selected_rows=self._selected_pending_row_indexes(),
-                solicitud_form=self._build_preview_solicitud(),
-                pending_solicitudes=self._pending_solicitudes,
-                agregar_button_text=self.agregar_button.text(),
-                agregar_button_enabled=self.agregar_button.isEnabled(),
-            )
-            log_estado_pendientes(motivo, estado)
-        except Exception:
-            logger.exception("estado_pendientes_dump_failed", extra={"motivo": motivo})
-
-    def _update_pending_totals(self) -> None:
-        return acciones_pendientes.helper_update_pending_totals(self)
-
-    def _refresh_pending_conflicts(self) -> None:
-        return acciones_pendientes.helper_refresh_pending_conflicts(self)
-
-    def _refresh_pending_ui_state(self) -> None:
-        return acciones_pendientes.helper_refresh_pending_ui_state(self)
-
-    def _clear_pendientes(self) -> None:
-        return acciones_pendientes.on_clear_pendientes(self)
-
-    def _on_review_hidden_pendientes(self) -> None:
-        return acciones_pendientes.on_review_hidden(self)
-
-    def _on_remove_huerfana(self) -> None:
-        return acciones_pendientes.on_remove_huerfana(self)
-
-    def resizeEvent(self, event) -> None:  # type: ignore[override]
-        super().resizeEvent(event)
-        self._update_responsive_columns()
-
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
-        try:
-            if watched is None or event is None:
-                return False
-            submit_widgets = {
-                getattr(self, "persona_combo", None),
-                getattr(self, "fecha_input", None),
-                getattr(self, "desde_input", None),
-                getattr(self, "hasta_input", None),
-                getattr(self, "completo_check", None),
-                getattr(self, "notas_input", None),
-            }
-            if watched in submit_widgets and event.type() == QEvent.KeyPress and isinstance(event, QKeyEvent):
-                key_getter = getattr(event, "key", None)
-                modifiers_getter = getattr(event, "modifiers", None)
-                if not callable(key_getter):
-                    return super().eventFilter(watched, event)
-                key = key_getter()
-                modifiers = modifiers_getter() if callable(modifiers_getter) else Qt.NoModifier
-                if key in (Qt.Key_Return, Qt.Key_Enter) and modifiers == Qt.NoModifier:
-                    logger.info("ENTER form detected via eventFilter")
-                    self._dump_estado_pendientes("enter_form")
-                    if self.agregar_button.isEnabled():
-                        self.agregar_button.click()
-                    else:
-                        logger.info("eventFilter early_return motivo=agregar_button_disabled")
-                    return True
-            return super().eventFilter(watched, event)
-        except Exception:
-            logger.exception(
-                "event_filter_failed",
-                extra={
-                    "watched": type(watched).__name__,
-                    "event_type": type(event).__name__,
-                },
-            )
-            return False
-
 
 
 registrar_state_bindings(MainWindow)
