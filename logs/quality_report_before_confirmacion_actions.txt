@@ -1,0 +1,59 @@
+# Reporte de calidad
+
+## Top 20 archivos por LOC
+01. app/application/use_cases/solicitudes/use_case.py -> 718 LOC
+02. app/infrastructure/repos_sqlite.py -> 599 LOC
+03. app/ui/sync_reporting.py -> 593 LOC
+04. app/ui/vistas/confirmacion_actions.py -> 562 LOC
+05. app/entrypoints/ui_main.py -> 498 LOC
+06. app/ui/copy_catalog.py -> 468 LOC
+07. app/application/use_cases/sync_sheets/orquestador_pull.py -> 421 LOC
+08. app/ui/controllers/solicitudes_controller.py -> 396 LOC
+09. app/ui/vistas/builders/builders_sync_panel.py -> 379 LOC
+10. app/ui/vistas/builders/builders_formulario_solicitud.py -> 344 LOC
+11. app/infrastructure/repos_conflicts_sqlite.py -> 343 LOC
+12. app/ui/conflicts_dialog.py -> 339 LOC
+13. app/ui/vistas/historico_actions.py -> 338 LOC
+14. app/infrastructure/sheets_client.py -> 333 LOC
+15. app/ui/controllers/sync_controller.py -> 323 LOC
+16. app/application/use_cases/solicitudes/auxiliares_caso_uso.py -> 286 LOC
+17. app/ui/vistas/main_window/validacion_preventiva.py -> 283 LOC
+18. app/application/use_cases/sync_sheets_core.py -> 275 LOC
+19. app/ui/vistas/main_window_helpers.py -> 266 LOC
+20. app/application/use_cases/sync_sheets/orquestador_persistencia.py -> 262 LOC
+
+## Top 20 por complejidad
+- Nota: radon no disponible: se muestra fallback por LOC (aproximación simple de complejidad).
+01. app/application/use_cases/solicitudes/use_case.py -> 718
+02. app/infrastructure/repos_sqlite.py -> 599
+03. app/ui/sync_reporting.py -> 593
+04. app/ui/vistas/confirmacion_actions.py -> 562
+05. app/entrypoints/ui_main.py -> 498
+06. app/ui/copy_catalog.py -> 468
+07. app/application/use_cases/sync_sheets/orquestador_pull.py -> 421
+08. app/ui/controllers/solicitudes_controller.py -> 396
+09. app/ui/vistas/builders/builders_sync_panel.py -> 379
+10. app/ui/vistas/builders/builders_formulario_solicitud.py -> 344
+11. app/infrastructure/repos_conflicts_sqlite.py -> 343
+12. app/ui/conflicts_dialog.py -> 339
+13. app/ui/vistas/historico_actions.py -> 338
+14. app/infrastructure/sheets_client.py -> 333
+15. app/ui/controllers/sync_controller.py -> 323
+16. app/application/use_cases/solicitudes/auxiliares_caso_uso.py -> 286
+17. app/ui/vistas/main_window/validacion_preventiva.py -> 283
+18. app/application/use_cases/sync_sheets_core.py -> 275
+19. app/ui/vistas/main_window_helpers.py -> 266
+20. app/application/use_cases/sync_sheets/orquestador_persistencia.py -> 262
+
+## Sync hotspot LOC
+- app/application/use_cases/sync_sheets/use_case.py -> 133 LOC
+- app/application/use_cases/sync_sheets/pull_planner.py -> 46 LOC
+- app/application/use_cases/sync_sheets/pull_runner.py -> 36 LOC
+- app/application/use_cases/sync_sheets/push_builder.py -> 55 LOC
+- app/application/use_cases/sync_sheets/push_runner.py -> 16 LOC
+## Coverage por paquete
+- Nota: coverage.py no disponible o sin datos (.coverage).
+- domain: 0.00%
+- application: 0.00%
+- infrastructure: 0.00%
+- ui: 0.00%
