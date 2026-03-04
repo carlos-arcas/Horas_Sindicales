@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.ui.vistas.builders.formulario_solicitud.helpers_puros import calcular_altura_compacta_texto
+from app.ui.vistas.builders.formulario_solicitud.ayudantes_puros import calcular_altura_compacta_texto
 
 
 def test_calcular_altura_compacta_texto_suma_componentes() -> None:

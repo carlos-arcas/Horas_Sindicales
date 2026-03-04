@@ -21,8 +21,8 @@ from app.ui.vistas.confirmacion_orquestacion import (
     on_insertar_sin_pdf as on_insertar_sin_pdf_orq,
     run_confirmacion_plan,
 )
-from app.ui.vistas.confirmacion_presenter_pendientes import iterar_pendientes_en_tabla as iterar_pendientes_en_tabla_puro
-from app.ui.vistas.confirmacion_qt_adapter import (
+from app.ui.vistas.confirmacion_presentador_pendientes import iterar_pendientes_en_tabla as iterar_pendientes_en_tabla_puro
+from app.ui.vistas.confirmacion_adaptador_qt import (
     apply_confirm,
     apply_finalize,
     apply_prompt_pdf,

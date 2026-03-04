@@ -94,3 +94,8 @@
 - Tests añadidos:
   - `tests/application/test_copy_catalog_puros.py`
 - Resultado: catálogo i18n de UI mantenido con API pública (`copy_text`, `copy_keys`) y separación de parseo/diffs/storage en módulos puros testeables sin Qt.
+
+## 2026-03-04 — Fix CI wrappers+naming+métricas
+- Fix CI: wrappers MainWindow + naming debt + métrica `pdfs_generados`.
+- Renombres de archivos/símbolos para deuda de naming: `presenter_conflictos.py` → `presentador_conflictos.py`, `confirmacion_presenter_pendientes.py` → `confirmacion_presentador_pendientes.py`, `confirmacion_qt_adapter.py` → `confirmacion_adaptador_qt.py`, `helpers_*.py` → `ayudantes_*.py`, `ViewModel*` → `ModeloVista*`, `ConflictsTableModel` → `ModeloTablaConflictos`, `resolver_dto_y_persona_para_creacion` → `resolver_peticion_y_persona_para_creacion`.
+- Se restauró el incremento del contador `pdfs_generados` en exportación de histórico usando el registro de métricas activo (monkeypatch-friendly).

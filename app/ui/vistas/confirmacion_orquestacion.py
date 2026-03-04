@@ -14,7 +14,7 @@ from app.ui.vistas.confirmacion_eventos_auditoria import (
     build_confirmar_pdf_started_event,
 )
 from app.ui.vistas.confirmacion_presenter import ConfirmacionEntrada, plan_confirmacion
-from app.ui.vistas.confirmacion_presenter_pendientes import (
+from app.ui.vistas.confirmacion_presentador_pendientes import (
     calcular_filtro_delegada_para_confirmacion,
     contar_pendientes_restantes,
     filtrar_pendientes_restantes,

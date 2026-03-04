@@ -203,7 +203,7 @@ class SolicitudUseCases:
         warnings: list[str] = []
 
         try:
-            dto_normalizado, persona = self._resolver_dto_y_persona_para_creacion(dto)
+            dto_normalizado, persona = self._resolver_peticion_y_persona_para_creacion(dto)
             self._agregar_warning_saldo_si_aplica(dto_normalizado, persona, warnings)
             creada, saldos = self.agregar_solicitud(
                 dto_normalizado,
@@ -222,7 +222,7 @@ class SolicitudUseCases:
             saldos=saldos,
         )
 
-    def _resolver_dto_y_persona_para_creacion(self, dto: SolicitudDTO) -> tuple[SolicitudDTO, Persona]:
+    def _resolver_peticion_y_persona_para_creacion(self, dto: SolicitudDTO) -> tuple[SolicitudDTO, Persona]:
         mensaje_error = mensaje_persona_invalida(dto.persona_id)
         if mensaje_error is not None:
             raise BusinessRuleError(mensaje_error)
