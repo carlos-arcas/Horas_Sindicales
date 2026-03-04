@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFileDialog, QMessageBox
@@ -25,6 +25,18 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+def _calcular_filtro_delegada_para_confirmacion(window: Any, persona: PersonaDTO) -> int | None:
+    if window._pending_view_all:
+        return None
+    return persona.id if persona.id is not None else None
+
+
+def _contar_pendientes_restantes(pendientes_restantes: Sequence[Any] | None) -> int:
+    if pendientes_restantes is None:
+        return 0
+    return len(pendientes_restantes)
 
 
 def prompt_confirm_pdf_path(window: Any, selected: list[SolicitudDTO]) -> str | None:
@@ -112,9 +124,7 @@ def execute_confirmar_with_pdf(
             )
             caso_uso = getattr(window, "_confirmar_pendientes_pdf_caso_uso", None)
             if caso_uso is None:
-                filtro_delegada = None
-                if not window._pending_view_all:
-                    filtro_delegada = persona.id if persona.id is not None else None
+                filtro_delegada = _calcular_filtro_delegada_para_confirmacion(window, persona)
                 confirmadas_ids, errores, generado, creadas, pendientes_restantes = window._solicitudes_controller.confirmar_lote(
                     selected,
                     correlation_id=operation.correlation_id,
@@ -144,7 +154,7 @@ def execute_confirmar_with_pdf(
                     pendientes_restantes = None
             logger.debug("_execute_confirmar_with_pdf paso=llamada_servicio_confirmar ok=True")
             logger.debug("_execute_confirmar_with_pdf paso=llamada_generador_pdf ruta=%s", str(generado) if generado else "")
-            pendientes_restantes_count = len(pendientes_restantes) if pendientes_restantes is not None else 0
+            pendientes_restantes_count = _contar_pendientes_restantes(pendientes_restantes)
             log_event(
                 logger,
                 "confirmar_y_generar_pdf_finished",
