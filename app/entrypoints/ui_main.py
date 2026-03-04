@@ -69,6 +69,56 @@ class _CoordinadorArranqueConCierreDeterminista:
         self.startup_thread = self.thread
         self.main_window = None
         self.wizard = None
+        self._quit_on_last_window_closed_previo = None
+        self._quit_on_last_window_closed_restaurado = False
+        self._guardia_ventana_visible_disparada = False
+
+    def desactivar_quit_on_last_window_closed_temporalmente(self) -> None:
+        if self._quit_on_last_window_closed_previo is not None:
+            return
+        valor_previo = self.app.quitOnLastWindowClosed()
+        self._quit_on_last_window_closed_previo = bool(valor_previo)
+        self.app.setQuitOnLastWindowClosed(False)
+        marcar_stage("quit_on_last_window_closed_temporal_false")
+
+    def restaurar_quit_on_last_window_closed(self) -> None:
+        if self._quit_on_last_window_closed_restaurado:
+            return
+        if self._quit_on_last_window_closed_previo is None:
+            return
+        self.app.setQuitOnLastWindowClosed(self._quit_on_last_window_closed_previo)
+        self._quit_on_last_window_closed_restaurado = True
+        marcar_stage("quit_on_last_window_closed_restored")
+
+    def _activar_guardia_ventana_visible(self, *, timeout_ms: int = 1200) -> None:
+        if self._guardia_ventana_visible_disparada:
+            return
+        self._guardia_ventana_visible_disparada = True
+        from app.ui.qt_compat import QTimer
+
+        def _validar_ventana_visible() -> None:
+            widgets = [w for w in self.app.topLevelWidgets() if _es_objeto_qt_valido(w)]
+            if any(widget.isVisible() for widget in widgets):
+                return
+            marcar_stage("ui_no_window_visible_timeout")
+            log_operational_error(
+                LOGGER,
+                "STARTUP_UI_NO_VISIBLE_WINDOW",
+                extra={"timeout_ms": timeout_ms},
+            )
+            from PySide6.QtWidgets import QMessageBox
+
+            fallback = QMessageBox(
+                QMessageBox.Icon.Critical,
+                self.i18n.t("splash_error_titulo"),
+                self.i18n.t("startup_error_dialog_message"),
+            )
+            self.app.setProperty("_startup_fallback_dialog_ref", fallback)
+            safe_call(fallback, "show")
+            safe_call(fallback, "raise_")
+            safe_call(fallback, "activateWindow")
+
+        QTimer.singleShot(timeout_ms, _validar_ventana_visible)
 
     def _detener_watchdog_idempotente(self) -> None:
         if not _es_objeto_qt_valido(self.watchdog_timer):
@@ -145,6 +195,8 @@ class _CoordinadorArranqueConCierreDeterminista:
                 safe_call(window, "raise_")
                 safe_call(window, "activateWindow")
                 marcar_stage("main_window_shown")
+                self.app.processEvents()
+                self.restaurar_quit_on_last_window_closed()
 
             preparar_mostrar_ventana(
                 window=window,
@@ -153,6 +205,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                 marcar_stage=marcar_stage,
             )
             QTimer.singleShot(0, _mostrar_main_window)
+            self._activar_guardia_ventana_visible()
             programar_post_init(
                 window=window,
                 scheduler=scheduler,
@@ -505,6 +558,10 @@ def run_ui(container=None) -> int:
 
     app = QApplication([])
     marcar_stage("UI_QT_INICIALIZADO")
+    quit_on_last_window_closed_previo = bool(app.quitOnLastWindowClosed())
+    app.setProperty("_quit_on_last_window_closed_previo", quit_on_last_window_closed_previo)
+    app.aboutToQuit.connect(lambda: marcar_stage("about_to_quit"))
+    app.lastWindowClosed.connect(lambda: marcar_stage("last_window_closed"))
     instalar_qt_message_handler(LOGGER, getattr(container, "boot_trace_writer", None))
     assert_hilo_ui_o_log("run_ui.bootstrap", LOGGER)
     i18n = I18nManager("es")
@@ -554,6 +611,7 @@ def run_ui(container=None) -> int:
         instalar_menu_ayuda=_instalar_menu_ayuda,
         fallo_arranque_handler=_manejar_fallo_arranque,
     )
+    controlador.desactivar_quit_on_last_window_closed_temporalmente()
 
     splash.registrar_watchdog(watchdog_timer)
 
@@ -586,8 +644,11 @@ def run_ui(container=None) -> int:
                 signal.disconnect(slot)
             except (RuntimeError, TypeError):
                 continue
+        safe_call(startup_thread, "quit")
+        if not getattr(startup_thread, "_delete_later_conectado", False):
+            startup_thread.finished.connect(startup_thread.deleteLater)
+            startup_thread._delete_later_conectado = True
         safe_call(startup_worker, "deleteLater")
-        safe_call(startup_thread, "deleteLater")
 
     startup_worker.finished.connect(_limpiar_arranque, Qt.ConnectionType.QueuedConnection)
     startup_worker.failed.connect(_limpiar_arranque, Qt.ConnectionType.QueuedConnection)
@@ -605,7 +666,11 @@ def run_ui(container=None) -> int:
             logger=LOGGER,
         )
         marcar_stage("startup_thread_started")
-        return app.exec()
+        marcar_stage("run_ui_exec_enter")
+        exit_code = app.exec()
+        LOGGER.info("RUN_UI_EXEC_EXIT", extra={"extra": {"exit_code": exit_code}})
+        marcar_stage("run_ui_exec_exit")
+        return exit_code
     except Exception as exc:  # noqa: BLE001
         _manejar_fallo_arranque(
             exc=exc,
