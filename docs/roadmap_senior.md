@@ -30,3 +30,12 @@
   - `app/ui/vistas/main_window/acciones_mixin.py`
   - `app/ui/vistas/main_window/inicializacion_mixin.py`
   - `app/ui/vistas/main_window/estado_mixin.py`
+
+## 2026-03-04 — Refactor UI deuda confirmacion_actions
+- UI deuda: `confirmacion_actions.py` **antes 562 LOC -> después ~227 LOC**.
+- Módulos creados:
+  - `app/ui/vistas/confirmacion_orquestacion.py`
+  - `app/ui/vistas/confirmacion_presenter_pendientes.py`
+  - `app/ui/vistas/confirmacion_eventos_auditoria.py`
+  - `app/ui/vistas/confirmacion_qt_adapter.py`
+- Resultado: `confirmacion_actions.py` queda como fachada fina con API pública estable y delegación a módulos por responsabilidad.
