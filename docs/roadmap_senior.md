@@ -48,3 +48,14 @@
   - `app/ui/sync_reporting_storage.py` (persistencia/carga de reportes e historial en filesystem).
   - `app/ui/sync_reporting_builders.py` (builders puros de warnings/errors/conflicts y entradas de simulación).
 - Resultado: `app/ui/sync_reporting.py` queda como fachada fina y mantiene API pública compatible.
+
+## 2026-03-04 — Refactor UI deuda builders_formulario_solicitud
+- UI deuda: `builders_formulario_solicitud.py` **antes 344 LOC -> después 12 LOC**.
+- Módulos creados:
+  - `app/ui/vistas/builders/formulario_solicitud/contratos.py`
+  - `app/ui/vistas/builders/formulario_solicitud/builders_solicitud.py`
+  - `app/ui/vistas/builders/formulario_solicitud/builders_pendientes.py`
+  - `app/ui/vistas/builders/formulario_solicitud/bindings_senales.py`
+  - `app/ui/vistas/builders/formulario_solicitud/helpers_puros.py`
+  - `app/ui/vistas/builders/formulario_solicitud/helpers_qt.py`
+- Resultado: fachada fina con API pública estable (`create_formulario_solicitud`) y separación por responsabilidades de secciones, wiring y helpers.
