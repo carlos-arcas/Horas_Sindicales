@@ -36,7 +36,7 @@ class ConfigCheck:
         "presentacion/i18n/**",
         "app/ui/i18n/**",
         "infraestructura/i18n/**",
-        "app/ui/copy_catalog.py",
+        "app/ui/copy_catalog/**",
     )
     patron_clave_i18n: str = PATRON_CLAVE_I18N
     patrones_tecnicos_permitidos: tuple[str, ...] = PATRONES_TECNICOS_DEFAULT

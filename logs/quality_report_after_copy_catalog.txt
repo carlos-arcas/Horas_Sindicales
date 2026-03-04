@@ -1,0 +1,59 @@
+# Reporte de calidad
+
+## Top 20 archivos por LOC
+01. app/application/use_cases/solicitudes/use_case.py -> 718 LOC
+02. app/infrastructure/repos_sqlite.py -> 599 LOC
+03. app/entrypoints/ui_main.py -> 498 LOC
+04. app/application/use_cases/sync_sheets/orquestador_pull.py -> 421 LOC
+05. app/ui/controllers/solicitudes_controller.py -> 396 LOC
+06. app/infrastructure/repos_conflicts_sqlite.py -> 343 LOC
+07. app/ui/vistas/historico_actions.py -> 338 LOC
+08. app/infrastructure/sheets_client.py -> 333 LOC
+09. app/ui/controllers/sync_controller.py -> 323 LOC
+10. app/application/use_cases/solicitudes/auxiliares_caso_uso.py -> 286 LOC
+11. app/ui/vistas/main_window/validacion_preventiva.py -> 283 LOC
+12. app/application/use_cases/sync_sheets_core.py -> 275 LOC
+13. app/ui/vistas/main_window_helpers.py -> 266 LOC
+14. app/application/use_cases/sync_sheets/orquestador_persistencia.py -> 262 LOC
+15. app/ui/vistas/main_window/state_controller.py -> 262 LOC
+16. app/ui/vistas/main_window/acciones_pendientes.py -> 261 LOC
+17. app/ui/vistas/main_window/acciones_sincronizacion_resultados.py -> 259 LOC
+18. app/ui/person_dialog.py -> 258 LOC
+19. app/ui/vistas/main_window/acciones_personas.py -> 255 LOC
+20. app/ui/sync_reporting_orquestacion.py -> 251 LOC
+
+## Top 20 por complejidad
+- Nota: radon no disponible: se muestra fallback por LOC (aproximación simple de complejidad).
+01. app/application/use_cases/solicitudes/use_case.py -> 718
+02. app/infrastructure/repos_sqlite.py -> 599
+03. app/entrypoints/ui_main.py -> 498
+04. app/application/use_cases/sync_sheets/orquestador_pull.py -> 421
+05. app/ui/controllers/solicitudes_controller.py -> 396
+06. app/infrastructure/repos_conflicts_sqlite.py -> 343
+07. app/ui/vistas/historico_actions.py -> 338
+08. app/infrastructure/sheets_client.py -> 333
+09. app/ui/controllers/sync_controller.py -> 323
+10. app/application/use_cases/solicitudes/auxiliares_caso_uso.py -> 286
+11. app/ui/vistas/main_window/validacion_preventiva.py -> 283
+12. app/application/use_cases/sync_sheets_core.py -> 275
+13. app/ui/vistas/main_window_helpers.py -> 266
+14. app/application/use_cases/sync_sheets/orquestador_persistencia.py -> 262
+15. app/ui/vistas/main_window/state_controller.py -> 262
+16. app/ui/vistas/main_window/acciones_pendientes.py -> 261
+17. app/ui/vistas/main_window/acciones_sincronizacion_resultados.py -> 259
+18. app/ui/person_dialog.py -> 258
+19. app/ui/vistas/main_window/acciones_personas.py -> 255
+20. app/ui/sync_reporting_orquestacion.py -> 251
+
+## Sync hotspot LOC
+- app/application/use_cases/sync_sheets/use_case.py -> 133 LOC
+- app/application/use_cases/sync_sheets/pull_planner.py -> 46 LOC
+- app/application/use_cases/sync_sheets/pull_runner.py -> 36 LOC
+- app/application/use_cases/sync_sheets/push_builder.py -> 55 LOC
+- app/application/use_cases/sync_sheets/push_runner.py -> 16 LOC
+## Coverage por paquete
+- Nota: coverage.py no disponible o sin datos (.coverage).
+- domain: 0.00%
+- application: 0.00%
+- infrastructure: 0.00%
+- ui: 0.00%
