@@ -18,6 +18,34 @@ from app.ui.toast_helpers import toast_success
 logger = logging.getLogger(__name__)
 
 
+def _normalizar_inputs_pendiente(
+    solicitud: SolicitudDTO,
+    *,
+    horas: float,
+    notas_texto: str | None,
+) -> SolicitudDTO:
+    notas_limpias = (notas_texto or "").strip() or None
+    return replace(solicitud, horas=horas, notas=notas_limpias)
+
+
+def _construir_peticion_crear_pendiente(
+    solicitud: SolicitudDTO,
+    correlation_id: str,
+) -> SolicitudCrearPendientePeticion:
+    return SolicitudCrearPendientePeticion(
+        solicitud=solicitud,
+        correlation_id=correlation_id,
+    )
+
+
+def _mapear_error_persistencia_a_feedback(exc: Exception) -> tuple[str, str, str]:
+    return (
+        "ui.solicitudes.no_se_guardo",
+        f"{str(exc)}.",
+        "ui.solicitudes.corrige_formulario",
+    )
+
+
 class SolicitudesController:
     _CONFLICT_DEBOUNCE_MS = 800
 
@@ -151,6 +179,82 @@ class SolicitudesController:
     ) -> SolicitudDTO | None:
         w = self.window
 
+        solicitud_normalizada = self._calcular_y_normalizar_pendiente(solicitud)
+        if solicitud_normalizada is None:
+            return None
+
+        if not w._resolve_backend_conflict(solicitud_normalizada.persona_id, solicitud_normalizada):
+            logger.info(
+                "backend_conflict_abort",
+                extra={
+                    "persona_id": solicitud_normalizada.persona_id,
+                    "fecha_pedida": solicitud_normalizada.fecha_pedida,
+                },
+            )
+            return None
+
+        operation_correlation_id = ContextoOperacion.nuevo().correlation_id
+        try:
+            w._set_processing_state(True)
+            operation_ctx = self._crear_contexto_operacion()
+            operation_correlation_id = operation_ctx.correlation_id
+            with OperationContext(
+                "agregar_pendiente",
+                correlation_id=operation_ctx.correlation_id,
+                result_id=operation_ctx.result_id,
+            ) as operation:
+                log_event(
+                    logger,
+                    "crear_pendiente_started",
+                    {
+                        "persona_id": solicitud_normalizada.persona_id,
+                        "fecha_pedida": solicitud_normalizada.fecha_pedida,
+                    },
+                    operation.correlation_id,
+                )
+                creada, warnings = self._ejecutar_creacion_pendiente(
+                    solicitud_normalizada,
+                    pendiente_en_edicion,
+                    operation_ctx,
+                    operation.correlation_id,
+                )
+                if warnings:
+                    w.toast.info(
+                        "\n".join(warnings),
+                        title=self._copy("ui.solicitudes.solicitud_con_advertencias"),
+                    )
+                log_event(
+                    logger,
+                    "crear_pendiente_finished",
+                    {"solicitud_id": creada.id, "ok": True},
+                    operation.correlation_id,
+                )
+            w._reload_pending_views()
+        except (ValidacionError, BusinessRuleError) as exc:
+            what_key, why, how_key = _mapear_error_persistencia_a_feedback(exc)
+            w.notifications.notify_validation_error(
+                what=self._copy(what_key),
+                why=why,
+                how=self._copy(how_key),
+            )
+            return None
+        except Exception as exc:  # pragma: no cover - fallback
+            log_event(
+                logger,
+                "crear_pendiente_finished",
+                {"error": str(exc), "ok": False},
+                operation_correlation_id,
+            )
+            logger.error("Error insertando petición en base de datos", exc_info=True)
+            w._show_critical_error(exc)
+            return None
+        finally:
+            w._set_processing_state(False)
+
+        return creada
+
+    def _calcular_y_normalizar_pendiente(self, solicitud: SolicitudDTO) -> SolicitudDTO | None:
+        w = self.window
         try:
             minutos = w._solicitud_use_cases.calcular_minutos_solicitud(solicitud)
         except (ValidacionError, BusinessRuleError) as exc:
@@ -167,109 +271,76 @@ class SolicitudesController:
             w._show_critical_error(exc)
             return None
 
-        notas_text = w.notas_input.toPlainText().strip()
-        solicitud = replace(
-            solicitud,
-            horas=w._solicitud_use_cases.minutes_to_hours_float(minutos),
-            notas=notas_text or None,
+        horas = w._solicitud_use_cases.minutes_to_hours_float(minutos)
+        notas_texto = w.notas_input.toPlainText()
+        return _normalizar_inputs_pendiente(solicitud, horas=horas, notas_texto=notas_texto)
+
+    def _crear_contexto_operacion(self) -> ContextoOperacion:
+        build_context = getattr(self.window.notifications, "build_operation_context", None)
+        operation_ctx = build_context() if callable(build_context) else ContextoOperacion.nuevo()
+        return operation_ctx if isinstance(operation_ctx, ContextoOperacion) else ContextoOperacion.nuevo()
+
+    def _ejecutar_creacion_pendiente(
+        self,
+        solicitud: SolicitudDTO,
+        pendiente_en_edicion: SolicitudDTO | None,
+        operation_ctx: ContextoOperacion,
+        correlation_id: str,
+    ) -> tuple[SolicitudDTO, list[str]]:
+        w = self.window
+        if pendiente_en_edicion is not None and pendiente_en_edicion.id is not None:
+            w._solicitud_use_cases.eliminar_solicitud(
+                pendiente_en_edicion.id,
+                correlation_id=correlation_id,
+            )
+
+        logger.info(
+            "persist_start",
+            extra={"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
         )
+        crear_pendiente_caso_uso = getattr(w, "_crear_pendiente_caso_uso", None)
+        if crear_pendiente_caso_uso is None:
+            return self._crear_desde_use_case_legacy(solicitud, operation_ctx, correlation_id)
+        return self._crear_desde_caso_uso_dedicado(solicitud, correlation_id)
 
-        if not w._resolve_backend_conflict(solicitud.persona_id, solicitud):
-            logger.info(
-                "backend_conflict_abort",
-                extra={"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
+    def _crear_desde_use_case_legacy(
+        self,
+        solicitud: SolicitudDTO,
+        operation_ctx: ContextoOperacion,
+        correlation_id: str,
+    ) -> tuple[SolicitudDTO, list[str]]:
+        resultado = self.window._solicitud_use_cases.crear_resultado(
+            solicitud,
+            correlation_id=correlation_id,
+            contexto=operation_ctx,
+        )
+        if not resultado.success:
+            logger.warning(
+                "crear_resultado_failed",
+                extra={
+                    "reason_code": getattr(resultado, "reason_code", None),
+                    "errores": list(getattr(resultado, "errores", []) or []),
+                },
             )
-            return
+            raise BusinessRuleError(resultado.errores[0] if resultado.errores else self._copy("ui.solicitudes.no_pudo_guardar"))
+        if resultado.entidad is None:
+            raise BusinessRuleError(self._copy("ui.solicitudes.no_pudo_guardar"))
+        return resultado.entidad, resultado.warnings
 
-        try:
-            w._set_processing_state(True)
-            build_context = getattr(w.notifications, "build_operation_context", None)
-            operation_ctx = build_context() if callable(build_context) else ContextoOperacion.nuevo()
-            if not isinstance(operation_ctx, ContextoOperacion):
-                operation_ctx = ContextoOperacion.nuevo()
-            with OperationContext(
-                "agregar_pendiente",
-                correlation_id=operation_ctx.correlation_id,
-                result_id=operation_ctx.result_id,
-            ) as operation:
-                log_event(
-                    logger,
-                    "crear_pendiente_started",
-                    {"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
-                    operation.correlation_id,
-                )
-                if pendiente_en_edicion is not None and pendiente_en_edicion.id is not None:
-                    w._solicitud_use_cases.eliminar_solicitud(
-                        pendiente_en_edicion.id,
-                        correlation_id=operation.correlation_id,
-                    )
-                logger.info(
-                    "persist_start",
-                    extra={"persona_id": solicitud.persona_id, "fecha_pedida": solicitud.fecha_pedida},
-                )
-                crear_pendiente_caso_uso = getattr(w, "_crear_pendiente_caso_uso", None)
-                if crear_pendiente_caso_uso is None:
-                    resultado = w._solicitud_use_cases.crear_resultado(
-                        solicitud,
-                        correlation_id=operation.correlation_id,
-                        contexto=operation_ctx,
-                    )
-                    if not resultado.success:
-                        logger.warning(
-                            "crear_resultado_failed",
-                            extra={
-                                "reason_code": getattr(resultado, "reason_code", None),
-                                "errores": list(getattr(resultado, "errores", []) or []),
-                            },
-                        )
-                        raise BusinessRuleError(
-                            resultado.errores[0] if resultado.errores else self._copy("ui.solicitudes.no_pudo_guardar")
-                        )
-                    creada = resultado.entidad
-                    if creada is None:
-                        raise BusinessRuleError(self._copy("ui.solicitudes.no_pudo_guardar"))
-                    warnings = resultado.warnings
-                else:
-                    resultado_creacion = crear_pendiente_caso_uso.execute(
-                        SolicitudCrearPendientePeticion(
-                            solicitud=solicitud,
-                            correlation_id=operation.correlation_id,
-                        )
-                    )
-                    if resultado_creacion.errores:
-                        raise BusinessRuleError(resultado_creacion.errores[0])
-                    creada = resultado_creacion.solicitud_creada
-                    if creada is None:
-                        raise BusinessRuleError(self._copy("ui.solicitudes.no_pudo_guardar"))
-                    warnings = []
-                if warnings:
-                    w.toast.info(
-                        "\n".join(warnings),
-                        title=self._copy("ui.solicitudes.solicitud_con_advertencias"),
-                    )
-                log_event(
-                    logger,
-                    "crear_pendiente_finished",
-                    {"solicitud_id": creada.id, "ok": True},
-                    operation.correlation_id,
-                )
-            w._reload_pending_views()
-        except (ValidacionError, BusinessRuleError) as exc:
-            w.notifications.notify_validation_error(
-                what=self._copy("ui.solicitudes.no_se_guardo"),
-                why=f"{str(exc)}.",
-                how=self._copy("ui.solicitudes.corrige_formulario"),
-            )
-            return None
-        except Exception as exc:  # pragma: no cover - fallback
-            log_event(logger, "crear_pendiente_finished", {"error": str(exc), "ok": False}, operation.correlation_id)
-            logger.error("Error insertando petición en base de datos", exc_info=True)
-            w._show_critical_error(exc)
-            return None
-        finally:
-            w._set_processing_state(False)
-
-        return creada
+    def _crear_desde_caso_uso_dedicado(
+        self,
+        solicitud: SolicitudDTO,
+        correlation_id: str,
+    ) -> tuple[SolicitudDTO, list[str]]:
+        crear_pendiente_caso_uso = self.window._crear_pendiente_caso_uso
+        resultado_creacion = crear_pendiente_caso_uso.execute(
+            _construir_peticion_crear_pendiente(solicitud, correlation_id)
+        )
+        if resultado_creacion.errores:
+            raise BusinessRuleError(resultado_creacion.errores[0])
+        if resultado_creacion.solicitud_creada is None:
+            raise BusinessRuleError(self._copy("ui.solicitudes.no_pudo_guardar"))
+        return resultado_creacion.solicitud_creada, []
 
     def _update_ui_after_add(self, creada: SolicitudDTO, pendiente_en_edicion: SolicitudDTO | None) -> None:
         w = self.window

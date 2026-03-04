@@ -18,7 +18,8 @@
     "app/application/use_cases/solicitudes/confirmar_sin_pdf_planner.py:plan_confirmar_sin_pdf": 8,
     "app/application/use_cases/solicitudes/use_case.py:SolicitudUseCases._generar_pdf_confirmadas": 10,
     "app/application/use_cases/solicitudes/pdf_confirmadas_builder.py:plan_pdf_confirmadas": 8,
-    "app/application/use_cases/confirmacion_pdf/caso_uso.py:ConfirmarPendientesPdfCasoUso.execute": 20
+    "app/application/use_cases/confirmacion_pdf/caso_uso.py:ConfirmarPendientesPdfCasoUso.execute": 20,
+    "app/ui/controllers/solicitudes_controller.py:SolicitudesController._persist_pendiente": 10
   },
   "i18n_hardcode_check": {
     "rutas_objetivo": [
