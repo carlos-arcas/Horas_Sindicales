@@ -29,9 +29,18 @@ def _mock_i18n_guard_pass(monkeypatch) -> None:
     )
 
 
+def _mock_typecheck_pass(monkeypatch) -> None:
+    monkeypatch.setattr(
+        quality_gate,
+        "run_typecheck_guard",
+        lambda *_args, **_kwargs: {"status": "PASS", "detail": "typecheck ok", "errores": []},
+    )
+
+
 def test_quality_gate_unified_pass(monkeypatch, tmp_path: Path) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
     _mock_i18n_guard_pass(monkeypatch)
+    _mock_typecheck_pass(monkeypatch)
     monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
     monkeypatch.setattr(
         quality_gate,
@@ -62,6 +71,7 @@ def test_quality_gate_unified_pass(monkeypatch, tmp_path: Path) -> None:
 def test_quality_gate_unified_fail_naming(monkeypatch, tmp_path: Path) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
     _mock_i18n_guard_pass(monkeypatch)
+    _mock_typecheck_pass(monkeypatch)
     monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
     monkeypatch.setattr(
         quality_gate,
@@ -93,6 +103,7 @@ def test_quality_gate_unified_fail_naming(monkeypatch, tmp_path: Path) -> None:
 def test_quality_gate_unified_fail_coverage(monkeypatch, tmp_path: Path) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
     _mock_i18n_guard_pass(monkeypatch)
+    _mock_typecheck_pass(monkeypatch)
     monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
     monkeypatch.setattr(
         quality_gate,
@@ -124,6 +135,7 @@ def test_quality_gate_unified_fail_coverage(monkeypatch, tmp_path: Path) -> None
 def test_quality_gate_unified_json_structure(monkeypatch, tmp_path: Path) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
     _mock_i18n_guard_pass(monkeypatch)
+    _mock_typecheck_pass(monkeypatch)
     monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
     monkeypatch.setattr(
         quality_gate,
@@ -153,6 +165,7 @@ def test_quality_gate_unified_json_structure(monkeypatch, tmp_path: Path) -> Non
 
     assert set(results) >= {
         "coverage",
+        "typecheck",
         "cc_budget",
         "cc_targets",
         "architecture",
@@ -183,6 +196,7 @@ def test_sin_pytest_cov_modo_strict_hace_hard_fail(monkeypatch, tmp_path: Path) 
 def test_sin_pytest_cov_non_strict_modo_degradado(monkeypatch, tmp_path: Path) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
     _mock_i18n_guard_pass(monkeypatch)
+    _mock_typecheck_pass(monkeypatch)
     monkeypatch.setenv("QUALITY_GATE_STRICT", "0")
     monkeypatch.setattr(quality_gate.pytest, "main", lambda *_args, **_kwargs: 0)
     monkeypatch.setattr(quality_gate.importlib.util, "find_spec", lambda _name: None)
@@ -219,12 +233,12 @@ def test_sin_pytest_cov_non_strict_modo_degradado(monkeypatch, tmp_path: Path) -
     assert results["coverage"]["status"] == "SKIP"
     assert results["global_status"] == "DEGRADED"
     assert results["degraded_mode"] is True
-    assert results["checks_omitidos"] == ["pytest-cov", "radon", "pip-audit"]
+    assert results["checks_omitidos"] == ["pytest-cov", "radon", "pip-audit", "typecheck"]
     assert results["reason_code"] == "QUALITY_GATE_DEGRADED_MISSING_DEPS"
     report_md = (tmp_path / "logs" / "quality_report.md").read_text(encoding="utf-8")
     report_txt = (tmp_path / "logs" / "quality_report.txt").read_text(encoding="utf-8")
     assert "## checks_omitidos" in report_md
     assert "pytest-cov" in report_md
-    assert "checks_omitidos=pytest-cov, radon, pip-audit" in report_txt
+    assert "checks_omitidos=pytest-cov, radon, pip-audit, typecheck" in report_txt
     assert counters["contractual"] == 4
     assert counters["naming"] == 1

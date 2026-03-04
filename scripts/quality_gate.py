@@ -35,6 +35,7 @@ QUALITY_REPORT_TXT = LOGS_DIR / "quality_report.txt"
 
 STRICT_ENV_VAR = "QUALITY_GATE_STRICT"
 REASON_CODE_DEGRADED_MISSING_DEPS = "QUALITY_GATE_DEGRADED_MISSING_DEPS"
+TYPECHECK_CHECK_NAME = "typecheck"
 
 LOGGER = logging.getLogger("quality_gate")
 
@@ -109,21 +110,19 @@ def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
                 )
             elif importlib.util.find_spec("pytest_cov") is not None:
                 LOGGER.info("pytest-cov auto-instalado correctamente.")
-                return {
-                    "degraded_mode": False,
-                    "degraded_reason": None,
-                    "missing_dependencies": [],
-                    "reason_code": None,
-                    "strict_mode": strict_mode,
-                }
-
-        missing_dependencies.append("pytest-cov")
+            else:
+                missing_dependencies.append("pytest-cov")
+        else:
+            missing_dependencies.append("pytest-cov")
 
     if importlib.util.find_spec("radon") is None:
         missing_dependencies.append("radon")
 
     if importlib.util.find_spec("pip_audit") is None:
         missing_dependencies.append("pip-audit")
+
+    if importlib.util.find_spec("mypy") is None:
+        missing_dependencies.append(TYPECHECK_CHECK_NAME)
 
     if missing_dependencies:
         for dependency in missing_dependencies:
@@ -146,7 +145,7 @@ def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
         return {
             "degraded_mode": True,
             "degraded_reason": reason,
-            "missing_dependencies": missing_dependencies,
+            "checks_omitidos": missing_dependencies,
             "reason_code": REASON_CODE_DEGRADED_MISSING_DEPS,
             "strict_mode": strict_mode,
         }
@@ -154,7 +153,7 @@ def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
     return {
         "degraded_mode": False,
         "degraded_reason": None,
-        "missing_dependencies": [],
+        "checks_omitidos": [],
         "reason_code": None,
         "strict_mode": strict_mode,
     }
@@ -217,6 +216,30 @@ def run_pytest_coverage(
     status = "PASS" if passed else "FAIL"
     _record(records, "coverage", status, detail)
     return _make_result(status, detail, value=coverage_value, threshold=threshold, exit_code=exit_code)
+
+
+def run_typecheck_guard(
+    records: list[dict[str, str]],
+    typecheck_runner: Callable[[], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    from scripts import typecheck
+
+    runner = typecheck_runner or typecheck.ejecutar_typecheck
+    resultado = runner()
+    status = "PASS" if resultado.get("status") == "PASS" else "FAIL"
+    detail = (
+        f"mypy core ok | comando={resultado.get('comando', '')}"
+        if status == "PASS"
+        else f"mypy core con errores | comando={resultado.get('comando', '')}"
+    )
+    _record(records, TYPECHECK_CHECK_NAME, status, detail)
+    return _make_result(
+        status,
+        detail,
+        errores=resultado.get("errores", []),
+        comando=resultado.get("comando"),
+        exit_code=resultado.get("exit_code"),
+    )
 
 
 def run_contractual_test(
@@ -404,6 +427,7 @@ def write_reports(payload: dict[str, Any], records: list[dict[str, str]]) -> Non
 
 def build_report(
     pytest_runner: Callable[[list[str]], int] | None = None,
+    typecheck_runner: Callable[[], dict[str, Any]] | None = None,
     degraded_mode: bool = False,
     degraded_reason: str | None = None,
     checks_omitidos: list[str] | None = None,
@@ -418,12 +442,19 @@ def build_report(
 
     results: dict[str, Any] = {}
     checks_omitidos = checks_omitidos or []
-    if degraded_mode:
+    if "pytest-cov" in checks_omitidos:
         detail = degraded_reason or "pytest-cov no disponible; ejecutado en modo degradado"
         _record(records, "coverage", "SKIP", detail)
         results["coverage"] = _make_result("SKIP", detail, value=None, threshold=threshold, exit_code=None)
     else:
         results["coverage"] = run_pytest_coverage(threshold, coverage_targets, records, runner)
+
+    if TYPECHECK_CHECK_NAME in checks_omitidos:
+        detail = degraded_reason or "mypy no disponible; typecheck omitido"
+        _record(records, TYPECHECK_CHECK_NAME, "SKIP", detail)
+        results[TYPECHECK_CHECK_NAME] = _make_result("SKIP", detail, errores=[], comando=None, exit_code=None)
+    else:
+        results[TYPECHECK_CHECK_NAME] = run_typecheck_guard(records, typecheck_runner=typecheck_runner)
 
     results["cc_budget"] = run_contractual_test(
         "cc_budget", "tests/test_quality_gate_metrics.py::test_quality_gate_size_and_complexity", records, runner
@@ -446,15 +477,15 @@ def build_report(
         for key, value in results.items()
         if key not in {"global_status", "degraded_mode", "degraded_reason"}
     ]
-    has_coverage_skip = results["coverage"]["status"] == "SKIP"
+    has_skipped_checks = any(value["status"] == "SKIP" for value in results.values())
     results["degraded_mode"] = degraded_mode
     results["degraded_reason"] = degraded_reason if degraded_mode else None
     results["checks_omitidos"] = checks_omitidos
     results["reason_code"] = reason_code if degraded_mode else None
     results["strict_mode"] = strict_mode
-    if all(item == "PASS" for item in statuses) and not has_coverage_skip:
+    if all(item == "PASS" for item in statuses) and not has_skipped_checks:
         results["global_status"] = "PASS"
-    elif all(item in {"PASS", "SKIP"} for item in statuses) and has_coverage_skip and degraded_mode:
+    elif all(item in {"PASS", "SKIP"} for item in statuses) and has_skipped_checks and degraded_mode:
         results["global_status"] = "DEGRADED"
     else:
         results["global_status"] = "FAIL"
@@ -467,6 +498,7 @@ def print_human_summary(results: dict[str, Any]) -> None:
     print("\n=== QUALITY GATE UNIFICADO ===")
     for area in [
         "coverage",
+        TYPECHECK_CHECK_NAME,
         "cc_budget",
         "cc_targets",
         "architecture",
@@ -504,7 +536,7 @@ def main(argv: list[str] | None = None) -> int:
     results = build_report(
         degraded_mode=bool(preflight_info["degraded_mode"]),
         degraded_reason=preflight_info["degraded_reason"],
-        checks_omitidos=preflight_info["missing_dependencies"],
+        checks_omitidos=preflight_info["checks_omitidos"],
         reason_code=preflight_info["reason_code"],
         strict_mode=bool(preflight_info["strict_mode"]),
     )

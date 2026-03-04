@@ -42,6 +42,7 @@ jobs:
         run: |
           python -c "import pytest_cov" || (echo "ERROR: Falta pytest-cov. Instala requirements-dev.txt" && exit 1)
           python -c "import radon" || (echo "ERROR: Falta radon. Instala requirements-dev.txt" && exit 1)
+          python -c "import mypy" || (echo "ERROR: Falta mypy. Instala requirements-dev.txt" && exit 1)
 
       - name: Lint
         run: ruff check .
