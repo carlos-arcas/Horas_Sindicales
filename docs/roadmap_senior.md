@@ -59,3 +59,16 @@
   - `app/ui/vistas/builders/formulario_solicitud/helpers_puros.py`
   - `app/ui/vistas/builders/formulario_solicitud/helpers_qt.py`
 - Resultado: fachada fina con API pública estable (`create_formulario_solicitud`) y separación por responsabilidades de secciones, wiring y helpers.
+
+## 2026-03-04 — Refactor UI deuda builders_sync_panel
+- UI deuda: `builders_sync_panel.py` **antes 379 LOC -> después 11 LOC**.
+- Módulos creados:
+  - `app/ui/vistas/builders/sync_panel/orquestacion_sync_panel.py`
+  - `app/ui/vistas/builders/sync_panel/builders_secciones.py`
+  - `app/ui/vistas/builders/sync_panel/builders_diagnostico.py`
+  - `app/ui/vistas/builders/sync_panel/bindings_senales.py`
+  - `app/ui/vistas/builders/sync_panel/helpers_puros.py`
+  - `app/ui/vistas/builders/sync_panel/helpers_qt.py`
+  - `app/ui/vistas/builders/sync_panel/contratos.py`
+  - `app/ui/vistas/builders/sync_panel/__init__.py`
+- Resultado: `builders_sync_panel.py` queda como fachada fina y mantiene el contrato público (`create_sync_panel`) delegando construcción, bindings y utilidades por responsabilidad.
