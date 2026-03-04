@@ -37,6 +37,7 @@
     "app/ui/controllers/solicitudes_controller.py",
     "app/ui/controllers/sync_controller.py",
     "app/ui/historico_view.py",
+    "app/ui/mappers/solicitud_mapper.py",
     "app/ui/models/solicitudes_table_presenter.py",
     "app/ui/models_qt.py",
     "app/ui/notification_service.py",
@@ -126,6 +127,9 @@
     "app/ui/error_mapping.py::map_error_to_ui_message",
     "app/ui/historico_view.py::HistoricalViewModel",
     "app/ui/historico_view.py::HistoricoFilterProxyModel",
+    "app/ui/mappers/solicitud_mapper.py::dto_a_historico_viewmodel",
+    "app/ui/mappers/solicitud_mapper.py::dto_a_pendiente_viewmodel",
+    "app/ui/mappers/solicitud_mapper.py::dto_a_viewmodel",
     "app/ui/models_qt.py::PersonasTableModel",
     "app/ui/models_qt.py::SolicitudesTableModel",
     "app/ui/notification_service.py::NotificationService",
@@ -150,5 +154,6 @@
     "app/ui/vistas/solicitudes_presenter.py::build_preventive_validation_view_model",
     "app/ui/workers/sincronizacion_workers.py::PushWorker",
     "app/ui/workers/sincronizacion_workers.py::SyncWorker"
-  ]
+  ],
+  "justificacion_cambios_recientes": "Se acepta naming en ingles de viewmodel por compatibilidad contractual del mapper UI DTO→ViewModel."
 }
