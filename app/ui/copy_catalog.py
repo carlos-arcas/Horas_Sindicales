@@ -386,6 +386,7 @@ _COPY: dict[str, str] = {
     "ui.conflictos.aplicar_opcion_seleccionada": "Aplicar opción seleccionada",
     "ui.conflictos.siguiente_conflicto": "Siguiente conflicto",
     "ui.conflictos.resolver_todos_automaticamente": "Resolver todos automáticamente (según política por defecto)",
+    "ui.conflictos.politica_activa": "Política activa: gana el cambio más reciente; si hay empate, se mantiene el dato local.",
     "ui.conflictos.sin_conflictos": "Sin conflictos.",
     "ui.conflictos.resumen_conflictos_resueltos": "Resumen: Conflictos resueltos {resueltos} · Pendientes {pendientes} · Requieren revisión manual {revision_manual}",
     "ui.conflictos.conflicto_pendiente_reintentar": "Conflicto pendiente. Reintenta la sincronización.",
