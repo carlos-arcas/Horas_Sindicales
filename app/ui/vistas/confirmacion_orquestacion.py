@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from app.application.dto import PersonaDTO, SolicitudDTO
 
 logger = logging.getLogger(__name__)
-ResultadoConfirmacionPdf = tuple[str | None, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None]
+ResultadoConfirmacionPdf = tuple[str | None, Path | None, list["SolicitudDTO"], list[int], list[str], list["SolicitudDTO"] | None]
 
 
 def execute_confirmar_with_pdf(window: Any, persona: PersonaDTO, selected: list[SolicitudDTO], pdf_path: str) -> ResultadoConfirmacionPdf | None:

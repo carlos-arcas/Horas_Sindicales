@@ -64,7 +64,7 @@ def construir_resumen_panel_inicial(filas: list[ModeloVistaConflictoFila], t) ->
     tipo_conflicto = classify_conflict(first)
     return (
         f"[{t('ui.conflictos.conflictos_detectados')}]\n"
-        f"- Total: {len(filas)}\n"
+        f"{t('ui.conflictos.item_total')} {len(filas)}\n"
         f"{t('ui.conflictos.item_tipo_conflicto')} {tipo_conflicto}\n"
         f"{t('ui.conflictos.item_delegada_afectada')} {delegada_name(first)}\n"
         f"{t('ui.conflictos.item_accion_recomendada')} {recommended_action(tipo_conflicto)}"

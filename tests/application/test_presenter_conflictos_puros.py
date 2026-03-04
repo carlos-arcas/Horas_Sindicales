@@ -75,7 +75,7 @@ def test_resumen_panel_sin_hardcodes_en_test_con_traductor_controlado():
     resumen = construir_resumen_panel_inicial(filas, traductor)
 
     assert "<ui.conflictos.conflictos_detectados>" in resumen
-    assert "Total: 1" in resumen
+    assert "<ui.conflictos.item_total> 1" in resumen
 
 
 def test_formatear_tipo_valores_raros_y_none_como_desconocido():
