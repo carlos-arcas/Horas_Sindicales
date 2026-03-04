@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
@@ -15,7 +15,14 @@ if TYPE_CHECKING:
     from app.ui.vistas.confirmacion_presenter import ConfirmAction
 
 logger = logging.getLogger(__name__)
-ResultadoConfirmacionPdf = tuple[str | None, Path | None, list[SolicitudDTO], list[int], list[str], list[SolicitudDTO] | None]
+ResultadoConfirmacionPdf: TypeAlias = tuple[
+    str | None,
+    Path | None,
+    list["SolicitudDTO"],
+    list[int],
+    list[str],
+    list["SolicitudDTO"] | None,
+]
 
 
 def prompt_confirm_pdf_path(window: Any, selected: list[SolicitudDTO]) -> str | None:
