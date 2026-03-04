@@ -12,7 +12,7 @@ RUTA_CATALOGO_DEFAULT = Path(__file__).with_name("catalogo.json")
 def leer_catalogo_json(ruta: Path = RUTA_CATALOGO_DEFAULT) -> dict[str, str]:
     data = json.loads(ruta.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
-        raise ValueError("El catálogo de copy debe ser un objeto JSON.")
+        raise ValueError("ui.copy_catalog.catalogo_json_invalido")
     return parsear_catalogo_crudo(data)
 
 
