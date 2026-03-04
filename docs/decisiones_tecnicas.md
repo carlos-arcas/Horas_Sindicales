@@ -56,3 +56,9 @@
 - **2026-03-02 — `duracion_ms_desde_iso` tolera ISO inválido sin excepción — Vigente**  
   Se protege el cálculo con manejo de `TypeError`/`ValueError` y se retorna `0` ante entradas inválidas para evitar caídas en reportes cuando llega un `generated_at` corrupto o incompleto.  
   Verificación recomendada: `pytest -q tests/application/test_parseo_iso_datetime.py tests/application/test_sync_reporting_datetime.py` y `python -m scripts.quality_gate`.
+
+## 2026-03-04 — Reportes de contenido y moderación (MVP)
+
+- Se implementa idempotencia con índice único parcial SQLite sobre `(denunciante_id, recurso_tipo, recurso_id)` cuando `estado='pendiente'`.
+- **Trade-off**: se evita FK genérica a múltiples tablas de recursos para mantener bajo acoplamiento y coste de migración; se valida existencia desde repositorio de moderación por tipo de recurso.
+- Si `ocultar_recurso` falla por inexistencia, el reporte se resuelve como `descartar` para evitar colas eternas.

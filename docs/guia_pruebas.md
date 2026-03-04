@@ -153,3 +153,15 @@ UPDATE_GOLDEN=1 PYTHONPATH=. pytest -q tests/golden/botones
 ```
 
 Sin `UPDATE_GOLDEN=1`, cualquier cambio de comportamiento rompe el gate.
+
+## Pruebas de reportes/moderación
+
+Ejecuta:
+
+- `pytest -q tests/domain/test_reportes_contenido.py`
+- `pytest -q tests/application/reportes/test_casos_uso_reportes.py`
+- `pytest -q tests/infrastructure/test_reportes_sqlite.py`
+
+Validación completa PR:
+
+- `python -m scripts.gate_pr`

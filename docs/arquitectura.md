@@ -68,3 +68,11 @@ Cadena canónica de dependencias:
 
 - Pendiente de completar un diagrama C4 (contexto/contenedores) si se requiere para auditoría externa.
 - Pendiente de completar inventario de dependencias externas por flujo crítico.
+
+## Flujo de reportes de contenido y moderación admin
+
+- **Dominio (`app/domain/reportes_contenido.py`)**: entidad inmutable `ReporteContenido`, catálogos estables y validaciones.
+- **Aplicación (`app/application/reportes`)**: casos de uso para crear, listar y resolver reportes.
+- **Infraestructura (`app/infrastructure/reportes_sqlite.py`)**: persistencia SQLite con idempotencia en estado pendiente y auditoría de seguridad.
+- **Auditoría**: al resolver un reporte se registra `tipo_evento=admin_reporte_resuelto`.
+- **Moderación**: acción `ocultar_recurso` opera sobre soft-delete (`deleted=1`) de recursos locales.
