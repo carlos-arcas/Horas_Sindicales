@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import ast
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
+from tests.helpers_main_window_ast import metodo_existe_en_mainwindow_o_mixins
 
 REQUIRED_WIRING_HANDLERS = (
     "_on_completo_changed",
@@ -20,21 +17,8 @@ REQUIRED_WIRING_HANDLERS = (
 )
 
 
-def _class_methods(path: Path, class_name: str) -> set[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    for node in tree.body:
-        if isinstance(node, ast.ClassDef) and node.name == class_name:
-            return {item.name for item in node.body if isinstance(item, ast.FunctionDef)}
-    return set()
-
-
 def test_main_window_declara_handlers_minimos_de_wiring() -> None:
-    vista_methods = _class_methods(ROOT / "app/ui/vistas/main_window_vista.py", "MainWindow")
-    base_methods = _class_methods(
-        ROOT / "app/ui/vistas/main_window/state_controller.py", "MainWindow"
-    )
-    declared_methods = vista_methods | base_methods
-    missing = [name for name in REQUIRED_WIRING_HANDLERS if name not in declared_methods]
+    missing = [name for name in REQUIRED_WIRING_HANDLERS if not metodo_existe_en_mainwindow_o_mixins(name)]
     assert not missing, (
         "MainWindow no cumple el contrato mínimo de handlers requerido por builders: "
         + ", ".join(missing)

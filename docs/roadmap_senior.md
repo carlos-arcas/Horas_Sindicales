@@ -99,3 +99,8 @@
 - Fix CI: wrappers MainWindow + naming debt + métrica `pdfs_generados`.
 - Renombres de archivos/símbolos para deuda de naming: `presenter_conflictos.py` → `presentador_conflictos.py`, `confirmacion_presenter_pendientes.py` → `confirmacion_presentador_pendientes.py`, `confirmacion_qt_adapter.py` → `confirmacion_adaptador_qt.py`, `helpers_*.py` → `ayudantes_*.py`, `ViewModel*` → `ModeloVista*`, `ConflictsTableModel` → `ModeloTablaConflictos`, `resolver_dto_y_persona_para_creacion` → `resolver_peticion_y_persona_para_creacion`.
 - Se restauró el incremento del contador `pdfs_generados` en exportación de histórico usando el registro de métricas activo (monkeypatch-friendly).
+
+## 2026-03-04 — Refuerzo tests contratos MainWindow: menos frágiles ante refactors
+- Se reforzaron los tests de contrato de `MainWindow` para evitar dependencia rígida de `state_controller.py`.
+- Cambios clave: búsqueda AST multiarchivo (`state_controller.py`, `main_window_vista.py`, `app/ui/main_window.py`) + resolución de métodos en mixins de `app/ui/vistas/main_window/`.
+- Se mantiene enforcement: firma de handlers de señales (incluyendo `QDate`) y validación de wrappers mínimos por delegación (`super().metodo(...)`) cuando el wrapper existe en archivos fachada.
