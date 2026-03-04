@@ -112,12 +112,15 @@ def execute_confirmar_with_pdf(
             )
             caso_uso = getattr(window, "_confirmar_pendientes_pdf_caso_uso", None)
             if caso_uso is None:
+                filtro_delegada = None
+                if not window._pending_view_all:
+                    filtro_delegada = persona.id if persona.id is not None else None
                 confirmadas_ids, errores, generado, creadas, pendientes_restantes = window._solicitudes_controller.confirmar_lote(
                     selected,
                     correlation_id=operation.correlation_id,
                     generar_pdf=True,
                     pdf_path=pdf_path,
-                    filtro_delegada=None if window._pending_view_all else (persona.id or None),
+                    filtro_delegada=filtro_delegada,
                 )
             else:
                 request = SolicitudConfirmarPdfPeticion(
@@ -141,13 +144,14 @@ def execute_confirmar_with_pdf(
                     pendientes_restantes = None
             logger.debug("_execute_confirmar_with_pdf paso=llamada_servicio_confirmar ok=True")
             logger.debug("_execute_confirmar_with_pdf paso=llamada_generador_pdf ruta=%s", str(generado) if generado else "")
+            pendientes_restantes_count = len(pendientes_restantes) if pendientes_restantes is not None else 0
             log_event(
                 logger,
                 "confirmar_y_generar_pdf_finished",
                 {
                     "creadas": len(creadas),
                     "confirmadas_ids": confirmadas_ids,
-                    "pendientes_restantes": len(pendientes_restantes or []),
+                    "pendientes_restantes": pendientes_restantes_count,
                     "errores": len(errores),
                     "pdf_generado": bool(generado),
                 },
