@@ -107,3 +107,6 @@
 - Se reforzaron los tests de contrato de `MainWindow` para evitar dependencia rígida de `state_controller.py`.
 - Cambios clave: búsqueda AST multiarchivo (`state_controller.py`, `main_window_vista.py`, `app/ui/main_window.py`) + resolución de métodos en mixins de `app/ui/vistas/main_window/`.
 - Se mantiene enforcement: firma de handlers de señales (incluyendo `QDate`) y validación de wrappers mínimos por delegación (`super().metodo(...)`) cuando el wrapper existe en archivos fachada.
+
+## 2026-03-04 — Fix CI i18n_hardcode + ui_smoke import
+- Fix CI: i18n_hardcode nuevos=5 -> 0 + ui_smoke import NameError (SolicitudDTO) resuelto.
