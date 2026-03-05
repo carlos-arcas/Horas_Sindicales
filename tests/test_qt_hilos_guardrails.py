@@ -98,3 +98,28 @@ def test_ejecutar_en_hilo_ui_ejecuta_directo_en_hilo_principal(monkeypatch: pyte
 
     assert ejecutada["ok"]
     assert not _QTimerFake.llamadas
+
+
+def test_comparar_threads_devuelve_true_solo_si_es_misma_referencia() -> None:
+    hilo = _ThreadToken()
+
+    assert qt_hilos.comparar_threads(hilo, hilo) is True
+    assert qt_hilos.comparar_threads(_ThreadToken(), _ThreadToken()) is False
+
+
+def test_asegurar_en_hilo_ui_lanza_y_loguea_violation(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _configurar_qt_falso(monkeypatch, es_ui=False)
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(RuntimeError, match="UI_QT_THREAD_VIOLATION:operacion_prueba"):
+            qt_hilos.asegurar_en_hilo_ui("operacion_prueba")
+
+    assert "UI_QT_THREAD_VIOLATION" in caplog.text
+
+
+def test_asegurar_en_hilo_ui_no_lanza_en_hilo_principal(monkeypatch: pytest.MonkeyPatch) -> None:
+    _configurar_qt_falso(monkeypatch, es_ui=True)
+
+    qt_hilos.asegurar_en_hilo_ui("operacion_ok")

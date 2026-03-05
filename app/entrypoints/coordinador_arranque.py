@@ -7,7 +7,7 @@ from typing import Callable
 
 from aplicacion.casos_de_uso.onboarding import ReiniciarOnboarding
 from app.bootstrap.captura_fallos_fatales import marcar_stage
-from app.entrypoints.arranque_nucleo import ResultadoArranque
+from app.entrypoints.arranque_nucleo import ResultadoArranqueCore
 from app.entrypoints.startup_watchdog import calcular_elapsed_ms
 
 from PySide6.QtCore import QObject, QTimer, Slot
@@ -161,7 +161,7 @@ class CoordinadorArranque(QObject):
         )
 
     @Slot(object)
-    def on_finished(self, startup_payload: ResultadoArranque) -> None:
+    def on_finished(self, startup_payload: ResultadoArranqueCore) -> None:
         if self._boot_timeout_disparado:
             self._evento_finish_tardio("finished")
             return
@@ -172,8 +172,11 @@ class CoordinadorArranque(QObject):
             self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
             resolved_container = startup_payload.container
-            deps_arranque = startup_payload.deps_arranque
-            idioma = startup_payload.idioma
+            from app.entrypoints.ui_main import _construir_dependencias_arranque
+
+            self._marcar_boot_stage("bootstrap.crear_mainwindow_deps_ui")
+            deps_arranque = _construir_dependencias_arranque(resolved_container)
+            idioma = deps_arranque.obtener_idioma_ui.ejecutar()
             self.i18n.set_idioma(idioma)
             orquestador = self.orquestador_factory(deps_arranque, self.i18n)
             if not orquestador.resolver_onboarding():

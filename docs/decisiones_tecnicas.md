@@ -33,6 +33,11 @@
   El `TrabajadorArranque` quedó restringido a tareas de arranque no-UI y ahora emite `ResultadoArranque` (dataclass) en vez de tuplas ad-hoc.  
   La construcción y wiring de `SplashWindow`/`MainWindow` permanece en el hilo principal con conexión encolada (`QueuedConnection`), reduciendo el riesgo del warning `QObject: Cannot create children for a parent that is in a different thread` y cierres silenciosos durante splash.
 
+
+- **2026-03-05 — Qt thread confinement en arranque: sin QObjects en worker — Vigente**  
+  El worker de arranque ahora devuelve solo `ResultadoArranqueCore` (container core) y no ejecuta `crear_mainwindow_deps` ni ninguna factoría Qt.  
+  La creación de `DependenciasArranque`, `MainWindow` y `Wizard` se concentra en `on_finished` (hilo UI) y se protege con `asegurar_en_hilo_ui(...)`. Si se detecta violación de hilo, se registra `UI_QT_THREAD_VIOLATION`, se marca la etapa `qt_thread_violation_detected` y el flujo cae a fallback controlado en lugar de continuar con warnings silenciosos.
+
 ## Procedimiento de actualización
 
 1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).

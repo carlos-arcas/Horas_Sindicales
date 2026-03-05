@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable
 from logging import Logger
@@ -21,6 +22,32 @@ def es_hilo_ui() -> bool:
     if not hasattr(QThread, "currentThread"):
         return False
     return QThread.currentThread() is app_thread_getter()
+
+
+def comparar_threads(hilo_actual: object, hilo_ui: object) -> bool:
+    return hilo_actual is hilo_ui
+
+
+def asegurar_en_hilo_ui(nombre_operacion: str) -> None:
+    logger = logging.getLogger(__name__)
+    app = QApplication.instance() if hasattr(QApplication, "instance") else None
+    hilo_ui = app.thread() if app is not None and hasattr(app, "thread") else None
+    hilo_actual = QThread.currentThread() if hasattr(QThread, "currentThread") else None
+
+    if hilo_ui is not None and comparar_threads(hilo_actual, hilo_ui):
+        return
+
+    logger.error(
+        "UI_QT_THREAD_VIOLATION",
+        extra={
+            "extra": {
+                "operacion": nombre_operacion,
+                "hilo_actual": repr(hilo_actual),
+                "hilo_ui": repr(hilo_ui),
+            }
+        },
+    )
+    raise RuntimeError(f"UI_QT_THREAD_VIOLATION:{nombre_operacion}")
 
 
 def ejecutar_en_hilo_ui(

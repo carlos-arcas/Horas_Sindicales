@@ -25,7 +25,7 @@ from app.bootstrap.captura_fallos_fatales import (
 from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
 from app.bootstrap.settings import project_root
-from app.entrypoints.arranque_nucleo import ResultadoArranque
+from app.entrypoints.arranque_nucleo import ResultadoArranqueCore
 from app.entrypoints.post_show import preparar_mostrar_ventana, programar_post_init
 from app.ui.qt_message_handler import instalar_qt_message_handler
 from app.ui.qt_safe import safe_call
@@ -80,7 +80,7 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._quit_on_last_window_closed_restaurado = False
         self._guardia_ventana_visible_disparada = False
         self._fallback_window = None
-        self._ultimo_startup_payload: ResultadoArranque | None = None
+        self._ultimo_startup_payload: ResultadoArranqueCore | None = None
         self._cancelacion_arranque_solicitada = False
         self._cancelacion_arranque_completada = False
         self._etapa_terminal_mostrada = False
@@ -279,7 +279,7 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._marcar_boot_stage("splash_closed")
         self.app.processEvents()
 
-    def on_finished(self, startup_payload: ResultadoArranque) -> None:
+    def on_finished(self, startup_payload: ResultadoArranqueCore) -> None:
         if self._boot_timeout_disparado:
             LOGGER.warning(
                 "UI_STARTUP_FINISHED_AFTER_TIMEOUT",
@@ -305,7 +305,8 @@ class _CoordinadorArranqueConCierreDeterminista:
                 except Exception:
                     self._marcar_boot_stage("container_resolved_error")
                     raise
-                deps_arranque = startup_payload.deps_arranque
+                self._marcar_boot_stage("bootstrap.crear_mainwindow_deps_ui")
+                deps_arranque = _construir_dependencias_arranque(resolved_container)
                 deps_arranque = _actualizar_preferencias_en_hilo_ui(
                     resolved_container, deps_arranque
                 )
@@ -400,6 +401,8 @@ class _CoordinadorArranqueConCierreDeterminista:
                     marcar_stage=marcar_stage,
                 )
             except Exception as exc:  # noqa: BLE001
+                if isinstance(exc, RuntimeError) and str(exc).startswith("UI_QT_THREAD_VIOLATION"):
+                    self._marcar_boot_stage("qt_thread_violation_detected")
                 self._marcar_boot_stage("on_finished_exception")
                 log_operational_error(
                     LOGGER,
@@ -629,6 +632,9 @@ def _manejar_fallo_arranque(
 
 
 def _construir_dependencias_arranque(container):
+    from app.ui.qt_hilos import asegurar_en_hilo_ui
+
+    asegurar_en_hilo_ui("bootstrap.crear_mainwindow_deps")
     from infraestructura.proveedor_documentos import ProveedorDocumentosInfra
     from presentacion.orquestador_arranque import DependenciasArranque
 
@@ -755,7 +761,7 @@ def run_ui(container=None) -> int:
     from app.ui.estilos.apply_theme import aplicar_tema
     from app.ui.main_window import MainWindow
     from app.ui.splash_window import SplashWindow
-    from app.ui.qt_hilos import assert_hilo_ui_o_log, ejecutar_en_hilo_ui
+    from app.ui.qt_hilos import assert_hilo_ui_o_log, asegurar_en_hilo_ui, ejecutar_en_hilo_ui
     from app.ui.theme import build_stylesheet
     from presentacion.i18n import I18nManager
     from presentacion.orquestador_arranque import OrquestadorArranqueUI
@@ -795,15 +801,9 @@ def run_ui(container=None) -> int:
     ):
         pass
 
-    controlador = CoordinadorArranquePrincipal(
-        app=app,
-        i18n=i18n,
-        splash=splash,
-        startup_timeout_ms=startup_timeout_ms,
-        startup_thread=startup_thread,
-        startup_worker=startup_worker,
-        watchdog_timer=watchdog_timer,
-        main_window_factory=lambda resolved_container, deps_arranque: MainWindow(
+    def _crear_main_window_en_hilo_ui(resolved_container, deps_arranque):
+        asegurar_en_hilo_ui("MainWindow.__init__")
+        return MainWindow(
             resolved_container.persona_use_cases,
             resolved_container.solicitud_use_cases,
             resolved_container.grupo_use_cases,
@@ -818,7 +818,17 @@ def run_ui(container=None) -> int:
             guardar_preferencia_pantalla_completa=deps_arranque.guardar_preferencia_pantalla_completa,
             obtener_preferencia_pantalla_completa=deps_arranque.obtener_preferencia_pantalla_completa,
             servicio_i18n=resolved_container.servicio_i18n,
-        ),
+        )
+
+    controlador = CoordinadorArranquePrincipal(
+        app=app,
+        i18n=i18n,
+        splash=splash,
+        startup_timeout_ms=startup_timeout_ms,
+        startup_thread=startup_thread,
+        startup_worker=startup_worker,
+        watchdog_timer=watchdog_timer,
+        main_window_factory=_crear_main_window_en_hilo_ui,
         orquestador_factory=OrquestadorArranqueUI,
         instalar_menu_ayuda=_instalar_menu_ayuda,
         fallo_arranque_handler=_manejar_fallo_arranque,
