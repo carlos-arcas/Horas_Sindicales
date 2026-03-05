@@ -30,7 +30,8 @@ class SplashWindow(QWidget):
 
     def __init__(self, i18n: I18nManager) -> None:
         super().__init__()
-        assert_hilo_ui_o_log(f"{type(self).__name__}.__init__", logger)
+        contexto_hilo = ".".join((type(self).__name__, self.__init__.__name__))
+        assert_hilo_ui_o_log(contexto_hilo, logger)
         self._i18n = i18n
         self._startup_thread: QThread | None = None
         self._startup_worker: QObject | None = None
