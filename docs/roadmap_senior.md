@@ -115,3 +115,9 @@
 
 ## 2026-03-04 — Fix CI i18n_hardcode + ui_smoke import
 - Fix CI: i18n_hardcode nuevos=5 -> 0 + ui_smoke import NameError (SolicitudDTO) resuelto.
+
+
+## 2026-03-04 — Fix arranque UI en hilo principal + fallback visible
+- Causa raíz confirmada: el flujo post-splash podía quedar sin ventana visible durante la transición (y con riesgo de ejecución en contexto no principal si el callback no se encolaba correctamente).
+- Solución aplicada: coordinación del post-finish en `QObject` principal con encolado explícito al hilo UI, stages `decision_modo_arranque`, `wizard_*`, `main_window_*`, trazas de `on_finished_exception` y guardia de visibilidad (0ms/100ms) con ventana fallback y botón de reintento.
+- Robustez: referencias fuertes en `QApplication` para coordinador/thread/worker, cierre de splash idempotente en hilo UI y restauración controlada de `quitOnLastWindowClosed`.
