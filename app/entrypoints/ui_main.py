@@ -85,6 +85,11 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._cancelacion_arranque_completada = False
         self._etapa_terminal_mostrada = False
         self._watchdog_transicion = None
+        self.ultima_etapa = ""
+
+    def _marcar_boot_stage(self, stage: str) -> None:
+        self.ultima_etapa = stage
+        marcar_stage(stage)
 
     def solicitar_cancelacion_arranque_por_usuario(self) -> None:
         if self._cancelacion_arranque_completada:
@@ -92,7 +97,7 @@ class _CoordinadorArranqueConCierreDeterminista:
         if self._cancelacion_arranque_solicitada:
             return
         self._cancelacion_arranque_solicitada = True
-        marcar_stage("splash_close_requested_by_user")
+        self._marcar_boot_stage("splash_close_requested_by_user")
         LOGGER.info(
             "startup_cancel_requested",
             extra={"extra": {"BOOT_STAGE": "startup_cancel_requested"}},
@@ -105,7 +110,7 @@ class _CoordinadorArranqueConCierreDeterminista:
             self._solicitar_cierre_thread()
             self._cerrar_splash_idempotente()
             self._cancelacion_arranque_completada = True
-            marcar_stage("startup_cancel_done")
+            self._marcar_boot_stage("startup_cancel_done")
             LOGGER.info(
                 "startup_cancel_done",
                 extra={"extra": {"BOOT_STAGE": "startup_cancel_done"}},
@@ -120,7 +125,7 @@ class _CoordinadorArranqueConCierreDeterminista:
         valor_previo = self.app.quitOnLastWindowClosed()
         self._quit_on_last_window_closed_previo = bool(valor_previo)
         self.app.setQuitOnLastWindowClosed(False)
-        marcar_stage("quit_on_last_window_closed_temporal_false")
+        self._marcar_boot_stage("quit_on_last_window_closed_temporal_false")
 
     def restaurar_quit_on_last_window_closed(self) -> None:
         if self._quit_on_last_window_closed_restaurado:
@@ -129,7 +134,7 @@ class _CoordinadorArranqueConCierreDeterminista:
             return
         self.app.setQuitOnLastWindowClosed(self._quit_on_last_window_closed_previo)
         self._quit_on_last_window_closed_restaurado = True
-        marcar_stage("quit_on_last_window_closed_restored")
+        self._marcar_boot_stage("quit_on_last_window_closed_restored")
 
     def _hay_ventana_principal_visible(self) -> bool:
         candidatos = [self.wizard, self.main_window]
@@ -152,12 +157,12 @@ class _CoordinadorArranqueConCierreDeterminista:
             safe_call(widget, "activateWindow")
 
     def _mostrar_fallback_arranque(self) -> None:
-        marcar_stage("fallback_show_begin")
+        self._marcar_boot_stage("fallback_show_begin")
         if _es_objeto_qt_valido(self._fallback_window):
             safe_call(self._fallback_window, "show")
             safe_call(self._fallback_window, "raise_")
             safe_call(self._fallback_window, "activateWindow")
-            marcar_stage("fallback_shown")
+            self._marcar_boot_stage("fallback_shown")
             return
 
         from PySide6.QtWidgets import (
@@ -173,6 +178,9 @@ class _CoordinadorArranqueConCierreDeterminista:
         raiz = QWidget(ventana)
         layout = QVBoxLayout(raiz)
         layout.addWidget(QLabel(self.i18n.t("startup_fallback_mensaje"), raiz))
+        layout.addWidget(
+            QLabel(self.i18n.t("startup_last_stage", etapa=self.ultima_etapa), raiz)
+        )
         boton_reintentar = QPushButton(self.i18n.t("startup_fallback_reintentar"), raiz)
         boton_reintentar.clicked.connect(self._reintentar_mostrar_ventanas_principales)
         layout.addWidget(boton_reintentar)
@@ -182,18 +190,18 @@ class _CoordinadorArranqueConCierreDeterminista:
         ventana.setCentralWidget(raiz)
         self._fallback_window = ventana
         self.app.setProperty("_startup_fallback_window_ref", ventana)
-        marcar_stage("fallback_window_created")
+        self._marcar_boot_stage("fallback_window_created")
         safe_call(ventana, "show")
         safe_call(ventana, "raise_")
         safe_call(ventana, "activateWindow")
-        marcar_stage("fallback_window_shown")
-        marcar_stage("fallback_shown")
+        self._marcar_boot_stage("fallback_window_shown")
+        self._marcar_boot_stage("fallback_shown")
 
     def _registrar_etapa_terminal(self, stage: str) -> None:
         if self._etapa_terminal_mostrada:
             return
         self._etapa_terminal_mostrada = True
-        marcar_stage(stage)
+        self._marcar_boot_stage(stage)
         self._cancelar_watchdog_transicion()
 
     def _cancelar_watchdog_transicion(self) -> None:
@@ -216,7 +224,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                 return
             if self._hay_ventana_principal_visible():
                 return
-            marcar_stage("watchdog_triggered")
+            self._marcar_boot_stage("watchdog_triggered")
             self._mostrar_fallback_arranque()
 
         timer.timeout.connect(_on_timeout)
@@ -232,7 +240,7 @@ class _CoordinadorArranqueConCierreDeterminista:
         def _validar_ventana_visible() -> None:
             if self._hay_ventana_principal_visible():
                 return
-            marcar_stage("ui_no_window_visible_timeout")
+            self._marcar_boot_stage("ui_no_window_visible_timeout")
             log_operational_error(
                 LOGGER,
                 "STARTUP_UI_NO_VISIBLE_WINDOW",
@@ -258,19 +266,19 @@ class _CoordinadorArranqueConCierreDeterminista:
             self._splash_cerrado = True
             return
         splash = self.splash
-        marcar_stage("splash_close_begin")
+        self._marcar_boot_stage("splash_close_begin")
         safe_hide(splash)
         if hasattr(splash, "deleteLater"):
             safe_call(splash, "deleteLater")
         self.splash = None
         self._splash_cerrado = True
         self.app._startup_splash_closed = True
-        marcar_stage("splash_closed")
+        self._marcar_boot_stage("splash_closed")
         self.app.processEvents()
 
     def on_finished(self, startup_payload: ResultadoArranque) -> None:
-        marcar_stage("on_finished_enter")
-        marcar_stage("worker_result_received_ok")
+        self._marcar_boot_stage("on_finished_enter")
+        self._marcar_boot_stage("worker_result_received_ok")
         self.terminado = True
         self._ultimo_startup_payload = startup_payload
         self._armar_watchdog_transicion()
@@ -280,11 +288,13 @@ class _CoordinadorArranqueConCierreDeterminista:
                 self._detener_watchdog_idempotente()
                 self._solicitar_cierre_thread()
                 try:
+                    self._marcar_boot_stage("on_finished_before_resolver_container")
                     resolved_container = startup_payload.container
-                    marcar_stage("container_resolved_ok")
-                    marcar_stage("UI_CONTAINER_RESUELTO")
+                    self._marcar_boot_stage("container_resolved_ok")
+                    self._marcar_boot_stage("UI_CONTAINER_RESUELTO")
+                    self._marcar_boot_stage("on_finished_after_resolver_container")
                 except Exception:
-                    marcar_stage("container_resolved_error")
+                    self._marcar_boot_stage("container_resolved_error")
                     raise
                 deps_arranque = startup_payload.deps_arranque
                 deps_arranque = _actualizar_preferencias_en_hilo_ui(
@@ -292,10 +302,12 @@ class _CoordinadorArranqueConCierreDeterminista:
                 )
                 idioma = deps_arranque.obtener_idioma_ui.ejecutar()
                 self.i18n.set_idioma(idioma)
+                self._marcar_boot_stage("on_finished_before_close_splash")
                 self._cerrar_splash_idempotente()
+                self._marcar_boot_stage("on_finished_after_close_splash")
                 orquestador = self.orquestador_factory(deps_arranque, self.i18n)
                 requiere_wizard = not deps_arranque.obtener_estado_onboarding.ejecutar()
-                marcar_stage("decision_modo_arranque")
+                self._marcar_boot_stage("decision_modo_arranque")
                 LOGGER.info(
                     "STARTUP_MODE_DECISION",
                     extra={
@@ -310,23 +322,27 @@ class _CoordinadorArranqueConCierreDeterminista:
                     },
                 )
                 if requiere_wizard:
-                    marcar_stage("wizard_create_start")
-                    marcar_stage("wizard_created")
-                    marcar_stage("wizard_show_scheduled")
+                    self._marcar_boot_stage("on_finished_before_create_window")
+                    self._marcar_boot_stage("wizard_create_start")
+                    self._marcar_boot_stage("wizard_created")
+                    self._marcar_boot_stage("wizard_show_scheduled")
                 if not orquestador.resolver_onboarding():
                     self.app.exit(0)
                     return
                 if requiere_wizard:
                     self._registrar_etapa_terminal("wizard_shown")
+                    self._marcar_boot_stage("on_finished_after_create_window")
 
-                marcar_stage("main_window_create_start")
+                self._marcar_boot_stage("on_finished_before_create_window")
+                self._marcar_boot_stage("main_window_create_start")
                 self.main_window = self.main_window_factory(
                     resolved_container,
                     deps_arranque,
                 )
                 window = self.main_window
-                marcar_stage("main_window_created")
-                marcar_stage("ui.mainwindow.construida")
+                self._marcar_boot_stage("main_window_created")
+                self._marcar_boot_stage("ui.mainwindow.construida")
+                self._marcar_boot_stage("on_finished_after_create_window")
                 self.app.setProperty("_main_window_ref", window)
                 self.instalar_menu_ayuda(
                     window,
@@ -351,7 +367,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                         self.app.processEvents()
                         self.restaurar_quit_on_last_window_closed()
                     except Exception as exc:  # noqa: BLE001
-                        marcar_stage("deferred_show_exception")
+                        self._marcar_boot_stage("deferred_show_exception")
                         log_operational_error(
                             LOGGER,
                             "STARTUP_DEFERRED_SHOW_EXCEPTION",
@@ -366,7 +382,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                     scheduler=scheduler,
                     marcar_stage=marcar_stage,
                 )
-                marcar_stage("main_window_show_scheduled")
+                self._marcar_boot_stage("main_window_show_scheduled")
                 QTimer.singleShot(0, _mostrar_main_window)
                 self._activar_guardia_ventana_visible()
                 programar_post_init(
@@ -375,12 +391,15 @@ class _CoordinadorArranqueConCierreDeterminista:
                     marcar_stage=marcar_stage,
                 )
             except Exception as exc:  # noqa: BLE001
-                marcar_stage("on_finished_exception")
+                self._marcar_boot_stage("on_finished_exception")
                 log_operational_error(
                     LOGGER,
                     "STARTUP_ON_FINISHED_EXCEPTION",
                     exc=exc,
-                    extra={"traceback": traceback.format_exc()},
+                    extra={
+                        "traceback": traceback.format_exc(),
+                        "ultima_etapa": self.ultima_etapa,
+                    },
                 )
                 import sys
 
@@ -398,7 +417,7 @@ class _CoordinadorArranqueConCierreDeterminista:
         try:
             _enqueue_on_ui_thread(self.app, _aplicar_resultado_en_ui)
         except Exception as exc:  # noqa: BLE001
-            marcar_stage("on_finished_exception")
+            self._marcar_boot_stage("on_finished_exception")
             import sys
 
             self._reportar_fallo_arranque(

@@ -125,6 +125,12 @@ def test_on_finished_cierra_splash_antes_de_wizard_y_main(monkeypatch) -> None:
     assert coord._splash_cerrado is True
     assert getattr(coord.app, "_startup_splash_closed", False) is True
     assert "splash_closed" in stages
+    assert "on_finished_before_resolver_container" in stages
+    assert "on_finished_after_resolver_container" in stages
+    assert "on_finished_before_close_splash" in stages
+    assert "on_finished_after_close_splash" in stages
+    assert "on_finished_before_create_window" in stages
+    assert "on_finished_after_create_window" in stages
     assert any(stage in stages for stage in ("wizard_shown", "main_window_shown", "fallback_shown"))
 
 
@@ -307,6 +313,41 @@ def test_on_finished_con_excepcion_difiere_a_fallback(monkeypatch) -> None:
 
     coord.on_finished(payload)
 
+    assert "on_finished_exception" in stages
+    assert "fallback_shown" in stages
+
+
+def test_on_finished_si_falla_resolver_container_marca_excepcion_y_fallback(monkeypatch) -> None:
+    class _QTimerFake:
+        @staticmethod
+        def singleShot(_ms, callback):
+            callback()
+
+    monkeypatch.setitem(
+        sys.modules, "app.ui.qt_compat", SimpleNamespace(QTimer=_QTimerFake)
+    )
+    monkeypatch.setitem(
+        sys.modules, "PySide6.QtCore", SimpleNamespace(QTimer=_QTimerFake)
+    )
+
+    stages: list[str] = []
+    monkeypatch.setattr(ui_main, "marcar_stage", stages.append)
+
+    events: list[str] = []
+    splash = FakeSplash(events=events)
+    timer = FakeTimer(events=events)
+    coord = _CoordinatorFake(splash=splash, timer=timer, events=events)
+    coord._mostrar_fallback_arranque = lambda: stages.append("fallback_shown")
+
+    class _PayloadRoto:
+        @property
+        def container(self):
+            raise RuntimeError("container boom")
+
+    coord.on_finished(_PayloadRoto())
+
+    assert "on_finished_before_resolver_container" in stages
+    assert "container_resolved_error" in stages
     assert "on_finished_exception" in stages
     assert "fallback_shown" in stages
 
