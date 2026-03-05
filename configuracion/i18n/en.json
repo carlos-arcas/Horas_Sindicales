@@ -1,4 +1,5 @@
 {
+  "bootstrap.core_ready": "Core ready",
   "on_failed_enter_ui": "Processing startup failure on UI thread",
   "on_failed_signal_received": "Startup failure signal received",
   "on_finished_enter_ui": "Processing startup completion on UI thread",

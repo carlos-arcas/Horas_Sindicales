@@ -1,4 +1,5 @@
 {
+  "bootstrap.core_ready": "Núcleo listo",
   "on_failed_enter_ui": "Procesando fallo de arranque en hilo UI",
   "on_failed_signal_received": "Señal de fallo de arranque recibida",
   "on_finished_enter_ui": "Procesando arranque completado en hilo UI",

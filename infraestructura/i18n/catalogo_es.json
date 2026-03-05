@@ -1,5 +1,6 @@
 {
   "bootstrap.container": "Preparando contenedor…",
+  "bootstrap.core_ready": "Núcleo listo",
   "bootstrap.crear_mainwindow_deps": "Preparando datos de ventana principal…",
   "bootstrap.deps_arranque": "Preparando dependencias de arranque…",
   "dialogo_accion_cancelar": "Cancelar",
