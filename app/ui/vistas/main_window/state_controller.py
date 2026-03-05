@@ -322,7 +322,22 @@ class MainWindow(
     def _confirmar_cambio_delegada(self, nueva_persona: PersonaDTO) -> bool: return super()._confirmar_cambio_delegada(nueva_persona)
     def _save_current_draft(self) -> None: return super()._save_current_draft()
     def _restore_draft_for_persona(self, persona_id: int) -> None: return super()._restore_draft_for_persona(persona_id)
-    def _load_personas(self, select_id: int | None = None) -> None: return super()._load_personas(select_id)
+    def _load_personas(self, select_id: int | None = None) -> None:
+        # Importante: el método en el mixin base no acepta argumentos.
+        super()._load_personas()
+
+        if select_id is None:
+            return
+
+        for nombre_metodo in (
+            "_seleccionar_persona_por_id",
+            "_set_persona_activa_por_id",
+            "_aplicar_persona_seleccionada",
+        ):
+            metodo = getattr(self, nombre_metodo, None)
+            if callable(metodo):
+                metodo(select_id)
+                return
     def _current_persona(self) -> PersonaDTO | None: return super()._current_persona()
     def _on_persona_changed(self) -> None: return super()._on_persona_changed()
     def _on_add_persona(self) -> None: return super()._on_add_persona()
