@@ -54,5 +54,15 @@
   "ui.sync.panel.sincronizando_sheets": "Synchronizing with Google Sheets…",
   "ui.sync.panel.sync_failed_inicio_ui": "Sync failed: failed to start from UI",
   "ui.sync.panel.sync_no_disponible": "Sync unavailable",
-  "ui.sync.panel.sync_pantalla_no_disponible": "Synchronization is not available on this screen yet."
+  "ui.sync.panel.sync_pantalla_no_disponible": "Synchronization is not available on this screen yet.",
+  "ui.personas.cambiar_delegada_titulo": "Switch delegate",
+  "ui.personas.cambiar_delegada_mensaje": "Switching delegate will discard the current form. Continue?",
+  "ui.personas.delegada_requerida": "Delegate required",
+  "ui.personas.selecciona_delegada_editar": "Select a valid delegate to edit.",
+  "ui.personas.confirmar_cambios_titulo": "Confirm changes",
+  "ui.personas.confirmar_cambios_mensaje": "Do you confirm the changes? This will affect future calculations.",
+  "ui.personas.selecciona_delegada_eliminar": "Select a valid delegate to delete.",
+  "ui.personas.eliminar_delegada_titulo": "Delete delegate",
+  "ui.personas.eliminar_delegada_mensaje": "Do you want to disable {nombre}? History will be kept.",
+  "ui.formatos.python_fecha_ymd": "%Y-%m-%d"
 }

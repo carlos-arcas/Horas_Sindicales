@@ -38,11 +38,16 @@ from app.entrypoints.diagnostico_widgets import (
     validar_ventana_creada,
 )
 from app.ui.qt_message_handler import instalar_qt_message_handler
-from app.ui.qt_hilos import detener_y_destruir_timer_seguro
 from app.ui.qt_safe import safe_call
 from app.ui.qt_safe_ops import es_objeto_qt_valido, safe_hide, safe_quit_thread
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _detener_y_destruir_timer_seguro(*args, **kwargs) -> None:
+    from app.ui.qt_hilos import detener_y_destruir_timer_seguro
+
+    detener_y_destruir_timer_seguro(*args, **kwargs)
 
 
 def _es_objeto_qt_valido(objeto) -> bool:
@@ -302,7 +307,7 @@ class _CoordinadorArranqueConCierreDeterminista:
     def _cancelar_watchdog_transicion(self) -> None:
         if self._watchdog_transicion is None:
             return
-        detener_y_destruir_timer_seguro(
+        _detener_y_destruir_timer_seguro(
             self._watchdog_transicion,
             nombre="watchdog_transicion",
             logger=LOGGER,
@@ -366,7 +371,7 @@ class _CoordinadorArranqueConCierreDeterminista:
     def _detener_watchdog_idempotente(self) -> None:
         if self.watchdog_timer is None:
             return
-        detener_y_destruir_timer_seguro(
+        _detener_y_destruir_timer_seguro(
             self.watchdog_timer,
             nombre="watchdog_arranque",
             logger=LOGGER,

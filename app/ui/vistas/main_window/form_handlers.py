@@ -11,6 +11,7 @@ except Exception:  # pragma: no cover
     QCheckBox = QComboBox = QDateEdit = QLabel = QPlainTextEdit = QTimeEdit = object
 
 from app.application.dto import SolicitudDTO
+from app.ui.copy_catalog import copy_text
 
 logger = logging.getLogger(__name__)
 
@@ -136,15 +137,18 @@ def build_preview_solicitud(window) -> SolicitudDTO | None:
     if persona is None:
         return None
     completo = window.completo_check.isChecked()
-    fecha_pedida = window.fecha_input.date().toString("yyyy-MM-dd")
-    desde = None if completo else window.desde_input.time().toString("HH:mm")
-    hasta = None if completo else window.hasta_input.time().toString("HH:mm")
+    formato_fecha_qt = copy_text("ui.formatos.qt_fecha_ymd")
+    formato_hora_qt = copy_text("ui.formatos.qt_hora_hm")
+    formato_fecha_python = copy_text("ui.formatos.python_fecha_ymd")
+    fecha_pedida = window.fecha_input.date().toString(formato_fecha_qt)
+    desde = None if completo else window.desde_input.time().toString(formato_hora_qt)
+    hasta = None if completo else window.hasta_input.time().toString(formato_hora_qt)
     manual_minutes = window._manual_hours_minutes()
     editing_pending = window._selected_pending_for_editing()
     return SolicitudDTO(
         id=editing_pending.id if editing_pending is not None else None,
         persona_id=persona.id or 0,
-        fecha_solicitud=datetime.now().strftime("%Y-%m-%d"),
+        fecha_solicitud=datetime.now().strftime(formato_fecha_python),
         fecha_pedida=fecha_pedida,
         desde=desde,
         hasta=hasta,
