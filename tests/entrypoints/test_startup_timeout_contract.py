@@ -20,6 +20,17 @@ class _QObject:
     def __init__(self, *args, **kwargs):
         pass
 
+class _Signal:
+    def __init__(self, *_args, **_kwargs):
+        self._callbacks = []
+
+    def connect(self, callback, *_args, **_kwargs):
+        self._callbacks.append(callback)
+
+    def emit(self, payload):
+        for callback in self._callbacks:
+            callback(payload)
+
 class _QTimer:
     @staticmethod
     def singleShot(_ms, callback):
@@ -31,8 +42,14 @@ def _slot(*_args, **_kwargs):
     return _decorador
 
 qtcore.QObject = _QObject
+class _Qt:
+    class ConnectionType:
+        QueuedConnection = object()
+
 qtcore.QTimer = _QTimer
 qtcore.Slot = _slot
+qtcore.Signal = _Signal
+qtcore.Qt = _Qt
 
 pyside6 = types.ModuleType("PySide6")
 pyside6.QtCore = qtcore

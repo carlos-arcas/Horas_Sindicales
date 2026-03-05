@@ -10,7 +10,7 @@ from app.bootstrap.captura_fallos_fatales import marcar_stage
 from app.entrypoints.arranque_nucleo import ResultadoArranqueCore
 from app.entrypoints.startup_watchdog import calcular_elapsed_ms
 
-from PySide6.QtCore import QObject, QTimer, Slot
+from PySide6.QtCore import QObject, Qt, Signal, Slot
 
 from app.ui.qt_safe_ops import es_objeto_qt_valido, safe_hide, safe_quit_thread
 
@@ -18,6 +18,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 class CoordinadorArranque(QObject):
+    senal_arranque_ok = Signal(object)
+    senal_arranque_error = Signal(object)
+
     def __init__(
         self,
         *,
@@ -55,6 +58,12 @@ class CoordinadorArranque(QObject):
         self._boot_timeout_disparado = False
         self._boot_inicio_monotonic = time.monotonic()
         self._timer_watchdog = watchdog_timer
+        self.senal_arranque_ok.connect(
+            self._on_finished_ui, Qt.ConnectionType.QueuedConnection
+        )
+        self.senal_arranque_error.connect(
+            self._on_failed_ui, Qt.ConnectionType.QueuedConnection
+        )
 
     def iniciar(self) -> None:
         self._boot_inicio_monotonic = time.monotonic()
@@ -166,8 +175,16 @@ class CoordinadorArranque(QObject):
             self._evento_finish_tardio("finished")
             return
         self.terminado = True
+        self._marcar_boot_stage("on_finished_signal_received")
+        self.senal_arranque_ok.emit(startup_payload)
 
-        def _aplicar_resultado_ui() -> None:
+    @Slot(object)
+    def _on_finished_ui(self, startup_payload: ResultadoArranqueCore) -> None:
+        if self._boot_timeout_disparado:
+            self._evento_finish_tardio("finished_ui")
+            return
+        self._marcar_boot_stage("on_finished_enter_ui")
+        try:
             self._detener_watchdog_idempotente()
             self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
@@ -199,9 +216,6 @@ class CoordinadorArranque(QObject):
             else:
                 window.show()
             self._finalizar_arranque()
-
-        try:
-            QTimer.singleShot(0, _aplicar_resultado_ui)
         except Exception as exc:  # noqa: BLE001
             self._reportar_fallo_arranque(
                 exc=exc,
@@ -219,6 +233,16 @@ class CoordinadorArranque(QObject):
             self._evento_finish_tardio("failed")
             return
         self.terminado = True
+        self._marcar_boot_stage("on_failed_signal_received")
+        self.senal_arranque_error.emit((incident_id, mensaje_usuario, detalles))
+
+    @Slot(object)
+    def _on_failed_ui(self, payload_error: object) -> None:
+        if self._boot_timeout_disparado:
+            self._evento_finish_tardio("failed_ui")
+            return
+        self._marcar_boot_stage("on_failed_enter_ui")
+        incident_id, mensaje_usuario, detalles = payload_error
         self.incident_id = incident_id
         mensaje_ui = self.i18n.t(mensaje_usuario)
         detalles_ui = detalles
@@ -226,22 +250,19 @@ class CoordinadorArranque(QObject):
             etapa = detalles.split(":", maxsplit=1)[1]
             detalles_ui = self.i18n.t("startup_worker_no_terminal_signal", etapa=etapa)
 
-        def _fallar_en_ui() -> None:
-            self._finalizar_arranque()
-            self._cerrar_splash_idempotente()
-            self._solicitar_cierre_thread()
-            self._reportar_fallo_arranque(
-                exc=None,
-                trace_info=None,
-                i18n=self.i18n,
-                splash=self.splash,
-                startup_thread=self.thread,
-                app=self.app,
-                mensaje_usuario=mensaje_ui,
-                dialogo_factory=None,
-                incident_id=incident_id,
-                detalles=self._detalles_con_etapa(detalles_ui),
-                watchdog_timer=self._timer_watchdog,
-            )
-
-        QTimer.singleShot(0, _fallar_en_ui)
+        self._finalizar_arranque()
+        self._cerrar_splash_idempotente()
+        self._solicitar_cierre_thread()
+        self._reportar_fallo_arranque(
+            exc=None,
+            trace_info=None,
+            i18n=self.i18n,
+            splash=self.splash,
+            startup_thread=self.thread,
+            app=self.app,
+            mensaje_usuario=mensaje_ui,
+            dialogo_factory=None,
+            incident_id=incident_id,
+            detalles=self._detalles_con_etapa(detalles_ui),
+            watchdog_timer=self._timer_watchdog,
+        )

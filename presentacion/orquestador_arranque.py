@@ -30,14 +30,14 @@ class OrquestadorArranqueUI:
         self._i18n = i18n
 
     def resolver_onboarding(self, parent=None) -> bool:
-        asegurar_en_hilo_ui("OrquestadorArranqueUI.resolver_onboarding")
+        asegurar_en_hilo_ui(self.resolver_onboarding)
         if self._deps.obtener_estado_onboarding.ejecutar():
             self._i18n.set_idioma(self._deps.obtener_idioma_ui.ejecutar())
             return True
 
         from presentacion.wizard_bienvenida import WizardBienvenida
 
-        asegurar_en_hilo_ui("WizardBienvenida.__init__")
+        asegurar_en_hilo_ui(WizardBienvenida.__init__)
         wizard = WizardBienvenida(
             self._i18n,
             self._deps.obtener_ruta_guia_sync,
