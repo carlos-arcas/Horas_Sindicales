@@ -103,3 +103,43 @@ def obtener_ids_hilos_qt() -> dict[str, str]:
         "hilo_actual_repr": repr(hilo_actual),
         "hilo_ui_repr": repr(hilo_ui),
     }
+
+
+def detener_y_destruir_timer_seguro(
+    timer,
+    *,
+    nombre: str,
+    logger: Logger,
+    marcar_stage: Callable[[str], None],
+) -> None:
+    if timer is None:
+        return
+
+    try:
+        import shiboken6
+
+        if not shiboken6.isValid(timer):
+            logger.warning(
+                "timer_invalido_ignorado",
+                extra={"extra": {"nombre": nombre}},
+            )
+            return
+    except Exception:
+        pass
+
+    try:
+        timer.stop()
+        marcar_stage("watchdog_stopped")
+    except RuntimeError:
+        logger.warning(
+            "timer_stop_runtime_error_ignorado",
+            extra={"extra": {"nombre": nombre}},
+        )
+
+    try:
+        timer.deleteLater()
+    except RuntimeError:
+        logger.warning(
+            "timer_delete_runtime_error_ignorado",
+            extra={"extra": {"nombre": nombre}},
+        )
