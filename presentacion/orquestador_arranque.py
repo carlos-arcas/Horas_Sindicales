@@ -28,6 +28,7 @@ class OrquestadorArranqueUI:
     def __init__(self, deps: DependenciasArranque, i18n: I18nManager) -> None:
         self._deps = deps
         self._i18n = i18n
+        self.wizard_bienvenida = None
 
     def resolver_onboarding(self, parent=None) -> bool:
         asegurar_en_hilo_ui(self.resolver_onboarding)
@@ -45,6 +46,7 @@ class OrquestadorArranqueUI:
             pantalla_completa_inicial=self._deps.obtener_preferencia_pantalla_completa.ejecutar(),
             parent=parent,
         )
+        self.wizard_bienvenida = wizard
         if hasattr(wizard, "setModal"):
             wizard.setModal(True)
         if hasattr(wizard, "raise_"):
