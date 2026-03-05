@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from app.domain.services import BusinessRuleError, ValidacionError
+from app.ui.copy_catalog import copy_text
 from app.ui.person_dialog import PersonaDialog
 from app.ui.vistas.personas_presenter import PersonaOption, PersonasLoadInput, build_personas_load_output
 
@@ -303,3 +304,30 @@ def normalize_input_heights(window: MainWindow) -> None:
     ]
     for control in controls:
         control.setMinimumHeight(40)
+
+
+def on_open_saldos_modal(window: object) -> None:
+    """Abre el modal de saldos de forma segura."""
+
+    dialogo_class = getattr(window, "_saldos_dialog_class", None)
+    if dialogo_class is None:
+        mensaje = copy_text("ui.saldos.modal_no_disponible")
+        titulo = copy_text("ui.saldos.modal_no_disponible_titulo")
+        if hasattr(window, "toast") and hasattr(window.toast, "warning"):
+            window.toast.warning(mensaje, title=titulo)
+            return
+        if hasattr(QMessageBox, "information"):
+            QMessageBox.information(window, titulo, mensaje)
+        return
+
+    dialogo = dialogo_class(window)
+    window._dialogo_saldos = dialogo
+    ejecutar_modal = getattr(dialogo, "exec", None)
+    if callable(ejecutar_modal):
+        ejecutar_modal()
+        return
+
+    mostrar_dialogo = getattr(dialogo, "show", None)
+    if callable(mostrar_dialogo):
+        mostrar_dialogo()
+

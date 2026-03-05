@@ -89,6 +89,48 @@ def clear_form(window) -> None:
         update_actions()
 
 
+def _coerce_qt_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value != 0
+    if hasattr(value, "value") and callable(value.value):
+        try:
+            return bool(value.value())
+        except Exception:
+            return False
+    return bool(value)
+
+
+def on_completo_changed(window: object, checked: object = False) -> None:
+    """Handler del checkbox completo con tolerancia de payload de Qt."""
+
+    valor_completo = _coerce_qt_bool(checked)
+    completo_check = getattr(window, "completo_check", None)
+    if hasattr(completo_check, "isChecked") and hasattr(completo_check, "setChecked"):
+        try:
+            if bool(completo_check.isChecked()) != valor_completo:
+                completo_check.setChecked(valor_completo)
+        except Exception:
+            logger.debug("No se pudo normalizar completo_check", exc_info=True)
+
+    mark_touched = getattr(window, "_mark_field_touched", None)
+    if callable(mark_touched):
+        mark_touched("tramo")
+
+    run_preventive_validation = getattr(window, "_run_preventive_validation", None)
+    if callable(run_preventive_validation):
+        run_preventive_validation()
+
+    update_preview = getattr(window, "_update_solicitud_preview", None)
+    if callable(update_preview):
+        update_preview()
+
+    update_actions = getattr(window, "_update_action_state", None)
+    if callable(update_actions):
+        update_actions()
+
+
 def build_preview_solicitud(window) -> SolicitudDTO | None:
     persona = window._current_persona()
     if persona is None:

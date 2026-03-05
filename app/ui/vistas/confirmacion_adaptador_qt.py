@@ -116,6 +116,8 @@ def apply_prompt_pdf(window: Any, selected: list[SolicitudDTO]) -> str | None:
         return None
     pdf_path = window._prompt_confirm_pdf_path(selected)
     window._last_selected_pdf_path = pdf_path
+    if pdf_path is None:
+        return None
     if not pdf_path:
         window.toast.warning(copy_text("ui.confirmacion.pdf_destino_obligatorio"), title=copy_text("ui.validacion.validacion"))
     return pdf_path

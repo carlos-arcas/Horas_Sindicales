@@ -369,7 +369,9 @@ class MainWindow(
     def _on_completo_changed(self, checked: object = False) -> None: return super()._on_completo_changed(checked)
     def _on_add_pendiente(self) -> None: return super()._on_add_pendiente()
     def _on_confirmar(self) -> None: return super()._on_confirmar()
-    def _update_solicitud_preview(self) -> None: return super()._update_solicitud_preview()
+    def _update_solicitud_preview(self, *args: object, **kwargs: object) -> None:
+        _ = (args, kwargs)
+        return super()._update_solicitud_preview()
     def _apply_historico_default_range(self) -> None: return super()._apply_historico_default_range()
     def _status_to_label(self, status: str) -> str: return super()._status_to_label(status)
     def _normalize_input_heights(self) -> None: return super()._normalize_input_heights()
