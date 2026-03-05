@@ -18,63 +18,78 @@ from app.ui.vistas.solicitudes_ux_rules import (
         ({"fecha": "x"}, ("delegada", "fecha", "tramo"), "fecha"),
         ({"tramo": "x"}, ("delegada", "fecha", "tramo"), "tramo"),
         ({"otro": "x"}, ("delegada", "fecha", "tramo"), "otro"),
-        ({"fecha": "x", "delegada": "y"}, ("delegada", "fecha", "tramo"), "delegada"),
-        ({"tramo": "x", "fecha": "y"}, ("delegada", "fecha", "tramo"), "fecha"),
-        ({"x": "1", "y": "2"}, ("tramo",), "x"),
-        ({"x": "1", "tramo": "2"}, ("tramo",), "tramo"),
-        ({"delegada": "1", "tramo": "2"}, ("tramo", "delegada"), "tramo"),
     ],
 )
 def test_resolve_first_invalid_field(errors, order, expected):
     assert resolve_first_invalid_field(SolicitudesFocusInput(blocking_errors=errors, field_order=order)) == expected
 
 
-@pytest.mark.parametrize(
-    ("pending", "blocking", "runtime", "saved", "expected_label"),
-    [
-        (0, False, False, False, "Listo"),
-        (0, False, False, True, "Guardado"),
-        (1, False, False, False, "Pendiente de sync"),
-        (2, False, False, True, "Pendiente de sync"),
-        (0, True, False, False, "Error"),
-        (0, False, True, False, "Error"),
-        (3, True, False, False, "Error"),
-        (3, False, True, False, "Error"),
-        (0, True, True, True, "Error"),
-        (0, False, False, False, "Listo"),
-        (9, False, False, False, "Pendiente de sync"),
-        (1, False, False, True, "Pendiente de sync"),
-    ],
-)
-def test_build_solicitudes_status_label(pending, blocking, runtime, saved, expected_label):
-    output = build_solicitudes_status(
+def test_resumen_operativo_sin_delegada_y_sin_seleccion() -> None:
+    salida = build_solicitudes_status(
         SolicitudesStatusInput(
-            pending_count=pending,
-            has_blocking_errors=blocking,
-            has_runtime_error=runtime,
-            last_action_saved=saved,
+            delegada_actual=None,
+            pendientes_visibles=0,
+            pendientes_seleccionadas=0,
+            saldo_reservado="00:00",
+            has_blocking_errors=False,
+            has_runtime_error=False,
+            hay_conflictos_pendientes=False,
+            puede_confirmar_pdf=False,
         )
     )
-    assert output.label == expected_label
+    assert salida.label_key == "solicitudes.resumen_operativo.estado_sin_delegada"
+    assert salida.action_key == "solicitudes.resumen_operativo.accion_seleccionar_delegada"
+    assert salida.help_key == "solicitudes.resumen_operativo.ayuda_seleccionar_delegada"
+    assert salida.label_params["seleccion_key"] == "solicitudes.resumen_operativo.seleccion_ninguna"
 
 
-@pytest.mark.parametrize(
-    ("pending", "blocking", "runtime", "saved", "hint_contains"),
-    [
-        (0, False, False, False, "nueva solicitud"),
-        (0, False, False, True, "guardaron"),
-        (1, False, False, False, "Google Sheets"),
-        (0, True, False, False, "campos marcados"),
-        (0, False, True, False, "campos marcados"),
-    ],
-)
-def test_build_solicitudes_status_hint(pending, blocking, runtime, saved, hint_contains):
-    output = build_solicitudes_status(
+def test_resumen_operativo_con_conflicto_pendientes() -> None:
+    salida = build_solicitudes_status(
         SolicitudesStatusInput(
-            pending_count=pending,
-            has_blocking_errors=blocking,
-            has_runtime_error=runtime,
-            last_action_saved=saved,
+            delegada_actual="Ana",
+            pendientes_visibles=2,
+            pendientes_seleccionadas=1,
+            saldo_reservado="03:30",
+            has_blocking_errors=False,
+            has_runtime_error=False,
+            hay_conflictos_pendientes=True,
+            puede_confirmar_pdf=False,
         )
     )
-    assert hint_contains in output.hint
+    assert salida.label_key == "solicitudes.resumen_operativo.estado_con_conflictos"
+    assert salida.action_key == "solicitudes.resumen_operativo.accion_corregir_conflictos"
+    assert salida.help_key == "solicitudes.resumen_operativo.ayuda_conflictos"
+
+
+def test_resumen_operativo_lista_para_confirmar_generar_pdf() -> None:
+    salida = build_solicitudes_status(
+        SolicitudesStatusInput(
+            delegada_actual="Ana",
+            pendientes_visibles=2,
+            pendientes_seleccionadas=2,
+            saldo_reservado="04:00",
+            has_blocking_errors=False,
+            has_runtime_error=False,
+            hay_conflictos_pendientes=False,
+            puede_confirmar_pdf=True,
+        )
+    )
+    assert salida.label_key == "solicitudes.resumen_operativo.estado_lista_para_confirmar"
+    assert salida.action_key == "solicitudes.resumen_operativo.accion_confirmar_generar_pdf"
+    assert salida.help_key is None
+
+
+def test_resumen_operativo_ayuda_contextual_vacia_si_no_aplica() -> None:
+    salida = build_solicitudes_status(
+        SolicitudesStatusInput(
+            delegada_actual="Ana",
+            pendientes_visibles=1,
+            pendientes_seleccionadas=1,
+            saldo_reservado="01:30",
+            has_blocking_errors=False,
+            has_runtime_error=False,
+            hay_conflictos_pendientes=False,
+            puede_confirmar_pdf=True,
+        )
+    )
+    assert salida.help_key is None

@@ -71,3 +71,7 @@
 - **2026-03-05 — Watchdog de arranque UI con timeout configurable y guardrail late-finish — Vigente**  
   Se añade un watchdog explícito de arranque para evitar bloqueos indefinidos en splash: si no se llega a estado terminal dentro de `STARTUP_TIMEOUT_MS` (resuelto por configuración + entorno), se marca `startup_timeout`, se cierra splash y se activa fallback con detalle de última etapa alcanzada.  
   Se registran eventos estructurados `UI_STARTUP_TIMEOUT` (ERROR con `ultima_etapa`, `timeout_ms`, `elapsed_ms`) y `UI_STARTUP_FINISHED_AFTER_TIMEOUT` (WARNING con decisión `ignore`) para descartar resultados tardíos del worker y evitar transiciones UI inconsistentes.
+
+- **2026-03-05 — Mostrar ayuda contextual condicionado a valor operativo — Vigente**  
+  El bloque de estado de Solicitudes se reemplaza por un resumen operativo contextual (delegada, selección, pendientes y saldo reservado) más una próxima acción concreta.  
+  El control **Mostrar ayuda** solo se mantiene visible/habilitado cuando existe ayuda contextual accionable; en estados “lista para confirmar y generar PDF” se oculta temporalmente para evitar texto redundante sin valor.
