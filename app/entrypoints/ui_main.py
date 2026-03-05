@@ -31,10 +31,11 @@ from app.entrypoints.arranque_nucleo import ResultadoArranqueCore
 from app.entrypoints.diagnostico_widgets import (
     debe_abortar_watchdog_por_ventana_visible,
     construir_info_top_level_widgets,
+    decidir_cerrar_splash,
     hay_ventana_visible_no_splash,
     seleccionar_ventana_principal,
+    validar_ventana_creada,
 )
-from app.entrypoints.post_show import preparar_mostrar_ventana, programar_post_init
 from app.ui.qt_message_handler import instalar_qt_message_handler
 from app.ui.qt_safe import safe_call
 from app.ui.qt_safe_ops import es_objeto_qt_valido, safe_hide, safe_quit_thread
@@ -248,6 +249,7 @@ class _CoordinadorArranqueConCierreDeterminista:
         self.terminado = True
         self._detener_watchdog_idempotente()
         self._marcar_boot_stage("fallback_show_begin")
+        self._cerrar_splash_si_visible()
         if _es_objeto_qt_valido(self._fallback_window):
             safe_call(self._fallback_window, "show")
             safe_call(self._fallback_window, "raise_")
@@ -327,6 +329,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                 return
             self._dump_top_level_widgets("watchdog_before_fallback")
             self._marcar_boot_stage("watchdog_triggered")
+            self._cerrar_splash_si_visible()
             self._mostrar_fallback_arranque()
 
         timer.timeout.connect(_on_timeout)
@@ -381,6 +384,15 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._marcar_boot_stage("splash_closed")
         self.app.processEvents()
 
+    def _cerrar_splash_si_visible(self) -> None:
+        if not decidir_cerrar_splash(al_mostrar_fallback=True):
+            return
+        if not _es_objeto_qt_valido(self.splash):
+            return
+        visible = bool(safe_call(self.splash, "isVisible") or False)
+        if visible:
+            self._cerrar_splash_idempotente()
+
     def _finalizar_splash_con_ventana_principal(self, ventana_principal) -> None:
         if not _es_objeto_qt_valido(self.splash):
             return
@@ -394,6 +406,58 @@ class _CoordinadorArranqueConCierreDeterminista:
             if visible:
                 LOGGER.warning("splash_still_visible_after_finish")
         self._cerrar_splash_idempotente()
+
+    def _cerrar_splash_con_ventana(self, ventana) -> None:
+        self._finalizar_splash_con_ventana_principal(ventana)
+
+    def _detener_watchdog_transicion(self) -> None:
+        self._cancelar_watchdog_transicion()
+
+    def _establecer_referencias_fuertes(self, ventana) -> None:
+        if not _es_objeto_qt_valido(ventana):
+            return
+        tipo_ventana = ventana.__class__.__name__.lower()
+        if "wizard" in tipo_ventana:
+            self._wizard_bienvenida = ventana
+            self.wizard = ventana
+            return
+        self._ventana_principal = ventana
+        self.main_window = ventana
+        self.app.setProperty("_main_window_ref", ventana)
+
+    def _crear_ventana_arranque(self, deps_arranque, orquestador, resolved_container):
+        requiere_wizard = not deps_arranque.obtener_estado_onboarding.ejecutar()
+        motivo = "onboarding_pendiente" if requiere_wizard else "onboarding_completado"
+        tipo = "wizard" if requiere_wizard else "main"
+        self._marcar_boot_stage("decision_modo_arranque")
+        LOGGER.info(
+            "STARTUP_WINDOW_DECISION",
+            extra={"extra": {"tipo": tipo, "motivo": motivo}},
+        )
+
+        if requiere_wizard:
+            self._marcar_boot_stage("wizard_create_start")
+            if not orquestador.resolver_onboarding():
+                raise RuntimeError("ONBOARDING_NO_RESUELTO")
+            ventana = getattr(orquestador, "wizard_bienvenida", None)
+            validar_ventana_creada(ventana)
+            self._marcar_boot_stage("wizard_created")
+            return ventana
+
+        self._marcar_boot_stage("main_window_create_start")
+        ventana = self.main_window_factory(
+            resolved_container,
+            deps_arranque,
+        )
+        validar_ventana_creada(ventana)
+        self.instalar_menu_ayuda(
+            ventana,
+            self.i18n,
+            ReiniciarOnboarding(resolved_container.repositorio_preferencias),
+            resolved_container.cargar_datos_demo_caso_uso,
+        )
+        self._marcar_boot_stage("main_window_created")
+        return ventana
 
     def _instalar_filtro_diagnostico_eventos_ventana(self) -> None:
         if not self._debug_eventos_ventana_habilitado:
@@ -439,13 +503,13 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._marcar_boot_stage("worker_result_received_ok")
         self.terminado = True
         self._ultimo_startup_payload = startup_payload
-        self._dump_top_level_widgets("enter")
         self._armar_watchdog_transicion()
 
         def _aplicar_resultado_en_ui() -> None:
+            ventana = None
             try:
                 self._marcar_boot_stage("finalize_enter")
-                self._detener_watchdog_idempotente()
+                self._dump_top_level_widgets("enter")
                 self._solicitar_cierre_thread()
                 try:
                     self._marcar_boot_stage("on_finished_before_resolver_container")
@@ -466,157 +530,42 @@ class _CoordinadorArranqueConCierreDeterminista:
                 idioma = deps_arranque.obtener_idioma_ui.ejecutar()
                 self.i18n.set_idioma(idioma)
                 orquestador = self.orquestador_factory(deps_arranque, self.i18n)
-                requiere_wizard = not deps_arranque.obtener_estado_onboarding.ejecutar()
-                self._marcar_boot_stage("decision_modo_arranque")
-                LOGGER.info(
-                    "STARTUP_MODE_DECISION",
-                    extra={
-                        "extra": {
-                            "modo": "wizard" if requiere_wizard else "main",
-                            "motivo": (
-                                "onboarding_pendiente"
-                                if requiere_wizard
-                                else "onboarding_completado"
-                            ),
-                        }
-                    },
-                )
-                if requiere_wizard:
-                    self._marcar_boot_stage("on_finished_before_create_window")
-                    self._marcar_boot_stage("finalize_before_create_window")
-                    self._dump_top_level_widgets("before_create_window")
-                    self._marcar_boot_stage("wizard_create_start")
-                    self._marcar_boot_stage("wizard_created")
-                if not orquestador.resolver_onboarding():
-                    self.app.exit(0)
-                    return
-                if requiere_wizard:
-                    self._wizard_bienvenida = getattr(orquestador, "wizard_bienvenida", None)
-                    self.wizard = self._wizard_bienvenida
-                    if _es_objeto_qt_valido(self._wizard_bienvenida):
-                        self._activar_y_visibilizar_ventana(self._wizard_bienvenida)
-                        self._marcar_boot_stage("wizard_show_called")
-                        self._marcar_boot_stage("finalize_window_created")
-                        LOGGER.info(
-                            "UI_STARTUP_WINDOW_CREATED",
-                            extra={"extra": {"tipo": "wizard"}},
-                        )
-                    self._marcar_boot_stage("on_finished_after_create_window")
-                    self._dump_top_level_widgets("after_create_window")
-
-                self._marcar_boot_stage("on_finished_before_create_window")
                 self._marcar_boot_stage("finalize_before_create_window")
                 self._dump_top_level_widgets("before_create_window")
-                self._marcar_boot_stage("main_window_create_start")
-                self.main_window = self.main_window_factory(
-                    resolved_container,
+                ventana = self._crear_ventana_arranque(
                     deps_arranque,
+                    orquestador,
+                    resolved_container,
                 )
-                self._ventana_principal = self.main_window
-                window = self.main_window
-                self._marcar_boot_stage("main_window_created")
                 self._marcar_boot_stage("finalize_window_created")
-                LOGGER.info(
-                    "UI_STARTUP_WINDOW_CREATED",
-                    extra={"extra": {"tipo": "main"}},
-                )
-                self._marcar_boot_stage("ui.mainwindow.construida")
-                self._marcar_boot_stage("on_finished_after_create_window")
-                self._dump_top_level_widgets("after_create_window")
-                self.app.setProperty("_main_window_ref", window)
-                self.instalar_menu_ayuda(
-                    window,
-                    self.i18n,
-                    ReiniciarOnboarding(resolved_container.repositorio_preferencias),
-                    resolved_container.cargar_datos_demo_caso_uso,
-                )
-                from app.ui.qt_compat import QTimer
-
-                def scheduler(fn: Callable[[], None]) -> None:
-                    QTimer.singleShot(0, fn)
-
-                def _mostrar_main_window() -> None:
-                    try:
-                        if orquestador.debe_iniciar_maximizada():
-                            window.showMaximized()
-                        else:
-                            window.show()
-                        self._marcar_boot_stage("main_window_show_called")
-                        self._marcar_boot_stage("finalize_after_show_called")
-                        self._activar_y_visibilizar_ventana(window)
-                        self._instalar_filtro_diagnostico_eventos_ventana()
-                        principal = self._seleccionar_y_activar_ventana_principal()
-                        if not _es_objeto_qt_valido(principal):
-                            principal = window if _es_objeto_qt_valido(window) else self.wizard
-                        self._finalizar_splash_con_ventana_principal(principal)
-                        self._marcar_boot_stage("finalize_after_splash_finish")
-                        self._dump_top_level_widgets("after_show")
-                        self._dump_top_level_widgets("final_check")
-                        if not hay_ventana_visible_no_splash(
-                            self._obtener_info_top_level_widgets()
-                        ):
-                            self._marcar_boot_stage("no_visible_window_after_finalize")
-                            LOGGER.error(
-                                "UI_STARTUP_NO_VISIBLE_MAIN_WINDOW",
-                                extra={"extra": {"ultima_etapa": self.ultima_etapa}},
-                            )
-                            self._cerrar_splash_idempotente()
-                            self._mostrar_fallback_arranque()
-                            return
-                        self._boot_finalizado = True
-                        self._detener_watchdog_idempotente()
-                        self._registrar_etapa_terminal("main_window_shown")
-                        self._marcar_boot_stage("finalize_end")
-                        self.app.processEvents()
-                    except Exception as exc:  # noqa: BLE001
-                        self._marcar_boot_stage("deferred_show_exception")
-                        log_operational_error(
-                            LOGGER,
-                            "STARTUP_DEFERRED_SHOW_EXCEPTION",
-                            exc=exc,
-                            extra={"traceback": traceback.format_exc()},
-                        )
-                        self._mostrar_fallback_arranque()
-
-                preparar_mostrar_ventana(
-                    window=window,
-                    splash=None,
-                    scheduler=scheduler,
-                    marcar_stage=marcar_stage,
-                )
-                self._marcar_boot_stage("main_window_show_scheduled")
-                QTimer.singleShot(0, _mostrar_main_window)
-                self._activar_guardia_ventana_visible()
-                programar_post_init(
-                    window=window,
-                    scheduler=scheduler,
-                    marcar_stage=marcar_stage,
-                )
-            except Exception as exc:  # noqa: BLE001
-                if isinstance(exc, RuntimeError) and str(exc).startswith("UI_QT_THREAD_VIOLATION"):
-                    self._marcar_boot_stage("qt_thread_violation_detected")
-                self._marcar_boot_stage("on_finished_exception")
-                log_operational_error(
-                    LOGGER,
-                    "STARTUP_ON_FINISHED_EXCEPTION",
-                    exc=exc,
-                    extra={
-                        "traceback": traceback.format_exc(),
-                        "ultima_etapa": self.ultima_etapa,
-                    },
-                )
-                import sys
-
-                self._reportar_fallo_arranque(
-                    exc=exc,
-                    trace_info=sys.exc_info(),
-                    i18n=self.i18n,
-                    splash=self.splash,
-                    startup_thread=self.thread,
-                    app=self.app,
-                    watchdog_timer=self.watchdog_timer,
-                )
+                self._establecer_referencias_fuertes(ventana)
+                self._activar_y_visibilizar_ventana(ventana)
+                self._marcar_boot_stage("finalize_after_show_called")
+                self._dump_top_level_widgets("after_show")
+                self._cerrar_splash_con_ventana(ventana)
+                self._marcar_boot_stage("finalize_after_splash_finish")
+                self._boot_finalizado = True
+                self._detener_watchdog_transicion()
+                self._detener_watchdog_idempotente()
+                self._registrar_etapa_terminal("main_window_shown")
+                self._marcar_boot_stage("finalize_end")
+                self.app.processEvents()
+            except Exception:  # noqa: BLE001
+                LOGGER.exception("UI_STARTUP_FINALIZE_EXCEPTION")
+                self._marcar_boot_stage("on_finished_exception_ui")
                 self._mostrar_fallback_arranque()
+            finally:
+                self._dump_top_level_widgets("final_check")
+                if not hay_ventana_visible_no_splash(
+                    self._obtener_info_top_level_widgets()
+                ):
+                    LOGGER.error(
+                        "UI_STARTUP_NO_VISIBLE_MAIN_WINDOW",
+                        extra={"extra": {"ultima_etapa": self.ultima_etapa}},
+                    )
+                    self._marcar_boot_stage("no_visible_window_after_finalize")
+                    self._cerrar_splash_si_visible()
+                    self._mostrar_fallback_arranque()
 
         try:
             _enqueue_on_ui_thread(self.app, _aplicar_resultado_en_ui)

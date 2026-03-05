@@ -3,9 +3,11 @@ from __future__ import annotations
 from app.entrypoints.diagnostico_widgets import (
     construir_info_top_level_widgets,
     debe_abortar_watchdog_por_ventana_visible,
+    decidir_cerrar_splash,
     hay_ventana_visible,
     hay_ventana_visible_no_splash,
     seleccionar_ventana_principal,
+    validar_ventana_creada,
 )
 
 
@@ -181,3 +183,21 @@ def test_debe_abortar_watchdog_por_ventana_visible_no_aborta_si_solo_hay_splash(
     )
 
     assert debe_abortar_watchdog_por_ventana_visible(hay_visible_no_splash) is False
+
+
+def test_validar_ventana_creada_lanza_si_recibe_none() -> None:
+    try:
+        validar_ventana_creada(None)
+    except RuntimeError as error:
+        assert str(error) == "VENTANA_ARRANQUE_NO_CREADA"
+    else:
+        raise AssertionError("Se esperaba RuntimeError cuando la ventana es None")
+
+
+def test_validar_ventana_creada_no_lanza_si_hay_instancia() -> None:
+    validar_ventana_creada(object())
+
+
+def test_decidir_cerrar_splash_retorna_true_solo_con_fallback() -> None:
+    assert decidir_cerrar_splash(al_mostrar_fallback=True) is True
+    assert decidir_cerrar_splash(al_mostrar_fallback=False) is False
