@@ -62,3 +62,7 @@
 - Se implementa idempotencia con índice único parcial SQLite sobre `(denunciante_id, recurso_tipo, recurso_id)` cuando `estado='pendiente'`.
 - **Trade-off**: se evita FK genérica a múltiples tablas de recursos para mantener bajo acoplamiento y coste de migración; se valida existencia desde repositorio de moderación por tipo de recurso.
 - Si `ocultar_recurso` falla por inexistencia, el reporte se resuelve como `descartar` para evitar colas eternas.
+
+- **2026-03-05 — Watchdog de arranque UI con timeout configurable y guardrail late-finish — Vigente**  
+  Se añade un watchdog explícito de arranque para evitar bloqueos indefinidos en splash: si no se llega a estado terminal dentro de `STARTUP_TIMEOUT_MS` (resuelto por configuración + entorno), se marca `startup_timeout`, se cierra splash y se activa fallback con detalle de última etapa alcanzada.  
+  Se registran eventos estructurados `UI_STARTUP_TIMEOUT` (ERROR con `ultima_etapa`, `timeout_ms`, `elapsed_ms`) y `UI_STARTUP_FINISHED_AFTER_TIMEOUT` (WARNING con decisión `ignore`) para descartar resultados tardíos del worker y evitar transiciones UI inconsistentes.

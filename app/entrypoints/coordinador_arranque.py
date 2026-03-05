@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from typing import Callable
 
 from aplicacion.casos_de_uso.onboarding import ReiniciarOnboarding
+from app.bootstrap.captura_fallos_fatales import marcar_stage
 from app.entrypoints.arranque_nucleo import ResultadoArranque
+from app.entrypoints.startup_watchdog import calcular_elapsed_ms
 
 from PySide6.QtCore import QObject, QTimer, Slot
 
@@ -48,9 +51,19 @@ class CoordinadorArranque(QObject):
         self.watchdog_disparado = False
         self._fallo_arranque_reportado = False
         self._splash_cerrado = False
+        self._boot_finalizado = False
+        self._boot_timeout_disparado = False
+        self._boot_inicio_monotonic = time.monotonic()
+        self._timer_watchdog = watchdog_timer
 
     def iniciar(self) -> None:
+        self._boot_inicio_monotonic = time.monotonic()
+        self._timer_watchdog = self.watchdog_timer
         self.watchdog_timer.start()
+
+    def _marcar_boot_stage(self, stage: str) -> None:
+        self.ultima_etapa = stage
+        marcar_stage(stage)
 
     def _qt_is_alive(self, obj) -> bool:
         return es_objeto_qt_valido(obj)
@@ -66,10 +79,10 @@ class CoordinadorArranque(QObject):
         return f"{etiqueta}\n{detalles}"
 
     def _detener_watchdog_idempotente(self) -> None:
-        if not self._qt_is_alive(self.watchdog_timer):
+        if not self._qt_is_alive(self._timer_watchdog):
             return
         try:
-            self.watchdog_timer.stop()
+            self._timer_watchdog.stop()
         except RuntimeError:
             return
 
@@ -88,33 +101,50 @@ class CoordinadorArranque(QObject):
         self._fallo_arranque_reportado = True
         self.fallo_arranque_handler(**kwargs)
 
+    def _finalizar_arranque(self) -> None:
+        self._boot_finalizado = True
+        self.terminado = True
+        self._detener_watchdog_idempotente()
+
+    def _evento_finish_tardio(self, evento: str) -> None:
+        LOGGER.warning(
+            "UI_STARTUP_FINISHED_AFTER_TIMEOUT",
+            extra={"extra": {"evento": evento, "ultima_etapa": self.ultima_etapa, "decision": "ignore"}},
+        )
+
     @Slot(str)
     def on_progreso(self, etapa: str) -> None:
-        self.ultima_etapa = etapa
+        self._marcar_boot_stage(etapa)
         if self._qt_is_alive(self.splash):
             self.splash.set_status(etapa)
 
     @Slot()
     def on_timeout(self) -> None:
-        if self.terminado:
+        self._on_startup_timeout()
+
+    def _on_startup_timeout(self) -> None:
+        if self._boot_finalizado:
             return
         self.watchdog_disparado = True
-        self.terminado = True
+        self._boot_timeout_disparado = True
         if not self.incident_id:
             import uuid
 
             self.incident_id = f"INC-UI-{uuid.uuid4().hex[:12].upper()}"
-        LOGGER.warning(
-            "STARTUP_TIMEOUT",
+        elapsed_ms = calcular_elapsed_ms(self._boot_inicio_monotonic, time.monotonic())
+        self._marcar_boot_stage("startup_timeout")
+        LOGGER.error(
+            "UI_STARTUP_TIMEOUT",
             extra={
                 "extra": {
                     "incident_id": self.incident_id,
-                    "etapa": self.ultima_etapa,
+                    "ultima_etapa": self.ultima_etapa,
                     "timeout_ms": self.startup_timeout_ms,
+                    "elapsed_ms": elapsed_ms,
                 }
             },
         )
-        self._detener_watchdog_idempotente()
+        self._finalizar_arranque()
         self._cerrar_splash_idempotente()
         self._solicitar_cierre_thread()
         self._reportar_fallo_arranque(
@@ -124,14 +154,17 @@ class CoordinadorArranque(QObject):
             splash=self.splash,
             startup_thread=self.thread,
             app=self.app,
-            mensaje_usuario=self.i18n.t("startup_timeout_message"),
+            mensaje_usuario="startup_timeout_title",
             incident_id=self.incident_id,
             detalles=self._detalles_con_etapa(self.i18n.t("startup_timeout_message")),
-            watchdog_timer=self.watchdog_timer,
+            watchdog_timer=self._timer_watchdog,
         )
 
     @Slot(object)
     def on_finished(self, startup_payload: ResultadoArranque) -> None:
+        if self._boot_timeout_disparado:
+            self._evento_finish_tardio("finished")
+            return
         self.terminado = True
 
         def _aplicar_resultado_ui() -> None:
@@ -144,6 +177,7 @@ class CoordinadorArranque(QObject):
             self.i18n.set_idioma(idioma)
             orquestador = self.orquestador_factory(deps_arranque, self.i18n)
             if not orquestador.resolver_onboarding():
+                self._finalizar_arranque()
                 self.app.exit(0)
                 return
             window = self.main_window_factory(
@@ -161,6 +195,7 @@ class CoordinadorArranque(QObject):
                 window.showMaximized()
             else:
                 window.show()
+            self._finalizar_arranque()
 
         try:
             QTimer.singleShot(0, _aplicar_resultado_ui)
@@ -172,11 +207,14 @@ class CoordinadorArranque(QObject):
                 splash=self.splash,
                 startup_thread=self.thread,
                 app=self.app,
-                watchdog_timer=self.watchdog_timer,
+                watchdog_timer=self._timer_watchdog,
             )
 
     @Slot(str, str, str)
     def on_failed(self, incident_id: str, mensaje_usuario: str, detalles: str) -> None:
+        if self._boot_timeout_disparado:
+            self._evento_finish_tardio("failed")
+            return
         self.terminado = True
         self.incident_id = incident_id
         mensaje_ui = self.i18n.t(mensaje_usuario)
@@ -186,7 +224,7 @@ class CoordinadorArranque(QObject):
             detalles_ui = self.i18n.t("startup_worker_no_terminal_signal", etapa=etapa)
 
         def _fallar_en_ui() -> None:
-            self._detener_watchdog_idempotente()
+            self._finalizar_arranque()
             self._cerrar_splash_idempotente()
             self._solicitar_cierre_thread()
             self._reportar_fallo_arranque(
@@ -200,7 +238,7 @@ class CoordinadorArranque(QObject):
                 dialogo_factory=None,
                 incident_id=incident_id,
                 detalles=self._detalles_con_etapa(detalles_ui),
-                watchdog_timer=self.watchdog_timer,
+                watchdog_timer=self._timer_watchdog,
             )
 
         QTimer.singleShot(0, _fallar_en_ui)
