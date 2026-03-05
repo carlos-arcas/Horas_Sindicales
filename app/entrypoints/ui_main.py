@@ -38,6 +38,7 @@ from app.entrypoints.diagnostico_widgets import (
     validar_ventana_creada,
 )
 from app.ui.qt_message_handler import instalar_qt_message_handler
+from app.ui.qt_hilos import detener_y_destruir_timer_seguro
 from app.ui.qt_safe import safe_call
 from app.ui.qt_safe_ops import es_objeto_qt_valido, safe_hide, safe_quit_thread
 
@@ -248,6 +249,7 @@ class _CoordinadorArranqueConCierreDeterminista:
     def _mostrar_fallback_arranque(self) -> None:
         self._boot_finalizado = True
         self.terminado = True
+        self._detener_watchdog_transicion()
         self._detener_watchdog_idempotente()
         self._marcar_boot_stage("fallback_show_begin")
         self._cerrar_splash_si_visible()
@@ -298,10 +300,14 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._cancelar_watchdog_transicion()
 
     def _cancelar_watchdog_transicion(self) -> None:
-        if not _es_objeto_qt_valido(self._watchdog_transicion):
+        if self._watchdog_transicion is None:
             return
-        safe_call(self._watchdog_transicion, "stop")
-        safe_call(self._watchdog_transicion, "deleteLater")
+        detener_y_destruir_timer_seguro(
+            self._watchdog_transicion,
+            nombre="watchdog_transicion",
+            logger=LOGGER,
+            marcar_stage=self._marcar_boot_stage,
+        )
         self._watchdog_transicion = None
 
     def _armar_watchdog_transicion(self) -> None:
@@ -358,15 +364,18 @@ class _CoordinadorArranqueConCierreDeterminista:
         QTimer.singleShot(100, _validar_ventana_visible)
 
     def _detener_watchdog_idempotente(self) -> None:
-        if not _es_objeto_qt_valido(self.watchdog_timer):
+        if self.watchdog_timer is None:
             return
-        try:
-            _stop_watchdog_en_main_thread(self.watchdog_timer)
-            if not self._watchdog_detenido:
-                self._watchdog_detenido = True
-                self._marcar_boot_stage("watchdog_stopped")
-        except RuntimeError:
-            return
+        detener_y_destruir_timer_seguro(
+            self.watchdog_timer,
+            nombre="watchdog_arranque",
+            logger=LOGGER,
+            marcar_stage=self._marcar_boot_stage,
+        )
+        if not self._watchdog_detenido:
+            self._watchdog_detenido = True
+        self.watchdog_timer = None
+        self._timer_watchdog = None
 
     def _cerrar_splash_idempotente(self) -> None:
         if self._splash_cerrado:
@@ -438,7 +447,9 @@ class _CoordinadorArranqueConCierreDeterminista:
             self._marcar_boot_stage("finalize_guard_abort")
             self._mostrar_fallback_arranque()
             return
-        self._on_finished_ui(startup_payload)
+        self._marcar_boot_stage("finalize_pipeline_begin")
+        if self._finalizar_arranque_pipeline(startup_payload):
+            self._marcar_boot_stage("finalize_pipeline_end")
 
     def _finalizar_splash_con_ventana_principal(self, ventana_principal) -> None:
         if not _es_objeto_qt_valido(self.splash):
@@ -540,7 +551,7 @@ class _CoordinadorArranqueConCierreDeterminista:
             if _es_objeto_qt_valido(widget):
                 widget.installEventFilter(self._filtro_eventos_ventana)
 
-    def _on_finished_ui(self, startup_payload: ResultadoArranqueCore) -> None:
+    def _finalizar_arranque_pipeline(self, startup_payload: ResultadoArranqueCore) -> bool:
         if self._boot_timeout_disparado:
             self._marcar_boot_stage("finalize_guard_abort")
             LOGGER.warning(
@@ -548,11 +559,12 @@ class _CoordinadorArranqueConCierreDeterminista:
                 extra={"extra": {"evento": "finished", "etapa": self.ultima_etapa, "decision": "fallback"}},
             )
             self._mostrar_fallback_arranque()
-            return
+            return False
         self._marcar_boot_stage("worker_result_received_ok")
         self.terminado = True
         self._ultimo_startup_payload = startup_payload
         self._armar_watchdog_transicion()
+        estado_pipeline = {"ok": True}
 
         def _aplicar_resultado_en_ui() -> None:
             ventana = None
@@ -603,6 +615,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                 LOGGER.exception("UI_STARTUP_FINALIZE_EXCEPTION")
                 self._marcar_boot_stage("on_finished_exception_ui")
                 self._mostrar_fallback_arranque()
+                estado_pipeline["ok"] = False
             finally:
                 self._dump_top_level_widgets("final_check")
                 if not hay_ventana_visible_no_splash(
@@ -615,10 +628,12 @@ class _CoordinadorArranqueConCierreDeterminista:
                     self._marcar_boot_stage("no_visible_window_after_finalize")
                     self._cerrar_splash_si_visible()
                     self._mostrar_fallback_arranque()
+                    estado_pipeline["ok"] = False
 
         try:
             _enqueue_on_ui_thread(self.app, _aplicar_resultado_en_ui)
         except Exception as exc:  # noqa: BLE001
+            estado_pipeline["ok"] = False
             self._marcar_boot_stage("on_finished_exception")
             import sys
 
@@ -632,6 +647,10 @@ class _CoordinadorArranqueConCierreDeterminista:
                 watchdog_timer=self.watchdog_timer,
             )
             self._mostrar_fallback_arranque()
+        return estado_pipeline["ok"]
+
+    def _on_finished_ui(self, startup_payload: ResultadoArranqueCore) -> None:
+        self._finalizar_arranque_pipeline(startup_payload)
 
 
 def _enqueue_on_ui_thread(app, callback: Callable[[], None]) -> None:
@@ -1034,6 +1053,8 @@ def run_ui(container=None) -> int:
     app.aboutToQuit.connect(
         lambda: controlador._dump_top_level_widgets("about_to_quit")
     )
+    app.aboutToQuit.connect(controlador._detener_watchdog_transicion)
+    app.aboutToQuit.connect(controlador._detener_watchdog_idempotente)
     app.lastWindowClosed.connect(
         lambda: controlador._dump_top_level_widgets("last_window_closed")
     )
