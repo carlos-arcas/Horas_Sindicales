@@ -72,7 +72,7 @@ from .layout_builder import (
     OptionalConfirmDialog,
     PdfPreviewDialog,
 )
-from .navegacion_mixin import NavegacionMainWindowMixin
+from .navegacion_mixin import NavegacionMainWindowMixin, TAB_HISTORICO
 from .refresco_mixin import RefrescoMainWindowMixin
 from .init_placeholders import inicializar_placeholders
 
