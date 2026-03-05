@@ -71,6 +71,7 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "headless_safe: test UI que no requiere backend Qt")
     config.addinivalue_line("markers", "metrics: tests de métricas/calidad (radon opcional)")
     config.addinivalue_line("markers", "smoke: pruebas smoke rápidas y deterministas")
+    config.addinivalue_line("markers", "e2e: pruebas end-to-end sin UI real")
     _enforce_core_without_qt(config)
 
 
