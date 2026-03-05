@@ -446,5 +446,15 @@
   "ui.export_share.ok": "Exportación E2E finalizada.",
   "ui.export_share.error": "Falló la exportación E2E.",
   "ui.saldos.modal_no_disponible_titulo": "Saldos",
-  "ui.saldos.modal_no_disponible": "No hay una vista detallada de saldos disponible en este entorno."
+  "ui.saldos.modal_no_disponible": "No hay una vista detallada de saldos disponible en este entorno.",
+  "ui.personas.cambiar_delegada_titulo": "Cambiar delegada",
+  "ui.personas.cambiar_delegada_mensaje": "Cambiar delegada descartará el formulario actual. ¿Continuar?",
+  "ui.personas.delegada_requerida": "Delegada requerida",
+  "ui.personas.selecciona_delegada_editar": "Selecciona una delegada válida para editar.",
+  "ui.personas.confirmar_cambios_titulo": "Confirmar cambios",
+  "ui.personas.confirmar_cambios_mensaje": "¿Confirmas los cambios? Esto afectará a cálculos futuros.",
+  "ui.personas.selecciona_delegada_eliminar": "Selecciona una delegada válida para eliminar.",
+  "ui.personas.eliminar_delegada_titulo": "Eliminar delegado",
+  "ui.personas.eliminar_delegada_mensaje": "¿Deseas deshabilitar a {nombre}? El histórico se conservará.",
+  "ui.formatos.python_fecha_ymd": "%Y-%m-%d"
 }

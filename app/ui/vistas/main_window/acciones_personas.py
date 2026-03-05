@@ -3,6 +3,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from app.application.claves_configuracion import (
+    CLAVE_CONTEXTO_DELEGADA_ACTIVA,
+    CLAVE_CONTEXTO_DELEGADA_SELECCIONADA_ID,
+    CLAVE_HISTORICO_DELEGADA,
+)
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.ui.copy_catalog import copy_text
 from app.ui.person_dialog import PersonaDialog
@@ -29,8 +34,8 @@ def is_form_dirty(window: MainWindow) -> bool:
 def confirmar_cambio_delegada(window: MainWindow) -> bool:
     respuesta = QMessageBox.question(
         window,
-        "Cambiar delegada",
-        "Cambiar delegada descartará el formulario actual. ¿Continuar?",
+        copy_text("ui.personas.cambiar_delegada_titulo"),
+        copy_text("ui.personas.cambiar_delegada_mensaje"),
     )
     return respuesta == QMessageBox.StandardButton.Yes
 
@@ -92,7 +97,7 @@ def load_personas(window: MainWindow, select_id: int | None = None) -> None:
         PersonasLoadInput(
             personas=tuple(PersonaOption(id=persona.id, nombre=persona.nombre) for persona in window._personas),
             select_id=select_id,
-            saved_delegada_id=window._settings.value("contexto/delegada_seleccionada_id", None),
+            saved_delegada_id=window._settings.value(CLAVE_CONTEXTO_DELEGADA_SELECCIONADA_ID, None),
         )
     )
 
@@ -177,7 +182,10 @@ def selected_config_persona(window: MainWindow) -> PersonaDTO | None:
 def on_edit_persona(window: MainWindow) -> None:
     persona = selected_config_persona(window)
     if persona is None:
-        window.toast.warning("Selecciona una delegada válida para editar.", title="Delegada requerida")
+        window.toast.warning(
+            copy_text("ui.personas.selecciona_delegada_editar"),
+            title=copy_text("ui.personas.delegada_requerida"),
+        )
         return
     dialog = PersonaDialog(window, persona)
     persona_dto = dialog.get_persona()
@@ -186,15 +194,15 @@ def on_edit_persona(window: MainWindow) -> None:
         return
     confirm = QMessageBox.question(
         window,
-        "Confirmar cambios",
-        "¿Confirmas los cambios? Esto afectará a cálculos futuros.",
+        copy_text("ui.personas.confirmar_cambios_titulo"),
+        copy_text("ui.personas.confirmar_cambios_mensaje"),
     )
     if confirm != QMessageBox.StandardButton.Yes:
         return
     try:
         actualizada = window._persona_use_cases.editar_persona(persona_dto)
     except (ValidacionError, BusinessRuleError) as exc:
-        window.toast.warning(str(exc), title="Validación")
+        window.toast.warning(str(exc), title=copy_text("ui.validacion.validacion"))
         return
     except Exception as exc:  # pragma: no cover - fallback
         logger.exception("Error editando persona")
@@ -206,20 +214,23 @@ def on_edit_persona(window: MainWindow) -> None:
 def on_delete_persona(window: MainWindow) -> None:
     persona = selected_config_persona(window)
     if persona is None:
-        window.toast.warning("Selecciona una delegada válida para eliminar.", title="Delegada requerida")
+        window.toast.warning(
+            copy_text("ui.personas.selecciona_delegada_eliminar"),
+            title=copy_text("ui.personas.delegada_requerida"),
+        )
         return
     logger.info("Se pide confirmación de borrado motivo=policy=always_confirm selection_count=1")
     respuesta = QMessageBox.question(
         window,
-        "Eliminar delegado",
-        f"¿Deseas deshabilitar a {persona.nombre}? El histórico se conservará.",
+        copy_text("ui.personas.eliminar_delegada_titulo"),
+        copy_text("ui.personas.eliminar_delegada_mensaje").format(nombre=persona.nombre),
     )
     if respuesta != QMessageBox.StandardButton.Yes:
         return
     try:
         window._persona_use_cases.desactivar_persona(persona.id or 0)
     except (ValidacionError, BusinessRuleError) as exc:
-        window.toast.warning(str(exc), title="Validación")
+        window.toast.warning(str(exc), title=copy_text("ui.validacion.validacion"))
         return
     except Exception as exc:  # pragma: no cover - fallback
         logger.exception("Error deshabilitando delegado")
@@ -237,8 +248,8 @@ def sync_config_persona_actions(window: MainWindow) -> None:
 def on_config_delegada_changed(window: MainWindow, *_args) -> None:
     persona_id = window.config_delegada_combo.currentData()
     sync_config_persona_actions(window)
-    window._settings.setValue("contexto/delegada_activa", persona_id)
-    window._settings.setValue("contexto/delegada_seleccionada_id", persona_id)
+    window._settings.setValue(CLAVE_CONTEXTO_DELEGADA_ACTIVA, persona_id)
+    window._settings.setValue(CLAVE_CONTEXTO_DELEGADA_SELECCIONADA_ID, persona_id)
     if persona_id is None:
         return
     for index in range(window.persona_combo.count()):
@@ -248,8 +259,8 @@ def on_config_delegada_changed(window: MainWindow, *_args) -> None:
 
 
 def restaurar_contexto_guardado(window: MainWindow) -> None:
-    delegada_id = window._settings.value("contexto/delegada_seleccionada_id", None)
-    historico_id = window._settings.value("historico/delegada", None)
+    delegada_id = window._settings.value(CLAVE_CONTEXTO_DELEGADA_SELECCIONADA_ID, None)
+    historico_id = window._settings.value(CLAVE_HISTORICO_DELEGADA, None)
     for combo, value in ((window.config_delegada_combo, delegada_id), (window.historico_delegada_combo, historico_id)):
         for index in range(combo.count()):
             if str(combo.itemData(index)) == str(value):
@@ -330,4 +341,3 @@ def on_open_saldos_modal(window: object) -> None:
     mostrar_dialogo = getattr(dialogo, "show", None)
     if callable(mostrar_dialogo):
         mostrar_dialogo()
-
