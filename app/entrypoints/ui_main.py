@@ -26,6 +26,10 @@ from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
 from app.bootstrap.settings import project_root
 from app.entrypoints.arranque_nucleo import ResultadoArranqueCore
+from app.entrypoints.diagnostico_widgets import (
+    construir_info_top_level_widgets,
+    hay_ventana_visible,
+)
 from app.entrypoints.post_show import preparar_mostrar_ventana, programar_post_init
 from app.ui.qt_message_handler import instalar_qt_message_handler
 from app.ui.qt_safe import safe_call
@@ -76,6 +80,8 @@ class _CoordinadorArranqueConCierreDeterminista:
         self.startup_thread = self.thread
         self.main_window = None
         self.wizard = None
+        self._ventana_principal = None
+        self._wizard_bienvenida = None
         self._quit_on_last_window_closed_previo = None
         self._quit_on_last_window_closed_restaurado = False
         self._guardia_ventana_visible_disparada = False
@@ -85,6 +91,7 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._cancelacion_arranque_completada = False
         self._etapa_terminal_mostrada = False
         self._watchdog_transicion = None
+        self._watchdog_detenido = False
         self.ultima_etapa = ""
 
     def _marcar_boot_stage(self, stage: str) -> None:
@@ -137,6 +144,9 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._marcar_boot_stage("quit_on_last_window_closed_restored")
 
     def _hay_ventana_principal_visible(self) -> bool:
+        info_widgets = self._obtener_info_top_level_widgets()
+        if hay_ventana_visible(info_widgets):
+            return True
         candidatos = [self.wizard, self.main_window]
         for widget in candidatos:
             if not _es_objeto_qt_valido(widget):
@@ -147,6 +157,22 @@ class _CoordinadorArranqueConCierreDeterminista:
             except RuntimeError:
                 continue
         return False
+
+    def _obtener_info_top_level_widgets(self) -> list[dict[str, object]]:
+        if not hasattr(self.app, "topLevelWidgets"):
+            return []
+        try:
+            widgets = list(self.app.topLevelWidgets())
+        except Exception:  # noqa: BLE001
+            return []
+        return construir_info_top_level_widgets(widgets)
+
+    def _dump_top_level_widgets(self, tag: str) -> None:
+        info_widgets = self._obtener_info_top_level_widgets()
+        LOGGER.info(
+            "STARTUP_TOP_LEVEL_WIDGETS",
+            extra={"extra": {"tag": tag, "widgets": info_widgets}},
+        )
 
     def _reintentar_mostrar_ventanas_principales(self) -> None:
         for widget in (self.wizard, self.main_window):
@@ -228,8 +254,14 @@ class _CoordinadorArranqueConCierreDeterminista:
         def _on_timeout() -> None:
             if self._etapa_terminal_mostrada:
                 return
-            if self._hay_ventana_principal_visible():
+            info_widgets = self._obtener_info_top_level_widgets()
+            if hay_ventana_visible(info_widgets) or self._hay_ventana_principal_visible():
+                LOGGER.warning(
+                    "STARTUP_WATCHDOG_ABORTADO_POR_VENTANA_VISIBLE",
+                    extra={"extra": {"widgets": info_widgets}},
+                )
                 return
+            self._dump_top_level_widgets("watchdog_before_fallback")
             self._marcar_boot_stage("watchdog_triggered")
             self._mostrar_fallback_arranque()
 
@@ -262,6 +294,9 @@ class _CoordinadorArranqueConCierreDeterminista:
             return
         try:
             _stop_watchdog_en_main_thread(self.watchdog_timer)
+            if not self._watchdog_detenido:
+                self._watchdog_detenido = True
+                self._marcar_boot_stage("watchdog_stopped")
         except RuntimeError:
             return
 
@@ -292,6 +327,7 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._marcar_boot_stage("worker_result_received_ok")
         self.terminado = True
         self._ultimo_startup_payload = startup_payload
+        self._dump_top_level_widgets("enter")
         self._armar_watchdog_transicion()
 
         def _aplicar_resultado_en_ui() -> None:
@@ -337,11 +373,17 @@ class _CoordinadorArranqueConCierreDeterminista:
                     self._marcar_boot_stage("on_finished_before_create_window")
                     self._marcar_boot_stage("wizard_create_start")
                     self._marcar_boot_stage("wizard_created")
-                    self._marcar_boot_stage("wizard_show_scheduled")
                 if not orquestador.resolver_onboarding():
                     self.app.exit(0)
                     return
                 if requiere_wizard:
+                    self._wizard_bienvenida = getattr(orquestador, "wizard_bienvenida", None)
+                    self.wizard = self._wizard_bienvenida
+                    if _es_objeto_qt_valido(self._wizard_bienvenida):
+                        safe_call(self._wizard_bienvenida, "show")
+                        safe_call(self._wizard_bienvenida, "raise_")
+                        safe_call(self._wizard_bienvenida, "activateWindow")
+                        self._marcar_boot_stage("wizard_show_called")
                     self._registrar_etapa_terminal("wizard_shown")
                     self._marcar_boot_stage("on_finished_after_create_window")
 
@@ -351,6 +393,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                     resolved_container,
                     deps_arranque,
                 )
+                self._ventana_principal = self.main_window
                 window = self.main_window
                 self._marcar_boot_stage("main_window_created")
                 self._marcar_boot_stage("ui.mainwindow.construida")
@@ -373,8 +416,12 @@ class _CoordinadorArranqueConCierreDeterminista:
                             window.showMaximized()
                         else:
                             window.show()
+                        self._marcar_boot_stage("main_window_show_called")
                         safe_call(window, "raise_")
                         safe_call(window, "activateWindow")
+                        self._dump_top_level_widgets("after_show")
+                        self._boot_finalizado = True
+                        self._detener_watchdog_idempotente()
                         self._registrar_etapa_terminal("main_window_shown")
                         self.app.processEvents()
                         self.restaurar_quit_on_last_window_closed()
