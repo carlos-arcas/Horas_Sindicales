@@ -121,3 +121,9 @@
 - Causa raíz confirmada: el flujo post-splash podía quedar sin ventana visible durante la transición (y con riesgo de ejecución en contexto no principal si el callback no se encolaba correctamente).
 - Solución aplicada: coordinación del post-finish en `QObject` principal con encolado explícito al hilo UI, stages `decision_modo_arranque`, `wizard_*`, `main_window_*`, trazas de `on_finished_exception` y guardia de visibilidad (0ms/100ms) con ventana fallback y botón de reintento.
 - Robustez: referencias fuertes en `QApplication` para coordinador/thread/worker, cierre de splash idempotente en hilo UI y restauración controlada de `quitOnLastWindowClosed`.
+
+## 2026-03-05 — Fix race cierre splash vs cleanup de QThread
+- Causa raíz: `SplashWindow.closeEvent` consultaba `hilo.isRunning()` cuando el `QThread` ya había sido destruido por cleanup asíncrono (`deleteLater`), provocando `RuntimeError: Internal C++ object ... already deleted`.
+- Solución aplicada: `closeEvent` ahora distingue cierre programático vs cierre por usuario, valida vida de objeto Qt antes de consultar estado del hilo, y tolera `RuntimeError` como última red sin bloquear UI.
+- Coordinación de cancelación: el splash delega cancelación al coordinador (`solicitar_cancelacion_arranque_por_usuario`) con flujo idempotente, asíncrono y trazable (`splash_close_requested_by_user`, `startup_cancel_requested`, `startup_cancel_done`, `splash_close_programmatic`).
+- Tests añadidos: cobertura UI para objeto `QThread` destruido, cierre programático que no toca thread inválido y cierre por usuario que solicita cancelación de forma segura.
