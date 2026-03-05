@@ -83,6 +83,8 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._ultimo_startup_payload: ResultadoArranque | None = None
         self._cancelacion_arranque_solicitada = False
         self._cancelacion_arranque_completada = False
+        self._etapa_terminal_mostrada = False
+        self._watchdog_transicion = None
 
     def solicitar_cancelacion_arranque_por_usuario(self) -> None:
         if self._cancelacion_arranque_completada:
@@ -150,10 +152,12 @@ class _CoordinadorArranqueConCierreDeterminista:
             safe_call(widget, "activateWindow")
 
     def _mostrar_fallback_arranque(self) -> None:
+        marcar_stage("fallback_show_begin")
         if _es_objeto_qt_valido(self._fallback_window):
             safe_call(self._fallback_window, "show")
             safe_call(self._fallback_window, "raise_")
             safe_call(self._fallback_window, "activateWindow")
+            marcar_stage("fallback_shown")
             return
 
         from PySide6.QtWidgets import (
@@ -172,6 +176,9 @@ class _CoordinadorArranqueConCierreDeterminista:
         boton_reintentar = QPushButton(self.i18n.t("startup_fallback_reintentar"), raiz)
         boton_reintentar.clicked.connect(self._reintentar_mostrar_ventanas_principales)
         layout.addWidget(boton_reintentar)
+        boton_salir = QPushButton(self.i18n.t("startup_fallback_salir"), raiz)
+        boton_salir.clicked.connect(lambda: self.app.exit(2))
+        layout.addWidget(boton_salir)
         ventana.setCentralWidget(raiz)
         self._fallback_window = ventana
         self.app.setProperty("_startup_fallback_window_ref", ventana)
@@ -180,6 +187,41 @@ class _CoordinadorArranqueConCierreDeterminista:
         safe_call(ventana, "raise_")
         safe_call(ventana, "activateWindow")
         marcar_stage("fallback_window_shown")
+        marcar_stage("fallback_shown")
+
+    def _registrar_etapa_terminal(self, stage: str) -> None:
+        if self._etapa_terminal_mostrada:
+            return
+        self._etapa_terminal_mostrada = True
+        marcar_stage(stage)
+        self._cancelar_watchdog_transicion()
+
+    def _cancelar_watchdog_transicion(self) -> None:
+        if not _es_objeto_qt_valido(self._watchdog_transicion):
+            return
+        safe_call(self._watchdog_transicion, "stop")
+        safe_call(self._watchdog_transicion, "deleteLater")
+        self._watchdog_transicion = None
+
+    def _armar_watchdog_transicion(self) -> None:
+        from app.ui.qt_compat import QTimer
+
+        self._cancelar_watchdog_transicion()
+        timer = QTimer(self.app)
+        timer.setSingleShot(True)
+        timer.setInterval(3000)
+
+        def _on_timeout() -> None:
+            if self._etapa_terminal_mostrada:
+                return
+            if self._hay_ventana_principal_visible():
+                return
+            marcar_stage("watchdog_triggered")
+            self._mostrar_fallback_arranque()
+
+        timer.timeout.connect(_on_timeout)
+        timer.start()
+        self._watchdog_transicion = timer
 
     def _activar_guardia_ventana_visible(self) -> None:
         if self._guardia_ventana_visible_disparada:
@@ -216,6 +258,7 @@ class _CoordinadorArranqueConCierreDeterminista:
             self._splash_cerrado = True
             return
         splash = self.splash
+        marcar_stage("splash_close_begin")
         safe_hide(splash)
         if hasattr(splash, "deleteLater"):
             safe_call(splash, "deleteLater")
@@ -227,15 +270,22 @@ class _CoordinadorArranqueConCierreDeterminista:
 
     def on_finished(self, startup_payload: ResultadoArranque) -> None:
         marcar_stage("on_finished_enter")
+        marcar_stage("worker_result_received_ok")
         self.terminado = True
         self._ultimo_startup_payload = startup_payload
+        self._armar_watchdog_transicion()
 
         def _aplicar_resultado_en_ui() -> None:
             try:
                 self._detener_watchdog_idempotente()
                 self._solicitar_cierre_thread()
-                resolved_container = startup_payload.container
-                marcar_stage("UI_CONTAINER_RESUELTO")
+                try:
+                    resolved_container = startup_payload.container
+                    marcar_stage("container_resolved_ok")
+                    marcar_stage("UI_CONTAINER_RESUELTO")
+                except Exception:
+                    marcar_stage("container_resolved_error")
+                    raise
                 deps_arranque = startup_payload.deps_arranque
                 deps_arranque = _actualizar_preferencias_en_hilo_ui(
                     resolved_container, deps_arranque
@@ -267,7 +317,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                     self.app.exit(0)
                     return
                 if requiere_wizard:
-                    marcar_stage("wizard_shown")
+                    self._registrar_etapa_terminal("wizard_shown")
 
                 marcar_stage("main_window_create_start")
                 self.main_window = self.main_window_factory(
@@ -290,15 +340,25 @@ class _CoordinadorArranqueConCierreDeterminista:
                     QTimer.singleShot(0, fn)
 
                 def _mostrar_main_window() -> None:
-                    if orquestador.debe_iniciar_maximizada():
-                        window.showMaximized()
-                    else:
-                        window.show()
-                    safe_call(window, "raise_")
-                    safe_call(window, "activateWindow")
-                    marcar_stage("main_window_shown")
-                    self.app.processEvents()
-                    self.restaurar_quit_on_last_window_closed()
+                    try:
+                        if orquestador.debe_iniciar_maximizada():
+                            window.showMaximized()
+                        else:
+                            window.show()
+                        safe_call(window, "raise_")
+                        safe_call(window, "activateWindow")
+                        self._registrar_etapa_terminal("main_window_shown")
+                        self.app.processEvents()
+                        self.restaurar_quit_on_last_window_closed()
+                    except Exception as exc:  # noqa: BLE001
+                        marcar_stage("deferred_show_exception")
+                        log_operational_error(
+                            LOGGER,
+                            "STARTUP_DEFERRED_SHOW_EXCEPTION",
+                            exc=exc,
+                            extra={"traceback": traceback.format_exc()},
+                        )
+                        self._mostrar_fallback_arranque()
 
                 preparar_mostrar_ventana(
                     window=window,
@@ -333,10 +393,12 @@ class _CoordinadorArranqueConCierreDeterminista:
                     app=self.app,
                     watchdog_timer=self.watchdog_timer,
                 )
+                self._mostrar_fallback_arranque()
 
         try:
             _enqueue_on_ui_thread(self.app, _aplicar_resultado_en_ui)
         except Exception as exc:  # noqa: BLE001
+            marcar_stage("on_finished_exception")
             import sys
 
             self._reportar_fallo_arranque(
@@ -348,6 +410,7 @@ class _CoordinadorArranqueConCierreDeterminista:
                 app=self.app,
                 watchdog_timer=self.watchdog_timer,
             )
+            self._mostrar_fallback_arranque()
 
 
 def _enqueue_on_ui_thread(app, callback: Callable[[], None]) -> None:

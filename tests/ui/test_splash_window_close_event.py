@@ -66,3 +66,22 @@ def test_close_event_usuario_solicita_cancelacion_una_vez(qt_app) -> None:
 
     assert not evento.isAccepted()
     assert llamadas["cancelar"] == 1
+
+
+def test_close_event_tolera_runtime_error_de_thread_interno(qt_app) -> None:
+    qt_gui = pytest.importorskip("PySide6.QtGui", exc_type=ImportError)
+
+    from app.ui.splash_window import SplashWindow
+    from presentacion.i18n import I18nManager
+
+    class _ThreadDestruido:
+        def isRunning(self) -> bool:
+            raise RuntimeError("Internal C++ object (PySide6.QtCore.QThread) already deleted")
+
+    splash = SplashWindow(I18nManager("es"))
+    splash._startup_thread = _ThreadDestruido()
+
+    evento = qt_gui.QCloseEvent()
+    splash.closeEvent(evento)
+
+    assert evento.isAccepted()
