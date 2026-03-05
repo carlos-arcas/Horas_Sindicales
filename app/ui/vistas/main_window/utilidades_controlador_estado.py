@@ -52,7 +52,7 @@ def apply_help_preferences(window: Any) -> None:
 def on_help_toggle_changed(window: Any, enabled: bool) -> None:
     settings_key = copy_text("ui.preferencias.settings_show_help_key")
     window._settings.setValue(settings_key, bool(enabled))
-    for attr_name in ("solicitudes_tip_1", "solicitudes_tip_2", "solicitudes_tip_3", "solicitudes_status_hint"):
+    for attr_name in ("solicitudes_tip_1", "solicitudes_tip_2", "solicitudes_tip_3"):
         widget = getattr(window, attr_name, None)
         if widget is not None and hasattr(widget, "setVisible"):
             widget.setVisible(enabled)

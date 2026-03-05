@@ -324,13 +324,40 @@ def _bind_manual_hours_preview_refresh(window) -> None:
 def _update_solicitudes_status_panel(window) -> None:
     if window.solicitudes_status_label is None or window.solicitudes_status_hint is None:
         return
+    persona = window._current_persona()
+    nombre_delegada = getattr(persona, "nombre", None) if persona is not None else None
+    seleccionadas = len(window._selected_pending_solicitudes()) if hasattr(window, "_selected_pending_solicitudes") else 0
+    saldo_reservado = window.total_pendientes_label.text().split(":", 1)[-1].strip() if getattr(window, "total_pendientes_label", None) is not None else "00:00"
     status = build_solicitudes_status(
         SolicitudesStatusInput(
-            pending_count=len(window._pending_solicitudes),
+            delegada_actual=nombre_delegada,
+            pendientes_visibles=len(window._pending_solicitudes),
+            pendientes_seleccionadas=seleccionadas,
+            saldo_reservado=saldo_reservado,
             has_blocking_errors=bool(getattr(window, "_blocking_errors", {})),
             has_runtime_error=window._solicitudes_runtime_error,
-            last_action_saved=window._solicitudes_last_action_saved,
+            hay_conflictos_pendientes=bool(getattr(window, "_pending_conflict_rows", set())),
+            puede_confirmar_pdf=bool(getattr(window, "confirmar_button", None) and window.confirmar_button.isEnabled()),
         )
     )
-    window.solicitudes_status_label.setText(status.label)
-    window.solicitudes_status_hint.setText(status.hint)
+    seleccion_texto = copy_text(status.label_params["seleccion_key"])
+    label_params = dict(status.label_params)
+    label_params["seleccion"] = seleccion_texto
+    window.solicitudes_status_label.setText(copy_text(status.label_key).format(**label_params))
+    window.solicitudes_status_hint.setText(copy_text(status.action_key))
+
+    window._solicitudes_help_key_actual = status.help_key
+    ayuda_disponible = status.help_key is not None
+    if hasattr(window, "show_help_toggle") and window.show_help_toggle is not None:
+        window.show_help_toggle.setEnabled(ayuda_disponible)
+        window.show_help_toggle.setVisible(ayuda_disponible)
+    if not ayuda_disponible:
+        window.solicitudes_tip_1.setVisible(False)
+        window.solicitudes_tip_2.setVisible(False)
+        window.solicitudes_tip_3.setVisible(False)
+        return
+
+    ayuda_texto = copy_text(status.help_key)
+    window.solicitudes_tip_1.setText(ayuda_texto)
+    window.solicitudes_tip_2.setVisible(False)
+    window.solicitudes_tip_3.setVisible(False)
