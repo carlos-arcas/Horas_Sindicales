@@ -5,8 +5,6 @@ import sqlite3
 from dataclasses import asdict
 from pathlib import Path
 
-import pytest
-
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
 from app.application.use_cases.confirmacion_pdf.caso_uso import ConfirmarPendientesPdfCasoUso
@@ -19,7 +17,6 @@ from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, Solicitud
 from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 
 
-@pytest.mark.e2e
 def test_flujo_solicitud_pdf_historico_contrato_prioridad_1(tmp_path: Path) -> None:
     ruta_db = tmp_path / "e2e_prioridad_1.sqlite3"
     destino_pdf = tmp_path / "salida_pdf" / "solicitudes_confirmadas.pdf"
