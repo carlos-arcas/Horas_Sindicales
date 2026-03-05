@@ -31,6 +31,9 @@ class OrquestadorPreflightSync:
         def preflight_permisos_escritura(self, spreadsheet: Any | None = None) -> SyncPreflightResult:
             if not hasattr(self._client, "check_write_access"):
                 return SyncPreflightResult.ok_result()
+            if not self._hay_cambios_pendientes_para_push():
+                logger.info("SYNC_WRITE_PREFLIGHT_SKIPPED", extra={"reason": "no_pending_changes"})
+                return SyncPreflightResult.ok_result()
             try:
                 self._client.check_write_access("solicitudes")
                 return SyncPreflightResult.ok_result()
@@ -41,6 +44,28 @@ class OrquestadorPreflightSync:
                     accion_sugerida=construir_mensaje_permiso_sheets(enriched),
                     metadata=enriched.to_safe_payload(),
                 )
+
+        def _hay_cambios_pendientes_para_push(self) -> bool:
+            last_sync_at = self._get_last_sync_at()
+            cursor = self._connection.cursor()
+            if not last_sync_at:
+                return True
+            consultas = (
+                ("personas", "updated_at > ?"),
+                ("solicitudes", "updated_at > ?"),
+                ("pdf_log", "updated_at > ?"),
+                ("sync_config", "key = ?"),
+            )
+            for tabla, condicion in consultas:
+                parametro = last_sync_at if "updated_at" in condicion else "last_sync_at"
+                try:
+                    cursor.execute(f"SELECT 1 FROM {tabla} WHERE {condicion} LIMIT 1", (parametro,))
+                except Exception:
+                    logger.debug("No se pudo validar cambios pendientes en tabla=%s", tabla, exc_info=True)
+                    return True
+                if cursor.fetchone() is not None:
+                    return True
+            return False
 
         def _resolver_preflight_denegado(self, preflight: SyncPreflightResult) -> SyncSummary:
             if self._strict_sync_exceptions_enabled():

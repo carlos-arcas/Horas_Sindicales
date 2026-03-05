@@ -212,11 +212,65 @@ class SheetsClient(SheetsClientPort):
     def check_write_access(self, worksheet_name: str | None = None) -> None:
         if self._spreadsheet is None:
             raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
-        operation = "spreadsheet.batch_update(preflight_write_access)"
-        self._with_write_retry(
-            operation,
-            lambda: self._spreadsheet.batch_update({"requests": []}),
-            spreadsheet_id=getattr(self._spreadsheet, "id", None),
+        nombre_hoja = worksheet_name or "solicitudes"
+        spreadsheet_id = getattr(self._spreadsheet, "id", None)
+        celda_canaria = "ZZ1"
+        valor_escritura = f"SYNC_PREFLIGHT::{int(time.time() * 1000)}"
+        worksheet = self.get_worksheet(nombre_hoja)
+        logger.info(
+            "SYNC_WRITE_PREFLIGHT_START",
+            extra={
+                "spreadsheet_id": spreadsheet_id,
+                "worksheet": nombre_hoja,
+                "celda": celda_canaria,
+            },
+        )
+        valor_original = self._with_rate_limit_retry(
+            f"worksheet.acell({nombre_hoja}!{celda_canaria})",
+            lambda: worksheet.acell(celda_canaria).value,
+            spreadsheet_id=spreadsheet_id,
+        )
+        try:
+            self._with_write_retry(
+                f"worksheet.update({nombre_hoja}!{celda_canaria})",
+                lambda: worksheet.update(celda_canaria, [[valor_escritura]], value_input_option="RAW"),
+                spreadsheet_id=spreadsheet_id,
+            )
+        except Exception:
+            logger.exception(
+                "SYNC_WRITE_PREFLIGHT_ERROR",
+                extra={
+                    "spreadsheet_id": spreadsheet_id,
+                    "worksheet": nombre_hoja,
+                    "celda": celda_canaria,
+                    "fase": "write_canary",
+                },
+            )
+            raise
+        try:
+            self._with_write_retry(
+                f"worksheet.update_restore({nombre_hoja}!{celda_canaria})",
+                lambda: worksheet.update(celda_canaria, [[valor_original or ""]], value_input_option="RAW"),
+                spreadsheet_id=spreadsheet_id,
+            )
+        except Exception:
+            logger.exception(
+                "SYNC_WRITE_PREFLIGHT_ERROR",
+                extra={
+                    "spreadsheet_id": spreadsheet_id,
+                    "worksheet": nombre_hoja,
+                    "celda": celda_canaria,
+                    "fase": "restore",
+                },
+            )
+            raise
+        logger.info(
+            "SYNC_WRITE_PREFLIGHT_OK",
+            extra={
+                "spreadsheet_id": spreadsheet_id,
+                "worksheet": nombre_hoja,
+                "celda": celda_canaria,
+            },
         )
 
     def get_service_account_email(self) -> str | None:
