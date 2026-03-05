@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from app.application.use_cases.solicitudes.validaciones import detectar_duplicados_en_pendientes
@@ -10,6 +9,8 @@ from app.domain.services import BusinessRuleError, ValidacionError
 from app.ui.copy_catalog import copy_text
 from app.ui.notification_service import OperationFeedback
 from app.ui.vistas.pending_duplicate_presenter import PendingDuplicateEntrada, resolve_pending_duplicate_row
+
+from app.ui.vistas.reservado_calculo import calcular_minutos_reservados_periodo
 
 try:
     from PySide6.QtWidgets import QAbstractItemView, QMessageBox
@@ -222,18 +223,14 @@ def helper_pending_minutes_for_period(window: MainWindow, filtro) -> int:
     persona = window._current_persona()
     if persona is None or not window._pending_solicitudes:
         return 0
-    pendientes_filtrados = []
-    for solicitud in window._pending_solicitudes:
-        fecha = datetime.strptime(solicitud.fecha_pedida, "%Y-%m-%d")
-        if fecha.year != filtro.year:
-            continue
-        if filtro.modo == "MENSUAL" and fecha.month != filtro.month:
-            continue
-        pendientes_filtrados.append(solicitud)
-    if not pendientes_filtrados:
-        return 0
     try:
-        return window._solicitud_use_cases.sumar_pendientes_min(persona.id or 0, pendientes_filtrados)
+        return calcular_minutos_reservados_periodo(
+            persona_id=persona.id or 0,
+            pendientes=window._pending_solicitudes,
+            year=filtro.year,
+            month=filtro.month if filtro.modo == "MENSUAL" else None,
+            sumar_pendientes_min=window._solicitud_use_cases.sumar_pendientes_min,
+        )
     except BusinessRuleError:
         return 0
 
@@ -254,6 +251,7 @@ def on_add_pendiente(window: MainWindow, *args, **kwargs) -> None:
         solicitud = solicitud.model_copy(update={"notas": notas_text})
     window._pending_solicitudes.append(solicitud)
     helper_refresh_pending_ui_state(window)
+    window._refrescar_estado_operativa("pendiente_added")
 
 
 def on_remove_pendiente(window: MainWindow) -> None:
@@ -286,7 +284,7 @@ def on_remove_pendiente(window: MainWindow) -> None:
                     solicitud_id, correlation_id=operation.correlation_id
                 )
     except (ValidacionError, BusinessRuleError) as exc:
-        window.toast.warning(str(exc), title="Validación")
+        window.toast.warning(str(exc), title=copy_text("ui.validacion.validacion"))
         return
     except Exception as exc:  # pragma: no cover - fallback
         logger.exception("Error eliminando pendiente")
@@ -295,13 +293,13 @@ def on_remove_pendiente(window: MainWindow) -> None:
     finally:
         window._set_processing_state(False)
     window._reload_pending_views()
-    window._refresh_saldos()
+    window._refrescar_estado_operativa("pendiente_removed")
     window.notifications.notify_operation(
         OperationFeedback(
-            title="Pendientes eliminadas",
-            happened="Las solicitudes pendientes seleccionadas se eliminaron.",
+            title=copy_text("ui.pendientes.eliminadas_titulo"),
+            happened=copy_text("ui.pendientes.eliminadas_mensaje"),
             affected_count=len(ids_to_delete),
-            incidents="Sin incidencias.",
-            next_step="Puedes añadir nuevas solicitudes o confirmar otras pendientes.",
+            incidents=copy_text("ui.pendientes.sin_incidencias"),
+            next_step=copy_text("ui.pendientes.eliminadas_siguiente_paso"),
         )
     )

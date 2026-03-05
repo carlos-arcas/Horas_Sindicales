@@ -84,7 +84,7 @@ class AccionesMainWindowMixin:
 
     def _on_pending_selection_changed(self, *args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
-        self._update_action_state()
+        self._refrescar_estado_operativa("pendiente_selected")
 
     def _prompt_confirm_pdf_path(self, selected: object) -> str | None:
         from pathlib import Path

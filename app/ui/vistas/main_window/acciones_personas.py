@@ -66,6 +66,7 @@ def restore_draft_for_persona(window: MainWindow, persona_id: int | None) -> Non
     window.hasta_input.setTime(draft["hasta"])
     window.completo_check.setChecked(bool(draft["completo"]))
     window.notas_input.setPlainText(str(draft["notas"]))
+    window._refrescar_estado_operativa("draft_restored")
 
 
 def _reload_historico_delegada_combo(window: MainWindow, items: tuple[tuple[str, int | None], ...]) -> None:
@@ -154,9 +155,7 @@ def on_persona_changed(window: MainWindow, *_args) -> None:
     window.pendientes_table.clearSelection()
     window.huerfanas_table.clearSelection()
     window._reload_pending_views()
-    window._update_action_state()
-    window._refresh_saldos()
-    window._update_solicitud_preview()
+    window._refrescar_estado_operativa("persona_changed")
     window._update_global_context()
 
 

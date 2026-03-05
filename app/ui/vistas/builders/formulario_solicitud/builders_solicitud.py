@@ -100,7 +100,7 @@ def _construir_fila_solicitud(window: "MainWindow", solicitud_layout: QVBoxLayou
 def _construir_controles_tramo(window: "MainWindow", solicitud_row: QHBoxLayout) -> None:
     window.desde_input = QTimeEdit(QTime(9, 0))
     window.desde_input.setDisplayFormat(copy_text("ui.solicitudes.formato_hora"))
-    conectar_accion(window, window.desde_input.timeChanged, "_update_solicitud_preview")
+    conectar_accion(window, window.desde_input.timeChanged, "_on_desde_changed")
     window.desde_container = crear_contenedor_hora("solicitudes.label_desde", window.desde_input)
     solicitud_row.addWidget(window.desde_container)
     window.desde_placeholder = crear_placeholder_hora()
@@ -108,7 +108,7 @@ def _construir_controles_tramo(window: "MainWindow", solicitud_row: QHBoxLayout)
 
     window.hasta_input = QTimeEdit(QTime(17, 0))
     window.hasta_input.setDisplayFormat(copy_text("ui.solicitudes.formato_hora"))
-    conectar_accion(window, window.hasta_input.timeChanged, "_update_solicitud_preview")
+    conectar_accion(window, window.hasta_input.timeChanged, "_on_hasta_changed")
     window.hasta_container = crear_contenedor_hora("solicitudes.label_hasta", window.hasta_input)
     solicitud_row.addWidget(window.hasta_container)
     window.hasta_placeholder = crear_placeholder_hora()

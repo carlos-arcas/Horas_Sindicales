@@ -29,8 +29,7 @@ def limpiar_formulario(window) -> None:
     window.delegada_field_error.setVisible(False)
     window.fecha_field_error.setVisible(False)
     window.tramo_field_error.setVisible(False)
-    window._update_solicitud_preview()
-    window._update_action_state()
+    window._refrescar_estado_operativa("formulario_limpiado")
     logger.info("formulario_limpiado")
 
 
@@ -81,13 +80,9 @@ def clear_form(window) -> None:
         if isinstance(label, QLabel):
             label.setVisible(False)
 
-    update_preview = getattr(window, "_update_solicitud_preview", None)
-    if callable(update_preview):
-        update_preview()
-
-    update_actions = getattr(window, "_update_action_state", None)
-    if callable(update_actions):
-        update_actions()
+    refrescar_operativa = getattr(window, "_refrescar_estado_operativa", None)
+    if callable(refrescar_operativa):
+        refrescar_operativa("clear_form")
 
 
 def _coerce_qt_bool(value: object) -> bool:
@@ -123,13 +118,9 @@ def on_completo_changed(window: object, checked: object = False) -> None:
     if callable(run_preventive_validation):
         run_preventive_validation()
 
-    update_preview = getattr(window, "_update_solicitud_preview", None)
-    if callable(update_preview):
-        update_preview()
-
-    update_actions = getattr(window, "_update_action_state", None)
-    if callable(update_actions):
-        update_actions()
+    refrescar_operativa = getattr(window, "_refrescar_estado_operativa", None)
+    if callable(refrescar_operativa):
+        refrescar_operativa("completo_changed")
 
 
 def build_preview_solicitud(window) -> SolicitudDTO | None:

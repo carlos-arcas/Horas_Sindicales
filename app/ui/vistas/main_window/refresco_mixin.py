@@ -31,6 +31,13 @@ logger = logging.getLogger(__name__)
 
 
 class RefrescoMainWindowMixin:
+    def _refrescar_estado_operativa(self, motivo: str) -> None:
+        logger.debug("UI_RESERVED_BALANCE_REFRESH", extra={"motivo": motivo})
+        self._update_solicitud_preview()
+        self._update_pending_totals()
+        self._refresh_saldos()
+        self._update_action_state()
+
     def _refresh_historico(self, *, force: bool = False) -> None:
         data_refresh.refresh_historico(self, force=force)
 
