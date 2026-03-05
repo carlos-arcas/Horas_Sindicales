@@ -53,3 +53,16 @@ def test_procesar_mensaje_qt_no_violation_no_stage(caplog, monkeypatch) -> None:
 
     assert writer.stages == []
     assert any(record.levelno == logging.DEBUG for record in caplog.records)
+
+
+def test_construir_payload_qt_incluye_stacktrace_en_violacion() -> None:
+    payload = qt_message_handler.construir_payload_qt(
+        tipo_qt="QtWarningMsg",
+        contexto=_ContextoFalso(),
+        mensaje=qt_message_handler.MENSAJE_VIOLACION_THREAD_PARENT,
+        violacion_thread_parent=True,
+    )
+
+    stacktrace = payload["qt"].get("stacktrace_python")
+    assert isinstance(stacktrace, list)
+    assert stacktrace

@@ -93,3 +93,13 @@ def assert_hilo_ui_o_log(contexto: str, logger: Logger) -> None:
     if _modo_ci_estricto():
         raise AssertionError(contexto)
     logger.error("UI_THREAD_ASSERT", extra=extra)
+
+
+def obtener_ids_hilos_qt() -> dict[str, str]:
+    app = QApplication.instance() if hasattr(QApplication, "instance") else None
+    hilo_actual = QThread.currentThread() if hasattr(QThread, "currentThread") else None
+    hilo_ui = app.thread() if app is not None and hasattr(app, "thread") else None
+    return {
+        "hilo_actual_repr": repr(hilo_actual),
+        "hilo_ui_repr": repr(hilo_ui),
+    }

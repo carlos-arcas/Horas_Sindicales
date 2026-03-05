@@ -767,6 +767,7 @@ def run_ui(container=None) -> int:
     from presentacion.orquestador_arranque import OrquestadorArranqueUI
 
     from app.entrypoints.coordinador_arranque import CoordinadorArranque
+    from app.entrypoints.receptor_arranque import ReceptorArranqueQt
     from PySide6.QtCore import QThread, QTimer, Qt
     from PySide6.QtWidgets import QApplication
 
@@ -837,6 +838,8 @@ def run_ui(container=None) -> int:
     app._startup_thread_ref = startup_thread
     app._startup_worker_ref = startup_worker
     controlador.desactivar_quit_on_last_window_closed_temporalmente()
+    receptor_arranque_ui = ReceptorArranqueQt(controlador)
+    app._receptor_arranque_ui_ref = receptor_arranque_ui
 
     splash.registrar_watchdog(watchdog_timer)
     splash.registrar_cancelacion_arranque(
@@ -850,10 +853,16 @@ def run_ui(container=None) -> int:
         controlador.on_progreso, Qt.ConnectionType.QueuedConnection
     )
     startup_worker.finished.connect(
-        controlador.on_finished, Qt.ConnectionType.QueuedConnection
+        controlador.on_finished, Qt.ConnectionType.DirectConnection
     )
     startup_worker.failed.connect(
-        controlador.on_failed, Qt.ConnectionType.QueuedConnection
+        controlador.on_failed, Qt.ConnectionType.DirectConnection
+    )
+    controlador.senal_arranque_ok.connect(
+        receptor_arranque_ui.recibir_ok, Qt.ConnectionType.QueuedConnection
+    )
+    controlador.senal_arranque_error.connect(
+        receptor_arranque_ui.recibir_error, Qt.ConnectionType.QueuedConnection
     )
 
     conexiones_arranque = (
@@ -861,6 +870,8 @@ def run_ui(container=None) -> int:
         (startup_worker.progreso, controlador.on_progreso),
         (startup_worker.finished, controlador.on_finished),
         (startup_worker.failed, controlador.on_failed),
+        (controlador.senal_arranque_ok, receptor_arranque_ui.recibir_ok),
+        (controlador.senal_arranque_error, receptor_arranque_ui.recibir_error),
     )
 
     def _limpiar_arranque() -> None:

@@ -10,8 +10,9 @@ from app.bootstrap.captura_fallos_fatales import marcar_stage
 from app.entrypoints.arranque_nucleo import ResultadoArranqueCore
 from app.entrypoints.startup_watchdog import calcular_elapsed_ms
 
-from PySide6.QtCore import QObject, Qt, Signal, Slot
+from PySide6.QtCore import QObject, Signal, Slot
 
+from app.ui.qt_hilos import obtener_ids_hilos_qt
 from app.ui.qt_safe_ops import es_objeto_qt_valido, safe_hide, safe_quit_thread
 
 LOGGER = logging.getLogger(__name__)
@@ -58,12 +59,6 @@ class CoordinadorArranque(QObject):
         self._boot_timeout_disparado = False
         self._boot_inicio_monotonic = time.monotonic()
         self._timer_watchdog = watchdog_timer
-        self.senal_arranque_ok.connect(
-            self._on_finished_ui, Qt.ConnectionType.QueuedConnection
-        )
-        self.senal_arranque_error.connect(
-            self._on_failed_ui, Qt.ConnectionType.QueuedConnection
-        )
 
     def iniciar(self) -> None:
         self._boot_inicio_monotonic = time.monotonic()
@@ -176,6 +171,10 @@ class CoordinadorArranque(QObject):
             return
         self.terminado = True
         self._marcar_boot_stage("on_finished_signal_received")
+        LOGGER.info(
+            "startup_finished_signal_received",
+            extra={"extra": obtener_ids_hilos_qt()},
+        )
         self.senal_arranque_ok.emit(startup_payload)
 
     @Slot(object)
@@ -183,7 +182,6 @@ class CoordinadorArranque(QObject):
         if self._boot_timeout_disparado:
             self._evento_finish_tardio("finished_ui")
             return
-        self._marcar_boot_stage("on_finished_enter_ui")
         try:
             self._detener_watchdog_idempotente()
             self._cerrar_splash_idempotente()
@@ -234,6 +232,10 @@ class CoordinadorArranque(QObject):
             return
         self.terminado = True
         self._marcar_boot_stage("on_failed_signal_received")
+        LOGGER.info(
+            "startup_failed_signal_received",
+            extra={"extra": obtener_ids_hilos_qt()},
+        )
         self.senal_arranque_error.emit((incident_id, mensaje_usuario, detalles))
 
     @Slot(object)
@@ -241,7 +243,6 @@ class CoordinadorArranque(QObject):
         if self._boot_timeout_disparado:
             self._evento_finish_tardio("failed_ui")
             return
-        self._marcar_boot_stage("on_failed_enter_ui")
         incident_id, mensaje_usuario, detalles = payload_error
         self.incident_id = incident_id
         mensaje_ui = self.i18n.t(mensaje_usuario)

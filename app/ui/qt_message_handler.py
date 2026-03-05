@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any, Callable
-
+import traceback
 MENSAJE_VIOLACION_THREAD_PARENT = "Cannot create children for a parent that is in a different thread"
 
 
@@ -74,6 +74,24 @@ def _resolver_nivel_log(tipo_qt: Any, violacion_thread_parent: bool) -> int:
     return logging.INFO
 
 
+def construir_payload_qt(
+    *,
+    tipo_qt: Any,
+    contexto: Any,
+    mensaje: str,
+    violacion_thread_parent: bool,
+) -> dict[str, Any]:
+    qt_payload: dict[str, Any] = {
+        "tipo": _normalizar_tipo_mensaje(tipo_qt),
+        **_serializar_contexto(contexto),
+        "mensaje": mensaje,
+        "thread_parent_violation": violacion_thread_parent,
+    }
+    if violacion_thread_parent:
+        qt_payload["stacktrace_python"] = traceback.format_stack(limit=25)
+    return {"qt": qt_payload}
+
+
 def _procesar_mensaje_qt(
     *,
     tipo_qt: Any,
@@ -87,14 +105,12 @@ def _procesar_mensaje_qt(
         _QT_MESSAGE_HANDLER_STATE.violacion_thread_parent_detectada = True
         _registrar_stage_violacion(boot_trace_writer)
 
-    extra = {
-        "qt": {
-            "tipo": _normalizar_tipo_mensaje(tipo_qt),
-            **_serializar_contexto(contexto),
-            "mensaje": mensaje,
-            "thread_parent_violation": violacion_thread_parent,
-        }
-    }
+    extra = construir_payload_qt(
+        tipo_qt=tipo_qt,
+        contexto=contexto,
+        mensaje=mensaje,
+        violacion_thread_parent=violacion_thread_parent,
+    )
     logger.log(
         _resolver_nivel_log(tipo_qt, violacion_thread_parent),
         "Qt message captured",

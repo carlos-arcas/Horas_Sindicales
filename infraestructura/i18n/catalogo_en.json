@@ -1,5 +1,6 @@
 {
   "bootstrap.container": "Preparing container…",
+  "bootstrap.core_ready": "Core ready",
   "bootstrap.crear_mainwindow_deps": "Preparing main window data…",
   "bootstrap.deps_arranque": "Preparing startup dependencies…",
   "dialogo_accion_cancelar": "Cancel",
