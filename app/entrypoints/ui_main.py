@@ -18,7 +18,10 @@ from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
     ObtenerPreferenciaPantallaCompleta,
 )
 from app.application.use_cases.cargar_datos_demo_caso_uso import CargarDatosDemoCasoUso
-from app.bootstrap.captura_fallos_fatales import iniciar_captura_fallos_fatales, marcar_stage
+from app.bootstrap.captura_fallos_fatales import (
+    iniciar_captura_fallos_fatales,
+    marcar_stage,
+)
 from app.bootstrap.exception_handler import manejar_excepcion_global
 from app.bootstrap.logging import log_operational_error
 from app.bootstrap.settings import project_root
@@ -35,7 +38,11 @@ def _es_objeto_qt_valido(objeto) -> bool:
     try:
         import shiboken6
 
-        return bool(objeto is not None and shiboken6.isValid(objeto) and es_objeto_qt_valido(objeto))
+        return bool(
+            objeto is not None
+            and shiboken6.isValid(objeto)
+            and es_objeto_qt_valido(objeto)
+        )
     except Exception:
         return es_objeto_qt_valido(objeto)
 
@@ -72,6 +79,8 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._quit_on_last_window_closed_previo = None
         self._quit_on_last_window_closed_restaurado = False
         self._guardia_ventana_visible_disparada = False
+        self._fallback_window = None
+        self._ultimo_startup_payload: ResultadoArranque | None = None
 
     def desactivar_quit_on_last_window_closed_temporalmente(self) -> None:
         if self._quit_on_last_window_closed_previo is not None:
@@ -90,35 +99,77 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._quit_on_last_window_closed_restaurado = True
         marcar_stage("quit_on_last_window_closed_restored")
 
-    def _activar_guardia_ventana_visible(self, *, timeout_ms: int = 1200) -> None:
+    def _hay_ventana_principal_visible(self) -> bool:
+        candidatos = [self.wizard, self.main_window]
+        for widget in candidatos:
+            if not _es_objeto_qt_valido(widget):
+                continue
+            try:
+                if widget.isVisible():
+                    return True
+            except RuntimeError:
+                continue
+        return False
+
+    def _reintentar_mostrar_ventanas_principales(self) -> None:
+        for widget in (self.wizard, self.main_window):
+            if not _es_objeto_qt_valido(widget):
+                continue
+            safe_call(widget, "show")
+            safe_call(widget, "raise_")
+            safe_call(widget, "activateWindow")
+
+    def _mostrar_fallback_arranque(self) -> None:
+        if _es_objeto_qt_valido(self._fallback_window):
+            safe_call(self._fallback_window, "show")
+            safe_call(self._fallback_window, "raise_")
+            safe_call(self._fallback_window, "activateWindow")
+            return
+
+        from PySide6.QtWidgets import (
+            QLabel,
+            QMainWindow,
+            QPushButton,
+            QVBoxLayout,
+            QWidget,
+        )
+
+        ventana = QMainWindow()
+        ventana.setWindowTitle(self.i18n.t("startup_fallback_titulo"))
+        raiz = QWidget(ventana)
+        layout = QVBoxLayout(raiz)
+        layout.addWidget(QLabel(self.i18n.t("startup_fallback_mensaje"), raiz))
+        boton_reintentar = QPushButton(self.i18n.t("startup_fallback_reintentar"), raiz)
+        boton_reintentar.clicked.connect(self._reintentar_mostrar_ventanas_principales)
+        layout.addWidget(boton_reintentar)
+        ventana.setCentralWidget(raiz)
+        self._fallback_window = ventana
+        self.app.setProperty("_startup_fallback_window_ref", ventana)
+        marcar_stage("fallback_window_created")
+        safe_call(ventana, "show")
+        safe_call(ventana, "raise_")
+        safe_call(ventana, "activateWindow")
+        marcar_stage("fallback_window_shown")
+
+    def _activar_guardia_ventana_visible(self) -> None:
         if self._guardia_ventana_visible_disparada:
             return
         self._guardia_ventana_visible_disparada = True
         from app.ui.qt_compat import QTimer
 
         def _validar_ventana_visible() -> None:
-            widgets = [w for w in self.app.topLevelWidgets() if _es_objeto_qt_valido(w)]
-            if any(widget.isVisible() for widget in widgets):
+            if self._hay_ventana_principal_visible():
                 return
             marcar_stage("ui_no_window_visible_timeout")
             log_operational_error(
                 LOGGER,
                 "STARTUP_UI_NO_VISIBLE_WINDOW",
-                extra={"timeout_ms": timeout_ms},
+                extra={"timeout_ms": 100},
             )
-            from PySide6.QtWidgets import QMessageBox
+            self._mostrar_fallback_arranque()
 
-            fallback = QMessageBox(
-                QMessageBox.Icon.Critical,
-                self.i18n.t("splash_error_titulo"),
-                self.i18n.t("startup_error_dialog_message"),
-            )
-            self.app.setProperty("_startup_fallback_dialog_ref", fallback)
-            safe_call(fallback, "show")
-            safe_call(fallback, "raise_")
-            safe_call(fallback, "activateWindow")
-
-        QTimer.singleShot(timeout_ms, _validar_ventana_visible)
+        QTimer.singleShot(0, _validar_ventana_visible)
+        QTimer.singleShot(100, _validar_ventana_visible)
 
     def _detener_watchdog_idempotente(self) -> None:
         if not _es_objeto_qt_valido(self.watchdog_timer):
@@ -147,70 +198,111 @@ class _CoordinadorArranqueConCierreDeterminista:
     def on_finished(self, startup_payload: ResultadoArranque) -> None:
         marcar_stage("on_finished_enter")
         self.terminado = True
+        self._ultimo_startup_payload = startup_payload
 
         def _aplicar_resultado_en_ui() -> None:
-            self._detener_watchdog_idempotente()
-            self._solicitar_cierre_thread()
-            resolved_container = startup_payload.container
-            marcar_stage("UI_CONTAINER_RESUELTO")
-            deps_arranque = startup_payload.deps_arranque
-            idioma = startup_payload.idioma
-            deps_arranque = _actualizar_preferencias_en_hilo_ui(
-                resolved_container, deps_arranque
-            )
-            idioma = deps_arranque.obtener_idioma_ui.ejecutar()
-            self.i18n.set_idioma(idioma)
-            self._cerrar_splash_idempotente()
-            orquestador = self.orquestador_factory(deps_arranque, self.i18n)
-            if not deps_arranque.obtener_estado_onboarding.ejecutar():
-                marcar_stage("wizard_created")
-                marcar_stage("wizard_shown")
-            if not orquestador.resolver_onboarding():
-                self.app.exit(0)
-                return
-            self.main_window = self.main_window_factory(
-                resolved_container,
-                deps_arranque,
-            )
-            window = self.main_window
-            marcar_stage("main_window_created")
-            marcar_stage("ui.mainwindow.construida")
-            self.app.setProperty("_main_window_ref", window)
-            self.instalar_menu_ayuda(
-                window,
-                self.i18n,
-                ReiniciarOnboarding(resolved_container.repositorio_preferencias),
-                resolved_container.cargar_datos_demo_caso_uso,
-            )
-            from app.ui.qt_compat import QTimer
+            try:
+                self._detener_watchdog_idempotente()
+                self._solicitar_cierre_thread()
+                resolved_container = startup_payload.container
+                marcar_stage("UI_CONTAINER_RESUELTO")
+                deps_arranque = startup_payload.deps_arranque
+                deps_arranque = _actualizar_preferencias_en_hilo_ui(
+                    resolved_container, deps_arranque
+                )
+                idioma = deps_arranque.obtener_idioma_ui.ejecutar()
+                self.i18n.set_idioma(idioma)
+                self._cerrar_splash_idempotente()
+                orquestador = self.orquestador_factory(deps_arranque, self.i18n)
+                requiere_wizard = not deps_arranque.obtener_estado_onboarding.ejecutar()
+                marcar_stage("decision_modo_arranque")
+                LOGGER.info(
+                    "STARTUP_MODE_DECISION",
+                    extra={
+                        "extra": {
+                            "modo": "wizard" if requiere_wizard else "main",
+                            "motivo": (
+                                "onboarding_pendiente"
+                                if requiere_wizard
+                                else "onboarding_completado"
+                            ),
+                        }
+                    },
+                )
+                if requiere_wizard:
+                    marcar_stage("wizard_create_start")
+                    marcar_stage("wizard_created")
+                    marcar_stage("wizard_show_scheduled")
+                if not orquestador.resolver_onboarding():
+                    self.app.exit(0)
+                    return
+                if requiere_wizard:
+                    marcar_stage("wizard_shown")
 
-            def scheduler(fn: Callable[[], None]) -> None:
-                QTimer.singleShot(0, fn)
+                marcar_stage("main_window_create_start")
+                self.main_window = self.main_window_factory(
+                    resolved_container,
+                    deps_arranque,
+                )
+                window = self.main_window
+                marcar_stage("main_window_created")
+                marcar_stage("ui.mainwindow.construida")
+                self.app.setProperty("_main_window_ref", window)
+                self.instalar_menu_ayuda(
+                    window,
+                    self.i18n,
+                    ReiniciarOnboarding(resolved_container.repositorio_preferencias),
+                    resolved_container.cargar_datos_demo_caso_uso,
+                )
+                from app.ui.qt_compat import QTimer
 
-            def _mostrar_main_window() -> None:
-                if orquestador.debe_iniciar_maximizada():
-                    window.showMaximized()
-                else:
-                    window.show()
-                safe_call(window, "raise_")
-                safe_call(window, "activateWindow")
-                marcar_stage("main_window_shown")
-                self.app.processEvents()
-                self.restaurar_quit_on_last_window_closed()
+                def scheduler(fn: Callable[[], None]) -> None:
+                    QTimer.singleShot(0, fn)
 
-            preparar_mostrar_ventana(
-                window=window,
-                splash=None,
-                scheduler=scheduler,
-                marcar_stage=marcar_stage,
-            )
-            QTimer.singleShot(0, _mostrar_main_window)
-            self._activar_guardia_ventana_visible()
-            programar_post_init(
-                window=window,
-                scheduler=scheduler,
-                marcar_stage=marcar_stage,
-            )
+                def _mostrar_main_window() -> None:
+                    if orquestador.debe_iniciar_maximizada():
+                        window.showMaximized()
+                    else:
+                        window.show()
+                    safe_call(window, "raise_")
+                    safe_call(window, "activateWindow")
+                    marcar_stage("main_window_shown")
+                    self.app.processEvents()
+                    self.restaurar_quit_on_last_window_closed()
+
+                preparar_mostrar_ventana(
+                    window=window,
+                    splash=None,
+                    scheduler=scheduler,
+                    marcar_stage=marcar_stage,
+                )
+                marcar_stage("main_window_show_scheduled")
+                QTimer.singleShot(0, _mostrar_main_window)
+                self._activar_guardia_ventana_visible()
+                programar_post_init(
+                    window=window,
+                    scheduler=scheduler,
+                    marcar_stage=marcar_stage,
+                )
+            except Exception as exc:  # noqa: BLE001
+                marcar_stage("on_finished_exception")
+                log_operational_error(
+                    LOGGER,
+                    "STARTUP_ON_FINISHED_EXCEPTION",
+                    exc=exc,
+                    extra={"traceback": traceback.format_exc()},
+                )
+                import sys
+
+                self._reportar_fallo_arranque(
+                    exc=exc,
+                    trace_info=sys.exc_info(),
+                    i18n=self.i18n,
+                    splash=self.splash,
+                    startup_thread=self.thread,
+                    app=self.app,
+                    watchdog_timer=self.watchdog_timer,
+                )
 
         try:
             _enqueue_on_ui_thread(self.app, _aplicar_resultado_en_ui)
@@ -228,25 +320,26 @@ class _CoordinadorArranqueConCierreDeterminista:
             )
 
 
-
-
 def _enqueue_on_ui_thread(app, callback: Callable[[], None]) -> None:
     try:
-        from PySide6.QtCore import QTimer
+        from PySide6.QtCore import QMetaObject, QObject, Qt, Slot
 
-        QTimer.singleShot(0, app, callback)
+        class _Invocador(QObject):
+            def __init__(self, fn: Callable[[], None]) -> None:
+                super().__init__()
+                self._fn = fn
+
+            @Slot()
+            def ejecutar(self) -> None:
+                self._fn()
+
+        invocador = _Invocador(callback)
+        app.setProperty("_startup_ui_invocador", invocador)
+        QMetaObject.invokeMethod(invocador, "ejecutar", Qt.QueuedConnection)
         return
     except Exception:
-        pass
-
-    try:
-        from PySide6.QtCore import QMetaObject, Qt
-
-        callback_name = "_codex_ui_callback"
-        setattr(app, callback_name, callback)
-        QMetaObject.invokeMethod(app, callback_name, Qt.QueuedConnection)
-    except Exception:
         callback()
+
 
 def _resolver_startup_timeout_ms() -> int:
     import os
@@ -559,7 +652,9 @@ def run_ui(container=None) -> int:
     app = QApplication([])
     marcar_stage("UI_QT_INICIALIZADO")
     quit_on_last_window_closed_previo = bool(app.quitOnLastWindowClosed())
-    app.setProperty("_quit_on_last_window_closed_previo", quit_on_last_window_closed_previo)
+    app.setProperty(
+        "_quit_on_last_window_closed_previo", quit_on_last_window_closed_previo
+    )
     app.aboutToQuit.connect(lambda: marcar_stage("about_to_quit"))
     app.lastWindowClosed.connect(lambda: marcar_stage("last_window_closed"))
     instalar_qt_message_handler(LOGGER, getattr(container, "boot_trace_writer", None))
@@ -611,6 +706,9 @@ def run_ui(container=None) -> int:
         instalar_menu_ayuda=_instalar_menu_ayuda,
         fallo_arranque_handler=_manejar_fallo_arranque,
     )
+    app._coordinador_arranque_ui = controlador
+    app._startup_thread_ref = startup_thread
+    app._startup_worker_ref = startup_worker
     controlador.desactivar_quit_on_last_window_closed_temporalmente()
 
     splash.registrar_watchdog(watchdog_timer)
@@ -650,7 +748,9 @@ def run_ui(container=None) -> int:
             startup_thread._delete_later_conectado = True
         safe_call(startup_worker, "deleteLater")
 
-    startup_worker.finished.connect(_limpiar_arranque, Qt.ConnectionType.QueuedConnection)
+    startup_worker.finished.connect(
+        _limpiar_arranque, Qt.ConnectionType.QueuedConnection
+    )
     startup_worker.failed.connect(_limpiar_arranque, Qt.ConnectionType.QueuedConnection)
     startup_thread.started.connect(startup_worker.run)
 

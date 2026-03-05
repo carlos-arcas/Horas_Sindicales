@@ -70,7 +70,9 @@ class _CoordinatorFake(ui_main._CoordinadorArranqueConCierreDeterminista):
             processEvents=lambda: events.append("process_events"),
             setProperty=lambda *_: None,
             quitOnLastWindowClosed=lambda: self._quit_on_last_window_closed,
-            setQuitOnLastWindowClosed=lambda value: setattr(self, "_quit_on_last_window_closed", value),
+            setQuitOnLastWindowClosed=lambda value: setattr(
+                self, "_quit_on_last_window_closed", value
+            ),
             topLevelWidgets=lambda: [],
         )
         self.orquestador_factory = lambda _deps, _i18n: SimpleNamespace(
@@ -168,8 +170,12 @@ def test_on_finished_restaura_quit_on_last_window_closed(monkeypatch) -> None:
         def singleShot(_ms, callback):
             callback()
 
-    monkeypatch.setitem(sys.modules, "app.ui.qt_compat", SimpleNamespace(QTimer=_QTimerFake))
-    monkeypatch.setitem(sys.modules, "PySide6.QtCore", SimpleNamespace(QTimer=_QTimerFake))
+    monkeypatch.setitem(
+        sys.modules, "app.ui.qt_compat", SimpleNamespace(QTimer=_QTimerFake)
+    )
+    monkeypatch.setitem(
+        sys.modules, "PySide6.QtCore", SimpleNamespace(QTimer=_QTimerFake)
+    )
 
     events: list[str] = []
     stages: list[str] = []
@@ -198,3 +204,103 @@ def test_on_finished_restaura_quit_on_last_window_closed(monkeypatch) -> None:
     assert "quit_on_last_window_closed_temporal_false" in stages
     assert "quit_on_last_window_closed_restored" in stages
     assert coord._quit_on_last_window_closed is True
+
+
+def test_guardia_muestra_fallback_si_no_hay_ventana_visible(monkeypatch) -> None:
+    class _QTimerFake:
+        @staticmethod
+        def singleShot(_ms, callback):
+            callback()
+
+    class _BotonDummy:
+        def __init__(self, *_args, **_kwargs):
+            self.clicked = SimpleNamespace(connect=lambda _fn: None)
+
+    class _VentanaFallbackDummy:
+        def __init__(self):
+            self.visible = False
+
+        def setWindowTitle(self, _titulo):
+            return None
+
+        def setCentralWidget(self, _widget):
+            return None
+
+        def show(self):
+            self.visible = True
+
+        def raise_(self):
+            return None
+
+        def activateWindow(self):
+            return None
+
+    monkeypatch.setitem(
+        sys.modules, "app.ui.qt_compat", SimpleNamespace(QTimer=_QTimerFake)
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "PySide6.QtWidgets",
+        SimpleNamespace(
+            QLabel=lambda *_args, **_kwargs: object(),
+            QMainWindow=_VentanaFallbackDummy,
+            QPushButton=_BotonDummy,
+            QVBoxLayout=lambda *_args, **_kwargs: SimpleNamespace(
+                addWidget=lambda *_a, **_k: None
+            ),
+            QWidget=lambda *_args, **_kwargs: object(),
+        ),
+    )
+
+    stages: list[str] = []
+    monkeypatch.setattr(ui_main, "marcar_stage", stages.append)
+
+    events: list[str] = []
+    splash = FakeSplash(events=events)
+    timer = FakeTimer(events=events)
+    coord = _CoordinatorFake(splash=splash, timer=timer, events=events)
+    coord._activar_guardia_ventana_visible()
+
+    assert "fallback_window_created" in stages
+    assert "fallback_window_shown" in stages
+
+
+def test_enqueue_on_ui_thread_ejecuta_callback_en_hilo_principal(monkeypatch) -> None:
+    qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
+    qt_widgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
+
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+
+    app = qt_widgets.QApplication.instance() or qt_widgets.QApplication([])
+    resultado: dict[str, bool] = {"es_hilo_principal": False}
+
+    class _Solicitador(qt_core.QObject):
+        @qt_core.Slot()
+        def solicitar(self) -> None:
+            ui_main._enqueue_on_ui_thread(
+                app,
+                lambda: resultado.__setitem__(
+                    "es_hilo_principal", qt_core.QThread.currentThread() is app.thread()
+                ),
+            )
+
+    solicitador = _Solicitador()
+    hilo = qt_core.QThread()
+    solicitador.moveToThread(hilo)
+    hilo.start()
+
+    try:
+        qt_core.QMetaObject.invokeMethod(
+            solicitador,
+            "solicitar",
+            qt_core.Qt.ConnectionType.QueuedConnection,
+        )
+        timer = qt_core.QElapsedTimer()
+        timer.start()
+        while not resultado["es_hilo_principal"] and timer.elapsed() < 1500:
+            app.processEvents()
+    finally:
+        hilo.quit()
+        hilo.wait(1500)
+
+    assert resultado["es_hilo_principal"] is True
