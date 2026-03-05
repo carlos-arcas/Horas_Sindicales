@@ -225,6 +225,24 @@ class CoordinadorArranque(QObject):
                 watchdog_timer=self._timer_watchdog,
             )
 
+    def finalizar_arranque_interfaz(self, startup_payload: ResultadoArranqueCore) -> None:
+        self._marcar_boot_stage("finalize_enter")
+        if self._boot_timeout_disparado or self._boot_finalizado:
+            LOGGER.warning(
+                "UI_STARTUP_FINALIZE_GUARD_ABORT",
+                extra={
+                    "extra": {
+                        "boot_timeout_disparado": self._boot_timeout_disparado,
+                        "boot_finalizado": self._boot_finalizado,
+                        "ultima_etapa": self.ultima_etapa,
+                    }
+                },
+            )
+            self._marcar_boot_stage("finalize_guard_abort")
+            self._on_startup_timeout()
+            return
+        self._on_finished_ui(startup_payload)
+
     @Slot(str, str, str)
     def on_failed(self, incident_id: str, mensaje_usuario: str, detalles: str) -> None:
         if self._boot_timeout_disparado:

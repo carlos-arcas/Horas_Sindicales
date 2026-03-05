@@ -8,6 +8,15 @@ _CLASES_FALLBACK_EXCLUIDAS = {"FallbackWindow", "RecuperacionArranqueDialog"}
 _NOMBRES_EXCLUIDOS = {"startup_fallback_window", "fallback_window", "splash"}
 
 
+def es_widget_splash(info: dict[str, object]) -> bool:
+    normalizado = _normalizar_info_widget(info)
+    clase = str(normalizado.get("clase") or "")
+    object_name = str(normalizado.get("object_name") or "").strip().lower()
+    if clase in _CLASES_SPLASH_EXCLUIDAS:
+        return True
+    return object_name in {"splash", "splash_window", "qsplashscreen"}
+
+
 def construir_info_top_level_widgets(widgets: Iterable[object]) -> list[dict[str, object]]:
     """Construye un payload serializable para logging de ventanas top-level."""
     salida: list[dict[str, object]] = []
@@ -37,7 +46,7 @@ def hay_ventana_visible_no_splash(info_widgets: list[dict[str, object]]) -> bool
             continue
         clase = str(normalizado.get("clase") or "")
         object_name = str(normalizado.get("object_name") or "").lower()
-        if clase in _CLASES_SPLASH_EXCLUIDAS:
+        if es_widget_splash(normalizado):
             continue
         if clase in _CLASES_FALLBACK_EXCLUIDAS:
             continue

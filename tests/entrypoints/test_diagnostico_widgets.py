@@ -4,6 +4,7 @@ from app.entrypoints.diagnostico_widgets import (
     construir_info_top_level_widgets,
     debe_abortar_watchdog_por_ventana_visible,
     decidir_cerrar_splash,
+    es_widget_splash,
     hay_ventana_visible,
     hay_ventana_visible_no_splash,
     seleccionar_ventana_principal,
@@ -148,6 +149,16 @@ def test_hay_ventana_visible_no_splash_devuelve_false_si_solo_hay_splash() -> No
         )
         is False
     )
+
+
+def test_es_widget_splash_detecta_por_clase() -> None:
+    assert es_widget_splash({"clase": "SplashWindow", "object_name": "principal"}) is True
+    assert es_widget_splash({"clase": "QSplashScreen", "object_name": "principal"}) is True
+
+
+def test_es_widget_splash_detecta_por_object_name_normalizado() -> None:
+    assert es_widget_splash({"clase": "QWidget", "object_name": " splash_window "}) is True
+    assert es_widget_splash({"clase": "QWidget", "object_name": "MainWindow"}) is False
 
 
 def test_hay_ventana_visible_no_splash_devuelve_true_con_splash_y_main() -> None:

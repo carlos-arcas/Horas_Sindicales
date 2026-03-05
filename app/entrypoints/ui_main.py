@@ -32,6 +32,7 @@ from app.entrypoints.diagnostico_widgets import (
     debe_abortar_watchdog_por_ventana_visible,
     construir_info_top_level_widgets,
     decidir_cerrar_splash,
+    es_widget_splash,
     hay_ventana_visible_no_splash,
     seleccionar_ventana_principal,
     validar_ventana_creada,
@@ -387,11 +388,57 @@ class _CoordinadorArranqueConCierreDeterminista:
     def _cerrar_splash_si_visible(self) -> None:
         if not decidir_cerrar_splash(al_mostrar_fallback=True):
             return
-        if not _es_objeto_qt_valido(self.splash):
-            return
-        visible = bool(safe_call(self.splash, "isVisible") or False)
-        if visible:
+        self._marcar_boot_stage("splash_close_attempt")
+        splash_cerrados = 0
+
+        if _es_objeto_qt_valido(self.splash):
+            safe_call(self.splash, "hide")
+            safe_call(self.splash, "close")
+            visible = bool(safe_call(self.splash, "isVisible") or False)
+            if not visible:
+                splash_cerrados += 1
             self._cerrar_splash_idempotente()
+
+        if hasattr(self.app, "topLevelWidgets"):
+            try:
+                top_level_widgets = list(self.app.topLevelWidgets())
+            except Exception:  # noqa: BLE001
+                top_level_widgets = []
+            for widget in top_level_widgets:
+                info_widget = {
+                    "clase": widget.__class__.__name__,
+                    "object_name": safe_call(widget, "objectName") or "",
+                }
+                if not es_widget_splash(info_widget):
+                    continue
+                safe_call(widget, "hide")
+                safe_call(widget, "close")
+                splash_cerrados += 1
+
+        LOGGER.info(
+            "startup_splash_close_result",
+            extra={"extra": {"splash_cerrados": splash_cerrados}},
+        )
+        self._dump_top_level_widgets("after_close_splash")
+        self._marcar_boot_stage("splash_close_done")
+
+    def finalizar_arranque_interfaz(self, startup_payload: ResultadoArranqueCore) -> None:
+        self._marcar_boot_stage("finalize_enter")
+        if self._boot_timeout_disparado or self._boot_finalizado:
+            LOGGER.warning(
+                "UI_STARTUP_FINALIZE_GUARD_ABORT",
+                extra={
+                    "extra": {
+                        "boot_timeout_disparado": self._boot_timeout_disparado,
+                        "boot_finalizado": self._boot_finalizado,
+                        "ultima_etapa": self.ultima_etapa,
+                    }
+                },
+            )
+            self._marcar_boot_stage("finalize_guard_abort")
+            self._mostrar_fallback_arranque()
+            return
+        self._on_finished_ui(startup_payload)
 
     def _finalizar_splash_con_ventana_principal(self, ventana_principal) -> None:
         if not _es_objeto_qt_valido(self.splash):
@@ -495,10 +542,12 @@ class _CoordinadorArranqueConCierreDeterminista:
 
     def _on_finished_ui(self, startup_payload: ResultadoArranqueCore) -> None:
         if self._boot_timeout_disparado:
+            self._marcar_boot_stage("finalize_guard_abort")
             LOGGER.warning(
                 "UI_STARTUP_FINISHED_AFTER_TIMEOUT",
-                extra={"extra": {"evento": "finished", "etapa": self.ultima_etapa, "decision": "ignore"}},
+                extra={"extra": {"evento": "finished", "etapa": self.ultima_etapa, "decision": "fallback"}},
             )
+            self._mostrar_fallback_arranque()
             return
         self._marcar_boot_stage("worker_result_received_ok")
         self.terminado = True
