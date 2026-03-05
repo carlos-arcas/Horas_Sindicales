@@ -4,6 +4,7 @@ from collections.abc import Iterable
 
 
 _CLASES_SPLASH_EXCLUIDAS = {"QSplashScreen", "SplashWindow"}
+_CLASES_FALLBACK_EXCLUIDAS = {"FallbackWindow", "RecuperacionArranqueDialog"}
 _NOMBRES_EXCLUIDOS = {"startup_fallback_window", "fallback_window", "splash"}
 
 
@@ -27,6 +28,31 @@ def construir_info_top_level_widgets(widgets: Iterable[object]) -> list[dict[str
 
 def hay_ventana_visible(toplevel_info: list[dict[str, object]]) -> bool:
     return any(bool(item.get("is_visible")) for item in toplevel_info)
+
+
+def hay_ventana_visible_no_splash(info_widgets: list[dict[str, object]]) -> bool:
+    for item in info_widgets:
+        normalizado = _normalizar_info_widget(item)
+        if not bool(normalizado.get("is_visible")):
+            continue
+        clase = str(normalizado.get("clase") or "")
+        object_name = str(normalizado.get("object_name") or "").lower()
+        if clase in _CLASES_SPLASH_EXCLUIDAS:
+            continue
+        if clase in _CLASES_FALLBACK_EXCLUIDAS:
+            continue
+        if object_name in _NOMBRES_EXCLUIDOS:
+            continue
+        if "fallback" in object_name:
+            continue
+        return True
+    return False
+
+
+def debe_abortar_watchdog_por_ventana_visible(
+    hay_visible_no_splash: bool,
+) -> bool:
+    return hay_visible_no_splash
 
 
 def seleccionar_ventana_principal(

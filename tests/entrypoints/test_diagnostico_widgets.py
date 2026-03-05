@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from app.entrypoints.diagnostico_widgets import (
     construir_info_top_level_widgets,
+    debe_abortar_watchdog_por_ventana_visible,
     hay_ventana_visible,
+    hay_ventana_visible_no_splash,
     seleccionar_ventana_principal,
 )
 
@@ -135,3 +137,47 @@ def test_seleccionar_ventana_principal_expone_score_y_motivo() -> None:
     assert seleccionado is not None
     assert seleccionado["score"] >= 90
     assert seleccionado["motivo"] == "main_window_visible"
+
+
+def test_hay_ventana_visible_no_splash_devuelve_false_si_solo_hay_splash() -> None:
+    assert (
+        hay_ventana_visible_no_splash(
+            [{"clase": "SplashWindow", "is_visible": True, "object_name": "splash"}]
+        )
+        is False
+    )
+
+
+def test_hay_ventana_visible_no_splash_devuelve_true_con_splash_y_main() -> None:
+    assert (
+        hay_ventana_visible_no_splash(
+            [
+                {"clase": "SplashWindow", "is_visible": True, "object_name": "splash"},
+                {"clase": "QMainWindow", "is_visible": True, "object_name": "main_window"},
+            ]
+        )
+        is True
+    )
+
+
+def test_hay_ventana_visible_no_splash_ignora_fallback_visible() -> None:
+    assert (
+        hay_ventana_visible_no_splash(
+            [
+                {
+                    "clase": "RecuperacionArranqueDialog",
+                    "is_visible": True,
+                    "object_name": "fallback_window",
+                }
+            ]
+        )
+        is False
+    )
+
+
+def test_debe_abortar_watchdog_por_ventana_visible_no_aborta_si_solo_hay_splash() -> None:
+    hay_visible_no_splash = hay_ventana_visible_no_splash(
+        [{"clase": "QSplashScreen", "is_visible": True, "object_name": "splash"}]
+    )
+
+    assert debe_abortar_watchdog_por_ventana_visible(hay_visible_no_splash) is False
