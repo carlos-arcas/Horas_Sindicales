@@ -81,6 +81,36 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._guardia_ventana_visible_disparada = False
         self._fallback_window = None
         self._ultimo_startup_payload: ResultadoArranque | None = None
+        self._cancelacion_arranque_solicitada = False
+        self._cancelacion_arranque_completada = False
+
+    def solicitar_cancelacion_arranque_por_usuario(self) -> None:
+        if self._cancelacion_arranque_completada:
+            return
+        if self._cancelacion_arranque_solicitada:
+            return
+        self._cancelacion_arranque_solicitada = True
+        marcar_stage("splash_close_requested_by_user")
+        LOGGER.info(
+            "startup_cancel_requested",
+            extra={"extra": {"BOOT_STAGE": "startup_cancel_requested"}},
+        )
+
+        from app.ui.qt_compat import QTimer
+
+        def _cancelar_en_ui() -> None:
+            self._detener_watchdog_idempotente()
+            self._solicitar_cierre_thread()
+            self._cerrar_splash_idempotente()
+            self._cancelacion_arranque_completada = True
+            marcar_stage("startup_cancel_done")
+            LOGGER.info(
+                "startup_cancel_done",
+                extra={"extra": {"BOOT_STAGE": "startup_cancel_done"}},
+            )
+            self.app.exit(0)
+
+        QTimer.singleShot(0, _cancelar_en_ui)
 
     def desactivar_quit_on_last_window_closed_temporalmente(self) -> None:
         if self._quit_on_last_window_closed_previo is not None:
@@ -712,6 +742,9 @@ def run_ui(container=None) -> int:
     controlador.desactivar_quit_on_last_window_closed_temporalmente()
 
     splash.registrar_watchdog(watchdog_timer)
+    splash.registrar_cancelacion_arranque(
+        controlador.solicitar_cancelacion_arranque_por_usuario
+    )
 
     watchdog_timer.timeout.connect(
         controlador.on_timeout, Qt.ConnectionType.QueuedConnection
