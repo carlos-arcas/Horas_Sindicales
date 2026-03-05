@@ -1,5 +1,11 @@
 # Roadmap Senior
 
+## 2026-03-05 — Fix freeze en splash tras on_finished_enter (Windows)
+- Causa raíz: el callback de `on_finished` podía lanzar excepciones no capturadas en pasos diferidos (creación/show de ventana), dejando el splash sin transición terminal visible y sin feedback al usuario.
+- Fix aplicado: flujo fail-safe con stages granulares (`worker_result_received_ok`, `container_resolved_ok/error`, `splash_close_begin`, `deferred_show_exception`, `fallback_shown`, `watchdog_triggered`), watchdog de transición (3s), cierre idempotente del splash y fallback UI i18n con acciones **Reintentar**/**Salir**.
+- Robustez adicional: si falla `on_finished` o cualquier callback diferido, se registra excepción estructurada y se fuerza fallback para evitar bloqueo silencioso en splash.
+- Tests añadidos: regresión para etapa terminal (`wizard_shown`/`main_window_shown`/`fallback_shown`), excepción en `on_finished` con fallback, y tolerancia de `closeEvent` a `QThread` destruido (`RuntimeError`).
+
 ## 2026-03-04 — Fix arranque: evitar salida prematura tras splash_closed
 - Causa raíz: hueco sin ventanas visibles tras `splash_closed` + `quitOnLastWindowClosed=True`, lo que permite que el event loop se cierre antes de `show()` del wizard/main.
 - Fix: durante transición de arranque se fuerza temporalmente `quitOnLastWindowClosed=False`, se restaura tras `main_window_shown` y se añaden BOOT_STAGE de diagnóstico (`about_to_quit`, `last_window_closed`, `run_ui_exec_enter`, `run_ui_exec_exit`, `wizard_*`, `main_window_*`).

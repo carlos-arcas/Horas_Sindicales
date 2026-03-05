@@ -90,5 +90,6 @@
     "ui.error_details.open_logs": "Open logs",
     "startup_fallback_titulo": "Startup recovery",
     "startup_fallback_mensaje": "No visible window was detected after startup. You can retry showing the main window.",
-    "startup_fallback_reintentar": "Retry"
+    "startup_fallback_reintentar": "Retry",
+    "startup_fallback_salir": "Exit"
 }

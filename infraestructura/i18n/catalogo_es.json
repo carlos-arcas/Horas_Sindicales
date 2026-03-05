@@ -90,5 +90,6 @@
     "ui.error_details.open_logs": "Abrir logs",
     "startup_fallback_titulo": "Recuperación de arranque",
     "startup_fallback_mensaje": "No se detectó ninguna ventana visible tras el arranque. Puedes reintentar mostrar la ventana principal.",
-    "startup_fallback_reintentar": "Reintentar"
+    "startup_fallback_reintentar": "Reintentar",
+    "startup_fallback_salir": "Salir"
 }

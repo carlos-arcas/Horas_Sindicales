@@ -125,6 +125,7 @@ def test_on_finished_cierra_splash_antes_de_wizard_y_main(monkeypatch) -> None:
     assert coord._splash_cerrado is True
     assert getattr(coord.app, "_startup_splash_closed", False) is True
     assert "splash_closed" in stages
+    assert any(stage in stages for stage in ("wizard_shown", "main_window_shown", "fallback_shown"))
 
 
 def test_cerrar_splash_seguro_es_idempotente_y_tolera_runtime_error() -> None:
@@ -263,6 +264,51 @@ def test_guardia_muestra_fallback_si_no_hay_ventana_visible(monkeypatch) -> None
 
     assert "fallback_window_created" in stages
     assert "fallback_window_shown" in stages
+    assert "fallback_shown" in stages
+
+
+def test_on_finished_con_excepcion_difiere_a_fallback(monkeypatch) -> None:
+    class _QTimerFake:
+        @staticmethod
+        def singleShot(_ms, callback):
+            callback()
+
+    monkeypatch.setitem(
+        sys.modules, "app.ui.qt_compat", SimpleNamespace(QTimer=_QTimerFake)
+    )
+    monkeypatch.setitem(
+        sys.modules, "PySide6.QtCore", SimpleNamespace(QTimer=_QTimerFake)
+    )
+
+    stages: list[str] = []
+    monkeypatch.setattr(ui_main, "marcar_stage", stages.append)
+    monkeypatch.setattr(ui_main, "ReiniciarOnboarding", lambda _repo: object())
+
+    events: list[str] = []
+    splash = FakeSplash(events=events)
+    timer = FakeTimer(events=events)
+    coord = _CoordinatorFake(splash=splash, timer=timer, events=events)
+    coord._mostrar_fallback_arranque = lambda: stages.append("fallback_shown")
+    coord.main_window_factory = lambda *_args, **_kwargs: (_ for _ in ()).throw(
+        RuntimeError("boom")
+    )
+
+    deps_arranque = SimpleNamespace(
+        obtener_idioma_ui=SimpleNamespace(ejecutar=lambda: "es"),
+        obtener_estado_onboarding=SimpleNamespace(ejecutar=lambda: True),
+    )
+    payload = ResultadoArranque(
+        container=SimpleNamespace(
+            repositorio_preferencias=None, cargar_datos_demo_caso_uso=None
+        ),
+        deps_arranque=deps_arranque,
+        idioma="es",
+    )
+
+    coord.on_finished(payload)
+
+    assert "on_finished_exception" in stages
+    assert "fallback_shown" in stages
 
 
 def test_enqueue_on_ui_thread_ejecuta_callback_en_hilo_principal(monkeypatch) -> None:
