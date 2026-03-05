@@ -157,6 +157,9 @@ class _CoordinadorArranqueConCierreDeterminista:
             safe_call(widget, "activateWindow")
 
     def _mostrar_fallback_arranque(self) -> None:
+        self._boot_finalizado = True
+        self.terminado = True
+        self._detener_watchdog_idempotente()
         self._marcar_boot_stage("fallback_show_begin")
         if _es_objeto_qt_valido(self._fallback_window):
             safe_call(self._fallback_window, "show")
@@ -277,6 +280,12 @@ class _CoordinadorArranqueConCierreDeterminista:
         self.app.processEvents()
 
     def on_finished(self, startup_payload: ResultadoArranque) -> None:
+        if self._boot_timeout_disparado:
+            LOGGER.warning(
+                "UI_STARTUP_FINISHED_AFTER_TIMEOUT",
+                extra={"extra": {"evento": "finished", "etapa": self.ultima_etapa, "decision": "ignore"}},
+            )
+            return
         self._marcar_boot_stage("on_finished_enter")
         self._marcar_boot_stage("worker_result_received_ok")
         self.terminado = True
@@ -454,13 +463,9 @@ def _enqueue_on_ui_thread(app, callback: Callable[[], None]) -> None:
 
 
 def _resolver_startup_timeout_ms() -> int:
-    import os
+    from app.configuracion.settings import resolver_startup_timeout_ms
 
-    raw = os.getenv("HORAS_STARTUP_TIMEOUT_MS", "25000")
-    try:
-        return max(1, int(raw))
-    except ValueError:
-        return 25_000
+    return resolver_startup_timeout_ms()
 
 
 def construir_mensaje_error_ui(incident_id: str) -> str:
