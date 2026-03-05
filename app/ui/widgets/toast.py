@@ -32,6 +32,8 @@ class GestorToasts(_GestorToastsBase):
                     "details",
                     "correlation_id",
                     "code",
+                    "origin",
+                    "exc_info",
                     "duration_ms",
                 )
             }
@@ -182,18 +184,17 @@ class GestorToasts(_GestorToastsBase):
             action_callback=action_callback,
             opts=opts,
         )
-        payload_details = details
-        payload_message = f"{message}\n{payload_details}" if payload_details else message
         self._show_tolerante(
-            message=payload_message,
+            message=message,
             level="error",
             title=title,
             action_label=accion.etiqueta,
             action_callback=accion.callback,
-            details=payload_details,
+            details=details,
             correlation_id=correlation_id,
             code=code,
             duration_ms=duration_ms,
+            **opts,
         )
 
 

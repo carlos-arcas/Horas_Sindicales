@@ -25,8 +25,10 @@ class NotificacionToast:
     detalles: str | None = None
     codigo: str | None = None
     correlacion_id: str | None = None
+    origen: str | None = None
     action_label: str | None = None
     action_callback: Callable[[], None] | None = None
+    dedupe_key: str | None = None
     timestamp: str = field(default_factory=lambda: datetime.now().strftime(copy_text("ui.toast.fecha_formato_default")))
     duracion_ms: int = 8000
 
@@ -53,20 +55,23 @@ class TarjetaToast(QFrame):
         root.setContentsMargins(12, 10, 10, 10)
         root.setSpacing(6)
         titulo = QLabel(self.notificacion.titulo)
+        self._label_titulo = titulo
         titulo.setObjectName("toastTitle")
         titulo.setWordWrap(True)
         mensaje = QLabel(self.notificacion.mensaje)
+        self._label_mensaje = mensaje
         mensaje.setObjectName("toastMessage")
         mensaje.setWordWrap(True)
         root.addWidget(titulo)
         root.addWidget(mensaje)
         acciones = QHBoxLayout()
         acciones.addStretch(1)
-        self._btn_detalles = QPushButton(copy_text("ui.sync.ver_detalles"))
-        self._btn_detalles.setObjectName("toastDetailsButton")
-        self._btn_detalles.clicked.connect(lambda: self.solicitar_detalles.emit(self.notificacion.id))
-        self._btn_detalles.setVisible(bool(self.notificacion.detalles or self.notificacion.correlacion_id))
-        acciones.addWidget(self._btn_detalles)
+        self._btn_detalles: QPushButton | None = None
+        if self.notificacion.detalles:
+            self._btn_detalles = QPushButton(copy_text("ui.sync.ver_detalles"))
+            self._btn_detalles.setObjectName("toastDetailsButton")
+            self._btn_detalles.clicked.connect(lambda: self.solicitar_detalles.emit(self.notificacion.id))
+            acciones.addWidget(self._btn_detalles)
         self._btn_accion = QPushButton(self.notificacion.action_label or "")
         self._btn_accion.setObjectName("toastActionButton")
         self._btn_accion.clicked.connect(self._ejecutar_accion)
@@ -82,6 +87,13 @@ class TarjetaToast(QFrame):
 
     def _on_close_clicked(self) -> None:
         cerrar_toast(self, self.notificacion.id)
+
+    def actualizar_notificacion(self, notificacion: NotificacionToast) -> None:
+        self.notificacion = notificacion
+        self._label_titulo.setText(notificacion.titulo)
+        self._label_mensaje.setText(notificacion.mensaje)
+        if self._btn_detalles is not None:
+            self._btn_detalles.setVisible(bool(notificacion.detalles))
 
     def _ejecutar_accion(self) -> None:
         logger.info(
