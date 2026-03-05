@@ -137,6 +137,20 @@ def _safe_int_env(name: str, default: int) -> int:
         return default
 
 
+def truncar_archivo(path: Path) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.open("w", encoding="utf-8").close()
+    except Exception as exc:  # noqa: BLE001
+        try:
+            logging.getLogger(__name__).warning(
+                "logging_truncate_failed",
+                extra={"extra": {"path": str(path), "error": str(exc)}},
+            )
+        except Exception:  # noqa: BLE001
+            return
+
+
 def configure_logging(
     log_dir: Path,
     *,
@@ -145,6 +159,9 @@ def configure_logging(
     level: int = logging.INFO,
 ) -> None:
     log_dir.mkdir(parents=True, exist_ok=True)
+    truncar_archivo(log_dir / MAIN_LOG_NAME)
+    truncar_archivo(log_dir / CRASH_LOG_NAME)
+    truncar_archivo(log_dir / LEGACY_CRASH_LOG_NAME)
     resolved_max_bytes = max_bytes or _safe_int_env("HORAS_LOG_MAX_BYTES", DEFAULT_LOG_MAX_BYTES)
 
     root_logger = logging.getLogger()

@@ -605,6 +605,10 @@ class _CoordinadorArranqueConCierreDeterminista:
                 self._dump_top_level_widgets("after_show")
                 self._cerrar_splash_con_ventana(ventana)
                 self._marcar_boot_stage("finalize_after_splash_finish")
+                self._dump_top_level_widgets("after_show_pipeline")
+                if not hay_ventana_visible_no_splash(self._obtener_info_top_level_widgets()):
+                    self._marcar_boot_stage("no_visible_window_after_finalize")
+                    raise RuntimeError("UI_STARTUP_NO_VISIBLE_MAIN_WINDOW")
                 self._boot_finalizado = True
                 self._detener_watchdog_transicion()
                 self._detener_watchdog_idempotente()
@@ -614,24 +618,21 @@ class _CoordinadorArranqueConCierreDeterminista:
             except Exception:  # noqa: BLE001
                 LOGGER.exception("UI_STARTUP_FINALIZE_EXCEPTION")
                 self._marcar_boot_stage("on_finished_exception_ui")
+                self._cerrar_splash_si_visible()
                 self._mostrar_fallback_arranque()
                 estado_pipeline["ok"] = False
             finally:
                 self._dump_top_level_widgets("final_check")
-                if not hay_ventana_visible_no_splash(
-                    self._obtener_info_top_level_widgets()
-                ):
+                if estado_pipeline["ok"] and not hay_ventana_visible_no_splash(self._obtener_info_top_level_widgets()):
+                    self._marcar_boot_stage("no_visible_window_after_finalize")
                     LOGGER.error(
                         "UI_STARTUP_NO_VISIBLE_MAIN_WINDOW",
                         extra={"extra": {"ultima_etapa": self.ultima_etapa}},
                     )
-                    self._marcar_boot_stage("no_visible_window_after_finalize")
-                    self._cerrar_splash_si_visible()
-                    self._mostrar_fallback_arranque()
                     estado_pipeline["ok"] = False
 
         try:
-            _enqueue_on_ui_thread(self.app, _aplicar_resultado_en_ui)
+            _aplicar_resultado_en_ui()
         except Exception as exc:  # noqa: BLE001
             estado_pipeline["ok"] = False
             self._marcar_boot_stage("on_finished_exception")
