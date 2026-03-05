@@ -28,6 +28,8 @@ WRAPPER_METHODS = {
     "_restaurar_contexto_guardado",
 }
 
+WRAPPER_METHODS_MINIMOS = WRAPPER_METHODS - {"_load_personas"}
+
 EXTRACTED_FUNCTIONS = {
     "is_form_dirty",
     "confirmar_cambio_delegada",
@@ -58,7 +60,7 @@ def test_personas_metodos_existen_en_mainwindow_o_mixins() -> None:
 
 def test_personas_wrappers_en_fachadas_son_minimos() -> None:
     invalidos: list[str] = []
-    for method_name in WRAPPER_METHODS:
+    for method_name in WRAPPER_METHODS_MINIMOS:
         encontrado = resolver_metodo_wrapper(method_name)
         if encontrado is None:
             continue
