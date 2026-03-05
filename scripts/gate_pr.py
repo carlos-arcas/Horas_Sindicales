@@ -32,12 +32,15 @@ def _ejecutar_pytest_no_ui_con_diagnostico(marker: str = "not ui") -> int:
         return returncode
 
     LOGGER.error(
-        "pytest_exit_255_detectado_lanzando_diagnostico",
+        "pytest_exit_255_detectado_lanzando_diagnostico_verbose",
         extra={
             "cmd": comando,
             "diagnostico_stdout": "logs/pytest_stdout.log",
             "diagnostico_stderr": "logs/pytest_stderr.log",
             "diagnostico_result": "logs/pytest_result.json",
+            "diagnostico_stdout_255_vv": "logs/pytest_stdout_255_vv.log",
+            "diagnostico_stderr_255_vv": "logs/pytest_stderr_255_vv.log",
+            "diagnostico_result_255_vv": "logs/pytest_result_255_vv.json",
         },
     )
     comando_diagnostico = [
@@ -46,11 +49,13 @@ def _ejecutar_pytest_no_ui_con_diagnostico(marker: str = "not ui") -> int:
         "scripts.diagnosticar_pytest",
         "--marker",
         marker,
+        "--rerun-verbose-on-255",
+        "true",
     ]
     _run(comando_diagnostico)
     raise GateStepError(
-        "pytest devolvió exit code 255; se generó diagnóstico en "
-        "logs/pytest_stdout.log, logs/pytest_stderr.log y logs/pytest_result.json"
+        "Pytest devolvió 255. Ver logs/pytest_stdout_255_vv.log y "
+        "logs/pytest_result_255_vv.json (last_test_seen)."
     )
 
 
