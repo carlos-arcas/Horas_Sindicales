@@ -57,7 +57,7 @@ def test_assert_hilo_ui_o_log_lanza_en_ci(monkeypatch: pytest.MonkeyPatch) -> No
     _configurar_qt_falso(monkeypatch, es_ui=False)
     monkeypatch.setenv("CI", "true")
 
-    with pytest.raises(AssertionError, match="fuera del hilo principal"):
+    with pytest.raises(AssertionError, match="contexto_prueba"):
         qt_hilos.assert_hilo_ui_o_log("contexto_prueba", logging.getLogger(__name__))
 
 
@@ -68,7 +68,7 @@ def test_assert_hilo_ui_o_log_solo_log_en_runtime(monkeypatch: pytest.MonkeyPatc
     with caplog.at_level(logging.ERROR):
         qt_hilos.assert_hilo_ui_o_log("contexto_runtime", logging.getLogger("tests"))
 
-    assert "Operacion UI ejecutada fuera del hilo principal." in caplog.text
+    assert "UI_THREAD_ASSERT" in caplog.text
 
 
 def test_ejecutar_en_hilo_ui_encola_cuando_no_es_hilo_principal(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -113,8 +113,8 @@ def test_asegurar_en_hilo_ui_lanza_y_loguea_violation(
     _configurar_qt_falso(monkeypatch, es_ui=False)
 
     with caplog.at_level(logging.ERROR):
-        with pytest.raises(RuntimeError, match="UI_QT_THREAD_VIOLATION:operacion_prueba"):
-            qt_hilos.asegurar_en_hilo_ui("operacion_prueba")
+        with pytest.raises(RuntimeError):
+            qt_hilos.asegurar_en_hilo_ui(lambda: None)
 
     assert "UI_QT_THREAD_VIOLATION" in caplog.text
 
@@ -122,4 +122,15 @@ def test_asegurar_en_hilo_ui_lanza_y_loguea_violation(
 def test_asegurar_en_hilo_ui_no_lanza_en_hilo_principal(monkeypatch: pytest.MonkeyPatch) -> None:
     _configurar_qt_falso(monkeypatch, es_ui=True)
 
-    qt_hilos.asegurar_en_hilo_ui("operacion_ok")
+    qt_hilos.asegurar_en_hilo_ui(lambda: None)
+
+
+def test_derivar_nombre_operacion_con_callable_devuelve_qualname() -> None:
+    def funcion_prueba() -> None:
+        return
+
+    assert qt_hilos.derivar_nombre_operacion(funcion_prueba) == funcion_prueba.__qualname__
+
+
+def test_derivar_nombre_operacion_sin_qualname_devuelve_none() -> None:
+    assert qt_hilos.derivar_nombre_operacion(object()) is None

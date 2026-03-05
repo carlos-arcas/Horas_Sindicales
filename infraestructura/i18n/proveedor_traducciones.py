@@ -56,7 +56,7 @@ class ProveedorTraducciones(IProveedorI18N):
         if clave in catalogo_base:
             logger.info("i18n.fallback_idioma_base", extra={"clave": clave, "idioma": self._idioma_actual})
             return catalogo_base[clave]
-        logger.warning("i18n.clave_inexistente", extra={"clave": clave, "idioma": self._idioma_actual})
+        logger.warning("i18n.clave_inexistente", extra={"clave": clave, "clave_i18n": clave, "idioma": self._idioma_actual})
         return f"[i18n:{clave}]"
 
 

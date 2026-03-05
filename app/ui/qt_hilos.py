@@ -28,11 +28,21 @@ def comparar_threads(hilo_actual: object, hilo_ui: object) -> bool:
     return hilo_actual is hilo_ui
 
 
-def asegurar_en_hilo_ui(nombre_operacion: str) -> None:
+def derivar_nombre_operacion(operacion: object | None) -> str | None:
+    if operacion is None:
+        return None
+    nombre = getattr(operacion, "__qualname__", None)
+    if isinstance(nombre, str) and nombre:
+        return nombre
+    return None
+
+
+def asegurar_en_hilo_ui(operacion: object | None = None) -> None:
     logger = logging.getLogger(__name__)
     app = QApplication.instance() if hasattr(QApplication, "instance") else None
     hilo_ui = app.thread() if app is not None and hasattr(app, "thread") else None
     hilo_actual = QThread.currentThread() if hasattr(QThread, "currentThread") else None
+    nombre_operacion = derivar_nombre_operacion(operacion)
 
     if hilo_ui is not None and comparar_threads(hilo_actual, hilo_ui):
         return
@@ -47,7 +57,7 @@ def asegurar_en_hilo_ui(nombre_operacion: str) -> None:
             }
         },
     )
-    raise RuntimeError(f"UI_QT_THREAD_VIOLATION:{nombre_operacion}")
+    raise RuntimeError()
 
 
 def ejecutar_en_hilo_ui(
@@ -79,8 +89,7 @@ def assert_hilo_ui_o_log(contexto: str, logger: Logger) -> None:
     if es_hilo_ui():
         return
 
-    mensaje = "Operacion UI ejecutada fuera del hilo principal."
     extra = {"contexto": contexto, "reason_code": "UI_THREAD_ASSERT"}
     if _modo_ci_estricto():
-        raise AssertionError(f"{mensaje} contexto={contexto}")
-    logger.error(mensaje, extra=extra)
+        raise AssertionError(contexto)
+    logger.error("UI_THREAD_ASSERT", extra=extra)
