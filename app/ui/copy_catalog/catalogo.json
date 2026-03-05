@@ -444,5 +444,7 @@
   "ui.export_share.accion_copiar_ruta": "Copiar ruta",
   "ui.export_share.accion_ver_informe": "Ver informe",
   "ui.export_share.ok": "Exportación E2E finalizada.",
-  "ui.export_share.error": "Falló la exportación E2E."
+  "ui.export_share.error": "Falló la exportación E2E.",
+  "ui.saldos.modal_no_disponible_titulo": "Saldos",
+  "ui.saldos.modal_no_disponible": "No hay una vista detallada de saldos disponible en este entorno."
 }

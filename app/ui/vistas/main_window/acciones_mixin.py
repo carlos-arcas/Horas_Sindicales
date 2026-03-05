@@ -24,7 +24,7 @@ class AccionesMainWindowMixin:
 
         return acciones_personas.on_open_saldos_modal(self)
 
-    def _on_completo_changed(self, checked: bool) -> None:
+    def _on_completo_changed(self, checked: object = False, *_args: object, **_kwargs: object) -> None:
         from . import form_handlers
 
         return form_handlers.on_completo_changed(self, checked)
@@ -82,8 +82,36 @@ class AccionesMainWindowMixin:
     def _on_go_to_existing_duplicate(self) -> None:
         return validacion_preventiva._on_go_to_existing_duplicate(self)
 
-    def _on_pending_selection_changed(self) -> None:
+    def _on_pending_selection_changed(self, *args: object, **kwargs: object) -> None:
+        _ = (args, kwargs)
         self._update_action_state()
+
+    def _prompt_confirm_pdf_path(self, selected: object) -> str | None:
+        from pathlib import Path
+
+        from app.ui.qt_compat import QFileDialog
+        from app.ui.vistas.confirmacion_adaptador_qt import resolver_colision_destino_pdf
+
+        if not isinstance(selected, list) or not selected:
+            return None
+
+        sugerir_nombre = getattr(self._solicitud_use_cases, "sugerir_nombre_pdf", None)
+        if not callable(sugerir_nombre):
+            return None
+
+        default_name = sugerir_nombre(selected)
+        output_dir = getattr(self, "_output_dir", None)
+        default_dir = Path(output_dir) if output_dir else Path.cwd()
+        default_path = str(default_dir / default_name)
+        pdf_path, _ = QFileDialog.getSaveFileName(
+            self,
+            copy_text("ui.confirmacion.guardar_pdf"),
+            default_path,
+            copy_text("ui.confirmacion.filtro_pdf"),
+        )
+        if not pdf_path:
+            return None
+        return resolver_colision_destino_pdf(self, pdf_path)
 
     def _on_toggle_ver_todas_pendientes(self, checked: bool) -> None:
         self._pending_view_all = checked
