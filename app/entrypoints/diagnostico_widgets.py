@@ -55,6 +55,15 @@ def debe_abortar_watchdog_por_ventana_visible(
     return hay_visible_no_splash
 
 
+def validar_ventana_creada(ventana: object | None) -> None:
+    if ventana is None:
+        raise RuntimeError("VENTANA_ARRANQUE_NO_CREADA")
+
+
+def decidir_cerrar_splash(al_mostrar_fallback: bool) -> bool:
+    return al_mostrar_fallback
+
+
 def seleccionar_ventana_principal(
     info_widgets: list[dict[str, object]],
 ) -> dict[str, object] | None:
