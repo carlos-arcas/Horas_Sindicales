@@ -216,6 +216,9 @@ class _CoordinadorArranqueConCierreDeterminista:
 
     def _armar_watchdog_transicion(self) -> None:
         from app.ui.qt_compat import QTimer
+        from app.ui.qt_hilos import asegurar_en_hilo_ui
+
+        asegurar_en_hilo_ui("_armar_watchdog_transicion")
 
         self._cancelar_watchdog_transicion()
         timer = QTimer(self.app)
@@ -279,14 +282,13 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._marcar_boot_stage("splash_closed")
         self.app.processEvents()
 
-    def on_finished(self, startup_payload: ResultadoArranqueCore) -> None:
+    def _on_finished_ui(self, startup_payload: ResultadoArranqueCore) -> None:
         if self._boot_timeout_disparado:
             LOGGER.warning(
                 "UI_STARTUP_FINISHED_AFTER_TIMEOUT",
                 extra={"extra": {"evento": "finished", "etapa": self.ultima_etapa, "decision": "ignore"}},
             )
             return
-        self._marcar_boot_stage("on_finished_enter")
         self._marcar_boot_stage("worker_result_received_ok")
         self.terminado = True
         self._ultimo_startup_payload = startup_payload
@@ -749,6 +751,13 @@ def _instalar_menu_ayuda(
     accion_cargar_demo.triggered.connect(_cargar_demo)
 
 
+
+
+def conectar_senales_arranque_a_receptor(trabajador, receptor, qt_namespace) -> None:
+    trabajador.finished.connect(receptor.recibir_ok, qt_namespace.QueuedConnection)
+    trabajador.failed.connect(receptor.recibir_error, qt_namespace.QueuedConnection)
+
+
 def run_ui(container=None) -> int:
     iniciar_captura_fallos_fatales(
         log_dir=project_root() / "logs",
@@ -839,6 +848,8 @@ def run_ui(container=None) -> int:
     app._startup_worker_ref = startup_worker
     controlador.desactivar_quit_on_last_window_closed_temporalmente()
     receptor_arranque_ui = ReceptorArranqueQt(controlador)
+    receptor_arranque_ui.moveToThread(app.thread())
+    controlador._receptor_arranque_qt = receptor_arranque_ui
     app._receptor_arranque_ui_ref = receptor_arranque_ui
 
     splash.registrar_watchdog(watchdog_timer)
@@ -852,26 +863,13 @@ def run_ui(container=None) -> int:
     startup_worker.progreso.connect(
         controlador.on_progreso, Qt.ConnectionType.QueuedConnection
     )
-    startup_worker.finished.connect(
-        controlador.on_finished, Qt.ConnectionType.DirectConnection
-    )
-    startup_worker.failed.connect(
-        controlador.on_failed, Qt.ConnectionType.DirectConnection
-    )
-    controlador.senal_arranque_ok.connect(
-        receptor_arranque_ui.recibir_ok, Qt.ConnectionType.QueuedConnection
-    )
-    controlador.senal_arranque_error.connect(
-        receptor_arranque_ui.recibir_error, Qt.ConnectionType.QueuedConnection
-    )
+    conectar_senales_arranque_a_receptor(startup_worker, receptor_arranque_ui, Qt.ConnectionType)
 
     conexiones_arranque = (
         (watchdog_timer.timeout, controlador.on_timeout),
         (startup_worker.progreso, controlador.on_progreso),
-        (startup_worker.finished, controlador.on_finished),
-        (startup_worker.failed, controlador.on_failed),
-        (controlador.senal_arranque_ok, receptor_arranque_ui.recibir_ok),
-        (controlador.senal_arranque_error, receptor_arranque_ui.recibir_error),
+        (startup_worker.finished, receptor_arranque_ui.recibir_ok),
+        (startup_worker.failed, receptor_arranque_ui.recibir_error),
     )
 
     def _limpiar_arranque() -> None:

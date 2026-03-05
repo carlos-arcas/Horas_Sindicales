@@ -34,6 +34,11 @@ class TrabajadorArranque(QObject):
             etapa_actual = "bootstrap.core_ready"
             self._emitir_progreso(etapa_actual)
             resultado = planificar_arranque_core(self._container_seed)
+            self._emitir_progreso("on_finished_signal_received")
+            LOGGER.info(
+                "startup_finished_signal_received",
+                extra={"extra": {"BOOT_STAGE": "on_finished_signal_received"}},
+            )
             self.finished.emit(resultado)
             resultado_emitido = True
         except Exception as exc:  # noqa: BLE001
@@ -43,6 +48,7 @@ class TrabajadorArranque(QObject):
                 "STARTUP_WORKER_FAILED",
                 extra={"extra": {"incident_id": incident_id, "etapa": etapa_actual}},
             )
+            self._emitir_progreso("on_failed_signal_received")
             self.failed.emit(
                 incident_id,
                 "startup_error_dialog_message",
