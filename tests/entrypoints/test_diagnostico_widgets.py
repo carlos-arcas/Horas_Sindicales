@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.entrypoints.diagnostico_widgets import (
     construir_info_top_level_widgets,
     hay_ventana_visible,
+    seleccionar_ventana_principal,
 )
 
 
@@ -69,3 +70,68 @@ def test_construir_info_top_level_widgets_genera_payload_esperado() -> None:
             "is_window": True,
         }
     ]
+
+
+def test_seleccionar_ventana_principal_prioriza_mainwindow_visible() -> None:
+    seleccionado = seleccionar_ventana_principal(
+        [
+            {"cls": "QWizard", "isVisible": True, "isWindow": True, "title": "Onboarding", "objectName": "wizard"},
+            {"cls": "QMainWindow", "isVisible": True, "isWindow": True, "title": "Principal", "objectName": "main"},
+        ]
+    )
+
+    assert seleccionado is not None
+    assert seleccionado["candidato"]["cls"] == "QMainWindow"
+
+
+def test_seleccionar_ventana_principal_elige_wizard_visible_si_no_hay_main() -> None:
+    seleccionado = seleccionar_ventana_principal(
+        [
+            {"cls": "QWizard", "isVisible": True, "isWindow": True, "title": "Onboarding", "objectName": "wizard", "modal": True}
+        ]
+    )
+
+    assert seleccionado is not None
+    assert seleccionado["motivo"] == "wizard_visible"
+
+
+def test_seleccionar_ventana_principal_devuelve_mainwindow_no_visible_como_candidata() -> None:
+    seleccionado = seleccionar_ventana_principal(
+        [
+            {"cls": "QMainWindow", "isVisible": False, "isWindow": True, "title": "Principal", "objectName": "main"}
+        ]
+    )
+
+    assert seleccionado is not None
+    assert seleccionado["motivo"] == "main_window_no_visible"
+
+
+def test_seleccionar_ventana_principal_descarta_solo_splash() -> None:
+    assert (
+        seleccionar_ventana_principal(
+            [{"cls": "QSplashScreen", "isVisible": True, "isWindow": True, "title": "Cargando", "objectName": "splash"}]
+        )
+        is None
+    )
+
+
+def test_seleccionar_ventana_principal_ignora_fallback_visible() -> None:
+    assert (
+        seleccionar_ventana_principal(
+            [{"cls": "QMainWindow", "isVisible": True, "isWindow": True, "title": "Fallback", "objectName": "fallback_window"}]
+        )
+        is None
+    )
+
+
+def test_seleccionar_ventana_principal_expone_score_y_motivo() -> None:
+    seleccionado = seleccionar_ventana_principal(
+        [
+            {"cls": "QMainWindow", "isVisible": True, "isWindow": True, "title": "Principal", "objectName": "main"},
+            {"cls": "QDialog", "isVisible": True, "isWindow": True, "title": "Onboarding", "objectName": "wizard", "modal": True},
+        ]
+    )
+
+    assert seleccionado is not None
+    assert seleccionado["score"] >= 90
+    assert seleccionado["motivo"] == "main_window_visible"
