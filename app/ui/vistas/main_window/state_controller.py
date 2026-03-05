@@ -366,6 +366,8 @@ class MainWindow(
         return super()._on_fecha_changed(qdate)
 
     def _on_help_toggle_changed(self, checked: object) -> None: return super()._on_help_toggle_changed(checked)
+    def _on_desde_changed(self, qtime: object) -> None: return super()._on_desde_changed(qtime)
+    def _on_hasta_changed(self, qtime: object) -> None: return super()._on_hasta_changed(qtime)
     def _on_completo_changed(self, checked: object = False) -> None: return super()._on_completo_changed(checked)
     def _on_add_pendiente(self) -> None: return super()._on_add_pendiente()
     def _on_confirmar(self) -> None: return super()._on_confirmar()

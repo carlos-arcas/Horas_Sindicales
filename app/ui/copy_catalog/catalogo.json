@@ -456,5 +456,9 @@
   "ui.personas.selecciona_delegada_eliminar": "Selecciona una delegada válida para eliminar.",
   "ui.personas.eliminar_delegada_titulo": "Eliminar delegado",
   "ui.personas.eliminar_delegada_mensaje": "¿Deseas deshabilitar a {nombre}? El histórico se conservará.",
-  "ui.formatos.python_fecha_ymd": "%Y-%m-%d"
+  "ui.formatos.python_fecha_ymd": "%Y-%m-%d",
+  "ui.pendientes.eliminadas_titulo": "Pendientes eliminadas",
+  "ui.pendientes.eliminadas_mensaje": "Las solicitudes pendientes seleccionadas se eliminaron.",
+  "ui.pendientes.sin_incidencias": "Sin incidencias.",
+  "ui.pendientes.eliminadas_siguiente_paso": "Puedes añadir nuevas solicitudes o confirmar otras pendientes."
 }

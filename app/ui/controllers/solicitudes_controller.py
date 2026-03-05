@@ -348,8 +348,12 @@ class SolicitudesController:
         w._solicitudes_last_action_saved = True
         w._solicitudes_runtime_error = False
         w._refresh_historico()
-        w._refresh_saldos()
-        w._update_action_state()
+        refrescar_operativa = getattr(w, "_refrescar_estado_operativa", None)
+        if callable(refrescar_operativa):
+            refrescar_operativa("pendiente_added")
+        else:
+            w._refresh_saldos()
+            w._update_action_state()
         w.notifications.notify_added_pending(creada, on_undo=lambda: w._undo_last_added_pending(creada.id))
         if pendiente_en_edicion is not None:
             toast_success(

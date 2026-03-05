@@ -184,6 +184,16 @@ class InicializacionMainWindowMixin:
 
     def _on_fecha_changed(self, qdate: QDate) -> None:
         self._fecha_seleccionada = QDate(qdate) if hasattr(qdate, "isValid") and qdate.isValid() else None
-        update_preview = getattr(self, "_update_solicitud_preview", None)
-        if callable(update_preview):
-            self._update_solicitud_preview()
+        refrescar_operativa = getattr(self, "_refrescar_estado_operativa", None)
+        if callable(refrescar_operativa):
+            refrescar_operativa("fecha_changed")
+
+    def _on_desde_changed(self, _qtime: object) -> None:
+        refrescar_operativa = getattr(self, "_refrescar_estado_operativa", None)
+        if callable(refrescar_operativa):
+            refrescar_operativa("hora_desde_changed")
+
+    def _on_hasta_changed(self, _qtime: object) -> None:
+        refrescar_operativa = getattr(self, "_refrescar_estado_operativa", None)
+        if callable(refrescar_operativa):
+            refrescar_operativa("hora_hasta_changed")
