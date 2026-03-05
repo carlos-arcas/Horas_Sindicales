@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.entrypoints import ui_main
-from app.entrypoints.arranque_nucleo import ResultadoArranque
+from app.entrypoints.arranque_nucleo import ResultadoArranqueCore
 
 pytestmark = [pytest.mark.headless_safe, pytest.mark.ui, pytest.mark.smoke]
 
@@ -92,6 +92,19 @@ class _CoordinatorFake(ui_main._CoordinadorArranqueConCierreDeterminista):
         self.events.append("thread_quit")
 
 
+@pytest.fixture(autouse=True)
+def _stub_deps_arranque(monkeypatch) -> None:
+    monkeypatch.setattr(
+        ui_main,
+        "_construir_dependencias_arranque",
+        lambda _container: SimpleNamespace(
+            obtener_idioma_ui=SimpleNamespace(ejecutar=lambda: "es"),
+            obtener_estado_onboarding=SimpleNamespace(ejecutar=lambda: True),
+        ),
+    )
+
+
+
 def test_on_finished_cierra_splash_antes_de_wizard_y_main(monkeypatch) -> None:
     qtimer_fake = SimpleNamespace(singleShot=lambda _ms, fn: fn())
     monkeypatch.setitem(
@@ -106,16 +119,10 @@ def test_on_finished_cierra_splash_antes_de_wizard_y_main(monkeypatch) -> None:
     coord = _CoordinatorFake(splash=splash, timer=timer, events=events)
     monkeypatch.setattr(ui_main, "ReiniciarOnboarding", lambda _repo: object())
 
-    deps_arranque = SimpleNamespace(
-        obtener_idioma_ui=SimpleNamespace(ejecutar=lambda: "es"),
-        obtener_estado_onboarding=SimpleNamespace(ejecutar=lambda: True),
-    )
-    payload = ResultadoArranque(
+    payload = ResultadoArranqueCore(
         container=SimpleNamespace(
             repositorio_preferencias=None, cargar_datos_demo_caso_uso=None
-        ),
-        deps_arranque=deps_arranque,
-        idioma="es",
+        )
     )
     coord.on_finished(payload)
 
@@ -194,16 +201,10 @@ def test_on_finished_restaura_quit_on_last_window_closed(monkeypatch) -> None:
     coord = _CoordinatorFake(splash=splash, timer=timer, events=events)
     coord.desactivar_quit_on_last_window_closed_temporalmente()
 
-    deps_arranque = SimpleNamespace(
-        obtener_idioma_ui=SimpleNamespace(ejecutar=lambda: "es"),
-        obtener_estado_onboarding=SimpleNamespace(ejecutar=lambda: True),
-    )
-    payload = ResultadoArranque(
+    payload = ResultadoArranqueCore(
         container=SimpleNamespace(
             repositorio_preferencias=None, cargar_datos_demo_caso_uso=None
-        ),
-        deps_arranque=deps_arranque,
-        idioma="es",
+        )
     )
 
     coord.on_finished(payload)
@@ -299,16 +300,10 @@ def test_on_finished_con_excepcion_difiere_a_fallback(monkeypatch) -> None:
         RuntimeError("boom")
     )
 
-    deps_arranque = SimpleNamespace(
-        obtener_idioma_ui=SimpleNamespace(ejecutar=lambda: "es"),
-        obtener_estado_onboarding=SimpleNamespace(ejecutar=lambda: True),
-    )
-    payload = ResultadoArranque(
+    payload = ResultadoArranqueCore(
         container=SimpleNamespace(
             repositorio_preferencias=None, cargar_datos_demo_caso_uso=None
-        ),
-        deps_arranque=deps_arranque,
-        idioma="es",
+        )
     )
 
     coord.on_finished(payload)

@@ -8,7 +8,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Signal, Slot
 
-from app.entrypoints.arranque_nucleo import ejecutar_arranque_puro
+from app.entrypoints.arranque_nucleo import planificar_arranque_core
 
 LOGGER = logging.getLogger(__name__)
 
@@ -31,17 +31,9 @@ class TrabajadorArranque(QObject):
         etapa_actual = "bootstrap.container"
         try:
             self._emitir_progreso(etapa_actual)
-            etapa_actual = "bootstrap.deps_arranque"
+            etapa_actual = "bootstrap.core_ready"
             self._emitir_progreso(etapa_actual)
-            from app.entrypoints.ui_main import _construir_dependencias_arranque
-
-            resultado = ejecutar_arranque_puro(
-                self._container_seed,
-                _construir_dependencias_arranque,
-            )
-
-            etapa_actual = "bootstrap.crear_mainwindow_deps"
-            self._emitir_progreso(etapa_actual)
+            resultado = planificar_arranque_core(self._container_seed)
             self.finished.emit(resultado)
             resultado_emitido = True
         except Exception as exc:  # noqa: BLE001
