@@ -115,6 +115,7 @@ def apply_prompt_pdf(window: Any, selected: list[SolicitudDTO]) -> str | None:
         window.toast.warning(copy_text("ui.confirmacion.sin_seleccion"), title=copy_text("ui.validacion.validacion"))
         return None
     pdf_path = window._prompt_confirm_pdf_path(selected)
+    logger.info("UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN", extra={"pdf_path": pdf_path, "selected_ids_count": len(selected)})
     window._last_selected_pdf_path = pdf_path
     if pdf_path is None:
         return None
@@ -127,8 +128,11 @@ def apply_confirm(window: Any, persona: PersonaDTO | None, selected: list[Solici
     if persona is None or pdf_path is None:
         return None
     try:
-        return window._execute_confirmar_with_pdf(persona, selected, pdf_path)
+        resultado = window._execute_confirmar_with_pdf(persona, selected, pdf_path)
+        logger.info("UI_CONFIRMAR_PDF_EXECUTE_OK", extra={"selected_ids_count": len(selected), "pdf_path": pdf_path})
+        return resultado
     except Exception as exc:
+        logger.exception("UI_CONFIRMAR_PDF_EXECUTE_ERROR")
         log_operational_error(
             logger,
             "UI_CONFIRMAR_GENERAR_PDF_FALLO",

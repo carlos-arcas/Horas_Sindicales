@@ -126,6 +126,7 @@
         "tests/application/test_confirmar_pdf_caso_uso.py",
         "tests/integration/test_confirmacion_pendientes_pdf_sqlite.py",
         "tests/presentacion/test_confirmar_pdf_desde_ui_contract.py",
+        "tests/presentacion/test_confirmar_pdf_ui_real_contract.py",
         "tests/e2e/test_confirmacion_pdf_e2e.py",
         "tests/e2e/test_flujo_solicitud_pdf_historico.py"
       ],
@@ -143,9 +144,10 @@
       "evidencias": [
         "tests/presentacion/test_handlers_prioridad1_contract.py",
         "tests/presentacion/test_confirm_prompt_contract.py",
-        "tests/presentacion/test_confirmar_pdf_desde_ui_contract.py"
+        "tests/presentacion/test_confirmar_pdf_desde_ui_contract.py",
+        "tests/presentacion/test_confirmar_pdf_ui_real_contract.py"
       ],
-      "observaciones": "El contrato de presentación valida petición de ruta, cancelación limpia y paso de ruta válida al flujo de confirmación."
+      "observaciones": "El contrato de presentación valida petición de ruta, cancelación limpia, paso de ruta válida y ejecución real desde MainWindow headless."
     },
     {
       "id": "FUN-010",
@@ -183,15 +185,15 @@
       "id": "FUN-012",
       "descripcion": "Se puede abrir automáticamente el PDF generado si el toggle correspondiente está activado.",
       "prioridad": "Media",
-      "estado_global": "No verificada",
-      "logica": "No verificada",
-      "ui": "No verificada",
-      "validaciones": "No verificada",
-      "e2e": "No verificada",
+      "estado_global": "Verificada",
+      "logica": "Verificada",
+      "ui": "Verificada",
+      "validaciones": "Verificada",
+      "e2e": "Parcial",
       "evidencias": [
-        "ninguna"
+        "tests/presentacion/test_confirmar_pdf_ui_real_contract.py"
       ],
-      "observaciones": "No se encontró prueba explícita de este comportamiento en los tests inspeccionados del repositorio."
+      "observaciones": "La prueba headless de presentación valida el toggle activo/inactivo y la invocación de apertura automática con la ruta esperada."
     },
     {
       "id": "FUN-013",

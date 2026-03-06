@@ -74,7 +74,7 @@ Regla editorial aplicada: cuando no hay evidencia sólida, el estado queda en **
 - **Prioridad:** Alta.
 - **Estado global:** Verificada.
 - **Evidencia actual:** test.
-- **Fuentes de evidencia:** `tests/application/test_confirmar_pdf_caso_uso.py`, `tests/integration/test_confirmacion_pendientes_pdf_sqlite.py`, `tests/presentacion/test_confirmar_pdf_desde_ui_contract.py`, `tests/e2e/test_confirmacion_pdf_e2e.py`, `tests/e2e/test_flujo_solicitud_pdf_historico.py`.
+- **Fuentes de evidencia:** `tests/application/test_confirmar_pdf_caso_uso.py`, `tests/integration/test_confirmacion_pendientes_pdf_sqlite.py`, `tests/presentacion/test_confirmar_pdf_desde_ui_contract.py`, `tests/presentacion/test_confirmar_pdf_ui_real_contract.py`, `tests/e2e/test_confirmacion_pdf_e2e.py`, `tests/e2e/test_flujo_solicitud_pdf_historico.py`.
 - **Observaciones/bloqueos:** El flujo queda cubierto por contrato de presentación (sin selección/cancelación/ruta válida) y por E2E real solicitud -> PDF -> histórico.
 
 ### FUN-009 — Elegir ruta de guardado
@@ -82,7 +82,7 @@ Regla editorial aplicada: cuando no hay evidencia sólida, el estado queda en **
 - **Prioridad:** Alta.
 - **Estado global:** Verificada.
 - **Evidencia actual:** test.
-- **Fuentes de evidencia:** `tests/presentacion/test_handlers_prioridad1_contract.py`, `tests/presentacion/test_confirm_prompt_contract.py`, `tests/presentacion/test_confirmar_pdf_desde_ui_contract.py`.
+- **Fuentes de evidencia:** `tests/presentacion/test_handlers_prioridad1_contract.py`, `tests/presentacion/test_confirm_prompt_contract.py`, `tests/presentacion/test_confirmar_pdf_desde_ui_contract.py`, `tests/presentacion/test_confirmar_pdf_ui_real_contract.py`, `tests/presentacion/test_confirmar_pdf_ui_real_contract.py`.
 - **Observaciones/bloqueos:** El contrato de presentación valida petición de ruta, cancelación limpia y paso de ruta válida al flujo de confirmación.
 
 ### FUN-010 — Guardar PDF en disco
@@ -104,10 +104,10 @@ Regla editorial aplicada: cuando no hay evidencia sólida, el estado queda en **
 ### FUN-012 — Abrir PDF automáticamente con toggle activado
 - **Descripción humana:** Se puede abrir automáticamente el PDF generado si el toggle correspondiente está activado.
 - **Prioridad:** Media.
-- **Estado global:** No verificada.
-- **Evidencia actual:** ninguna.
-- **Fuentes de evidencia:** ninguna.
-- **Observaciones/bloqueos:** No se encontró prueba explícita de este comportamiento en los tests inspeccionados del repositorio.
+- **Estado global:** Verificada.
+- **Evidencia actual:** test.
+- **Fuentes de evidencia:** `tests/presentacion/test_confirmar_pdf_ui_real_contract.py`.
+- **Observaciones/bloqueos:** La prueba headless de presentación valida toggle activo/inactivo y apertura automática exacta con la ruta esperada.
 
 ### FUN-013 — Preflight de escritura en sincronización
 - **Descripción humana:** Se puede ejecutar preflight de escritura para sincronización y detectar falta de permisos/configuración.
