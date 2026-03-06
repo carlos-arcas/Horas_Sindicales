@@ -22,6 +22,7 @@ from app.ui.vistas.builders.builders_barra_superior import create_barra_superior
 from app.ui.vistas.builders.builders_formulario_solicitud import create_formulario_solicitud
 from app.ui.vistas.builders.builders_sync_panel import create_sync_panel
 from app.ui.vistas.builders.builders_tablas import create_tablas
+from app.ui.vistas.main_window.contrato_senales_runtime import aplicar_contrato_senales_runtime
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow
@@ -82,7 +83,6 @@ def build_main_window_widgets(window: "MainWindow") -> None:
         window._historico_filtro_timer.setSingleShot(True)
         window._historico_filtro_timer.setInterval(300)
         window._historico_filtro_timer.timeout.connect(window._apply_historico_filters)
-        window.historico_search_input.textChanged.connect(window._on_historico_search_text_changed)
         window.historico_delegada_combo.currentIndexChanged.connect(window._on_historico_filter_changed)
         window.historico_estado_combo.currentIndexChanged.connect(window._on_historico_filter_changed)
         window.historico_periodo_anual_radio.toggled.connect(window._on_historico_filter_changed)
@@ -95,8 +95,8 @@ def build_main_window_widgets(window: "MainWindow") -> None:
         window.historico_hasta_date.dateChanged.connect(window._on_historico_filter_changed)
         window._historico_filters_wired = True
     window.open_saldos_modal_button.clicked.connect(window._on_open_saldos_modal)
-    window.main_tabs.currentChanged.connect(window._on_main_tab_changed)
     window.main_tabs.currentChanged.connect(lambda index: _on_tab_index_changed(window, index))
+    aplicar_contrato_senales_runtime(window)
     window._restaurar_contexto_guardado()
     window._on_historico_periodo_mode_changed()
     logger.info("UI_HISTORICO_FILTERS_BUILT")

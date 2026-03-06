@@ -77,7 +77,6 @@ def _construir_fila_persona(window: "MainWindow", solicitud_layout: QVBoxLayout)
     persona_label = QLabel(copy_text("solicitudes.label_delegada"))
     persona_label.setProperty("role", "sectionTitle")
     persona_row.addWidget(persona_label)
-    conectar_accion(window, window.persona_combo.currentIndexChanged, "_on_persona_changed")
     persona_row.addWidget(window.persona_combo, 1)
     solicitud_layout.addLayout(persona_row)
 
@@ -88,7 +87,6 @@ def _construir_fila_solicitud(window: "MainWindow", solicitud_layout: QVBoxLayou
     solicitud_row.addWidget(QLabel(copy_text("solicitudes.label_fecha")))
     window.fecha_input = QDateEdit(QDate.currentDate())
     window.fecha_input.setCalendarPopup(True)
-    conectar_accion(window, window.fecha_input.dateChanged, "_on_fecha_changed")
     solicitud_row.addWidget(window.fecha_input)
 
     _construir_controles_tramo(window, solicitud_row)
@@ -100,7 +98,6 @@ def _construir_fila_solicitud(window: "MainWindow", solicitud_layout: QVBoxLayou
 def _construir_controles_tramo(window: "MainWindow", solicitud_row: QHBoxLayout) -> None:
     window.desde_input = QTimeEdit(QTime(9, 0))
     window.desde_input.setDisplayFormat(copy_text("ui.solicitudes.formato_hora"))
-    conectar_accion(window, window.desde_input.timeChanged, "_on_desde_changed")
     window.desde_container = crear_contenedor_hora("solicitudes.label_desde", window.desde_input)
     solicitud_row.addWidget(window.desde_container)
     window.desde_placeholder = crear_placeholder_hora()
@@ -108,7 +105,6 @@ def _construir_controles_tramo(window: "MainWindow", solicitud_row: QHBoxLayout)
 
     window.hasta_input = QTimeEdit(QTime(17, 0))
     window.hasta_input.setDisplayFormat(copy_text("ui.solicitudes.formato_hora"))
-    conectar_accion(window, window.hasta_input.timeChanged, "_on_hasta_changed")
     window.hasta_container = crear_contenedor_hora("solicitudes.label_hasta", window.hasta_input)
     solicitud_row.addWidget(window.hasta_container)
     window.hasta_placeholder = crear_placeholder_hora()
@@ -117,7 +113,6 @@ def _construir_controles_tramo(window: "MainWindow", solicitud_row: QHBoxLayout)
 
 def _construir_controles_accion(window: "MainWindow", solicitud_row: QHBoxLayout) -> None:
     window.completo_check = QCheckBox(copy_text("ui.solicitudes.completo"))
-    conectar_accion(window, window.completo_check.toggled, "_on_completo_changed")
     solicitud_row.addWidget(window.completo_check)
 
     window.total_preview_label = QLabel(copy_text("ui.solicitudes.saldo_reservado"))

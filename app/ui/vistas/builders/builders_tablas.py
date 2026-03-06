@@ -155,12 +155,6 @@ def create_tablas(window: "MainWindow") -> None:
     window.historico_table.setSelectionMode(QAbstractItemView.MultiSelection)
     conectar_signal(
         window,
-        window.historico_table.selectionModel().selectionChanged,
-        "_on_historico_selection_changed",
-        contexto="builders_tablas:create_tablas",
-    )
-    conectar_signal(
-        window,
         window.historico_table.doubleClicked,
         "_on_open_historico_detalle",
         contexto="builders_tablas:create_tablas",

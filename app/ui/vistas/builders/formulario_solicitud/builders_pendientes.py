@@ -82,7 +82,6 @@ def _construir_tablas_pendientes(window: "MainWindow", layout: QVBoxLayout) -> N
     window.pendientes_table.setModel(window.pendientes_model)
     window.pendientes_table.setSelectionBehavior(QAbstractItemView.SelectRows)
     window.pendientes_table.setSelectionMode(QAbstractItemView.MultiSelection)
-    conectar_accion(window, window.pendientes_table.selectionModel().selectionChanged, "_on_pending_selection_changed")
     window.pendientes_table.setShowGrid(False)
     window.pendientes_table.setAlternatingRowColors(True)
     window.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
