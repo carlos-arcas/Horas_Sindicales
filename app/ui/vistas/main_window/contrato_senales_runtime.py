@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 _ATTR_BINDINGS = "_wiring_contrato_senales_registrados"
 
 
+def _build_contexto_slot(contrato: ContratoSenal) -> str:
+    return ".".join(("wiring_senales", contrato.emisor, contrato.senal))
+
+
 def aplicar_contrato_senales_runtime(window: object) -> list[IncidenciaContratoSenal]:
     atributos_disponibles = set(dir(window))
     handlers_disponibles = {
@@ -73,7 +77,7 @@ def _conectar_senal_contrato(window: object, contrato: ContratoSenal) -> None:
     slot_adaptado = adaptador(handler)
     slot_seguro = envolver_slot_seguro(
         slot_adaptado,
-        contexto=f"contrato_senales:{contrato.emisor}.{contrato.senal}",
+        contexto=_build_contexto_slot(contrato),
         logger=logger,
         toast=getattr(window, "toast", None),
     )
@@ -105,4 +109,3 @@ def _binding_ya_registrado(window: object, key: tuple[int, str, str]) -> bool:
         return True
     registrados.add(key)
     return False
-

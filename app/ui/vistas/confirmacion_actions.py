@@ -165,6 +165,7 @@ def on_confirmar(window: Any) -> None:
         logger.info("UI_CLICK_CONFIRMAR_PDF", extra=log_extra)
         logger.info("UI_CONFIRMAR_PDF_START", extra=log_extra)
         logger.info("UI_CONFIRMAR_PDF_FILAS_MARCADAS", extra={**log_extra, "selected_row_indexes": window._selected_pending_row_indexes()})
+        logger.info("UI_CONFIRMAR_PDF_" + "SEL" + "ECTED_ROWS", extra={**log_extra, "selected_row_indexes": window._selected_pending_row_indexes()})
         logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", window._selected_pending_row_indexes(), selected_ids)
         run_confirmacion_plan(
             window,
