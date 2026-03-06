@@ -138,8 +138,17 @@ jobs:
 
       - name: UI smoke tests (headless via xvfb)
         run: |
+          set -o pipefail
           mkdir -p artifacts/ui_smoke_evidencias
           xvfb-run -a pytest -q tests/ui/test_confirmar_pdf_mainwindow_smoke.py -rA | tee artifacts/ui_smoke_pytest.log
+
+      - name: Validar evidencia JSON del smoke
+        if: always()
+        run: |
+          test -f artifacts/ui_smoke_pytest.log
+          test -f artifacts/ui_smoke_evidencias/evidencia_escenario_1_sin_seleccion.json
+          test -f artifacts/ui_smoke_evidencias/evidencia_escenario_2_seleccion_valida_abrir_off.json
+          test -f artifacts/ui_smoke_evidencias/evidencia_escenario_3_seleccion_valida_abrir_on.json
 
       - name: Subir artefactos UI smoke
         if: always()
