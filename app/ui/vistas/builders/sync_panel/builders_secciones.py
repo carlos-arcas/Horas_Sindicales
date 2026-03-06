@@ -63,7 +63,6 @@ def _construir_seccion_persona(window: "MainWindow", config_layout: QVBoxLayout)
     persona_actions.setSpacing(8)
 
     window.config_delegada_combo = QComboBox()
-    conectar_evento_sync_panel(window, window.config_delegada_combo.currentIndexChanged, "_on_config_delegada_changed")
     persona_actions.addWidget(window.config_delegada_combo, 1)
 
     window.edit_persona_button = crear_boton_accion(window, "ui.config.editar", "success", "_on_edit_persona")
@@ -253,5 +252,4 @@ def _construir_seccion_resumen(window: "MainWindow", sync_tab_layout: QVBoxLayou
     resumen_layout.addWidget(window.sync_counts_label)
     resumen_layout.addWidget(window.last_sync_metrics_label)
     sync_tab_layout.addWidget(resumen_card)
-
 
