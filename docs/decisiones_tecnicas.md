@@ -75,3 +75,7 @@
 - **2026-03-05 — Mostrar ayuda contextual condicionado a valor operativo — Vigente**  
   El bloque de estado de Solicitudes se reemplaza por un resumen operativo contextual (delegada, selección, pendientes y saldo reservado) más una próxima acción concreta.  
   El control **Mostrar ayuda** solo se mantiene visible/habilitado cuando existe ayuda contextual accionable; en estados “lista para confirmar y generar PDF” se oculta temporalmente para evitar texto redundante sin valor.
+
+- **2026-03-06 — Extracción mínima de helpers runtime desde `ui_main.py` — Vigente**  
+  Para cumplir el budget de tamaño del quality gate sin alterar comportamiento, se movieron helpers cohesivos de splash/watchdog/fallback y dump de widgets a `app/entrypoints/ayudantes_arranque_interfaz.py`.  
+  `ui_main.py` mantiene el rol de orquestador del pipeline de arranque; se preservan contratos y wiring existentes mediante enlace explícito de métodos al coordinador.
