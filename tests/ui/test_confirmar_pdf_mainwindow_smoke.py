@@ -93,6 +93,21 @@ def _guardar_evidencia(tmp_path: Path, escenario: str, payload: dict[str, object
     )
 
 
+def _eventos_confirmar(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [record.getMessage() for record in caplog.records if record.getMessage().startswith("UI_CONFIRMAR_PDF_")]
+
+
+def _contar_eventos(eventos: list[str], evento: str) -> int:
+    return sum(1 for item in eventos if item == evento)
+
+
+def _estado_conteos(window: MainWindow, container) -> dict[str, int]:
+    return {
+        "pendientes": len(window._pending_solicitudes),
+        "historico": len(list(container.solicitud_use_cases.listar_historico())),
+    }
+
+
 def test_confirmar_pdf_mainwindow_smoke_real(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -136,6 +151,8 @@ def test_confirmar_pdf_mainwindow_smoke_real(
     monkeypatch.setattr(confirmacion_actions, "abrir_archivo_local", _fake_open)
 
     called_show_pdf_actions_dialog: list[str] = []
+    undo_calls: list[list[int]] = []
+    closure_undo_callbacks = 0
     called_ask_push_after_pdf = 0
     finalize_calls = 0
     execute_calls = 0
@@ -163,6 +180,17 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         closure_calls += 1
         return original_closure(*args, **kwargs)
 
+    def _wrap_undo(self, solicitud_ids: list[int]):
+        undo_calls.append(list(solicitud_ids))
+        return original_undo(solicitud_ids)
+
+    def _capturar_show_confirmation_closure(*_args, **kwargs):
+        nonlocal closure_undo_callbacks
+        on_undo = kwargs.get("on_undo")
+        if callable(on_undo):
+            closure_undo_callbacks += 1
+        return original_show_confirmation_closure(*_args, **kwargs)
+
     puentes_obligatorios = (
         "_execute_confirmar_with_pdf",
         "_finalize_confirmar_with_pdf",
@@ -178,11 +206,15 @@ def test_confirmar_pdf_mainwindow_smoke_real(
     original_execute = window._execute_confirmar_with_pdf
     original_finalize = window._finalize_confirmar_with_pdf
     original_closure = window._show_confirmation_closure
+    original_undo = window._undo_confirmation
+    original_show_confirmation_closure = confirmacion_actions.show_confirmation_closure
     monkeypatch.setattr(window, "_execute_confirmar_with_pdf", MethodType(_wrap_execute, window))
     monkeypatch.setattr(window, "_finalize_confirmar_with_pdf", MethodType(_wrap_finalize, window))
     monkeypatch.setattr(window, "_show_confirmation_closure", MethodType(_wrap_closure, window))
     monkeypatch.setattr(window, "_show_pdf_actions_dialog", MethodType(_stub_show_pdf_actions_dialog, window))
     monkeypatch.setattr(window, "_ask_push_after_pdf", MethodType(_stub_ask_push_after_pdf, window))
+    monkeypatch.setattr(window, "_undo_confirmation", MethodType(_wrap_undo, window))
+    monkeypatch.setattr(confirmacion_actions, "show_confirmation_closure", _capturar_show_confirmation_closure)
 
     try:
         caplog.set_level(logging.INFO)
@@ -198,17 +230,24 @@ def test_confirmar_pdf_mainwindow_smoke_real(
 
         # Escenario 1: sin selección.
         caplog.clear()
-        historico_inicial = list(container.solicitud_use_cases.listar_historico())
-        pendientes_antes_s1 = list(window._pending_solicitudes)
+        conteos_iniciales_s1 = _estado_conteos(window, container)
         window.pendientes_table.clearSelection()
         window._on_confirmar()
         app.processEvents()
 
-        logs_s1 = [record.getMessage() for record in caplog.records]
-        assert "UI_CONFIRMAR_PDF_RETURN_EARLY" in logs_s1
+        eventos_s1 = _eventos_confirmar(caplog)
+        assert "UI_CONFIRMAR_PDF_START" in eventos_s1
+        assert "UI_CONFIRMAR_PDF_SELECTED_ROWS" in eventos_s1
+        assert "UI_CONFIRMAR_PDF_RETURN_EARLY" in eventos_s1
+        assert "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN" not in eventos_s1
+        assert "UI_CONFIRMAR_PDF_EXECUTE_OK" not in eventos_s1
+        assert "UI_CONFIRMAR_PDF_EXECUTE_ERROR" not in eventos_s1
+        assert "UI_CONFIRMAR_PDF_OPEN_OK" not in eventos_s1
         assert len(save_calls) == 0
-        assert list(window._pending_solicitudes) == pendientes_antes_s1
-        assert list(container.solicitud_use_cases.listar_historico()) == historico_inicial
+        conteos_finales_s1 = _estado_conteos(window, container)
+        assert conteos_finales_s1 == conteos_iniciales_s1
+
+        historico_inicial = list(container.solicitud_use_cases.listar_historico())
 
         _guardar_evidencia(
             tmp_path,
@@ -216,22 +255,40 @@ def test_confirmar_pdf_mainwindow_smoke_real(
             {
                 "escenario": "sin_seleccion",
                 "ids_seleccionados": [],
-                "ruta_pdf": None,
+                "ruta_pdf_elegida": None,
                 "existe_pdf": False,
-                "bytes_iniciales_pdf": "",
+                "cabecera_pdf": "",
                 "abrir_pdf_toggle": bool(window.abrir_pdf_check.isChecked()),
-                "apertura_pdf_invocada": False,
-                "pendientes_antes": len(pendientes_antes_s1),
-                "pendientes_despues": len(window._pending_solicitudes),
-                "historico_encontrado": len(list(container.solicitud_use_cases.listar_historico())),
-                "logs_clave_si_aplica": [log for log in logs_s1 if log in {"UI_CONFIRMAR_PDF_START", "UI_CONFIRMAR_PDF_SELECTED_ROWS", "UI_CONFIRMAR_PDF_RETURN_EARLY"}],
+                "apertura_pdf_intentos": len(open_calls),
+                "pendientes_antes": conteos_iniciales_s1["pendientes"],
+                "pendientes_despues": conteos_finales_s1["pendientes"],
+                "historico_antes": conteos_iniciales_s1["historico"],
+                "historico_despues": conteos_finales_s1["historico"],
+                "motivo_salida_temprana": "sin_seleccion",
+                "bridges_runtime": {
+                    "_execute_confirmar_with_pdf": execute_calls,
+                    "_finalize_confirmar_with_pdf": finalize_calls,
+                    "_show_confirmation_closure": closure_calls,
+                    "_show_pdf_actions_dialog": len(called_show_pdf_actions_dialog),
+                    "_ask_push_after_pdf": called_ask_push_after_pdf,
+                    "_undo_confirmation": len(undo_calls),
+                },
+                "hitos": {evento: _contar_eventos(eventos_s1, evento) for evento in (
+                    "UI_CONFIRMAR_PDF_START",
+                    "UI_CONFIRMAR_PDF_SELECTED_ROWS",
+                    "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
+                    "UI_CONFIRMAR_PDF_EXECUTE_OK",
+                    "UI_CONFIRMAR_PDF_EXECUTE_ERROR",
+                    "UI_CONFIRMAR_PDF_OPEN_OK",
+                    "UI_CONFIRMAR_PDF_RETURN_EARLY",
+                )},
             },
         )
 
         # Escenario 2: selección válida + abrir PDF OFF.
         caplog.clear()
         open_calls.clear()
-        pendientes_antes_s2 = len(window._pending_solicitudes)
+        conteos_iniciales_s2 = _estado_conteos(window, container)
         selected_ids_s2 = _seleccionar_filas_reales(window, [0, 1])
         assert selected_ids_s2
         window.abrir_pdf_check.setChecked(False)
@@ -248,14 +305,18 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         assert len(historico_s2) >= len(historico_inicial) + len(selected_ids_s2)
         assert open_calls == []
 
-        logs_s2 = [record.getMessage() for record in caplog.records]
+        eventos_s2 = _eventos_confirmar(caplog)
         for evento in (
             "UI_CONFIRMAR_PDF_START",
             "UI_CONFIRMAR_PDF_SELECTED_ROWS",
             "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
             "UI_CONFIRMAR_PDF_EXECUTE_OK",
         ):
-            assert evento in logs_s2
+            assert evento in eventos_s2
+        assert "UI_CONFIRMAR_PDF_EXECUTE_ERROR" not in eventos_s2
+        assert "UI_CONFIRMAR_PDF_RETURN_EARLY" not in eventos_s2
+
+        conteos_finales_s2 = _estado_conteos(window, container)
 
         _guardar_evidencia(
             tmp_path,
@@ -263,25 +324,33 @@ def test_confirmar_pdf_mainwindow_smoke_real(
             {
                 "escenario": "seleccion_valida_abrir_off",
                 "ids_seleccionados": selected_ids_s2,
-                "ruta_pdf": str(pdf_path_s2),
+                "ruta_pdf_elegida": str(pdf_path_s2),
                 "existe_pdf": pdf_path_s2.exists(),
-                "bytes_iniciales_pdf": pdf_path_s2.read_bytes()[:4].decode("latin1"),
+                "cabecera_pdf": pdf_path_s2.read_bytes()[:4].decode("latin1"),
                 "abrir_pdf_toggle": False,
-                "apertura_pdf_invocada": False,
-                "pendientes_antes": pendientes_antes_s2,
-                "pendientes_despues": len(window._pending_solicitudes),
-                "historico_encontrado": len(historico_s2),
-                "logs_clave_si_aplica": [
-                    log
-                    for log in logs_s2
-                    if log
-                    in {
-                        "UI_CONFIRMAR_PDF_START",
-                        "UI_CONFIRMAR_PDF_SELECTED_ROWS",
-                        "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
-                        "UI_CONFIRMAR_PDF_EXECUTE_OK",
-                    }
-                ],
+                "apertura_pdf_intentos": len(open_calls),
+                "pendientes_antes": conteos_iniciales_s2["pendientes"],
+                "pendientes_despues": conteos_finales_s2["pendientes"],
+                "historico_antes": conteos_iniciales_s2["historico"],
+                "historico_despues": conteos_finales_s2["historico"],
+                "motivo_salida_temprana": None,
+                "bridges_runtime": {
+                    "_execute_confirmar_with_pdf": execute_calls,
+                    "_finalize_confirmar_with_pdf": finalize_calls,
+                    "_show_confirmation_closure": closure_calls,
+                    "_show_pdf_actions_dialog": len(called_show_pdf_actions_dialog),
+                    "_ask_push_after_pdf": called_ask_push_after_pdf,
+                    "_undo_confirmation": len(undo_calls),
+                },
+                "hitos": {evento: _contar_eventos(eventos_s2, evento) for evento in (
+                    "UI_CONFIRMAR_PDF_START",
+                    "UI_CONFIRMAR_PDF_SELECTED_ROWS",
+                    "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
+                    "UI_CONFIRMAR_PDF_EXECUTE_OK",
+                    "UI_CONFIRMAR_PDF_EXECUTE_ERROR",
+                    "UI_CONFIRMAR_PDF_OPEN_OK",
+                    "UI_CONFIRMAR_PDF_RETURN_EARLY",
+                )},
             },
         )
 
@@ -304,7 +373,7 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         assert len(historico_s3) >= len(historico_s2) + len(selected_ids_s3)
         assert open_calls == [str(pdf_path_s3)]
 
-        logs_s3 = [record.getMessage() for record in caplog.records]
+        eventos_s3 = _eventos_confirmar(caplog)
         for evento in (
             "UI_CONFIRMAR_PDF_START",
             "UI_CONFIRMAR_PDF_SELECTED_ROWS",
@@ -312,7 +381,10 @@ def test_confirmar_pdf_mainwindow_smoke_real(
             "UI_CONFIRMAR_PDF_EXECUTE_OK",
             "UI_CONFIRMAR_PDF_OPEN_OK",
         ):
-            assert evento in logs_s3
+            assert evento in eventos_s3
+        assert "UI_CONFIRMAR_PDF_EXECUTE_ERROR" not in eventos_s3
+
+        conteos_finales_s3 = _estado_conteos(window, container)
 
         _guardar_evidencia(
             tmp_path,
@@ -320,23 +392,79 @@ def test_confirmar_pdf_mainwindow_smoke_real(
             {
                 "escenario": "seleccion_valida_abrir_on",
                 "ids_seleccionados": selected_ids_s3,
-                "ruta_pdf": str(pdf_path_s3),
+                "ruta_pdf_elegida": str(pdf_path_s3),
                 "existe_pdf": pdf_path_s3.exists(),
-                "bytes_iniciales_pdf": pdf_path_s3.read_bytes()[:4].decode("latin1"),
+                "cabecera_pdf": pdf_path_s3.read_bytes()[:4].decode("latin1"),
                 "abrir_pdf_toggle": True,
-                "apertura_pdf_invocada": True,
+                "apertura_pdf_intentos": len(open_calls),
                 "pendientes_antes": 1,
-                "pendientes_despues": len(window._pending_solicitudes),
-                "historico_encontrado": len(historico_s3),
-                "logs_clave_si_aplica": [log for log in logs_s3 if log in {"UI_CONFIRMAR_PDF_OPEN_OK", "UI_CONFIRMAR_PDF_EXECUTE_OK"}],
+                "pendientes_despues": conteos_finales_s3["pendientes"],
+                "historico_antes": len(historico_s2),
+                "historico_despues": conteos_finales_s3["historico"],
+                "motivo_salida_temprana": None,
+                "bridges_runtime": {
+                    "_execute_confirmar_with_pdf": execute_calls,
+                    "_finalize_confirmar_with_pdf": finalize_calls,
+                    "_show_confirmation_closure": closure_calls,
+                    "_show_pdf_actions_dialog": len(called_show_pdf_actions_dialog),
+                    "_ask_push_after_pdf": called_ask_push_after_pdf,
+                    "_undo_confirmation": len(undo_calls),
+                },
+                "hitos": {evento: _contar_eventos(eventos_s3, evento) for evento in (
+                    "UI_CONFIRMAR_PDF_START",
+                    "UI_CONFIRMAR_PDF_SELECTED_ROWS",
+                    "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
+                    "UI_CONFIRMAR_PDF_EXECUTE_OK",
+                    "UI_CONFIRMAR_PDF_EXECUTE_ERROR",
+                    "UI_CONFIRMAR_PDF_OPEN_OK",
+                    "UI_CONFIRMAR_PDF_RETURN_EARLY",
+                )},
             },
         )
+
+        resumen = {
+            "escenarios": [
+                {
+                    "nombre": "sin_seleccion",
+                    "estado_escenario": "PASS",
+                    "paso_en_que_rompe": None,
+                    "evidencia_principal": "UI_CONFIRMAR_PDF_RETURN_EARLY",
+                    "mensaje_humano": "Sin selección se detecta salida temprana controlada sin cambios funcionales.",
+                },
+                {
+                    "nombre": "seleccion_valida_abrir_off",
+                    "estado_escenario": "PASS",
+                    "paso_en_que_rompe": None,
+                    "evidencia_principal": "UI_CONFIRMAR_PDF_EXECUTE_OK",
+                    "mensaje_humano": "La selección se confirma y migra a histórico sin apertura automática de PDF.",
+                },
+                {
+                    "nombre": "seleccion_valida_abrir_on",
+                    "estado_escenario": "PASS",
+                    "paso_en_que_rompe": None,
+                    "evidencia_principal": "UI_CONFIRMAR_PDF_OPEN_OK",
+                    "mensaje_humano": "La selección se confirma y abre el PDF exactamente una vez.",
+                },
+            ],
+            "bridges_usados": {
+                "_execute_confirmar_with_pdf": execute_calls,
+                "_finalize_confirmar_with_pdf": finalize_calls,
+                "_show_confirmation_closure": closure_calls,
+                "_show_pdf_actions_dialog": len(called_show_pdf_actions_dialog),
+                "_ask_push_after_pdf": called_ask_push_after_pdf,
+                "_undo_confirmation": len(undo_calls),
+                "_show_confirmation_closure_on_undo": closure_undo_callbacks,
+            },
+        }
+        _guardar_evidencia(tmp_path, "resumen_mainwindow_confirmar_pdf", resumen)
 
         assert execute_calls >= 2
         assert finalize_calls >= 2
         assert closure_calls >= 2
         assert called_ask_push_after_pdf >= 2
         assert len(called_show_pdf_actions_dialog) >= 2
+        assert closure_undo_callbacks >= 2
+        assert len(undo_calls) == 0
     finally:
         window.close()
         app.processEvents()

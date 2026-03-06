@@ -43,6 +43,10 @@
   Se endurece `tests/ui/test_confirmar_pdf_mainwindow_smoke.py` para que, en ejecución local, pueda marcar `skip` si PySide6/backend Qt no está disponible, pero en CI (flag explícita `HORAS_UI_SMOKE_CI=1`) cualquier ausencia de backend pase a error duro.  
   El objetivo es eliminar falsos verdes por `skip`: esta prueba es la evidencia operativa crítica de que el flujo real `selección -> guardar PDF -> mover a histórico -> respetar toggle Abrir PDF` funciona de extremo a extremo y con trazas observables en artifact JSON.
 
+- **2026-03-06 — Smoke real MainWindow confirmar+PDF ahora valida transiciones funcionales diagnósticas — Vigente**  
+  El smoke real deja de validar únicamente estado final (ej. existencia de PDF) y pasa a comprobar hitos contractuales por escenario (`START`, `SELECTED_ROWS`, `SAVE_PATH_CHOSEN`, `EXECUTE_OK/ERROR`, `OPEN_OK`, `RETURN_EARLY`) junto con conteos antes/después de pendientes e histórico y evidencia JSON separada por escenario + resumen maestro.  
+  Esto reduce falsos verdes porque un pass exige trazabilidad funcional completa del flujo visible y, en caso de fallo, permite ubicar el punto exacto de rotura sin inferencias manuales.
+
 ## Procedimiento de actualización
 
 1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).
