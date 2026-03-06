@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
+from dataclasses import replace
 import logging
 import sys
 from time import monotonic
@@ -107,7 +108,7 @@ class GestorToasts(QObject):
         detalles_completos, tipo_excepcion = self._resolver_detalles(details_value, exc_info)
         dedupe_key = self._crear_dedupe_key(code_value, origin_value, tipo_excepcion)
         toast_id = f"{dedupe_key}:{int(monotonic() * 1000)}"
-        return NotificacionToast(
+        notificacion = NotificacionToast(
             id=toast_id,
             titulo=title or copy_text("ui.toast.notificacion"),
             mensaje=message,
@@ -121,6 +122,17 @@ class GestorToasts(QObject):
             dedupe_key=dedupe_key,
             duracion_ms=8000 if duration_ms is None else max(0, int(duration_ms)),
         )
+        logger.info(
+            "TOAST_PAYLOAD_BUILD",
+            extra={
+                "toast_id": notificacion.id,
+                "dedupe_key": notificacion.dedupe_key,
+                "nivel": notificacion.nivel,
+                "codigo": notificacion.codigo,
+                "origen": notificacion.origen,
+            },
+        )
+        return notificacion
 
     def _resolver_detalles(
         self,
@@ -168,8 +180,17 @@ class GestorToasts(QObject):
         actuales_ids = [toast.id for toast in self._modelo.listar()]
 
         if resultado.id in self._visibles:
-            self._cache[resultado.id] = notificacion
-            self._visibles[resultado.id].actualizar_notificacion(notificacion)
+            notificacion_actualizada = replace(notificacion, id=resultado.id)
+            self._cache[resultado.id] = notificacion_actualizada
+            self._visibles[resultado.id].actualizar_notificacion(notificacion_actualizada)
+            logger.info(
+                "TOAST_DEDUPE_UPDATE",
+                extra={
+                    "toast_id": resultado.id,
+                    "dedupe_key": notificacion_actualizada.dedupe_key,
+                    "nivel": notificacion_actualizada.nivel,
+                },
+            )
             return
 
         ids_eliminados = [toast_id for toast_id in previo_ids if toast_id not in actuales_ids]
@@ -198,6 +219,14 @@ class GestorToasts(QObject):
     def _mostrar(self, notificacion: NotificacionToast) -> None:
         if self._overlay is None:
             return
+        logger.info(
+            "TOAST_RENDER",
+            extra={
+                "toast_id": notificacion.id,
+                "dedupe_key": notificacion.dedupe_key,
+                "nivel": notificacion.nivel,
+            },
+        )
         tarjeta = TarjetaToast(notificacion, parent=self._overlay)
         tarjeta.cerrado.connect(self._cerrar_toast)
         tarjeta.solicitar_detalles.connect(self._abrir_detalles)
@@ -212,6 +241,8 @@ class GestorToasts(QObject):
         self._timers[notificacion.id] = timer
 
     def _cerrar_toast(self, toast_id: str) -> None:
+        self._modelo.cerrar_toast(toast_id)
+        self._cache.pop(toast_id, None)
         timer = self._timers.pop(toast_id, None)
         if timer is not None:
             timer.stop()
