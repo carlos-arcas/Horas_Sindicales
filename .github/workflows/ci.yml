@@ -90,9 +90,11 @@ jobs:
     env:
       QUALITY_GATE_STRICT: '1'
       CI: 'true'
+      HORAS_UI_SMOKE_CI: '1'
       QT_QPA_PLATFORM: offscreen
       QT_OPENGL: software
       LIBGL_ALWAYS_SOFTWARE: '1'
+      HORAS_UI_SMOKE_EVIDENCE_DIR: artifacts/ui_smoke_evidencias
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -136,4 +138,14 @@ jobs:
 
       - name: UI smoke tests (headless via xvfb)
         run: |
-          xvfb-run -a pytest -q tests/ui
+          mkdir -p artifacts/ui_smoke_evidencias
+          xvfb-run -a pytest -q tests/ui/test_confirmar_pdf_mainwindow_smoke.py -rA | tee artifacts/ui_smoke_pytest.log
+
+      - name: Subir artefactos UI smoke
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-smoke-evidencia-confirmar-pdf
+          path: |
+            artifacts/ui_smoke_evidencias/*.json
+            artifacts/ui_smoke_pytest.log

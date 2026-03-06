@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sqlite3
 from pathlib import Path
 from types import MethodType
@@ -75,8 +76,18 @@ def _seleccionar_filas_reales(window, rows: list[int]) -> list[int]:
     return [sid for sid in window._obtener_ids_seleccionados_pendientes() if sid is not None]
 
 
+def _resolver_directorio_evidencia(tmp_path: Path) -> Path:
+    override = os.getenv("HORAS_UI_SMOKE_EVIDENCE_DIR", "").strip()
+    if not override:
+        return tmp_path
+    evidencia_dir = Path(override)
+    evidencia_dir.mkdir(parents=True, exist_ok=True)
+    return evidencia_dir
+
+
 def _guardar_evidencia(tmp_path: Path, escenario: str, payload: dict[str, object]) -> None:
-    (tmp_path / f"evidencia_{escenario}.json").write_text(
+    evidencia_dir = _resolver_directorio_evidencia(tmp_path)
+    (evidencia_dir / f"evidencia_{escenario}.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True),
         encoding="utf-8",
     )
@@ -294,7 +305,14 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         assert open_calls == [str(pdf_path_s3)]
 
         logs_s3 = [record.getMessage() for record in caplog.records]
-        assert "UI_CONFIRMAR_PDF_OPEN_OK" in logs_s3
+        for evento in (
+            "UI_CONFIRMAR_PDF_START",
+            "UI_CONFIRMAR_PDF_SELECTED_ROWS",
+            "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
+            "UI_CONFIRMAR_PDF_EXECUTE_OK",
+            "UI_CONFIRMAR_PDF_OPEN_OK",
+        ):
+            assert evento in logs_s3
 
         _guardar_evidencia(
             tmp_path,
