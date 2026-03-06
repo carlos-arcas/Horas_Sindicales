@@ -1,0 +1,269 @@
+{
+  "proyecto": "Horas Sindicales",
+  "version_documento": 1,
+  "funciones": [
+    {
+      "id": "FUN-001",
+      "descripcion": "Se puede lanzar la aplicación desde los entrypoints oficiales de Windows.",
+      "prioridad": "Alta",
+      "estado_global": "Parcial",
+      "logica": "Verificada",
+      "ui": "No verificada",
+      "validaciones": "Verificada",
+      "e2e": "No verificada",
+      "evidencias": [
+        "tests/test_launcher_bat_contract.py",
+        "docs/definicion_producto_final.md"
+      ],
+      "observaciones": "Existe contrato de launcher y entrypoints, pero no hay evidencia automatizada de ejecución real en Windows dentro de esta suite."
+    },
+    {
+      "id": "FUN-002",
+      "descripcion": "Se puede completar el arranque (splash/boot) y llegar a una ventana principal operativa.",
+      "prioridad": "Alta",
+      "estado_global": "Parcial",
+      "logica": "Verificada",
+      "ui": "Parcial",
+      "validaciones": "Verificada",
+      "e2e": "No verificada",
+      "evidencias": [
+        "tests/ui/test_ui_arranque_minimo.py",
+        "tests/test_main_window_wiring_contract.py",
+        "tests/entrypoints/test_receptor_arranque.py",
+        "docs/ui/arranque_ui_regresion_wiring_hilos.md"
+      ],
+      "observaciones": "Hay smoke y contratos de arranque; no hay prueba E2E de interfaz completa con splash real en entorno Windows."
+    },
+    {
+      "id": "FUN-003",
+      "descripcion": "Se puede seleccionar una delegada activa en el flujo de trabajo.",
+      "prioridad": "Alta",
+      "estado_global": "Parcial",
+      "logica": "Verificada",
+      "ui": "Parcial",
+      "validaciones": "Verificada",
+      "e2e": "No verificada",
+      "evidencias": [
+        "tests/ui_rules/test_personas_presenter.py",
+        "docs/ui/navigation.md"
+      ],
+      "observaciones": "La selección y resolución están cubiertas a nivel presenter; no hay E2E UI completo con interacción real de combo/lista."
+    },
+    {
+      "id": "FUN-004",
+      "descripcion": "Se puede rellenar fecha y horas para preparar una solicitud.",
+      "prioridad": "Alta",
+      "estado_global": "Parcial",
+      "logica": "Verificada",
+      "ui": "Parcial",
+      "validaciones": "Parcial",
+      "e2e": "No verificada",
+      "evidencias": [
+        "tests/ui/test_confirmar_pdf_flow.py",
+        "tests/application/solicitudes/test_validacion_basica.py",
+        "tests/test_solicitudes_controller_helpers.py"
+      ],
+      "observaciones": "Hay contratos de campos y validaciones, pero falta evidencia integral del formulario completo en una sola prueba de extremo a extremo UI."
+    },
+    {
+      "id": "FUN-005",
+      "descripcion": "Se puede ver el saldo reservado actualizado al operar con pendientes.",
+      "prioridad": "Alta",
+      "estado_global": "Parcial",
+      "logica": "Verificada",
+      "ui": "Parcial",
+      "validaciones": "Verificada",
+      "e2e": "No verificada",
+      "evidencias": [
+        "tests/presentacion/test_reservado_refresh_contract.py",
+        "tests/application/solicitudes/test_saldos_service.py"
+      ],
+      "observaciones": "Hay contratos de recálculo y refresco; no hay evidencia E2E de pantalla completa con datos reales de usuario."
+    },
+    {
+      "id": "FUN-006",
+      "descripcion": "Se puede añadir una solicitud como pendiente.",
+      "prioridad": "Alta",
+      "estado_global": "Verificada",
+      "logica": "Verificada",
+      "ui": "Verificada",
+      "validaciones": "Verificada",
+      "e2e": "Verificada",
+      "evidencias": [
+        "tests/golden/botones/test_boton_aniadir_pendiente_golden.py",
+        "tests/integration/test_confirmacion_pendientes_pdf_sqlite.py",
+        "tests/e2e/test_flujo_solicitud_pdf_historico.py"
+      ],
+      "observaciones": "Existe evidencia en contrato de botón, integración SQLite y E2E del flujo prioritario."
+    },
+    {
+      "id": "FUN-007",
+      "descripcion": "Se puede seleccionar pendientes para operar sobre ellos.",
+      "prioridad": "Alta",
+      "estado_global": "Parcial",
+      "logica": "Verificada",
+      "ui": "Parcial",
+      "validaciones": "Verificada",
+      "e2e": "No verificada",
+      "evidencias": [
+        "tests/ui/test_confirmar_pdf_flow.py",
+        "tests/ui/test_pendientes_confirmar_layout.py",
+        "tests/ui_rules/test_pending_duplicate_presenter.py"
+      ],
+      "observaciones": "Se valida selección y reglas de conflictos/duplicados en contratos; no hay evidencia E2E UI de selección múltiple con render real."
+    },
+    {
+      "id": "FUN-008",
+      "descripcion": "Se puede confirmar una solicitud pendiente y generar PDF.",
+      "prioridad": "Alta",
+      "estado_global": "Verificada",
+      "logica": "Verificada",
+      "ui": "Parcial",
+      "validaciones": "Verificada",
+      "e2e": "Verificada",
+      "evidencias": [
+        "tests/application/test_confirmar_pdf_caso_uso.py",
+        "tests/integration/test_confirmacion_pendientes_pdf_sqlite.py",
+        "tests/e2e/test_confirmacion_pdf_e2e.py",
+        "tests/e2e/test_flujo_solicitud_pdf_historico.py"
+      ],
+      "observaciones": "La lógica y E2E de confirmación+PDF están cubiertos; la verificación UI completa queda parcial por naturaleza headless de varios contratos."
+    },
+    {
+      "id": "FUN-009",
+      "descripcion": "Se puede elegir ruta de guardado para el PDF de confirmación.",
+      "prioridad": "Alta",
+      "estado_global": "Parcial",
+      "logica": "Verificada",
+      "ui": "Parcial",
+      "validaciones": "Verificada",
+      "e2e": "No verificada",
+      "evidencias": [
+        "tests/presentacion/test_handlers_prioridad1_contract.py",
+        "tests/presentacion/test_confirm_prompt_contract.py"
+      ],
+      "observaciones": "Existe contrato del prompt y manejo de colisiones; no hay evidencia E2E de diálogo nativo en SO real."
+    },
+    {
+      "id": "FUN-010",
+      "descripcion": "Se puede guardar el PDF generado en disco con salida válida.",
+      "prioridad": "Alta",
+      "estado_global": "Verificada",
+      "logica": "Verificada",
+      "ui": "Parcial",
+      "validaciones": "Verificada",
+      "e2e": "Verificada",
+      "evidencias": [
+        "tests/integration/test_confirmacion_pendientes_pdf_sqlite.py",
+        "tests/e2e/test_flujo_solicitud_pdf_historico.py",
+        "tests/e2e/test_exportacion_pdf_historico_e2e.py"
+      ],
+      "observaciones": "La persistencia de PDF está verificada por integración y E2E; la interacción de selector de archivos queda en contratos, no en E2E UI real."
+    },
+    {
+      "id": "FUN-011",
+      "descripcion": "Se puede consultar el histórico de solicitudes confirmadas.",
+      "prioridad": "Alta",
+      "estado_global": "Verificada",
+      "logica": "Verificada",
+      "ui": "Parcial",
+      "validaciones": "Verificada",
+      "e2e": "Verificada",
+      "evidencias": [
+        "tests/application/test_solicitudes_historico_use_case.py",
+        "tests/e2e/test_flujo_solicitud_pdf_historico.py",
+        "tests/ui/test_historico_view_smoke.py"
+      ],
+      "observaciones": "El histórico queda cubierto en caso de uso y E2E de flujo prioritario; filtros y UX avanzada se validan en contratos adicionales."
+    },
+    {
+      "id": "FUN-012",
+      "descripcion": "Se puede abrir automáticamente el PDF generado si el toggle correspondiente está activado.",
+      "prioridad": "Media",
+      "estado_global": "No verificada",
+      "logica": "No verificada",
+      "ui": "No verificada",
+      "validaciones": "No verificada",
+      "e2e": "No verificada",
+      "evidencias": [
+        "ninguna"
+      ],
+      "observaciones": "No se encontró prueba explícita de este comportamiento en los tests inspeccionados del repositorio."
+    },
+    {
+      "id": "FUN-013",
+      "descripcion": "Se puede ejecutar preflight de escritura para sincronización y detectar falta de permisos/configuración.",
+      "prioridad": "Media",
+      "estado_global": "Verificada",
+      "logica": "Verificada",
+      "ui": "No implementada",
+      "validaciones": "Verificada",
+      "e2e": "Parcial",
+      "evidencias": [
+        "tests/infrastructure/test_sheets_client_write_preflight.py",
+        "tests/application/test_sync_preflight_permissions.py"
+      ],
+      "observaciones": "Cobertura fuerte de infraestructura y aplicación; la UI de este flujo no es el foco en estas pruebas."
+    },
+    {
+      "id": "FUN-014",
+      "descripcion": "Se mantienen contratos de botones críticos para evitar regresiones de wiring en ventana principal.",
+      "prioridad": "Media",
+      "estado_global": "Verificada",
+      "logica": "Verificada",
+      "ui": "Verificada",
+      "validaciones": "Verificada",
+      "e2e": "No implementada",
+      "evidencias": [
+        "tests/presentacion/test_contrato_botones.py",
+        "tests/golden/botones/test_boton_sync_golden.py"
+      ],
+      "observaciones": "Contrato y golden cubren wiring crítico de botones."
+    },
+    {
+      "id": "FUN-015",
+      "descripcion": "Se mantienen contratos de señales y adaptadores para evitar errores de conexión de eventos UI.",
+      "prioridad": "Media",
+      "estado_global": "Verificada",
+      "logica": "Verificada",
+      "ui": "Verificada",
+      "validaciones": "Verificada",
+      "e2e": "No implementada",
+      "evidencias": [
+        "tests/presentacion/test_contrato_senales.py",
+        "docs/contrato_wiring.md"
+      ],
+      "observaciones": "La capa de señalado queda protegida por contratos unitarios explícitos."
+    },
+    {
+      "id": "FUN-016",
+      "descripcion": "Se notifican resultados y errores mediante toasts con contrato estable.",
+      "prioridad": "Media",
+      "estado_global": "Parcial",
+      "logica": "Verificada",
+      "ui": "Parcial",
+      "validaciones": "Verificada",
+      "e2e": "No verificada",
+      "evidencias": [
+        "tests/aplicacion/notificaciones/test_dto_toast.py",
+        "tests/ui/test_toast_signal_smoke_contract.py",
+        "tests/test_toast_manager_actions.py"
+      ],
+      "observaciones": "Hay cobertura amplia de contrato de notificación, sin E2E UI completo de interacción de usuario final."
+    }
+  ],
+  "ruta_critica": [
+    "FUN-001",
+    "FUN-002",
+    "FUN-003",
+    "FUN-004",
+    "FUN-005",
+    "FUN-006",
+    "FUN-007",
+    "FUN-008",
+    "FUN-009",
+    "FUN-010",
+    "FUN-011",
+    "FUN-012"
+  ]
+}
