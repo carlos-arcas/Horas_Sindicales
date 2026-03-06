@@ -222,6 +222,7 @@
   "ui.debug.builders_formulario_solicitud": "builders_formulario_solicitud:create_formulario_solicitud",
   "ui.debug.builders_sync_panel": "builders_sync_panel:create_sync_panel",
   "ui.wiring.handler_missing_detalle": "Handler de Qt no disponible o no invocable. Archivo: app/ui/vistas/main_window/wiring_helpers.py; contexto: {contexto}; handler: {handler_name}. Acción: implementa el método en la ventana o corrige handler_name en el builder.",
+  "ui.wiring.boton_no_disponible": "Acción deshabilitada temporalmente: funcionalidad no disponible en este entorno.",
   "ui.conflictos.accion_recomendada_label": "Acción recomendada:",
   "ui.conflictos.solicitud_label": "Solicitud:",
   "ui.conflictos.item_accion_recomendada": "- Acción recomendada:",
