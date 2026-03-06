@@ -58,8 +58,8 @@ Regla editorial aplicada: cuando no hay evidencia sólida, el estado queda en **
 - **Prioridad:** Alta.
 - **Estado global:** Verificada.
 - **Evidencia actual:** test.
-- **Fuentes de evidencia:** `tests/golden/botones/test_boton_aniadir_pendiente_golden.py`, `tests/integration/test_confirmacion_pendientes_pdf_sqlite.py`, `tests/e2e/test_flujo_solicitud_pdf_historico.py`.
-- **Observaciones/bloqueos:** Existe evidencia en contrato de botón, integración SQLite y E2E del flujo prioritario.
+- **Fuentes de evidencia:** `tests/presentacion/test_agregar_pendiente_contract.py`, `tests/golden/botones/test_boton_aniadir_pendiente_golden.py`, `tests/integration/test_confirmacion_pendientes_pdf_sqlite.py`, `tests/e2e/test_flujo_solicitud_pdf_historico.py`.
+- **Observaciones/bloqueos:** El contrato de presentación cubre alta de pendiente, refresco de cajón/totales/saldo/estado y validación controlada sin excepción; además se mantiene evidencia golden e integración del flujo completo.
 
 ### FUN-007 — Seleccionar pendiente
 - **Descripción humana:** Se puede seleccionar pendientes para operar sobre ellos.
