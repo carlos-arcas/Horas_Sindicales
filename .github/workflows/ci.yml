@@ -140,7 +140,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p artifacts/ui_smoke_evidencias
-          xvfb-run -a pytest -q tests/ui/test_confirmar_pdf_mainwindow_smoke.py -rA | tee artifacts/ui_smoke_pytest.log
+          xvfb-run -a pytest -q tests/ui/test_confirmar_pdf_mainwindow_smoke.py tests/ui/test_pendientes_toasts_ci_smoke.py -rA | tee artifacts/ui_smoke_pytest.log
 
       - name: Validar evidencia JSON del smoke
         if: always()
@@ -149,6 +149,12 @@ jobs:
           test -f artifacts/ui_smoke_evidencias/evidencia_escenario_1_sin_seleccion.json
           test -f artifacts/ui_smoke_evidencias/evidencia_escenario_2_seleccion_valida_abrir_off.json
           test -f artifacts/ui_smoke_evidencias/evidencia_escenario_3_seleccion_valida_abrir_on.json
+          test -f artifacts/ui_smoke_evidencias/evidencia_ver_todas_delegadas.json
+          test -f artifacts/ui_smoke_evidencias/evidencia_seleccion_pendientes_post_ver_todas.json
+          test -f artifacts/ui_smoke_evidencias/evidencia_toast_success_real.json
+          test -f artifacts/ui_smoke_evidencias/evidencia_toast_error_real.json
+          test -f artifacts/ui_smoke_evidencias/evidencia_toast_cierre_manual.json
+          test -f artifacts/ui_smoke_evidencias/resumen_ui_pendientes_toasts.json
 
       - name: Subir artefactos UI smoke
         if: always()

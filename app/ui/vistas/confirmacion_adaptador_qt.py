@@ -164,17 +164,14 @@ def apply_finalize(window: Any, persona: PersonaDTO | None, outcome: ResultadoCo
             "correlation_id": correlation_id,
         },
     )
-    if generado is not None and generado.exists():
-        window._toast_success(copy_text("ui.confirmacion.ok_pdf_generado"), title=copy_text("ui.preferencias.confirmacion"))
-        return
-
-    logger.warning(
-        "UI_CONFIRMAR_TOAST_SUCCESS_DESCARTADO",
-        extra={
-            "motivo": "pdf_no_generado_o_inexistente",
-            "pdf_generado": bool(generado),
-            "correlation_id": correlation_id,
-            "confirmadas_count": len(confirmadas_ids),
-            "errores_count": len(errores),
-        },
-    )
+    if generado is None or not generado.exists():
+        logger.warning(
+            "UI_CONFIRMAR_TOAST_SUCCESS_DESCARTADO",
+            extra={
+                "motivo": "pdf_no_generado_o_inexistente",
+                "pdf_generado": bool(generado),
+                "correlation_id": correlation_id,
+                "confirmadas_count": len(confirmadas_ids),
+                "errores_count": len(errores),
+            },
+        )

@@ -179,6 +179,15 @@ class AccionesMainWindowMixin:
         return resolver_colision_destino_pdf(self, pdf_path)
 
     def _on_toggle_ver_todas_pendientes(self, checked: bool) -> None:
+        logger.info(
+            "UI_PENDIENTES_VER_TODAS_TOGGLE",
+            extra={
+                "checked": bool(checked),
+                "hidden_previas": len(getattr(self, "_hidden_pendientes", [])),
+                "pendientes_visibles_previas": len(getattr(self, "_pending_solicitudes", [])),
+                "pendientes_totales_previas": len(getattr(self, "_pending_all_solicitudes", [])),
+            },
+        )
         self._pending_view_all = checked
         self._pending_selection_anchor_row = None
         self._reload_pending_views()

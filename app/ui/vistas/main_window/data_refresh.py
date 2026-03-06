@@ -94,6 +94,17 @@ def refresh_saldos(window) -> None:
 
 def reload_pending_views(window) -> None:
     persona = window._current_persona()
+    logger.info(
+        "UI_PENDIENTES_RELOAD_START",
+        extra={
+            "pending_view_all": bool(window._pending_view_all),
+            "persona_id": persona.id if persona is not None else None,
+            "hidden_previas": len(window._hidden_pendientes),
+            "huerfanas_previas": len(window._orphan_pendientes),
+            "pendientes_visibles_previas": len(window._pending_solicitudes),
+            "pendientes_totales_previas": len(window._pending_all_solicitudes),
+        },
+    )
     window._pending_all_solicitudes = list(window._solicitud_use_cases.listar_pendientes_all())
     if window._pending_view_all:
         window._pending_solicitudes = list(window._pending_all_solicitudes)
@@ -130,6 +141,16 @@ def reload_pending_views(window) -> None:
     window._orphan_pendientes = list(window._solicitud_use_cases.listar_pendientes_huerfanas())
     window.huerfanas_model.set_solicitudes(window._orphan_pendientes)
     has_orphans = bool(window._orphan_pendientes)
+    logger.info(
+        "UI_PENDIENTES_RECALC",
+        extra={
+            "pending_view_all": bool(window._pending_view_all),
+            "pendientes_visibles": len(window._pending_solicitudes),
+            "pendientes_totales": len(window._pending_all_solicitudes),
+            "hidden_count": len(window._hidden_pendientes),
+            "huerfanas_count": len(window._orphan_pendientes),
+        },
+    )
     window.huerfanas_label.setVisible(has_orphans)
     window.huerfanas_table.setVisible(has_orphans)
     window.eliminar_huerfana_button.setVisible(has_orphans)
