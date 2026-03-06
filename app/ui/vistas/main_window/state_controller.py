@@ -302,7 +302,7 @@ class MainWindow(
     def _selected_historico_solicitudes(self) -> list[SolicitudDTO]: return super()._selected_historico_solicitudes()
     def _on_historico_select_all_visible_toggled(self, checked: object) -> None: return super()._on_historico_select_all_visible_toggled(checked)
     def _sync_historico_select_all_visible_state(self) -> None: return super()._sync_historico_select_all_visible_state()
-    def _notify_historico_filter_if_hidden(self) -> None: return super()._notify_historico_filter_if_hidden()
+    def _notify_historico_filter_if_hidden(self, solicitudes_insertadas: list[SolicitudDTO]) -> None: return super()._notify_historico_filter_if_hidden(solicitudes_insertadas)
     def _on_export_historico_pdf(self) -> None: return super()._on_export_historico_pdf()
     def _on_eliminar(self) -> None: return super()._on_eliminar()
 

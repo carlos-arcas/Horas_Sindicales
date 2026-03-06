@@ -61,6 +61,28 @@ def test_historico_wrappers_en_fachadas_son_minimos() -> None:
     assert not invalidos, "Wrappers no mínimos detectados:\n" + "\n".join(invalidos)
 
 
+def test_wrapper_notify_historico_hidden_conserva_contrato_runtime_con_solicitudes() -> None:
+    encontrado = resolver_metodo_wrapper("_notify_historico_filter_if_hidden")
+    assert encontrado is not None
+
+    metodo = encontrado.nodo
+    args = metodo.args
+    assert len(args.args) == 2
+    assert args.args[1].arg == "solicitudes_insertadas"
+
+    assert len(metodo.body) == 1
+    unica_sentencia = metodo.body[0]
+    assert isinstance(unica_sentencia, ast.Return)
+    assert isinstance(unica_sentencia.value, ast.Call)
+
+    llamada = unica_sentencia.value
+    assert isinstance(llamada.func, ast.Attribute)
+    assert llamada.func.attr == "_notify_historico_filter_if_hidden"
+    assert len(llamada.args) == 1
+    assert isinstance(llamada.args[0], ast.Name)
+    assert llamada.args[0].id == "solicitudes_insertadas"
+
+
 
 def test_historico_actions_define_extracted_entrypoints() -> None:
     tree = _load_ast(HISTORICO_ACTIONS)
