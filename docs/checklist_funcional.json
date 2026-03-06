@@ -1,0 +1,254 @@
+{
+  "version": "1.0",
+  "descripcion": "Checklist funcional verificable del producto Horas Sindicales basado en evidencia actual de código, tests y documentación.",
+  "estados_permitidos": [
+    "Verificada",
+    "Parcial",
+    "No verificada",
+    "No implementada"
+  ],
+  "ruta_critica_principal": [
+    "FUN-001",
+    "FUN-002",
+    "FUN-003",
+    "FUN-004",
+    "FUN-005"
+  ],
+  "funciones": [
+    {
+      "id": "FUN-001",
+      "descripcion": "Se puede lanzar la aplicación por entrypoint Python y por launcher de Windows.",
+      "prioridad": "Alta",
+      "estado_global": "Verificada",
+      "desglose": {
+        "logica": "Verificada",
+        "ui": "Verificada",
+        "validaciones_seguridad": "Parcial",
+        "e2e": "Parcial"
+      },
+      "evidencias": [
+        {
+          "tipo": "test",
+          "ruta": "tests/test___main___smoke.py",
+          "detalle": "Valida smoke de arranque por __main__."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/ui/test_ui_smoke_startup.py",
+          "detalle": "Verifica arranque mínimo de UI en entorno de pruebas."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/test_launcher_bat_contract.py",
+          "detalle": "Contrato del launcher para entorno Windows."
+        }
+      ],
+      "observaciones": "No hay evidencia automática de doble clic en Windows real dentro de este entorno Linux; se deja E2E como Parcial."
+    },
+    {
+      "id": "FUN-002",
+      "descripcion": "Se puede crear y validar una solicitud sindical evitando inconsistencias básicas (duplicados, solapes, normalización).",
+      "prioridad": "Alta",
+      "estado_global": "Verificada",
+      "desglose": {
+        "logica": "Verificada",
+        "ui": "Parcial",
+        "validaciones_seguridad": "Verificada",
+        "e2e": "Parcial"
+      },
+      "evidencias": [
+        {
+          "tipo": "test",
+          "ruta": "tests/application/test_crear_solicitud_resultado.py",
+          "detalle": "Cobertura del caso de creación y resultado de solicitudes."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/application/solicitudes/test_validacion_basica.py",
+          "detalle": "Validaciones de datos de entrada en capa de aplicación."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/application/test_solicitud_duplicate_key.py",
+          "detalle": "Control de duplicados por llave funcional."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/golden/botones/test_boton_aniadir_pendiente_golden.py",
+          "detalle": "Golden de botón clave para añadir pendiente en UI."
+        }
+      ],
+      "observaciones": "Existe cobertura fuerte en lógica; el cierre total por flujo de usuario completo se mantiene Parcial hasta consolidar más E2E de interfaz completa."
+    },
+    {
+      "id": "FUN-003",
+      "descripcion": "Se puede confirmar una solicitud y generar/exportar PDF de confirmación e histórico.",
+      "prioridad": "Alta",
+      "estado_global": "Verificada",
+      "desglose": {
+        "logica": "Verificada",
+        "ui": "Verificada",
+        "validaciones_seguridad": "Parcial",
+        "e2e": "Verificada"
+      },
+      "evidencias": [
+        {
+          "tipo": "test",
+          "ruta": "tests/application/test_confirmar_pdf_caso_uso.py",
+          "detalle": "Contrato de caso de uso de confirmación con PDF."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/ui/test_confirmar_pdf_flow.py",
+          "detalle": "Flujo UI de confirmar y disparar exportación."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/e2e/test_flujo_solicitud_pdf_historico.py",
+          "detalle": "Flujo E2E principal de solicitud + PDF + histórico."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/e2e/test_exportacion_pdf_historico_e2e.py",
+          "detalle": "Valida exportación PDF histórica de extremo a extremo."
+        }
+      ],
+      "observaciones": "La parte de seguridad específica del PDF (sanitización de nombres/paths) tiene cobertura parcial y puede ampliarse."
+    },
+    {
+      "id": "FUN-004",
+      "descripcion": "Se puede consultar y filtrar el histórico de solicitudes, incluyendo borrado desde UI.",
+      "prioridad": "Alta",
+      "estado_global": "Verificada",
+      "desglose": {
+        "logica": "Verificada",
+        "ui": "Verificada",
+        "validaciones_seguridad": "Parcial",
+        "e2e": "Parcial"
+      },
+      "evidencias": [
+        {
+          "tipo": "test",
+          "ruta": "tests/application/test_solicitudes_historico_use_case.py",
+          "detalle": "Caso de uso del histórico en capa aplicación."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/domain/test_reglas_filtrado_historico.py",
+          "detalle": "Reglas de filtrado del dominio."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/ui/test_historico_view_model.py",
+          "detalle": "Contrato de modelo de vista de histórico."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/ui/test_historico_borrado.py",
+          "detalle": "Borrado y reacción de UI en histórico."
+        }
+      ],
+      "observaciones": "Hay evidencia de capas separadas, pero faltan más escenarios E2E combinando filtros complejos y auditoría funcional completa."
+    },
+    {
+      "id": "FUN-005",
+      "descripcion": "Se puede ejecutar sincronización con Google Sheets con preflight, planificación, resolución de conflictos y reporte.",
+      "prioridad": "Alta",
+      "estado_global": "Parcial",
+      "desglose": {
+        "logica": "Verificada",
+        "ui": "Parcial",
+        "validaciones_seguridad": "Parcial",
+        "e2e": "Parcial"
+      },
+      "evidencias": [
+        {
+          "tipo": "test",
+          "ruta": "tests/application/test_sync_sheets_use_case_scenarios.py",
+          "detalle": "Escenarios de caso de uso de sincronización."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/application/test_sync_preflight_permissions.py",
+          "detalle": "Preflight de permisos antes de sincronizar."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/e2e_sync/test_sync_sheets_e2e.py",
+          "detalle": "Cobertura E2E específica de sincronización."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/ui/test_sync_button_state_rules.py",
+          "detalle": "Estados de botón y wiring de UI de sincronización."
+        }
+      ],
+      "observaciones": "El repositorio lo clasifica como WIP en docs/features.json; por veracidad se mantiene estado global Parcial."
+    },
+    {
+      "id": "FUN-006",
+      "descripcion": "Se puede ejecutar la auditoría E2E por CLI en modo dry-run y en modo con escritura de evidencias.",
+      "prioridad": "Media",
+      "estado_global": "Verificada",
+      "desglose": {
+        "logica": "Verificada",
+        "ui": "No implementada",
+        "validaciones_seguridad": "Parcial",
+        "e2e": "Verificada"
+      },
+      "evidencias": [
+        {
+          "tipo": "test",
+          "ruta": "tests/e2e/test_cli_auditoria_smoke.py",
+          "detalle": "Smoke del entrypoint de auditoría."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/integration/test_auditoria_e2e_dry_run_no_writes.py",
+          "detalle": "Confirma que dry-run no escribe artefactos."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/e2e/test_auditoria_e2e_writes_reports.py",
+          "detalle": "Confirma generación de evidencias en modo escritura."
+        }
+      ],
+      "observaciones": "Funcionalidad orientada a CLI; no aplica capa UI interactiva de escritorio."
+    },
+    {
+      "id": "FUN-007",
+      "descripcion": "Se puede gestionar el módulo web de personajes (listar, crear, editar y eliminar) en la vertical Django en transición.",
+      "prioridad": "Media",
+      "estado_global": "Parcial",
+      "desglose": {
+        "logica": "Verificada",
+        "ui": "Parcial",
+        "validaciones_seguridad": "No verificada",
+        "e2e": "No verificada"
+      },
+      "evidencias": [
+        {
+          "tipo": "test",
+          "ruta": "tests/application/personajes/test_casos_uso_personajes.py",
+          "detalle": "Casos de uso de personajes en aplicación."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/domain/personajes/test_servicios_personaje.py",
+          "detalle": "Reglas de dominio del agregado personaje."
+        },
+        {
+          "tipo": "test",
+          "ruta": "tests/web/test_personajes.py",
+          "detalle": "Cobertura de endpoints/vistas web de personajes."
+        },
+        {
+          "tipo": "doc",
+          "ruta": "docs/features.json",
+          "detalle": "Feature FTR-005 marcada como WIP en inventario existente."
+        }
+      ],
+      "observaciones": "Se trata de una vertical en transición; no hay evidencia sólida de E2E integral ni de hardening de seguridad completo."
+    }
+  ]
+}
