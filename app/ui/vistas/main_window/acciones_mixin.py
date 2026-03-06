@@ -181,7 +181,7 @@ class AccionesMainWindowMixin:
     def _on_toggle_ver_todas_pendientes(self, checked: bool) -> None:
         self._pending_view_all = checked
         self._pending_selection_anchor_row = None
-        self._refresh_pending_ui_state()
+        self._reload_pending_views()
 
     def _on_remove_pendiente(self) -> None:
         return acciones_pendientes.on_remove_pendiente(self)
