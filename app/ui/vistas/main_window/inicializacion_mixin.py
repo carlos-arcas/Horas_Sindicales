@@ -21,6 +21,7 @@ from .utilidades_controlador_estado import (
     warmup_sync_client,
 )
 from app.ui.vistas.main_window.importaciones import run_init_refresh
+from .contrato_botones import aplicar_contrato_botones_criticos_runtime
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +145,7 @@ class InicializacionMainWindowMixin:
 
     def _build_ui(self) -> None:
         wiring.build_ui(self)
+        aplicar_contrato_botones_criticos_runtime(self)
         self._update_conflicts_reminder()
 
     def _build_layout(self) -> None:
