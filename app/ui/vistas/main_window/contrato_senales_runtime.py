@@ -73,7 +73,7 @@ def _conectar_senal_contrato(window: object, contrato: ContratoSenal) -> None:
     slot_adaptado = adaptador(handler)
     slot_seguro = envolver_slot_seguro(
         slot_adaptado,
-        contexto=f"contrato_senales:{contrato.emisor}.{contrato.senal}",
+        contexto=f"contrato_senales_{contrato.emisor}_{contrato.senal}",
         logger=logger,
         toast=getattr(window, "toast", None),
     )
@@ -105,4 +105,3 @@ def _binding_ya_registrado(window: object, key: tuple[int, str, str]) -> bool:
         return True
     registrados.add(key)
     return False
-
