@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from typing import TYPE_CHECKING
 
 try:
@@ -16,6 +18,8 @@ from app.ui.vistas.seleccion_pendientes import (
     construir_rango_contiguo,
     resolver_estado_toggle,
 )
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from app.application.dto import SolicitudDTO
@@ -41,10 +45,19 @@ def alternar_seleccion_visible_pendientes(window: MainWindow, checked: bool) -> 
     if selection_model is None or model is None:
         return
 
+    filas_visibles = _filas_visibles_marcables(window)
+    logger.info(
+        "UI_PENDIENTES_BULK_MARCAR_VISIBLES",
+        extra={
+            "checked": bool(checked),
+            "filas_visibles_marcables": len(filas_visibles),
+            "filas_marcadas_previas": len(obtener_indices_filas_pendientes_seleccionadas(window)),
+        },
+    )
     flag = QItemSelectionModel.SelectionFlag.Select if checked else QItemSelectionModel.SelectionFlag.Deselect
     window._pending_bulk_selection_in_progress = True
     try:
-        for fila in _filas_visibles_marcables(window):
+        for fila in filas_visibles:
             index = model.index(fila, 0)
             selection_model.select(index, flag | QItemSelectionModel.SelectionFlag.Rows)
     finally:
@@ -101,6 +114,14 @@ def manejar_click_fila_pendiente(window: MainWindow, index: object) -> None:
         filas_visibles_marcables=filas_visibles,
         fila_ancla=fila_ancla,
         fila_destino=fila_destino,
+    )
+    logger.info(
+        "UI_PENDIENTES_SHIFT_RANGE",
+        extra={
+            "fila_ancla": fila_ancla,
+            "fila_destino": fila_destino,
+            "rango_aplicado": filas_rango,
+        },
     )
     destino_index = model.index(fila_destino, 0)
     destino_marcado = selection_model.isSelected(destino_index)
