@@ -73,6 +73,7 @@ def pytest_collection_modifyitems(config, items):
         "tests/ui/test_ui_arranque_minimo.py",
         "tests/ui/test_ui_navegacion_minima.py",
         "tests/ui/test_ui_headless_fallback_smoke.py",
+        "tests/ui/test_confirmar_pdf_mainwindow_smoke.py",
     }
 
     skip_non_smoke = pytest.mark.skip(
