@@ -148,3 +148,48 @@ def test_success_sin_action_label_no_muestra_boton(qtbot) -> None:
 
     toast = next(iter(manager._visibles.values()))
     assert not toast._btn_accion.isVisible()
+
+
+def test_dedupe_actualiza_callback_y_accion_renderizada(qtbot) -> None:
+    window = QMainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    manager = GestorToasts()
+    manager.attach_to(window)
+
+    called = {"first": 0, "second": 0}
+
+    def _action_1() -> None:
+        called["first"] += 1
+
+    def _action_2() -> None:
+        called["second"] += 1
+
+    manager.warning("Mensaje inicial", code="D1", origin="origen.test", action_label="Primera", action_callback=_action_1)
+    manager.warning("Mensaje nuevo", code="D1", origin="origen.test", action_label="Segunda", action_callback=_action_2)
+
+    toast = next(iter(manager._visibles.values()))
+    assert toast._btn_accion.text() == "Segunda"
+    qtbot.mouseClick(toast._btn_accion, Qt.MouseButton.LeftButton)
+
+    assert called["first"] == 0
+    assert called["second"] == 1
+
+
+def test_cierre_manual_limpia_cache_y_modelo(qtbot) -> None:
+    window = QMainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    manager = GestorToasts()
+    manager.attach_to(window)
+    manager.info("Mensaje", code="M1", origin="origen.manual", duration_ms=4000)
+
+    toast_id = next(iter(manager._visibles.keys()))
+    toast = manager._visibles[toast_id]
+    qtbot.mouseClick(toast._btn_cerrar, Qt.MouseButton.LeftButton)
+    qtbot.wait(10)
+
+    assert toast_id not in manager._cache
+    assert manager._modelo.listar() == []
