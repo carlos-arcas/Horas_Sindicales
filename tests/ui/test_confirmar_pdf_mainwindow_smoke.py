@@ -21,6 +21,7 @@ from app.bootstrap.container import build_container
 from app.infrastructure.db import configure_sqlite_connection
 from app.ui.main_window import MainWindow
 from app.ui.vistas import confirmacion_actions
+from app.ui.vistas.main_window import acciones_mixin
 
 
 class _ServicioSheetsSinRed:
@@ -184,12 +185,17 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         undo_calls.append(list(solicitud_ids))
         return original_undo(solicitud_ids)
 
-    def _capturar_show_confirmation_closure(*_args, **kwargs):
+    def _capturar_show_confirmation_closure(*args, **kwargs):
         nonlocal closure_undo_callbacks
-        on_undo = kwargs.get("on_undo")
-        if callable(on_undo):
+        payload = confirmacion_actions.build_confirmation_payload(
+            args[0],
+            args[1],
+            args[2],
+            correlation_id=kwargs.get("correlation_id"),
+        )
+        if callable(payload.on_undo):
             closure_undo_callbacks += 1
-        return original_show_confirmation_closure(*_args, **kwargs)
+        return original_show_confirmation_closure(*args, **kwargs)
 
     puentes_obligatorios = (
         "_execute_confirmar_with_pdf",
@@ -216,14 +222,14 @@ def test_confirmar_pdf_mainwindow_smoke_real(
     original_finalize = window._finalize_confirmar_with_pdf
     original_closure = window._show_confirmation_closure
     original_undo = window._undo_confirmation
-    original_show_confirmation_closure = confirmacion_actions.show_confirmation_closure
+    original_show_confirmation_closure = acciones_mixin.show_confirmation_closure
     monkeypatch.setattr(window, "_execute_confirmar_with_pdf", MethodType(_wrap_execute, window))
     monkeypatch.setattr(window, "_finalize_confirmar_with_pdf", MethodType(_wrap_finalize, window))
     monkeypatch.setattr(window, "_show_confirmation_closure", MethodType(_wrap_closure, window))
     monkeypatch.setattr(window, "_show_pdf_actions_dialog", MethodType(_stub_show_pdf_actions_dialog, window))
     monkeypatch.setattr(window, "_ask_push_after_pdf", MethodType(_stub_ask_push_after_pdf, window))
     monkeypatch.setattr(window, "_undo_confirmation", MethodType(_wrap_undo, window))
-    monkeypatch.setattr(confirmacion_actions, "show_confirmation_closure", _capturar_show_confirmation_closure)
+    monkeypatch.setattr(acciones_mixin, "show_confirmation_closure", _capturar_show_confirmation_closure)
 
     try:
         caplog.set_level(logging.INFO)
@@ -324,6 +330,9 @@ def test_confirmar_pdf_mainwindow_smoke_real(
             assert evento in eventos_s2
         assert "UI_CONFIRMAR_PDF_EXECUTE_ERROR" not in eventos_s2
         assert "UI_CONFIRMAR_PDF_RETURN_EARLY" not in eventos_s2
+        mensajes_s2 = [record.getMessage() for record in caplog.records]
+        assert "UI_CONFIRMAR_PDF_EXCEPTION" not in mensajes_s2
+        assert "UI_CONFIRMAR_HANDLER_FALLO" not in mensajes_s2
 
         conteos_finales_s2 = _estado_conteos(window, container)
 
@@ -392,6 +401,9 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         ):
             assert evento in eventos_s3
         assert "UI_CONFIRMAR_PDF_EXECUTE_ERROR" not in eventos_s3
+        mensajes_s3 = [record.getMessage() for record in caplog.records]
+        assert "UI_CONFIRMAR_PDF_EXCEPTION" not in mensajes_s3
+        assert "UI_CONFIRMAR_HANDLER_FALLO" not in mensajes_s3
 
         conteos_finales_s3 = _estado_conteos(window, container)
 

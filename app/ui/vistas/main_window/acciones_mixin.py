@@ -232,6 +232,9 @@ class AccionesMainWindowMixin:
     def _on_sync(self) -> None:
         return acciones_sincronizacion.on_sync(self)
 
+    def _on_push_now(self) -> None:
+        return acciones_sincronizacion.on_push_now(self)
+
     def _on_simulate_sync(self) -> None:
         return acciones_sincronizacion.on_simulate_sync(self)
 
