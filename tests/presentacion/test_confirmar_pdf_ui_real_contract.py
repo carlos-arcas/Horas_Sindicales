@@ -1,13 +1,23 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import sqlite3
+from importlib import import_module
 from pathlib import Path
 
 import pytest
 
-qt_widgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
-qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ.setdefault("QT_OPENGL", "software")
+
+try:
+    qt_widgets = import_module("PySide6.QtWidgets")
+    qt_core = import_module("PySide6.QtCore")
+except ImportError as exc:
+    pytest.skip(f"PySide6 no importable: {exc}", allow_module_level=True)
+
 QApplication = qt_widgets.QApplication
 QFileDialog = qt_widgets.QFileDialog
 QItemSelectionModel = qt_core.QItemSelectionModel
@@ -71,7 +81,11 @@ def _seleccionar_filas(window, rows: list[int]) -> list[int]:
     return window._obtener_ids_seleccionados_pendientes()
 
 
-def test_confirmar_pdf_ui_real_contract(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_confirmar_pdf_ui_real_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     app = QApplication.instance() or QApplication([])
     db_path = tmp_path / "runtime_ui_real.sqlite3"
     pdf_dir = tmp_path / "salida_pdf"
@@ -111,7 +125,19 @@ def test_confirmar_pdf_ui_real_contract(monkeypatch: pytest.MonkeyPatch, tmp_pat
     monkeypatch.setattr(window, "_ask_push_after_pdf", lambda: None)
     monkeypatch.setattr(window, "_show_pdf_actions_dialog", lambda _path: None)
 
+    metodos_bridge = [
+        "_execute_confirmar_with_pdf",
+        "_finalize_confirmar_with_pdf",
+        "_show_confirmation_closure",
+        "_show_pdf_actions_dialog",
+        "_ask_push_after_pdf",
+        "_undo_confirmation",
+    ]
+
     try:
+        for metodo in metodos_bridge:
+            assert hasattr(window, metodo), f"MainWindow sin bridge obligatorio: {metodo}"
+
         window._reload_pending_views()
         app.processEvents()
         persona = window._current_persona()
@@ -127,7 +153,11 @@ def test_confirmar_pdf_ui_real_contract(monkeypatch: pytest.MonkeyPatch, tmp_pat
         pendientes_inicial = len(window._pending_solicitudes)
         assert pendientes_inicial >= 2
 
+        evidencia: list[dict[str, object]] = []
+
         # ESCENARIO 1: sin selección.
+        caplog.clear()
+        caplog.set_level(logging.INFO)
         window.pendientes_table.clearSelection()
         window._on_confirmar()
         app.processEvents()
@@ -136,6 +166,22 @@ def test_confirmar_pdf_ui_real_contract(monkeypatch: pytest.MonkeyPatch, tmp_pat
         assert len(open_calls) == 0
         assert len(window._pending_solicitudes) == pendientes_inicial
         assert len(list(container.solicitud_use_cases.listar_historico())) == historico_inicial
+        assert any(
+            registro.message == "UI_CONFIRMAR_PDF_RETURN_EARLY" and getattr(registro, "reason", "") == "no_pending_rows"
+            for registro in caplog.records
+        )
+        evidencia.append(
+            {
+                "escenario": "sin_seleccion",
+                "ids_seleccionados": [],
+                "ruta_pdf": None,
+                "existe_pdf": False,
+                "bytes_pdf": None,
+                "pendientes_restantes": len(window._pending_solicitudes),
+                "historico_encontrado": len(list(container.solicitud_use_cases.listar_historico())),
+                "apertura_pdf_invocada": 0,
+            }
+        )
 
         # ESCENARIO 2: selección válida con toggle desactivado.
         selected_ids_s2 = _seleccionar_filas(window, [0, 1])
@@ -144,13 +190,26 @@ def test_confirmar_pdf_ui_real_contract(monkeypatch: pytest.MonkeyPatch, tmp_pat
         app.processEvents()
 
         pdf_path_s2 = Path(save_calls[-1])
+        pdf_bytes_s2 = pdf_path_s2.read_bytes()
         assert pdf_path_s2.exists()
         assert pdf_path_s2.stat().st_size > 0
-        assert pdf_path_s2.read_bytes()[:4] == b"%PDF"
+        assert pdf_bytes_s2[:4] == b"%PDF"
         assert len(window._pending_solicitudes) == 0
         historico_s2 = len(list(container.solicitud_use_cases.listar_historico()))
         assert historico_s2 >= historico_inicial + len(selected_ids_s2)
         assert len(open_calls) == 0
+        evidencia.append(
+            {
+                "escenario": "seleccion_valida_abrir_pdf_off",
+                "ids_seleccionados": selected_ids_s2,
+                "ruta_pdf": str(pdf_path_s2),
+                "existe_pdf": pdf_path_s2.exists(),
+                "bytes_pdf": list(pdf_bytes_s2[:4]),
+                "pendientes_restantes": len(window._pending_solicitudes),
+                "historico_encontrado": historico_s2,
+                "apertura_pdf_invocada": len(open_calls),
+            }
+        )
 
         # ESCENARIO 3: selección válida con toggle activado.
         _agregar_pendiente(container, int(persona.id), "2026-02-12")
@@ -163,23 +222,25 @@ def test_confirmar_pdf_ui_real_contract(monkeypatch: pytest.MonkeyPatch, tmp_pat
         app.processEvents()
 
         pdf_path_s3 = Path(save_calls[-1])
+        pdf_bytes_s3 = pdf_path_s3.read_bytes()
+        historico_s3 = len(list(container.solicitud_use_cases.listar_historico()))
         assert pdf_path_s3.exists()
-        assert pdf_path_s3.read_bytes()[:4] == b"%PDF"
-        assert len(list(container.solicitud_use_cases.listar_historico())) >= historico_s2 + len(selected_ids_s3)
+        assert pdf_bytes_s3[:4] == b"%PDF"
+        assert historico_s3 >= historico_s2 + len(selected_ids_s3)
         assert open_calls == [str(pdf_path_s3)]
+        evidencia.append(
+            {
+                "escenario": "seleccion_valida_abrir_pdf_on",
+                "ids_seleccionados": selected_ids_s3,
+                "ruta_pdf": str(pdf_path_s3),
+                "existe_pdf": pdf_path_s3.exists(),
+                "bytes_pdf": list(pdf_bytes_s3[:4]),
+                "pendientes_restantes": len(window._pending_solicitudes),
+                "historico_encontrado": historico_s3,
+                "apertura_pdf_invocada": len(open_calls),
+            }
+        )
 
-        evidencia = {
-            "ids_seleccionados_escenario_2": selected_ids_s2,
-            "ids_seleccionados_escenario_3": selected_ids_s3,
-            "ruta_pdf_escenario_2": str(pdf_path_s2),
-            "ruta_pdf_escenario_3": str(pdf_path_s3),
-            "existe_pdf_escenario_2": pdf_path_s2.exists(),
-            "existe_pdf_escenario_3": pdf_path_s3.exists(),
-            "tamano_pdf_escenario_2": pdf_path_s2.stat().st_size,
-            "tamano_pdf_escenario_3": pdf_path_s3.stat().st_size,
-            "filas_pendientes_restantes": len(window._pending_solicitudes),
-            "filas_historico": len(list(container.solicitud_use_cases.listar_historico())),
-        }
         (tmp_path / "evidencia_confirmar_pdf_ui_real.json").write_text(
             json.dumps(evidencia, ensure_ascii=False, indent=2, sort_keys=True),
             encoding="utf-8",
