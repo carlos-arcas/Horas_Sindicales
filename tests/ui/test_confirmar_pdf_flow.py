@@ -81,6 +81,17 @@ def test_click_con_seleccion_llama_use_case_con_argumentos() -> None:
     _persona, selected, pdf_path = window._execute_confirmar_with_pdf.call_args.args
     assert [sol.id for sol in selected] == [7]
     assert pdf_path == "/tmp/salida.pdf"
+    window._toast_success.assert_not_called()
+
+
+def test_click_con_pdf_existente_muestra_toast_success(monkeypatch) -> None:
+    window = _build_window()
+    ruta = Path("/tmp/salida.pdf")
+
+    monkeypatch.setattr(Path, "exists", lambda self: self == ruta)
+
+    confirmacion_actions.on_confirmar(window)
+
     window._toast_success.assert_called_once()
 
 
