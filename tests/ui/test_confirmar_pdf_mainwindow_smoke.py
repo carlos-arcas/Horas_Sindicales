@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import signal
 import sqlite3
+import traceback
 from pathlib import Path
 from types import MethodType
 
@@ -21,7 +23,6 @@ from app.bootstrap.container import build_container
 from app.infrastructure.db import configure_sqlite_connection
 from app.ui.main_window import MainWindow
 from app.ui.vistas import confirmacion_actions
-from app.ui.vistas.main_window import acciones_mixin
 
 
 class _ServicioSheetsSinRed:
@@ -80,10 +81,57 @@ def _seleccionar_filas_reales(window, rows: list[int]) -> list[int]:
 def _resolver_directorio_evidencia(tmp_path: Path) -> Path:
     override = os.getenv("HORAS_UI_SMOKE_EVIDENCE_DIR", "").strip()
     if not override:
-        return tmp_path
+        evidencia_dir = Path("artifacts/ui_smoke_evidencias")
+        evidencia_dir.mkdir(parents=True, exist_ok=True)
+        return evidencia_dir
     evidencia_dir = Path(override)
     evidencia_dir.mkdir(parents=True, exist_ok=True)
     return evidencia_dir
+
+
+class _WatchdogEscenario:
+    def __init__(self, app: QApplication, tmp_path: Path, timeout_s: int = 45) -> None:
+        self._app = app
+        self._tmp_path = tmp_path
+        self._timeout_s = timeout_s
+        self._escenario = "init"
+        self._ultimo_paso = "sin_paso"
+        self._previous = None
+
+    def paso(self, escenario: str, paso: str) -> None:
+        self._escenario = escenario
+        self._ultimo_paso = paso
+
+    def activar(self) -> None:
+        self._previous = signal.getsignal(signal.SIGALRM)
+        signal.signal(signal.SIGALRM, self._on_timeout)
+        signal.setitimer(signal.ITIMER_REAL, self._timeout_s)
+
+    def desactivar(self) -> None:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        if self._previous is not None:
+            signal.signal(signal.SIGALRM, self._previous)
+
+    def _on_timeout(self, _signum, frame) -> None:
+        widgets = []
+        for widget in self._app.topLevelWidgets():
+            widgets.append(
+                {
+                    "clase": widget.__class__.__name__,
+                    "titulo": widget.windowTitle(),
+                    "visible": bool(widget.isVisible()),
+                    "oculto": bool(widget.isHidden()),
+                }
+            )
+        evidencia = {
+            "escenario": self._escenario,
+            "ultimo_paso": self._ultimo_paso,
+            "timeout_segundos": self._timeout_s,
+            "widgets_top_level": widgets,
+            "stacktrace": traceback.format_stack(frame),
+        }
+        _guardar_evidencia(self._tmp_path, "watchdog_timeout", evidencia)
+        raise TimeoutError(f"Watchdog UI smoke agotado en escenario={self._escenario} paso={self._ultimo_paso}")
 
 
 def _guardar_evidencia(tmp_path: Path, escenario: str, payload: dict[str, object]) -> None:
@@ -154,10 +202,13 @@ def test_confirmar_pdf_mainwindow_smoke_real(
     called_show_pdf_actions_dialog: list[str] = []
     undo_calls: list[list[int]] = []
     closure_undo_callbacks = 0
+    closure_sync_callbacks = 0
+    closure_focus_callbacks = 0
     called_ask_push_after_pdf = 0
     finalize_calls = 0
     execute_calls = 0
     closure_calls = 0
+    payloads_cierre: list[dict[str, bool]] = []
 
     def _stub_show_pdf_actions_dialog(self, generated_path):
         called_show_pdf_actions_dialog.append(str(generated_path))
@@ -185,17 +236,20 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         undo_calls.append(list(solicitud_ids))
         return original_undo(solicitud_ids)
 
-    def _capturar_show_confirmation_closure(*args, **kwargs):
-        nonlocal closure_undo_callbacks
-        payload = confirmacion_actions.build_confirmation_payload(
-            args[0],
-            args[1],
-            args[2],
-            correlation_id=kwargs.get("correlation_id"),
-        )
-        if callable(payload.on_undo):
+    def _stub_renderer_final(payload):
+        nonlocal closure_undo_callbacks, closure_sync_callbacks, closure_focus_callbacks
+        callbacks = {
+            "on_undo": callable(payload.on_undo),
+            "on_sync_now": callable(payload.on_sync_now),
+            "on_view_history": callable(payload.on_view_history),
+        }
+        if callbacks["on_undo"]:
             closure_undo_callbacks += 1
-        return original_show_confirmation_closure(*args, **kwargs)
+        if callbacks["on_sync_now"]:
+            closure_sync_callbacks += 1
+        if callbacks["on_view_history"]:
+            closure_focus_callbacks += 1
+        payloads_cierre.append(callbacks)
 
     puentes_obligatorios = (
         "_execute_confirmar_with_pdf",
@@ -222,22 +276,26 @@ def test_confirmar_pdf_mainwindow_smoke_real(
     original_finalize = window._finalize_confirmar_with_pdf
     original_closure = window._show_confirmation_closure
     original_undo = window._undo_confirmation
-    original_show_confirmation_closure = acciones_mixin.show_confirmation_closure
     monkeypatch.setattr(window, "_execute_confirmar_with_pdf", MethodType(_wrap_execute, window))
     monkeypatch.setattr(window, "_finalize_confirmar_with_pdf", MethodType(_wrap_finalize, window))
     monkeypatch.setattr(window, "_show_confirmation_closure", MethodType(_wrap_closure, window))
     monkeypatch.setattr(window, "_show_pdf_actions_dialog", MethodType(_stub_show_pdf_actions_dialog, window))
     monkeypatch.setattr(window, "_ask_push_after_pdf", MethodType(_stub_ask_push_after_pdf, window))
     monkeypatch.setattr(window, "_undo_confirmation", MethodType(_wrap_undo, window))
-    monkeypatch.setattr(acciones_mixin, "show_confirmation_closure", _capturar_show_confirmation_closure)
+    monkeypatch.setattr(window.notifications, "show_confirmation_closure", _stub_renderer_final)
+
+    watchdog = _WatchdogEscenario(app, tmp_path)
+    watchdog.activar()
 
     try:
         caplog.set_level(logging.INFO)
+        watchdog.paso("setup", "reload_inicial")
         window._reload_pending_views()
         app.processEvents()
         persona = window._current_persona()
         assert persona is not None and persona.id is not None
 
+        watchdog.paso("setup", "crear_pendientes_base")
         _agregar_pendiente(container, int(persona.id), "2026-03-10")
         _agregar_pendiente(container, int(persona.id), "2026-03-11")
         window._reload_pending_views()
@@ -247,6 +305,7 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         caplog.clear()
         conteos_iniciales_s1 = _estado_conteos(window, container)
         window.pendientes_table.clearSelection()
+        watchdog.paso("escenario_1_sin_seleccion", "click_confirmar")
         window._on_confirmar()
         app.processEvents()
 
@@ -304,9 +363,11 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         caplog.clear()
         open_calls.clear()
         conteos_iniciales_s2 = _estado_conteos(window, container)
+        watchdog.paso("escenario_2_seleccion_valida_abrir_off", "seleccionar_filas")
         selected_ids_s2 = _seleccionar_filas_reales(window, [0, 1])
         assert selected_ids_s2
         window.abrir_pdf_check.setChecked(False)
+        watchdog.paso("escenario_2_seleccion_valida_abrir_off", "click_confirmar")
         window.confirmar_button.click()
         app.processEvents()
 
@@ -333,6 +394,9 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         mensajes_s2 = [record.getMessage() for record in caplog.records]
         assert "UI_CONFIRMAR_PDF_EXCEPTION" not in mensajes_s2
         assert "UI_CONFIRMAR_HANDLER_FALLO" not in mensajes_s2
+        assert payloads_cierre[-1]["on_undo"]
+        assert payloads_cierre[-1]["on_sync_now"]
+        assert payloads_cierre[-1]["on_view_history"]
 
         conteos_finales_s2 = _estado_conteos(window, container)
 
@@ -374,13 +438,16 @@ def test_confirmar_pdf_mainwindow_smoke_real(
 
         # Escenario 3: selección válida + abrir PDF ON.
         caplog.clear()
+        watchdog.paso("escenario_3_seleccion_valida_abrir_on", "agregar_pendiente")
         _agregar_pendiente(container, int(persona.id), "2026-03-12")
         window._reload_pending_views()
         app.processEvents()
 
+        watchdog.paso("escenario_3_seleccion_valida_abrir_on", "seleccionar_filas")
         selected_ids_s3 = _seleccionar_filas_reales(window, [0])
         assert len(selected_ids_s3) == 1
         window.abrir_pdf_check.setChecked(True)
+        watchdog.paso("escenario_3_seleccion_valida_abrir_on", "click_confirmar")
         window.confirmar_button.click()
         app.processEvents()
 
@@ -404,6 +471,9 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         mensajes_s3 = [record.getMessage() for record in caplog.records]
         assert "UI_CONFIRMAR_PDF_EXCEPTION" not in mensajes_s3
         assert "UI_CONFIRMAR_HANDLER_FALLO" not in mensajes_s3
+        assert payloads_cierre[-1]["on_undo"]
+        assert payloads_cierre[-1]["on_sync_now"]
+        assert payloads_cierre[-1]["on_view_history"]
 
         conteos_finales_s3 = _estado_conteos(window, container)
 
@@ -475,6 +545,8 @@ def test_confirmar_pdf_mainwindow_smoke_real(
                 "_ask_push_after_pdf": called_ask_push_after_pdf,
                 "_undo_confirmation": len(undo_calls),
                 "_show_confirmation_closure_on_undo": closure_undo_callbacks,
+                "_show_confirmation_closure_on_sync_now": closure_sync_callbacks,
+                "_show_confirmation_closure_on_view_history": closure_focus_callbacks,
             },
         }
         _guardar_evidencia(tmp_path, "resumen_mainwindow_confirmar_pdf", resumen)
@@ -485,7 +557,10 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         assert called_ask_push_after_pdf >= 2
         assert len(called_show_pdf_actions_dialog) >= 2
         assert closure_undo_callbacks >= 2
+        assert closure_sync_callbacks >= 2
+        assert closure_focus_callbacks >= 2
         assert len(undo_calls) == 0
     finally:
+        watchdog.desactivar()
         window.close()
         app.processEvents()
