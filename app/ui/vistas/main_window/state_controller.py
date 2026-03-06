@@ -198,6 +198,8 @@ class MainWindow(
         self._historico_ids_seleccionados: set[int] = set()
         self._pending_conflict_rows: set[int] = set()
         self._pending_view_all = False
+        self._pending_selection_anchor_row: int | None = None
+        self._pending_bulk_selection_in_progress = False
         self._orphan_pendientes: list[SolicitudDTO] = []
         self._sync_in_progress = False
         self._sync_thread: QThread | None = None

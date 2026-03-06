@@ -16,6 +16,7 @@ def inicializar_placeholders(window) -> None:
     window.insertar_sin_pdf_button = window.confirmar_button = None
     window.agregar_button = window.eliminar_pendiente_button = window.eliminar_huerfana_button = None
     window.revisar_ocultas_button = window.ver_todas_pendientes_button = None
+    window.pending_select_all_visible_check = None
     window.total_pendientes_label = window.pending_filter_warning = None
     window.pendientes_table = window.huerfanas_table = None
     window.pendientes_model = window.huerfanas_model = None

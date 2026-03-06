@@ -88,6 +88,15 @@ class RefrescoMainWindowMixin:
     def _sync_historico_select_all_visible_state(self) -> None:
         return state_historico.sincronizar_estado_seleccion_visible_historico(self)
 
+    def _on_pending_select_all_visible_toggled(self, checked: bool) -> None:
+        return state_pendientes.alternar_seleccion_visible_pendientes(self, checked)
+
+    def _sync_pending_select_all_visible_state(self) -> None:
+        return state_pendientes.sincronizar_estado_seleccion_visible_pendientes(self)
+
+    def _on_pending_row_clicked(self, index: object) -> None:
+        return state_pendientes.manejar_click_fila_pendiente(self, index)
+
     def _notify_historico_filter_if_hidden(
         self, solicitudes_insertadas: list[SolicitudDTO]
     ) -> None:
