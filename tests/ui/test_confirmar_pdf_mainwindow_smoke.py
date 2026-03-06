@@ -204,7 +204,13 @@ def test_confirmar_pdf_mainwindow_smoke_real(
     for puente in puentes_obligatorios:
         assert callable(getattr(window, puente, None)), f"Falta bridge runtime obligatorio: {puente}"
 
-    assert window.go_to_sync_config_button.isVisible()
+    # Contrato estable: al iniciar sin configuración de sync, el estado debe
+    # marcarse como CONFIG_INCOMPLETE y el CTA no debe quedar oculto de forma
+    # explícita. No usamos isVisible() aquí porque depende de que la pestaña
+    # contenedora esté activa/mostrada en ese instante.
+    assert window._last_sync_report is not None
+    assert window._last_sync_report.status == "CONFIG_INCOMPLETE"
+    assert not window.go_to_sync_config_button.isHidden()
 
     original_execute = window._execute_confirmar_with_pdf
     original_finalize = window._finalize_confirmar_with_pdf
