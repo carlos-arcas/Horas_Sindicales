@@ -11,7 +11,7 @@ QApplication = require_qt()
 
 from PySide6.QtCore import QItemSelectionModel, QModelIndex, Qt
 
-from app.application.dto import SolicitudDTO
+from app.application.dto import PersonaDTO, SolicitudDTO
 from app.bootstrap.container import build_container
 from app.infrastructure.db import configure_sqlite_connection
 from app.ui.main_window import MainWindow
@@ -205,6 +205,63 @@ def test_toggle_con_una_sola_fila_funciona(tmp_path: Path) -> None:
         window._on_pending_select_all_visible_toggled(False)
         app.processEvents()
         assert _seleccion_rows(window) == []
+    finally:
+        window.close()
+        app.processEvents()
+
+
+def test_ver_todas_delegadas_no_deja_filas_ocultas_y_preserva_seleccion(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    app, container, window = _crear_window(tmp_path)
+    try:
+        persona_1 = window._persona_use_cases.crear_persona(PersonaDTO(nombre="Delegada Uno"))
+        persona_2 = window._persona_use_cases.crear_persona(PersonaDTO(nombre="Delegada Dos"))
+        assert persona_1.id is not None and persona_2.id is not None
+
+        window._load_personas(select_id=persona_1.id)
+        app.processEvents()
+
+        _agregar_pendiente(container, int(persona_1.id), "2026-02-20")
+        _agregar_pendiente(container, int(persona_2.id), "2026-02-21")
+
+        window._reload_pending_views()
+        app.processEvents()
+
+        assert window._pending_view_all is False
+        assert window.pendientes_model.rowCount() == 1
+        assert len(window._hidden_pendientes) == 1
+
+        window.ver_todas_pendientes_button.setChecked(True)
+        app.processEvents()
+
+        assert window._pending_view_all is True
+        assert window.pendientes_model.rowCount() == 2
+        assert window._hidden_pendientes == []
+
+        for fila in range(window.pendientes_model.rowCount()):
+            assert window.pendientes_table.isRowHidden(fila) is False
+
+        window._on_pending_select_all_visible_toggled(True)
+        app.processEvents()
+        assert _seleccion_rows(window) == [0, 1]
+
+        monkeypatch.setattr(state_pendientes.QApplication, "keyboardModifiers", lambda: Qt.KeyboardModifier.NoModifier)
+        window._on_pending_row_clicked(window.pendientes_model.index(0, 0))
+        selection_model = window.pendientes_table.selectionModel()
+        assert selection_model is not None
+        selection_model.select(
+            window.pendientes_model.index(1, 0),
+            QItemSelectionModel.SelectionFlag.Deselect | QItemSelectionModel.SelectionFlag.Rows,
+        )
+        monkeypatch.setattr(state_pendientes.QApplication, "keyboardModifiers", lambda: Qt.KeyboardModifier.ShiftModifier)
+        window._on_pending_row_clicked(window.pendientes_model.index(1, 0))
+        app.processEvents()
+        assert _seleccion_rows(window) == []
+
+        window.ver_todas_pendientes_button.setChecked(False)
+        app.processEvents()
+        assert window._pending_view_all is False
+        assert window.pendientes_model.rowCount() == 1
+        assert len(window._hidden_pendientes) == 1
     finally:
         window.close()
         app.processEvents()
