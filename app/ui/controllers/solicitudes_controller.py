@@ -55,24 +55,30 @@ class SolicitudesController:
 
     def on_add_pendiente(self) -> None:
         w = self.window
-        logger.info("Botón Agregar pulsado en pantalla de Peticiones")
-        solicitud = w._build_preview_solicitud()
-        solicitud, pendiente_en_edicion = self._validate_inputs(solicitud)
-        if solicitud is None:
-            return
+        logger.info("UI_ADD_PENDING_START")
+        try:
+            solicitud = w._build_preview_solicitud()
+            solicitud, pendiente_en_edicion = self._validate_inputs(solicitud)
+            if solicitud is None:
+                return
 
-        if not self._handle_duplicate(solicitud, pendiente_en_edicion):
-            return
+            if not self._handle_duplicate(solicitud, pendiente_en_edicion):
+                return
 
-        solicitud = self._persist_pendiente(solicitud, pendiente_en_edicion)
-        if solicitud is None:
-            return
+            solicitud = self._persist_pendiente(solicitud, pendiente_en_edicion)
+            if solicitud is None:
+                return
 
-        self._update_ui_after_add(solicitud, pendiente_en_edicion)
+            self._update_ui_after_add(solicitud, pendiente_en_edicion)
+            logger.info("UI_ADD_PENDING_OK", extra={"solicitud_id": solicitud.id})
+        except Exception:
+            logger.exception("UI_ADD_PENDING_EXCEPTION")
+            raise
 
     def _validate_inputs(self, solicitud: SolicitudDTO | None) -> tuple[SolicitudDTO | None, SolicitudDTO | None]:
         w = self.window
         if solicitud is None:
+            logger.info("UI_ADD_PENDING_VALIDATION_ERROR", extra={"motivo": "solicitud_preview_none"})
             w.notifications.notify_validation_error(
                 what=self._copy("ui.solicitudes.no_puede_aniadir"),
                 why=self._copy("ui.solicitudes.falta_delegada"),
@@ -229,8 +235,8 @@ class SolicitudesController:
                     {"solicitud_id": creada.id, "ok": True},
                     operation.correlation_id,
                 )
-            w._reload_pending_views()
         except (ValidacionError, BusinessRuleError) as exc:
+            logger.info("UI_ADD_PENDING_VALIDATION_ERROR", extra={"motivo": str(exc)})
             what_key, why, how_key = _mapear_error_persistencia_a_feedback(exc)
             w.notifications.notify_validation_error(
                 what=self._copy(what_key),
@@ -239,6 +245,7 @@ class SolicitudesController:
             )
             return None
         except Exception as exc:  # pragma: no cover - fallback
+            logger.error("UI_ADD_PENDING_EXCEPTION", extra={"error": str(exc)}, exc_info=True)
             log_event(
                 logger,
                 "crear_pendiente_finished",
@@ -344,6 +351,13 @@ class SolicitudesController:
 
     def _update_ui_after_add(self, creada: SolicitudDTO, pendiente_en_edicion: SolicitudDTO | None) -> None:
         w = self.window
+        w._reload_pending_views()
+        actualizar_totales = getattr(w, "_update_pending_totals", None)
+        if callable(actualizar_totales):
+            actualizar_totales()
+        refrescar_contexto_global = getattr(w, "_update_global_context", None)
+        if callable(refrescar_contexto_global):
+            refrescar_contexto_global()
         w.notas_input.setPlainText("")
         w._solicitudes_last_action_saved = True
         w._solicitudes_runtime_error = False
