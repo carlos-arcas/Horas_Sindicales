@@ -119,31 +119,33 @@
       "prioridad": "Alta",
       "estado_global": "Verificada",
       "logica": "Verificada",
-      "ui": "Parcial",
+      "ui": "Verificada",
       "validaciones": "Verificada",
       "e2e": "Verificada",
       "evidencias": [
         "tests/application/test_confirmar_pdf_caso_uso.py",
         "tests/integration/test_confirmacion_pendientes_pdf_sqlite.py",
+        "tests/presentacion/test_confirmar_pdf_desde_ui_contract.py",
         "tests/e2e/test_confirmacion_pdf_e2e.py",
         "tests/e2e/test_flujo_solicitud_pdf_historico.py"
       ],
-      "observaciones": "La lógica y E2E de confirmación+PDF están cubiertos; la verificación UI completa queda parcial por naturaleza headless de varios contratos."
+      "observaciones": "El flujo queda cubierto por contrato de presentación (sin selección/cancelación/ruta válida) y por E2E real solicitud -> PDF -> histórico."
     },
     {
       "id": "FUN-009",
       "descripcion": "Se puede elegir ruta de guardado para el PDF de confirmación.",
       "prioridad": "Alta",
-      "estado_global": "Parcial",
+      "estado_global": "Verificada",
       "logica": "Verificada",
-      "ui": "Parcial",
+      "ui": "Verificada",
       "validaciones": "Verificada",
-      "e2e": "No verificada",
+      "e2e": "Parcial",
       "evidencias": [
         "tests/presentacion/test_handlers_prioridad1_contract.py",
-        "tests/presentacion/test_confirm_prompt_contract.py"
+        "tests/presentacion/test_confirm_prompt_contract.py",
+        "tests/presentacion/test_confirmar_pdf_desde_ui_contract.py"
       ],
-      "observaciones": "Existe contrato del prompt y manejo de colisiones; no hay evidencia E2E de diálogo nativo en SO real."
+      "observaciones": "El contrato de presentación valida petición de ruta, cancelación limpia y paso de ruta válida al flujo de confirmación."
     },
     {
       "id": "FUN-010",

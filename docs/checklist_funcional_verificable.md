@@ -74,16 +74,16 @@ Regla editorial aplicada: cuando no hay evidencia sólida, el estado queda en **
 - **Prioridad:** Alta.
 - **Estado global:** Verificada.
 - **Evidencia actual:** test.
-- **Fuentes de evidencia:** `tests/application/test_confirmar_pdf_caso_uso.py`, `tests/integration/test_confirmacion_pendientes_pdf_sqlite.py`, `tests/e2e/test_confirmacion_pdf_e2e.py`, `tests/e2e/test_flujo_solicitud_pdf_historico.py`.
-- **Observaciones/bloqueos:** La lógica y el E2E de confirmación+PDF están cubiertos; la verificación UI completa queda parcial por uso de contratos headless.
+- **Fuentes de evidencia:** `tests/application/test_confirmar_pdf_caso_uso.py`, `tests/integration/test_confirmacion_pendientes_pdf_sqlite.py`, `tests/presentacion/test_confirmar_pdf_desde_ui_contract.py`, `tests/e2e/test_confirmacion_pdf_e2e.py`, `tests/e2e/test_flujo_solicitud_pdf_historico.py`.
+- **Observaciones/bloqueos:** El flujo queda cubierto por contrato de presentación (sin selección/cancelación/ruta válida) y por E2E real solicitud -> PDF -> histórico.
 
 ### FUN-009 — Elegir ruta de guardado
 - **Descripción humana:** Se puede elegir ruta de guardado para el PDF de confirmación.
 - **Prioridad:** Alta.
-- **Estado global:** Parcial.
+- **Estado global:** Verificada.
 - **Evidencia actual:** test.
-- **Fuentes de evidencia:** `tests/presentacion/test_handlers_prioridad1_contract.py`, `tests/presentacion/test_confirm_prompt_contract.py`.
-- **Observaciones/bloqueos:** Existe contrato del prompt y manejo de colisiones; no hay evidencia E2E de diálogo nativo en SO real.
+- **Fuentes de evidencia:** `tests/presentacion/test_handlers_prioridad1_contract.py`, `tests/presentacion/test_confirm_prompt_contract.py`, `tests/presentacion/test_confirmar_pdf_desde_ui_contract.py`.
+- **Observaciones/bloqueos:** El contrato de presentación valida petición de ruta, cancelación limpia y paso de ruta válida al flujo de confirmación.
 
 ### FUN-010 — Guardar PDF en disco
 - **Descripción humana:** Se puede guardar el PDF generado en disco con salida válida.

@@ -183,6 +183,8 @@ def run_confirmacion_plan(
 
     def return_early(reason: str) -> None:
         logger.warning("UI_CONFIRMAR_PDF_RETURN_EARLY", extra={**log_extra, "reason": reason})
+        if reason == "pdf_path_cancelado":
+            logger.info("UI_CONFIRMAR_PDF_CANCELLED", extra={**log_extra, "reason": reason})
 
     while True:
         entrada = ConfirmacionEntrada(

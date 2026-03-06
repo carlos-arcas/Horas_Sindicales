@@ -162,6 +162,7 @@ def on_confirmar(window: Any) -> None:
         persona = window._current_persona()
         log_extra = _build_confirmar_log_extra(window, pendientes_en_tabla, selected_ids, editing, persona)
         logger.info("UI_CLICK_CONFIRMAR_PDF", extra=log_extra)
+        logger.info("UI_CONFIRMAR_PDF_START", extra=log_extra)
         logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", window._selected_pending_row_indexes(), selected_ids)
         run_confirmacion_plan(
             window,
