@@ -70,6 +70,7 @@ def finalize_confirmar_with_pdf(
     if generado and window.abrir_pdf_check.isChecked():
         logger.debug("_finalize_confirmar_with_pdf paso=intento_abrir_pdf enabled=True")
         abrir_archivo_local(generado)
+        logger.info("UI_CONFIRMAR_PDF_OPEN_OK", extra={"pdf_path": str(generado)})
     if generado and creadas:
         pdf_hash = creadas[0].pdf_hash
         fechas = [solicitud.fecha_pedida for solicitud in creadas]
@@ -163,6 +164,7 @@ def on_confirmar(window: Any) -> None:
         log_extra = _build_confirmar_log_extra(window, pendientes_en_tabla, selected_ids, editing, persona)
         logger.info("UI_CLICK_CONFIRMAR_PDF", extra=log_extra)
         logger.info("UI_CONFIRMAR_PDF_START", extra=log_extra)
+        logger.info("UI_CONFIRMAR_PDF_FILAS_MARCADAS", extra={**log_extra, "selected_row_indexes": window._selected_pending_row_indexes()})
         logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", window._selected_pending_row_indexes(), selected_ids)
         run_confirmacion_plan(
             window,

@@ -8,10 +8,16 @@ from app.ui.vistas.main_window.importaciones import (
     MainWindowHealthMixin,
     acciones_pendientes,
     acciones_sincronizacion,
+    ask_push_after_pdf,
+    execute_confirmar_with_pdf,
+    finalize_confirmar_with_pdf,
     historico_actions,
     on_confirmar as on_confirmar_handler,
     on_insertar_sin_pdf,
+    show_confirmation_closure,
+    show_pdf_actions_dialog,
     toast_error,
+    undo_confirmation,
 )
 from . import validacion_preventiva
 
@@ -19,6 +25,61 @@ logger = logging.getLogger(__name__)
 
 
 class AccionesMainWindowMixin:
+    def _execute_confirmar_with_pdf(self, persona, selected, pdf_path: str):
+        return execute_confirmar_with_pdf(self, persona, selected, pdf_path)
+
+    def _finalize_confirmar_with_pdf(
+        self,
+        persona,
+        correlation_id,
+        generado,
+        creadas,
+        confirmadas_ids,
+        errores,
+        pendientes_restantes,
+    ) -> None:
+        return finalize_confirmar_with_pdf(
+            self,
+            persona,
+            correlation_id,
+            generado,
+            creadas,
+            confirmadas_ids,
+            errores,
+            pendientes_restantes,
+        )
+
+    def _show_confirmation_closure(self, creadas, errores, *, operation_name: str, correlation_id: str | None = None) -> None:
+        return show_confirmation_closure(
+            self,
+            creadas,
+            errores,
+            operation_name=operation_name,
+            correlation_id=correlation_id,
+        )
+
+    def _show_pdf_actions_dialog(self, generated_path) -> None:
+        return show_pdf_actions_dialog(self, generated_path)
+
+    def _ask_push_after_pdf(self) -> None:
+        return ask_push_after_pdf(self)
+
+    def _undo_confirmation(self, solicitud_ids: list[int]) -> None:
+        return undo_confirmation(self, solicitud_ids)
+
+    def _procesar_resultado_confirmacion(
+        self,
+        confirmadas_ids: list[int],
+        errores: list[str],
+        pendientes_restantes,
+    ) -> None:
+        self._solicitudes_controller.aplicar_confirmacion(confirmadas_ids, pendientes_restantes)
+        self._reload_pending_views()
+        self._refresh_historico()
+        self._refresh_saldos()
+        if errores:
+            self.toast.warning("\n".join(errores), title=copy_text("ui.validacion.validacion"))
+
     def _on_open_saldos_modal(self) -> None:
         from . import acciones_personas
 
