@@ -78,6 +78,14 @@ Si se usa quality gate, este comando puede complementarse con los scripts de `Ma
 
 Los tests UI pueden requerir entorno gráfico o modo `offscreen` según plataforma.
 
+## Contrato de typecheck en CI
+
+El script `scripts/typecheck.py` es parte del contrato del workflow de CI (job core) y se ejecuta de forma obligatoria.
+
+- Dependencia requerida: `mypy` instalado desde `requirements-dev.txt`.
+- Política: la versión debe estar fijada (`mypy==X.Y.Z`) para evitar deriva entre entornos.
+- Si falta `mypy`, `scripts/typecheck.py` falla con código distinto de cero y mensaje explícito de contrato.
+
 ## Recomendaciones de estabilidad
 
 1. Instalar dependencias desde `requirements-dev.txt`.
