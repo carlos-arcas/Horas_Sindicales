@@ -247,6 +247,26 @@ class AccionesMainWindowMixin:
     def _on_copy_sync_report(self) -> None:
         return acciones_sincronizacion.on_copy_sync_report(self)
 
+    def _set_config_incomplete_state(self) -> None:
+        logger.info(
+            "UI_MAINWINDOW_SYNC_CONFIG_INCOMPLETA_INICIO",
+            extra={"evento": "init_config_incompleta"},
+        )
+        try:
+            acciones_sincronizacion.set_config_incomplete_state(self)
+            logger.info(
+                "UI_MAINWINDOW_SYNC_CONFIG_INCOMPLETA_APLICADA",
+                extra={"evento": "init_config_incompleta"},
+            )
+        except Exception as exc:
+            log_operational_error(
+                logger,
+                "UI_MAINWINDOW_SYNC_CONFIG_INCOMPLETA_ERROR",
+                exc=exc,
+                extra={"evento": "init_config_incompleta"},
+            )
+            raise
+
     def _on_open_sync_logs(self) -> None:
         return acciones_sincronizacion.on_open_sync_logs(self)
 

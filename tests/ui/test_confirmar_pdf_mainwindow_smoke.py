@@ -198,10 +198,13 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         "_show_pdf_actions_dialog",
         "_ask_push_after_pdf",
         "_undo_confirmation",
+        "_set_config_incomplete_state",
     )
 
     for puente in puentes_obligatorios:
         assert callable(getattr(window, puente, None)), f"Falta bridge runtime obligatorio: {puente}"
+
+    assert window.go_to_sync_config_button.isVisible()
 
     original_execute = window._execute_confirmar_with_pdf
     original_finalize = window._finalize_confirmar_with_pdf
