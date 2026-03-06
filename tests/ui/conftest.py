@@ -6,6 +6,10 @@ from pathlib import Path
 import pytest
 
 
+def _smoke_confirmar_pdf_ci_obligatorio() -> bool:
+    return os.getenv("HORAS_UI_SMOKE_CI") == "1"
+
+
 def require_qt():
     # Este helper es exclusivo de tests UI: evita dependencia accidental en tests no-UI.
     caller_frame = sys._getframe(1)
@@ -22,9 +26,14 @@ def require_qt():
 
         _ = QEvent
         return QApplication
-    except Exception:
+    except Exception as exc:
+        if _smoke_confirmar_pdf_ci_obligatorio():
+            raise RuntimeError(
+                "PySide6 no disponible para smoke UI obligatorio en CI "
+                "(HORAS_UI_SMOKE_CI=1)."
+            ) from exc
         pytest.skip(
-            "PySide6 no disponible correctamente en entorno CI",
+            "PySide6 no disponible correctamente en entorno local/CI",
             allow_module_level=True,
         )
 
@@ -84,16 +93,19 @@ def pytest_collection_modifyitems(config, items):
     )
 
     qt_ready = _qt_ready()
+    smoke_confirmar_pdf_path = "tests/ui/test_confirmar_pdf_mainwindow_smoke.py"
 
     for item in items:
         if not _is_ui_item(item):
             continue
 
-        if not qt_ready:
+        item_path = Path(str(getattr(item, "path", ""))).as_posix()
+        is_smoke_confirmar_pdf = item_path.endswith(smoke_confirmar_pdf_path)
+
+        if not qt_ready and not (_smoke_confirmar_pdf_ci_obligatorio() and is_smoke_confirmar_pdf):
             item.add_marker(skip_ui_env)
             continue
 
-        item_path = Path(str(getattr(item, "path", ""))).as_posix()
         in_smoke_allowlist = any(item_path.endswith(path) for path in smoke_only_allowlist)
         if smoke_only_in_ci and not in_smoke_allowlist:
             item.add_marker(skip_non_smoke)

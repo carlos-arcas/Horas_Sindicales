@@ -38,6 +38,11 @@
   El worker de arranque ahora devuelve solo `ResultadoArranqueCore` (container core) y no ejecuta `crear_mainwindow_deps` ni ninguna factoría Qt.  
   La creación de `DependenciasArranque`, `MainWindow` y `Wizard` se concentra en `on_finished` (hilo UI) y se protege con `asegurar_en_hilo_ui(...)`. Si se detecta violación de hilo, se registra `UI_QT_THREAD_VIOLATION`, se marca la etapa `qt_thread_violation_detected` y el flujo cae a fallback controlado en lugar de continuar con warnings silenciosos.
 
+
+- **2026-03-06 — Smoke UI de Confirmar+PDF obligatorio en CI (sin skip silencioso) — Vigente**  
+  Se endurece `tests/ui/test_confirmar_pdf_mainwindow_smoke.py` para que, en ejecución local, pueda marcar `skip` si PySide6/backend Qt no está disponible, pero en CI (flag explícita `HORAS_UI_SMOKE_CI=1`) cualquier ausencia de backend pase a error duro.  
+  El objetivo es eliminar falsos verdes por `skip`: esta prueba es la evidencia operativa crítica de que el flujo real `selección -> guardar PDF -> mover a histórico -> respetar toggle Abrir PDF` funciona de extremo a extremo y con trazas observables en artifact JSON.
+
 ## Procedimiento de actualización
 
 1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).
