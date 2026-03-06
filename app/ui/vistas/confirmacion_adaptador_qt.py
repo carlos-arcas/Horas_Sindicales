@@ -146,5 +146,15 @@ def apply_finalize(window: Any, persona: PersonaDTO | None, outcome: ResultadoCo
     correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes = outcome
     logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(generado) if generado else None)
     window._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes)
+    logger.info(
+        "UI_CONFIRMAR_PDF_OK",
+        extra={
+            "persona_id": persona.id if persona is not None else None,
+            "confirmadas_count": len(confirmadas_ids),
+            "errores_count": len(errores),
+            "pdf_generado": bool(generado),
+            "correlation_id": correlation_id,
+        },
+    )
     if generado is not None:
         window._toast_success(copy_text("ui.confirmacion.ok_pdf_generado"), title=copy_text("ui.preferencias.confirmacion"))
