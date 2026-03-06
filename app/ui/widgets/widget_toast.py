@@ -86,12 +86,24 @@ class TarjetaToast(QFrame):
         root.addLayout(acciones)
 
     def _on_close_clicked(self) -> None:
+        logger.info(
+            "TOAST_MANUAL_CLOSE",
+            extra={
+                "toast_id": self.notificacion.id,
+                "nivel": self.notificacion.nivel,
+                "correlation_id": self.notificacion.correlacion_id,
+            },
+        )
         cerrar_toast(self, self.notificacion.id)
 
     def actualizar_notificacion(self, notificacion: NotificacionToast) -> None:
         self.notificacion = notificacion
         self._label_titulo.setText(notificacion.titulo)
         self._label_mensaje.setText(notificacion.mensaje)
+        self._btn_accion.setText(notificacion.action_label or "")
+        has_action_label = bool(notificacion.action_label)
+        self._btn_accion.setVisible(has_action_label)
+        self._btn_accion.setEnabled(notificacion.action_callback is not None)
         if self._btn_detalles is not None:
             self._btn_detalles.setVisible(bool(notificacion.detalles))
 
