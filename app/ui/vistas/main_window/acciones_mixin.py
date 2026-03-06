@@ -145,6 +145,10 @@ class AccionesMainWindowMixin:
 
     def _on_pending_selection_changed(self, *args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
+        if hasattr(self, "_sync_pending_select_all_visible_state"):
+            self._sync_pending_select_all_visible_state()
+        if getattr(self, "_pending_bulk_selection_in_progress", False):
+            return
         self._refrescar_estado_operativa("pendiente_selected")
 
     def _prompt_confirm_pdf_path(self, selected: object) -> str | None:
@@ -176,6 +180,7 @@ class AccionesMainWindowMixin:
 
     def _on_toggle_ver_todas_pendientes(self, checked: bool) -> None:
         self._pending_view_all = checked
+        self._pending_selection_anchor_row = None
         self._refresh_pending_ui_state()
 
     def _on_remove_pendiente(self) -> None:

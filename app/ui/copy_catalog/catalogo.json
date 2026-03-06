@@ -484,5 +484,8 @@
   "solicitudes.resumen_operativo.ayuda_revisar_antes_confirmar": "Comprueba observaciones y saldo reservado; después confirma y genera PDF.",
   "solicitudes.resumen_operativo.seleccion_ninguna": "ninguna",
   "solicitudes.resumen_operativo.seleccion_una": "1 pendiente",
-  "solicitudes.resumen_operativo.seleccion_varias": "varias"
+  "solicitudes.resumen_operativo.seleccion_varias": "varias",
+  "ui.solicitudes.select_visible": "Seleccionar todo (visible)",
+  "ui.solicitudes.stepper_mensaje_completar": "Completa la solicitud para poder añadirla",
+  "ui.historico.exportar_pdf_boton": "Exportar histórico PDF ({n})"
 }

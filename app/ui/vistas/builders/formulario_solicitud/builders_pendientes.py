@@ -51,6 +51,12 @@ def _construir_herramientas_pendientes(window: "MainWindow", pendientes_layout: 
     conectar_accion(window, window.ver_todas_pendientes_button.toggled, "_on_toggle_ver_todas_pendientes")
     pending_tools.addWidget(window.ver_todas_pendientes_button)
 
+    window.pending_select_all_visible_check = QCheckBox(copy_text("ui.solicitudes.select_visible"))
+    window.pending_select_all_visible_check.setTristate(True)
+    window.pending_select_all_visible_check.setCursor(Qt.CursorShape.PointingHandCursor)
+    conectar_accion(window, window.pending_select_all_visible_check.toggled, "_on_pending_select_all_visible_toggled")
+    pending_tools.addWidget(window.pending_select_all_visible_check)
+
     window.revisar_ocultas_button = QPushButton(copy_text("ui.solicitudes.revisar_ocultas"))
     window.revisar_ocultas_button.setProperty("variant", "ghost")
     window.revisar_ocultas_button.setVisible(False)
@@ -87,6 +93,9 @@ def _construir_tablas_pendientes(window: "MainWindow", layout: QVBoxLayout) -> N
     window.pendientes_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     window.pendientes_table.setMinimumHeight(220)
     window._configure_solicitudes_table(window.pendientes_table)
+    if window.pendientes_table.selectionModel() is not None:
+        conectar_accion(window, window.pendientes_table.selectionModel().selectionChanged, "_on_pending_selection_changed")
+    conectar_accion(window, window.pendientes_table.clicked, "_on_pending_row_clicked")
     layout.addWidget(window.pendientes_table, 1)
 
     window.huerfanas_label = QLabel(copy_text("ui.solicitudes.huerfanas"))

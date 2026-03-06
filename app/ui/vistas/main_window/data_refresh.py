@@ -142,4 +142,5 @@ def reload_pending_views(window) -> None:
             len(list(window._solicitud_use_cases.listar_pendientes_all())),
         )
 
+    window._pending_selection_anchor_row = None
     window._refresh_pending_ui_state()
