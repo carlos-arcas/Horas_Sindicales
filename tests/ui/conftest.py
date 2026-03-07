@@ -30,6 +30,15 @@ def require_qt():
 
     from PySide6.QtWidgets import QApplication
 
+    if not hasattr(QApplication, "instance") or not callable(getattr(QApplication, "instance", None)):
+        mensaje = (
+            "PySide6 real requerido en tests UI: QApplication.instance no disponible "
+            "(stub/shadowing detectado)."
+        )
+        if _humo_ui_estricto_activo():
+            raise RuntimeError(mensaje)
+        pytest.skip(mensaje, allow_module_level=True)
+
     return QApplication
 
 
