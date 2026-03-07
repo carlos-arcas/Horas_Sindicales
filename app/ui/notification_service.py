@@ -11,6 +11,11 @@ from app.application.dto import SolicitudDTO
 from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.domain.time_utils import minutes_to_hhmm
 from app.ui.copy_catalog import copy_text
+from app.ui.presentador_feedback_notificaciones import (
+    construir_detalles_feedback,
+    construir_payload_toast_operacion,
+    resolver_estado_confirmacion,
+)
 from app.ui.estilos.cargador_estilos_notificaciones import (
     construir_estilo_dialogo_confirmacion_resumen,
     construir_estilo_dialogo_operacion_feedback,
@@ -114,49 +119,14 @@ class NotificationService:
             details=feedback.details,
         )
 
-    def _status_to_toast_level(self, status: str) -> str:
-        if status == "error":
-            return "error"
-        if status == "partial":
-            return "warning"
-        return "success"
-
-    def _estado_humano(self, status: str) -> str:
-        if status == "error":
-            return copy_text("ui.toast.estado_error")
-        return copy_text("ui.toast.estado_exito")
-
-    def _mensaje_humano(self, feedback: OperationFeedback) -> str:
-        if feedback.status == "error":
-            return copy_text("ui.toast.operacion_error")
-        if feedback.status == "partial":
-            return copy_text("ui.toast.operacion_con_avisos")
-        return copy_text("ui.toast.operacion_ok")
-
-    def _construir_detalles_feedback(self, feedback: OperationFeedback) -> list[str]:
-        detalles = [
-            feedback.happened,
-            f"{copy_text('ui.toast.solicitudes_afectadas')} {feedback.affected_count}",
-            f"{copy_text('ui.toast.incidencias')} {feedback.incidents}",
-            f"{copy_text('ui.toast.siguiente_paso')} {feedback.next_step}",
-            f"{copy_text('ui.toast.fecha_hora')} {feedback.timestamp}",
-            f"{copy_text('ui.toast.identificador')} {feedback.result_id}",
-        ]
-        if feedback.details:
-            detalles.extend(feedback.details)
-        return detalles
-
     def notify_operation(self, feedback: OperationFeedback, *, show_details: bool = False) -> None:
         normalized = self._normalize_feedback(feedback)
-        mensaje_visible = (
-            f"{copy_text('ui.toast.estado')} {self._estado_humano(normalized.status)}\n"
-            f"{self._mensaje_humano(normalized)}"
-        )
+        payload = construir_payload_toast_operacion(normalized)
         self._toast.show(
-            mensaje_visible,
-            level=self._status_to_toast_level(normalized.status),
+            payload.message,
+            level=payload.level,
             title=normalized.title,
-            details="\n".join(self._construir_detalles_feedback(normalized)),
+            details="\n".join(payload.details),
             action_label=copy_text("ui.sync.ver_detalles"),
             action_callback=lambda item=normalized: self.show_operation_details(item),
             duration_ms=7000,
@@ -168,7 +138,7 @@ class NotificationService:
         normalized = self._normalize_feedback(feedback)
         dialog = OperationFeedbackDialog(
             normalized.title,
-            self._construir_detalles_feedback(normalized),
+            construir_detalles_feedback(normalized),
             parent=self._parent,
         )
         dialog.exec()
@@ -194,12 +164,7 @@ class NotificationService:
 
     def show_confirmation_summary(self, *, count: int, total_minutes: int, errores: list[str] | None = None) -> None:
         issues = errores or []
-        if count <= 0:
-            status = "error"
-        elif issues:
-            status = "partial"
-        else:
-            status = "success"
+        status = resolver_estado_confirmacion(count=count, errores=issues)
         payload = ConfirmationSummaryPayload(
             count=count,
             total_minutes=total_minutes,
