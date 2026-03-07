@@ -29,10 +29,17 @@ def require_qt():
         _ = QEvent
         return QApplication
     except Exception as exc:
+        mensaje_extra = ""
+        if "libGL.so.1" in str(exc):
+            mensaje_extra = (
+                " Falta dependencia nativa 'libGL.so.1' en el runner "
+                "(instalar paquete de sistema equivalente a libgl1)."
+            )
         if _smoke_confirmar_pdf_ci_obligatorio():
             raise RuntimeError(
                 "PySide6 no disponible para smoke UI obligatorio en CI "
                 "(HORAS_UI_SMOKE_CI=1)."
+                f"{mensaje_extra}"
             ) from exc
         pytest.skip(
             "PySide6 no disponible correctamente en entorno local/CI",
