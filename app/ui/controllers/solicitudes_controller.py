@@ -13,6 +13,11 @@ from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import (
 from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.core.observability import OperationContext, log_event
 from app.domain.services import BusinessRuleError, ValidacionError
+from app.ui.controllers.estado_post_confirmacion import (
+    EntradaEstadoPostConfirmacion,
+    aplicar_confirmacion_en_lista,
+    resolver_estado_post_confirmacion,
+)
 from app.ui.toast_helpers import toast_success
 
 logger = logging.getLogger(__name__)
@@ -421,7 +426,7 @@ class SolicitudesController:
             )
             errores = [] if confirmadas_ids else [resumen]
             confirmadas = [sol for sol in pendientes_actuales if sol.id in set(confirmadas_ids)]
-            pendientes_restantes = aplicar_confirmacion(pendientes_actuales, confirmadas_ids)
+            pendientes_restantes = aplicar_confirmacion_en_lista(pendientes_actuales, confirmadas_ids)
             return confirmadas_ids, errores, ruta, confirmadas, pendientes_restantes
 
         creadas, _pendientes_restantes, errores = self.window._solicitud_use_cases.confirmar_sin_pdf(
@@ -437,30 +442,23 @@ class SolicitudesController:
         pendientes_restantes: list[SolicitudDTO] | None,
     ) -> None:
         w = self.window
-        if pendientes_restantes is not None:
-            restantes_ids = {sol.id for sol in pendientes_restantes if sol.id is not None}
-            w._pending_solicitudes = list(pendientes_restantes)
-            w._pending_all_solicitudes = [
-                sol for sol in w._pending_all_solicitudes if sol.id is None or sol.id in restantes_ids
-            ]
-            w._hidden_pendientes = [
-                sol for sol in w._hidden_pendientes if sol.id is None or sol.id in restantes_ids
-            ]
-            w._pending_otras_delegadas = [
-                sol for sol in w._pending_otras_delegadas if sol.id is None or sol.id in restantes_ids
-            ]
-            w._orphan_pendientes = [
-                sol for sol in w._orphan_pendientes if sol.id is None or sol.id in restantes_ids
-            ]
-            return
-
-        w._pending_all_solicitudes = aplicar_confirmacion(w._pending_all_solicitudes, confirmadas_ids)
-        w._pending_solicitudes = aplicar_confirmacion(w._pending_solicitudes, confirmadas_ids)
-        w._hidden_pendientes = aplicar_confirmacion(w._hidden_pendientes, confirmadas_ids)
-        w._pending_otras_delegadas = aplicar_confirmacion(w._pending_otras_delegadas, confirmadas_ids)
-        w._orphan_pendientes = aplicar_confirmacion(w._orphan_pendientes, confirmadas_ids)
+        nuevo_estado = resolver_estado_post_confirmacion(
+            EntradaEstadoPostConfirmacion(
+                confirmadas_ids=confirmadas_ids,
+                pendientes_restantes=pendientes_restantes,
+                pending_all_solicitudes=w._pending_all_solicitudes,
+                pending_solicitudes=w._pending_solicitudes,
+                hidden_pendientes=w._hidden_pendientes,
+                pending_otras_delegadas=w._pending_otras_delegadas,
+                orphan_pendientes=w._orphan_pendientes,
+            )
+        )
+        w._pending_all_solicitudes = nuevo_estado.pending_all_solicitudes
+        w._pending_solicitudes = nuevo_estado.pending_solicitudes
+        w._hidden_pendientes = nuevo_estado.hidden_pendientes
+        w._pending_otras_delegadas = nuevo_estado.pending_otras_delegadas
+        w._orphan_pendientes = nuevo_estado.orphan_pendientes
 
 
 def aplicar_confirmacion(pendientes: list[SolicitudDTO], confirmadas_ids: list[int]) -> list[SolicitudDTO]:
-    confirmadas_set = set(confirmadas_ids)
-    return [solicitud for solicitud in pendientes if solicitud.id is None or solicitud.id not in confirmadas_set]
+    return aplicar_confirmacion_en_lista(pendientes, confirmadas_ids)
