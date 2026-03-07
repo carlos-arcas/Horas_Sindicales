@@ -108,6 +108,56 @@ class _QMessageBoxFake:
         return _QMessageBoxFake.StandardButton.Yes
 
 
+class _DialogButtonFake:
+    def __init__(self, texto: str) -> None:
+        self.texto = texto
+        self.enabled = True
+        self.tooltip = ""
+
+    def setEnabled(self, valor: bool) -> None:
+        self.enabled = valor
+
+    def setToolTip(self, valor: str) -> None:
+        self.tooltip = valor
+
+
+class _DialogQMessageBoxFake:
+    AcceptRole = 1
+    ActionRole = 2
+    RejectRole = 3
+    clicked_button_text = ""
+    last_instance = None
+
+    def __init__(self, *_args, **_kwargs) -> None:
+        self.window_title = ""
+        self.text = ""
+        self.informative_text = ""
+        self.buttons: list[_DialogButtonFake] = []
+        self._clicked_button = None
+        _DialogQMessageBoxFake.last_instance = self
+
+    def setWindowTitle(self, valor: str) -> None:
+        self.window_title = valor
+
+    def setText(self, valor: str) -> None:
+        self.text = valor
+
+    def setInformativeText(self, valor: str) -> None:
+        self.informative_text = valor
+
+    def addButton(self, texto: str, _role: int) -> _DialogButtonFake:
+        boton = _DialogButtonFake(texto)
+        self.buttons.append(boton)
+        return boton
+
+    def exec(self) -> int:
+        self._clicked_button = next((b for b in self.buttons if b.texto == self.clicked_button_text), None)
+        return 0
+
+    def clickedButton(self):
+        return self._clicked_button
+
+
 def _build_solicitud(*, solicitud_id: int | None = 7, notas: str = "") -> SolicitudDTO:
     return SolicitudDTO(
         id=solicitud_id,
@@ -238,6 +288,85 @@ def test_on_remove_pendiente_con_seleccion_valida_refresca_y_elimina(monkeypatch
 
     window._solicitud_use_cases.eliminar_solicitud.assert_called_once()
     window._reload_pending_views.assert_called_once_with()
+
+
+def test_on_handle_duplicate_before_add_resuelve_copy_y_accion_ir_existente(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.ui.copy_catalog import copy_text
+
+    window = VentanaFalsa()
+    window._pending_solicitudes = [_build_solicitud(solicitud_id=123)]
+    foco_fila = Mock()
+    monkeypatch.setattr(acciones_pendientes, "helper_focus_pending_row", foco_fila)
+    _DialogQMessageBoxFake.clicked_button_text = copy_text("ui.validacion.ir_pendiente")
+    monkeypatch.setattr(acciones_pendientes, "QMessageBox", _DialogQMessageBoxFake)
+
+    resultado = acciones_pendientes.on_handle_duplicate_before_add(window, duplicate_row=0)
+
+    assert resultado is False
+    foco_fila.assert_called_once_with(window, 0)
+    dialogo = _DialogQMessageBoxFake.last_instance
+    assert dialogo is not None
+    assert dialogo.window_title == copy_text("ui.validacion.solicitud_duplicada")
+    assert dialogo.text == copy_text("ui.validacion.duplicada_pendiente_detalle")
+    assert dialogo.informative_text == copy_text("ui.validacion.duplicada_pendiente_acciones")
+    textos_botones = [boton.texto for boton in dialogo.buttons]
+    assert copy_text("ui.validacion.ir_pendiente") in textos_botones
+    assert copy_text("ui.validacion.crear_igualmente") in textos_botones
+    assert copy_text("ui.validacion.cancelar") in textos_botones
+    boton_crear = next(b for b in dialogo.buttons if b.texto == copy_text("ui.validacion.crear_igualmente"))
+    assert boton_crear.enabled is False
+    assert boton_crear.tooltip == copy_text("ui.validacion.duplicados_no_permitido")
+
+
+def test_on_resolve_pending_conflict_usa_copy_text_para_mensajes(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.ui.copy_catalog import copy_text
+
+    window = VentanaFalsa()
+    window._pending_solicitudes = [
+        SolicitudDTO(
+            id=1,
+            persona_id=1,
+            fecha_solicitud="2026-01-01",
+            fecha_pedida="2026-01-01",
+            desde="09:00",
+            hasta="10:00",
+            completo=False,
+            horas=1.0,
+            observaciones="",
+            notas="",
+            pdf_path=None,
+            pdf_hash=None,
+        )
+    ]
+    confirmaciones: list[str] = []
+
+    def _confirmar(mensaje: str) -> bool:
+        confirmaciones.append(mensaje)
+        return True
+
+    monkeypatch.setattr(window, "_confirm_conflicto", _confirmar, raising=False)
+
+    assert acciones_pendientes.on_resolve_pending_conflict(window, "2026-01-01", completo=True) is True
+    assert confirmaciones[-1] == copy_text("ui.validacion.sustituir_por_completo")
+
+    window._pending_solicitudes = [
+        SolicitudDTO(
+            id=2,
+            persona_id=1,
+            fecha_solicitud="2026-01-01",
+            fecha_pedida="2026-01-01",
+            desde="09:00",
+            hasta="10:00",
+            completo=True,
+            horas=1.0,
+            observaciones="",
+            notas="",
+            pdf_path=None,
+            pdf_hash=None,
+        )
+    ]
+    assert acciones_pendientes.on_resolve_pending_conflict(window, "2026-01-01", completo=False) is True
+    assert confirmaciones[-1] == copy_text("ui.validacion.sustituir_por_franja")
 
 
 
