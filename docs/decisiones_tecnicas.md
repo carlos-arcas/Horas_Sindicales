@@ -109,3 +109,7 @@
   **Por qué no se tocó baseline:** la baseline no era el problema; el problema era estructural (estilo inline en código UI). Ajustar baseline ocultaría regresión arquitectónica y rompería el contrato del gate.  
   **Solución aplicada:** se movió la fuente de verdad de estilos a `app/ui/estilos/*.qss` y se creó `app/ui/estilos/cargador_estilos_notificaciones.py` para leer/parametrizar plantillas (toast + diálogos) sin incrustar bloques QSS en esos `.py`.  
   **Ventaja arquitectónica:** UI más limpia, estilos reutilizables/testeables, menor acoplamiento de presentación, y prevención explícita de regresión mediante test dedicado que bloquea reintroducir QSS inline en los dos archivos críticos.
+
+- **2026-03-07 — Notificaciones/toasts: presentación pura para confirmar cierre y recepción de toasts — Vigente**  
+  Se desacopla la construcción de copy/resumen de `NotificationService.show_confirmation_closure` hacia `app/ui/presentacion_confirmacion_notificaciones.py` y la decisión de ids a cerrar de `GestorToasts.recibir_notificacion` hacia `app/ui/toasts/presentador_recepcion_toast.py`.  
+  Resultado: menor complejidad ciclomática en hotspots UI, contratos más testeables (presentación confirmación y limpieza/dedupe de recepción) y mismo comportamiento visible/callbacks del sistema de toasts.

@@ -11,6 +11,7 @@ from app.application.dto import SolicitudDTO
 from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.domain.time_utils import minutes_to_hhmm
 from app.ui.copy_catalog import copy_text
+from app.ui.presentacion_confirmacion_notificaciones import construir_presentacion_confirmacion
 from app.ui.presentador_feedback_notificaciones import (
     construir_detalles_feedback,
     construir_payload_toast_operacion,
@@ -20,7 +21,7 @@ from app.ui.estilos.cargador_estilos_notificaciones import (
     construir_estilo_dialogo_confirmacion_resumen,
     construir_estilo_dialogo_operacion_feedback,
 )
-from app.ui.patterns import SPACING_BASE, apply_modal_behavior, build_modal_actions, status_badge
+from app.ui.patterns import SPACING_BASE, apply_modal_behavior, build_modal_actions
 from app.ui.widgets.toast import GestorToasts
 
 
@@ -179,45 +180,35 @@ class NotificationService:
         self.show_confirmation_closure(payload)
 
     def show_confirmation_closure(self, payload: ConfirmationSummaryPayload) -> None:
-        title_by_status = {
-            "success": copy_text("ui.dialogo.confirmada"),
-            "partial": copy_text("ui.dialogo.con_avisos"),
-            "error": copy_text("ui.dialogo.error"),
-        }
+        presentacion = construir_presentacion_confirmacion(
+            status=payload.status,
+            count=payload.count,
+            total_minutes=payload.total_minutes,
+            delegadas=payload.delegadas,
+            saldo_disponible=payload.saldo_disponible,
+            timestamp=payload.timestamp,
+            result_id=payload.result_id,
+            correlation_id=payload.correlation_id,
+            errores=payload.errores,
+        )
         dialog = QDialog(self._parent)
-        dialog.setWindowTitle(title_by_status.get(payload.status, copy_text("ui.dialogo.resultado")))
+        dialog.setWindowTitle(presentacion.titulo)
         dialog.setModal(True)
         dialog.setObjectName("dialogoConfirmacionResumen")
-
-        borde = "#2a9d8f"
-        if payload.status == "error":
-            borde = "#d62828"
-        elif payload.status == "partial":
-            borde = "#f4a261"
-        dialog.setStyleSheet(construir_estilo_dialogo_confirmacion_resumen(color_borde=borde))
+        dialog.setStyleSheet(construir_estilo_dialogo_confirmacion_resumen(color_borde=presentacion.color_borde))
 
         layout = QVBoxLayout(dialog)
         layout.setSpacing(SPACING_BASE)
-        summary_lines = [
-            f"{copy_text('ui.notificacion.estado')} {status_badge('CONFIRMED') if payload.status == 'success' else status_badge('WARNING') if payload.status == 'partial' else status_badge('ERROR')}",
-            f"{copy_text("ui.notificacion.solicitudes_confirmadas")} {payload.count}",
-            f"{copy_text('ui.notificacion.delegadas')} {', '.join(payload.delegadas) if payload.delegadas else copy_text('ui.notificacion.sin_delegadas')}",
-            f"{copy_text("ui.notificacion.horas_confirmadas")} {minutes_to_hhmm(payload.total_minutes)}",
-            f"{copy_text("ui.notificacion.saldo_disponible")} {payload.saldo_disponible}",
-            f"{copy_text("ui.notificacion.confirmado")} {payload.timestamp}",
-            f"{copy_text("ui.notificacion.referencia")} {payload.result_id}",
-            f"{copy_text("ui.notificacion.id_incidente")} {payload.correlation_id or copy_text("ui.toast.no_disponible")}",
-        ]
-        for line in summary_lines:
+        for line in presentacion.lineas_resumen:
             label = QLabel(line)
             label.setWordWrap(True)
             layout.addWidget(label)
 
-        if payload.errores:
+        if presentacion.avisos:
             warnings_title = QLabel(copy_text("ui.dialogo.avisos"))
             warnings_title.setProperty("role", "secondary")
             layout.addWidget(warnings_title)
-            for error in payload.errores[:3]:
+            for error in presentacion.avisos:
                 layout.addWidget(QLabel(f"• {error}"))
 
         actions = QHBoxLayout()
@@ -233,30 +224,7 @@ class NotificationService:
             sync_button.setProperty("variant", "primary")
             sync_button.clicked.connect(lambda: (payload.on_sync_now(), dialog.accept()))
             actions.addWidget(sync_button)
-        if payload.undo_seconds and payload.on_undo is not None and payload.status != "error":
-            undo_button = QPushButton(copy_text("ui.dialogo.deshacer_segundos").format(segundos=payload.undo_seconds))
-            countdown = {"value": payload.undo_seconds}
-
-            def _tick_undo() -> None:
-                countdown["value"] -= 1
-                if countdown["value"] <= 0:
-                    undo_button.setText(copy_text("ui.dialogo.deshacer_no_disponible"))
-                    undo_button.setEnabled(False)
-                    timer.stop()
-                    return
-                undo_button.setText(copy_text("ui.dialogo.deshacer_segundos").format(segundos=countdown["value"]))
-
-            timer = QTimer(dialog)
-            timer.setInterval(1000)
-            timer.timeout.connect(_tick_undo)
-            timer.start()
-
-            def _undo_and_close() -> None:
-                payload.on_undo()
-                dialog.accept()
-
-            undo_button.clicked.connect(_undo_and_close)
-            actions.addWidget(undo_button)
+        self._adjuntar_accion_deshacer(dialog=dialog, actions=actions, payload=payload)
         close_button = QPushButton(copy_text("ui.dialogo.volver_operativa"))
         close_button.setProperty("variant", "ghost")
         close_button.clicked.connect(lambda: (payload.on_return_to_operativa() if payload.on_return_to_operativa else None, dialog.accept()))
@@ -265,3 +233,31 @@ class NotificationService:
         apply_modal_behavior(dialog)
 
         dialog.exec()
+
+    def _adjuntar_accion_deshacer(
+        self,
+        *,
+        dialog: QDialog,
+        actions: QHBoxLayout,
+        payload: ConfirmationSummaryPayload,
+    ) -> None:
+        if not payload.undo_seconds or payload.on_undo is None or payload.status == "error":
+            return
+        undo_button = QPushButton(copy_text("ui.dialogo.deshacer_segundos").format(segundos=payload.undo_seconds))
+        countdown = {"value": payload.undo_seconds}
+
+        def _tick_undo() -> None:
+            countdown["value"] -= 1
+            if countdown["value"] <= 0:
+                undo_button.setText(copy_text("ui.dialogo.deshacer_no_disponible"))
+                undo_button.setEnabled(False)
+                timer.stop()
+                return
+            undo_button.setText(copy_text("ui.dialogo.deshacer_segundos").format(segundos=countdown["value"]))
+
+        timer = QTimer(dialog)
+        timer.setInterval(1000)
+        timer.timeout.connect(_tick_undo)
+        timer.start()
+        undo_button.clicked.connect(lambda: (payload.on_undo(), dialog.accept()))
+        actions.addWidget(undo_button)

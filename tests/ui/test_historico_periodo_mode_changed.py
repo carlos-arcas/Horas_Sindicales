@@ -21,9 +21,9 @@ def _instalar_stub_pyside6() -> None:
     pyside6.QtCore = qtcore
     pyside6.QtWidgets = qtwidgets
 
-    sys.modules.setdefault("PySide6", pyside6)
-    sys.modules.setdefault("PySide6.QtCore", qtcore)
-    sys.modules.setdefault("PySide6.QtWidgets", qtwidgets)
+    sys.modules["PySide6"] = pyside6
+    sys.modules["PySide6.QtCore"] = qtcore
+    sys.modules["PySide6.QtWidgets"] = qtwidgets
 
 
 def _window_stub() -> SimpleNamespace:
@@ -43,6 +43,7 @@ def _window_stub() -> SimpleNamespace:
 def test_on_historico_periodo_mode_changed_acepta_payload_sin_lanzar() -> None:
     _instalar_stub_pyside6()
     historico_actions = importlib.import_module("app.ui.vistas.historico_actions")
+    historico_actions = importlib.reload(historico_actions)
     window = _window_stub()
 
     historico_actions.on_historico_periodo_mode_changed(window, True)
