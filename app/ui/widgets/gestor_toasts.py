@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QWidget
 
 from app.ui.toasts.modelo_toast import GestorToasts as GestorToastsModelo
 from app.ui.toasts.modelo_toast import ToastModelo
+from app.ui.toasts.presentador_recepcion_toast import construir_decision_recepcion_toast
 from app.ui.widgets.dialogo_detalles_toast import DialogoDetallesNotificacion
 from app.ui.widgets.overlay_toast import CapaToasts
 from app.ui.toasts.toast_payload_builder import ToastPayloadEntrada, construir_toast_payload
@@ -145,47 +146,20 @@ class GestorToasts(QObject):
         if not self._is_active or self._overlay is None:
             logger.warning("GestorToasts no activo. Toast descartado: %s", notificacion.mensaje)
             return
-        modelo = ToastModelo(
-            id=notificacion.id,
-            tipo=notificacion.nivel if notificacion.nivel in {"info", "success", "warning", "error"} else "info",
-            titulo=notificacion.titulo,
-            mensaje=notificacion.mensaje,
-            detalles=notificacion.detalles,
-            dedupe_key=notificacion.dedupe_key,
-            created_at_monotonic=monotonic(),
-            updated_at_monotonic=monotonic(),
-        )
+        modelo = self._crear_modelo_toast(notificacion)
         previo_ids = [toast.id for toast in self._modelo.listar()]
         resultado = self._modelo.agregar_toast(modelo)
         actuales_ids = [toast.id for toast in self._modelo.listar()]
+        decision = construir_decision_recepcion_toast(previo_ids=previo_ids, actuales_ids=actuales_ids)
 
         if resultado.id in self._visibles:
-            notificacion_actualizada = replace(notificacion, id=resultado.id)
-            self._cache[resultado.id] = notificacion_actualizada
-            self._visibles[resultado.id].actualizar_notificacion(notificacion_actualizada)
-            logger.info(
-                "TOAST_DEDUPE_UPDATE",
-                extra={
-                    "toast_id": resultado.id,
-                    "dedupe_key": notificacion_actualizada.dedupe_key,
-                    "nivel": notificacion_actualizada.nivel,
-                },
-            )
+            self._actualizar_toast_dedupe(notificacion=notificacion, toast_id=resultado.id)
             return
 
-        ids_eliminados = [toast_id for toast_id in previo_ids if toast_id not in actuales_ids]
-        for toast_id in ids_eliminados:
+        for toast_id in decision.ids_a_cerrar:
             self._cerrar_toast(toast_id)
 
-        if notificacion.nivel == "error":
-            logger.error(
-                "UI_TOAST_ERROR_SHOWN",
-                extra={
-                    "codigo": notificacion.codigo or "SIN_CODIGO",
-                    "dedupe_key": notificacion.dedupe_key,
-                    "origen": notificacion.origen or "origen_desconocido",
-                },
-            )
+        self._loggear_error_toast_si_aplica(notificacion)
 
         self._cache[notificacion.id] = notificacion
         if len(self._visibles) < self._max_visibles:
@@ -235,6 +209,44 @@ class GestorToasts(QObject):
             self._mostrar(self._queue.popleft())
         elif self._overlay is not None and not self._visibles:
             self._overlay.hide()
+
+    def _crear_modelo_toast(self, notificacion: NotificacionToast) -> ToastModelo:
+        ahora = monotonic()
+        return ToastModelo(
+            id=notificacion.id,
+            tipo=notificacion.nivel if notificacion.nivel in {"info", "success", "warning", "error"} else "info",
+            titulo=notificacion.titulo,
+            mensaje=notificacion.mensaje,
+            detalles=notificacion.detalles,
+            dedupe_key=notificacion.dedupe_key,
+            created_at_monotonic=ahora,
+            updated_at_monotonic=ahora,
+        )
+
+    def _actualizar_toast_dedupe(self, *, notificacion: NotificacionToast, toast_id: str) -> None:
+        notificacion_actualizada = replace(notificacion, id=toast_id)
+        self._cache[toast_id] = notificacion_actualizada
+        self._visibles[toast_id].actualizar_notificacion(notificacion_actualizada)
+        logger.info(
+            "TOAST_DEDUPE_UPDATE",
+            extra={
+                "toast_id": toast_id,
+                "dedupe_key": notificacion_actualizada.dedupe_key,
+                "nivel": notificacion_actualizada.nivel,
+            },
+        )
+
+    def _loggear_error_toast_si_aplica(self, notificacion: NotificacionToast) -> None:
+        if notificacion.nivel != "error":
+            return
+        logger.error(
+            "UI_TOAST_ERROR_SHOWN",
+            extra={
+                "codigo": notificacion.codigo or "SIN_CODIGO",
+                "dedupe_key": notificacion.dedupe_key,
+                "origen": notificacion.origen or "origen_desconocido",
+            },
+        )
 
     def _abrir_detalles(self, toast_id: str) -> None:
         notificacion = self._cache.get(toast_id)
