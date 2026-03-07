@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.testing.qt_harness import detectar_error_qt
+from app.testing.qt_harness import detectar_error_pytest_qt, detectar_error_qt
 
 
 def _is_linux_headless() -> bool:
@@ -29,6 +29,7 @@ if _is_linux_headless():
 
 
 _UI_BACKEND_ERROR: str | None = None
+_PYTEST_QT_ERROR: str | None = None
 
 
 class _PySide6Blocker(MetaPathFinder):
@@ -92,6 +93,10 @@ def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool:
     return any(token in normalized_path for token in blocked_paths) or relative_path.endswith(("/tests/ui", "/tests/presentacion"))
 
 
+def _usa_fixture_qtbot(item: pytest.Item) -> bool:
+    return "qtbot" in getattr(item, "fixturenames", ())
+
+
 def _es_smoke_ui_estricto(nodeid: str) -> bool:
     if os.getenv("HORAS_UI_SMOKE_CI") != "1":
         return False
@@ -102,27 +107,51 @@ def _es_smoke_ui_estricto(nodeid: str) -> bool:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    global _UI_BACKEND_ERROR
+    global _PYTEST_QT_ERROR, _UI_BACKEND_ERROR
     skip_ui = None
+    skip_pytest_qt = None
     core_only_run = _core_qt_block_enabled(config)
     has_ui_items = any("tests/ui/" in item.nodeid or item.get_closest_marker("ui") is not None for item in items)
+    has_qtbot_items = any(_usa_fixture_qtbot(item) for item in items)
+
     if has_ui_items and not core_only_run and _UI_BACKEND_ERROR is None:
         _UI_BACKEND_ERROR = detectar_error_qt()
+    if has_qtbot_items and _PYTEST_QT_ERROR is None:
+        _PYTEST_QT_ERROR = detectar_error_pytest_qt()
+
     if _UI_BACKEND_ERROR is not None:
         skip_ui = pytest.mark.skip(reason=_UI_BACKEND_ERROR)
+    if _PYTEST_QT_ERROR is not None:
+        skip_pytest_qt = pytest.mark.skip(reason=_PYTEST_QT_ERROR)
 
     for item in items:
         if "tests/ui/" in item.nodeid and "headless_safe" not in item.keywords:
             item.add_marker(pytest.mark.ui)
+
         if skip_ui is not None and item.get_closest_marker("ui") is not None:
+            if not _es_smoke_ui_estricto(item.nodeid):
+                item.add_marker(skip_ui)
+
+        if skip_pytest_qt is not None and _usa_fixture_qtbot(item):
             if _es_smoke_ui_estricto(item.nodeid):
                 continue
-            item.add_marker(skip_ui)
+            item.add_marker(skip_pytest_qt)
 
     guard_nodeid = "tests/test_000_no_qt_in_core.py::test_core_suite_no_importa_pyside6"
     guard_items = [item for item in items if item.nodeid.endswith(guard_nodeid)]
     if guard_items:
         items[:] = guard_items + [item for item in items if item not in guard_items]
+
+
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    if _es_smoke_ui_estricto(item.nodeid) and _usa_fixture_qtbot(item):
+        error_pytest_qt = detectar_error_pytest_qt()
+        if error_pytest_qt is not None:
+            raise RuntimeError(
+                "Smoke UI estricto requiere pytest-qt/qtbot disponible "
+                f"(HORAS_UI_SMOKE_CI=1). {error_pytest_qt}"
+            )
+
 
 
 from app.application.dto import SolicitudDTO
