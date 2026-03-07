@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from app.application.dto import PersonaDTO
+
 
 def _smoke_confirmar_pdf_ci_obligatorio() -> bool:
     return os.getenv("HORAS_UI_SMOKE_CI") == "1"
@@ -36,6 +38,31 @@ def require_qt():
             "PySide6 no disponible correctamente en entorno local/CI",
             allow_module_level=True,
         )
+
+
+def crear_persona_dto_valida(nombre: str) -> PersonaDTO:
+    return PersonaDTO(
+        id=None,
+        nombre=nombre,
+        genero="F",
+        horas_mes=0,
+        horas_ano=0,
+        is_active=True,
+        cuad_lun_man_min=0,
+        cuad_lun_tar_min=0,
+        cuad_mar_man_min=0,
+        cuad_mar_tar_min=0,
+        cuad_mie_man_min=0,
+        cuad_mie_tar_min=0,
+        cuad_jue_man_min=0,
+        cuad_jue_tar_min=0,
+        cuad_vie_man_min=0,
+        cuad_vie_tar_min=0,
+        cuad_sab_man_min=0,
+        cuad_sab_tar_min=0,
+        cuad_dom_man_min=0,
+        cuad_dom_tar_min=0,
+    )
 
 
 def _is_ui_item(item: pytest.Item) -> bool:
