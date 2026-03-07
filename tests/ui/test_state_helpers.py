@@ -1,14 +1,61 @@
-from importlib.util import module_from_spec, spec_from_file_location
-from pathlib import Path
+from app.ui.copy_catalog import copy_text
+from importlib import import_module
+
+
+class _ControlStub:
+    def __init__(self) -> None:
+        self.enabled: bool | None = None
+        self.text: str = ""
+
+    def setEnabled(self, value: bool) -> None:
+        self.enabled = value
+
+    def setText(self, value: str) -> None:
+        self.text = value
+
+
+class _WindowStub:
+    def __init__(self) -> None:
+        self._blocking_errors = {}
+        self._pending_solicitudes = [object()]
+        self._pending_conflict_rows = set()
+        self._pending_view_all = False
+        self._sync_in_progress = False
+        self._pending_otras_delegadas = [object()]
+        self._historico_ids_seleccionados = {99}
+
+        self.agregar_button = _ControlStub()
+        self.insertar_sin_pdf_button = _ControlStub()
+        self.confirmar_button = _ControlStub()
+        self.edit_persona_button = _ControlStub()
+        self.delete_persona_button = _ControlStub()
+        self.edit_grupo_button = _ControlStub()
+        self.editar_pdf_button = _ControlStub()
+        self.eliminar_button = _ControlStub()
+        self.eliminar_pendiente_button = _ControlStub()
+        self.generar_pdf_button = _ControlStub()
+        self.clear_button = _ControlStub()
+
+        self.status_panel_actualizado = 0
+
+    def _current_persona(self) -> object:
+        return object()
+
+    def _validate_solicitud_form(self) -> tuple[bool, str]:
+        return True, ""
+
+    def _selected_pending_solicitudes(self) -> list[object]:
+        return [object()]
+
+    def _selected_historico_solicitudes(self) -> list[object]:
+        return []
+
+    def _update_solicitudes_status_panel(self) -> None:
+        self.status_panel_actualizado += 1
 
 
 def _load_state_helpers_module():
-    path = Path("app/ui/vistas/main_window/state_helpers.py")
-    spec = spec_from_file_location("state_helpers_local", path)
-    assert spec and spec.loader
-    module = module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return import_module("app.ui.vistas.main_window.state_helpers")
 
 
 def test_resolve_active_delegada_id_prioriza_preferido_valido() -> None:
@@ -24,3 +71,20 @@ def test_resolve_active_delegada_id_usa_primera_si_preferido_no_valido() -> None
 def test_resolve_active_delegada_id_none_si_no_hay_ids() -> None:
     module = _load_state_helpers_module()
     assert module.resolve_active_delegada_id([], "20") is None
+
+
+def test_update_action_state_aplica_fuente_unica_de_estado_en_widgets() -> None:
+    module = _load_state_helpers_module()
+    window = _WindowStub()
+
+    module.update_action_state(window)
+
+    assert window.agregar_button.enabled is True
+    assert window.insertar_sin_pdf_button.enabled is True
+    assert window.confirmar_button.enabled is True
+    assert window.eliminar_button.enabled is True
+    assert window.eliminar_button.text == copy_text("ui.historico.eliminar_boton").format(n=1)
+    assert window.generar_pdf_button.enabled is True
+    assert window.generar_pdf_button.text == copy_text("ui.historico.exportar_pdf_boton").format(n=1)
+    assert window.clear_button.enabled is True
+    assert window.status_panel_actualizado == 1
