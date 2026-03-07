@@ -78,6 +78,18 @@ Si se usa quality gate, este comando puede complementarse con los scripts de `Ma
 
 Los tests UI pueden requerir entorno gráfico o modo `offscreen` según plataforma.
 
+## Fuente de verdad para `ui_smoke`
+
+El estado contractual del smoke de UI se decide con el job remoto `ui_smoke` en GitHub Actions.
+
+Reglas operativas:
+
+1. Si `ui_smoke` remoto está en **PASS**, no se abren cambios para "arreglar" solo diferencias del entorno local del agente.
+2. Si `ui_smoke` remoto está en **FAIL**, se corrige únicamente el primer rojo remoto real tras bootstrap de entorno.
+3. Fallos locales por faltantes del entorno del agente (por ejemplo, dependencias de sistema de Qt/GL) se clasifican como ruido local salvo evidencia de falla equivalente en runner remoto.
+
+Este criterio evita introducir bypasses o relajaciones de contrato para acomodar un entorno local no representativo.
+
 ## Contrato de typecheck en CI
 
 El script `scripts/typecheck.py` es parte del contrato del workflow de CI (job core) y se ejecuta de forma obligatoria.
