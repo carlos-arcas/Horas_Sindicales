@@ -179,14 +179,14 @@ def helper_find_pending_duplicate_row(window: MainWindow, solicitud: SolicitudDT
 
 def on_handle_duplicate_before_add(window: MainWindow, duplicate_row: int) -> bool:
     dialog = QMessageBox(window)
-    dialog.setWindowTitle("Pendiente duplicada")
-    dialog.setText("Ya existe una pendiente igual para esta delegada, fecha y tramo horario.")
-    dialog.setInformativeText("Puedes ir a la existente o crear igualmente.")
-    goto_button = dialog.addButton("Ir a la pendiente existente", QMessageBox.AcceptRole)
-    create_button = dialog.addButton("Crear igualmente", QMessageBox.ActionRole)
-    cancel_button = dialog.addButton("Cancelar", QMessageBox.RejectRole)
+    dialog.setWindowTitle(copy_text("ui.validacion.solicitud_duplicada"))
+    dialog.setText(copy_text("ui.validacion.duplicada_pendiente_detalle"))
+    dialog.setInformativeText(copy_text("ui.validacion.duplicada_pendiente_acciones"))
+    goto_button = dialog.addButton(copy_text("ui.validacion.ir_pendiente"), QMessageBox.AcceptRole)
+    create_button = dialog.addButton(copy_text("ui.validacion.crear_igualmente"), QMessageBox.ActionRole)
+    cancel_button = dialog.addButton(copy_text("ui.validacion.cancelar"), QMessageBox.RejectRole)
     create_button.setEnabled(False)
-    create_button.setToolTip("No permitido por la regla de negocio de duplicados.")
+    create_button.setToolTip(copy_text("ui.validacion.duplicados_no_permitido"))
     dialog.exec()
     clicked = dialog.clickedButton()
     if clicked is goto_button:
@@ -208,9 +208,9 @@ def on_resolve_pending_conflict(window: MainWindow, fecha_pedida: str, completo:
     if not conflictos:
         return True
     mensaje = (
-        "Hay horas parciales. ¿Sustituirlas por COMPLETO?"
+        copy_text("ui.validacion.sustituir_por_completo")
         if completo
-        else "Ya existe un COMPLETO. ¿Sustituirlo por esta franja?"
+        else copy_text("ui.validacion.sustituir_por_franja")
     )
     if not window._confirm_conflicto(mensaje):
         return False

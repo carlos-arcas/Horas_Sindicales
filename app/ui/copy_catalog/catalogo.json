@@ -522,5 +522,9 @@
   "solicitudes.resumen_operativo.seleccion_varias": "varias",
   "ui.solicitudes.select_visible": "Seleccionar todo (visible)",
   "ui.solicitudes.stepper_mensaje_completar": "Completa la solicitud para poder añadirla",
-  "ui.historico.exportar_pdf_boton": "Exportar histórico PDF ({n})"
+  "ui.historico.exportar_pdf_boton": "Exportar histórico PDF ({n})",
+  "ui.validacion.duplicada_pendiente_detalle": "Ya existe una pendiente igual para esta delegada, fecha y tramo horario.",
+  "ui.validacion.duplicada_pendiente_acciones": "Puedes ir a la existente o crear igualmente.",
+  "ui.validacion.crear_igualmente": "Crear igualmente",
+  "ui.validacion.duplicados_no_permitido": "No permitido por la regla de negocio de duplicados."
 }

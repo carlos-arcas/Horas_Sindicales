@@ -98,3 +98,7 @@
   Se separa el contenido visible del toast (estado simple + frase humana) de los detalles técnicos (`details`) que quedan detrás de la acción **Ver detalles**. Esto evita exponer `correlation_id`, trazas o códigos internos en la primera capa y mantiene trazabilidad para soporte.  
   Además, el cierre manual prioriza emitir señal de dominio UI (`cerrado`) para que el gestor limpie modelo/cache/timer en un único punto y evite “zombies” visuales o incoherencias.  
   En paralelo, se unifica un estilo sobrio reutilizable para diálogos de feedback/confirmación (cabecera clara, espaciado estable, bordes por severidad), evitando aspecto de diálogo Qt desnudo y estilos inline dispersos.
+
+- **2026-03-07 — Pendientes: diálogos de duplicado/conflicto consumen copy catalog (sin hardcode UI) — Vigente**  
+  El flujo de `acciones_pendientes` deja de declarar textos visibles inline para el diálogo de pendiente duplicada (título, cuerpo, ayuda, botones y tooltip de bloqueo) y para los prompts de sustitución parcial/completo.  
+  Se consolidan claves en `app/ui/copy_catalog/catalogo.json` y la vista solo resuelve copy mediante `copy_text(...)`, manteniendo UX y haciendo que el guard de hardcodes valide el contrato i18n sin tocar baseline.
