@@ -10,6 +10,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
 from app.ui.copy_catalog import copy_text
+from app.ui.estilos.cargador_estilos_notificaciones import construir_estilo_tarjeta_toast
 from app.ui.toasts.ejecutar_callback_seguro import ejecutar_callback_seguro
 from app.ui.toasts.toast_actions import cerrar_toast
 
@@ -134,42 +135,15 @@ class TarjetaToast(QFrame):
         accent_soft = QColor(accent).lighter(165).name()
         close_hover = QColor(accent).lighter(185).name()
         close_pressed = QColor(accent).lighter(155).name()
-        self.setStyleSheet(
-            f"""
-            QFrame#toastWidget {{
-                background-color: {bg};
-                border: 1px solid {accent_soft};
-                border-left: 4px solid {accent};
-                border-radius: 12px;
-            }}
-            QLabel#toastTitle {{ color: {text}; font-weight: 700; font-size: 13px; }}
-            QLabel#toastMessage {{ color: {text}; }}
-            QPushButton#toastCloseButton, QPushButton#toastDetailsButton, QPushButton#toastActionButton {{
-                padding: 4px 10px;
-                border-radius: 6px;
-                border: 1px solid transparent;
-            }}
-            QPushButton#toastCloseButton {{
-                background: transparent;
-                color: {text};
-                font-weight: 600;
-            }}
-            QPushButton#toastCloseButton:hover {{
-                background: {close_hover};
-                border-color: {accent_soft};
-            }}
-            QPushButton#toastCloseButton:pressed {{
-                background: {close_pressed};
-            }}
-            QPushButton#toastCloseButton:focus {{
-                border-color: {accent};
-            }}
-            QPushButton#toastCloseButton:disabled {{
-                color: #8B8E95;
-                background: transparent;
-            }}
-            """
+        estilo = construir_estilo_tarjeta_toast(
+            color_texto=text,
+            color_acento=accent,
+            color_acento_suave=accent_soft,
+            color_fondo=bg,
+            color_cerrar_hover=close_hover,
+            color_cerrar_pressed=close_pressed,
         )
+        self.setStyleSheet(estilo)
 
 
 Toast = TarjetaToast

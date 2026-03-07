@@ -102,3 +102,10 @@
 - **2026-03-07 — Pendientes: diálogos de duplicado/conflicto consumen copy catalog (sin hardcode UI) — Vigente**  
   El flujo de `acciones_pendientes` deja de declarar textos visibles inline para el diálogo de pendiente duplicada (título, cuerpo, ayuda, botones y tooltip de bloqueo) y para los prompts de sustitución parcial/completo.  
   Se consolidan claves en `app/ui/copy_catalog/catalogo.json` y la vista solo resuelve copy mediante `copy_text(...)`, manteniendo UX y haciendo que el guard de hardcodes valide el contrato i18n sin tocar baseline.
+
+- **2026-03-07 — Externalización de estilos QSS de toasts y diálogos para cumplir i18n_hardcode sin tocar baseline — Vigente**  
+  **Problema:** el quality gate `i18n_hardcode` marcaba nuevos offenders en `app/ui/notification_service.py` y `app/ui/widgets/widget_toast.py` por bloques QSS inline, aunque no eran copys visibles al usuario.  
+  **Causa raíz:** las hojas de estilo de `OperationFeedbackDialog`, `dialogoConfirmacionResumen` y `TarjetaToast` estaban embebidas como literales en Python, por lo que el escáner AST de strings UI las detectaba como hardcodes nuevos.  
+  **Por qué no se tocó baseline:** la baseline no era el problema; el problema era estructural (estilo inline en código UI). Ajustar baseline ocultaría regresión arquitectónica y rompería el contrato del gate.  
+  **Solución aplicada:** se movió la fuente de verdad de estilos a `app/ui/estilos/*.qss` y se creó `app/ui/estilos/cargador_estilos_notificaciones.py` para leer/parametrizar plantillas (toast + diálogos) sin incrustar bloques QSS en esos `.py`.  
+  **Ventaja arquitectónica:** UI más limpia, estilos reutilizables/testeables, menor acoplamiento de presentación, y prevención explícita de regresión mediante test dedicado que bloquea reintroducir QSS inline en los dos archivos críticos.

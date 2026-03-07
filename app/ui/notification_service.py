@@ -11,6 +11,10 @@ from app.application.dto import SolicitudDTO
 from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.domain.time_utils import minutes_to_hhmm
 from app.ui.copy_catalog import copy_text
+from app.ui.estilos.cargador_estilos_notificaciones import (
+    construir_estilo_dialogo_confirmacion_resumen,
+    construir_estilo_dialogo_operacion_feedback,
+)
 from app.ui.patterns import SPACING_BASE, apply_modal_behavior, build_modal_actions, status_badge
 from app.ui.widgets.toast import GestorToasts
 
@@ -61,10 +65,7 @@ class OperationFeedbackDialog(QDialog):
         self.setModal(True)
         self.setObjectName("dialogoOperacionFeedback")
         self.setMinimumWidth(520)
-        self.setStyleSheet(
-            "QDialog#dialogoOperacionFeedback { background: #F7F9FC; border: 1px solid #D8DEE8; border-radius: 12px; }"
-            "QLabel { color: #1F2937; font-size: 13px; }"
-        )
+        self.setStyleSheet(construir_estilo_dialogo_operacion_feedback())
 
         layout = QVBoxLayout(self)
         layout.setSpacing(SPACING_BASE)
@@ -228,10 +229,7 @@ class NotificationService:
             borde = "#d62828"
         elif payload.status == "partial":
             borde = "#f4a261"
-        dialog.setStyleSheet(
-            f"QDialog#dialogoConfirmacionResumen {{ background: #F8FAFC; border: 2px solid {borde}; border-radius: 12px; }}"
-            "QLabel { color: #1F2937; font-size: 13px; }"
-        )
+        dialog.setStyleSheet(construir_estilo_dialogo_confirmacion_resumen(color_borde=borde))
 
         layout = QVBoxLayout(dialog)
         layout.setSpacing(SPACING_BASE)
