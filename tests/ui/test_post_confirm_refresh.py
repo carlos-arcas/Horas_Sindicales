@@ -32,6 +32,7 @@ def test_post_confirm_controller_aplica_confirmacion_y_deja_un_pendiente() -> No
         _pending_all_solicitudes=[_solicitud(1), _solicitud(2), _solicitud(3)],
         _pending_solicitudes=[_solicitud(1), _solicitud(2), _solicitud(3)],
         _hidden_pendientes=[_solicitud(2)],
+        _pending_otras_delegadas=[_solicitud(2)],
         _orphan_pendientes=[_solicitud(3)],
     )
     controller = SolicitudesController(window)
