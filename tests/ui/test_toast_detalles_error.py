@@ -29,7 +29,7 @@ class _ToastFalso:
         self.calls.append({"message": message, **kwargs})
 
 
-def test_toast_cerrar_ejecuta_close() -> None:
+def test_toast_cerrar_prioriza_senal_cuando_esta_disponible() -> None:
     signal = _SignalFalso()
     estado = {"closed": False}
 
@@ -43,6 +43,18 @@ def test_toast_cerrar_ejecuta_close() -> None:
     cerrar_toast(_TarjetaFalsa(), "toast-1")
 
     assert signal.payloads == ["toast-1"]
+    assert estado["closed"] is False
+
+
+def test_toast_cerrar_hace_close_si_no_hay_senal() -> None:
+    estado = {"closed": False}
+
+    class _TarjetaFalsaSinSignal:
+        def close(self) -> None:
+            estado["closed"] = True
+
+    cerrar_toast(_TarjetaFalsaSinSignal(), "toast-2")
+
     assert estado["closed"] is True
 
 

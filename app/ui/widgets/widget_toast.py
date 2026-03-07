@@ -37,6 +37,7 @@ class TarjetaToast(QFrame):
     cerrado = Signal(str)
     solicitar_detalles = Signal(str)
     _ACENTOS_NIVEL = {"success": "#3FAF6A", "info": "#4C93F0", "warning": "#D09A34", "error": "#D35E5E"}
+    _FONDO_NIVEL = {"success": "#EAF8EF", "info": "#EAF3FF", "warning": "#FFF6E6", "error": "#FDECEC"}
 
     def __init__(self, notificacion: NotificacionToast, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -81,6 +82,8 @@ class TarjetaToast(QFrame):
         acciones.addWidget(self._btn_accion)
         self._btn_cerrar = QPushButton(copy_text("ui.toast.cerrar"))
         self._btn_cerrar.setObjectName("toastCloseButton")
+        self._btn_cerrar.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_cerrar.setToolTip(copy_text("ui.toast.cerrar_hint"))
         self._btn_cerrar.clicked.connect(self._on_close_clicked)
         acciones.addWidget(self._btn_cerrar)
         root.addLayout(acciones)
@@ -125,16 +128,46 @@ class TarjetaToast(QFrame):
 
     def _apply_style(self) -> None:
         palette = QApplication.palette()
-        bg = palette.window().color().lighter(106).name()
         text = palette.windowText().color().name()
         accent = self._ACENTOS_NIVEL.get(self.notificacion.nivel, self._ACENTOS_NIVEL["info"])
-        accent_soft = QColor(accent).lighter(170).name()
+        bg = self._FONDO_NIVEL.get(self.notificacion.nivel, self._FONDO_NIVEL["info"])
+        accent_soft = QColor(accent).lighter(165).name()
+        close_hover = QColor(accent).lighter(185).name()
+        close_pressed = QColor(accent).lighter(155).name()
         self.setStyleSheet(
             f"""
-            QFrame#toastWidget {{ background-color: {bg}; border: 1px solid {accent_soft}; border-left: 4px solid {accent}; border-radius: 10px; }}
-            QLabel#toastTitle {{ color: {text}; font-weight: 700; }}
+            QFrame#toastWidget {{
+                background-color: {bg};
+                border: 1px solid {accent_soft};
+                border-left: 4px solid {accent};
+                border-radius: 12px;
+            }}
+            QLabel#toastTitle {{ color: {text}; font-weight: 700; font-size: 13px; }}
             QLabel#toastMessage {{ color: {text}; }}
-            QPushButton#toastCloseButton, QPushButton#toastDetailsButton, QPushButton#toastActionButton {{ padding: 3px 10px; }}
+            QPushButton#toastCloseButton, QPushButton#toastDetailsButton, QPushButton#toastActionButton {{
+                padding: 4px 10px;
+                border-radius: 6px;
+                border: 1px solid transparent;
+            }}
+            QPushButton#toastCloseButton {{
+                background: transparent;
+                color: {text};
+                font-weight: 600;
+            }}
+            QPushButton#toastCloseButton:hover {{
+                background: {close_hover};
+                border-color: {accent_soft};
+            }}
+            QPushButton#toastCloseButton:pressed {{
+                background: {close_pressed};
+            }}
+            QPushButton#toastCloseButton:focus {{
+                border-color: {accent};
+            }}
+            QPushButton#toastCloseButton:disabled {{
+                color: #8B8E95;
+                background: transparent;
+            }}
             """
         )
 

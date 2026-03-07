@@ -88,3 +88,8 @@
 - **2026-03-06 — Extracción mínima de helpers runtime desde `ui_main.py` — Vigente**  
   Para cumplir el budget de tamaño del quality gate sin alterar comportamiento, se movieron helpers cohesivos de splash/watchdog/fallback y dump de widgets a `app/entrypoints/ayudantes_arranque_interfaz.py`.  
   `ui_main.py` mantiene el rol de orquestador del pipeline de arranque; se preservan contratos y wiring existentes mediante enlace explícito de métodos al coordinador.
+
+- **2026-03-07 — Toasts con doble capa (humana + técnica) y cierre manual consistente — Vigente**  
+  Se separa el contenido visible del toast (estado simple + frase humana) de los detalles técnicos (`details`) que quedan detrás de la acción **Ver detalles**. Esto evita exponer `correlation_id`, trazas o códigos internos en la primera capa y mantiene trazabilidad para soporte.  
+  Además, el cierre manual prioriza emitir señal de dominio UI (`cerrado`) para que el gestor limpie modelo/cache/timer en un único punto y evite “zombies” visuales o incoherencias.  
+  En paralelo, se unifica un estilo sobrio reutilizable para diálogos de feedback/confirmación (cabecera clara, espaciado estable, bordes por severidad), evitando aspecto de diálogo Qt desnudo y estilos inline dispersos.

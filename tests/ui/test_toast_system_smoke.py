@@ -177,6 +177,25 @@ def test_dedupe_actualiza_callback_y_accion_renderizada(qtbot) -> None:
     assert called["second"] == 1
 
 
+
+
+def test_boton_cerrar_tiene_feedback_visual(qtbot) -> None:
+    window = QMainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    manager = GestorToasts()
+    manager.attach_to(window)
+    manager.recibir_notificacion(_dto(11, duracion_ms=4000))
+
+    toast = next(iter(manager._visibles.values()))
+    assert toast._btn_cerrar.cursor().shape() == Qt.CursorShape.PointingHandCursor
+    assert toast._btn_cerrar.toolTip()
+    estilos = toast.styleSheet()
+    assert "toastCloseButton:hover" in estilos
+    assert "toastCloseButton:pressed" in estilos
+    assert "toastCloseButton:focus" in estilos
+
 def test_cierre_manual_limpia_cache_y_modelo(qtbot) -> None:
     window = QMainWindow()
     qtbot.addWidget(window)
