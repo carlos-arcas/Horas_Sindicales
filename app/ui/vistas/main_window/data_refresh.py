@@ -11,6 +11,7 @@ from app.ui.copy_catalog import copy_text
 from app.ui.toast_helpers import toast_error
 from app.ui.vistas.main_window_helpers import build_historico_filters_payload, handle_historico_render_mismatch
 from app.ui.vistas.main_window.estado_dataset_pendientes import calcular_estado_dataset_pendientes
+from app.ui.vistas.presentacion_pendientes import construir_estado_vista_pendientes
 
 logger = logging.getLogger(__name__)
 
@@ -119,26 +120,23 @@ def reload_pending_views(window) -> None:
     window._hidden_pendientes = estado_dataset.pendientes_ocultas
     window._pending_otras_delegadas = estado_dataset.pendientes_otras_delegadas
 
+    estado_vista = construir_estado_vista_pendientes(
+        estado_dataset=estado_dataset,
+        ver_todas_delegadas=bool(window._pending_view_all),
+    )
     hidden_count = len(window._hidden_pendientes)
     other_delegadas_count = len(window._pending_otras_delegadas)
-    should_warn_hidden = hidden_count > 0 and not window._pending_view_all
-    window.pending_filter_warning.setVisible(should_warn_hidden)
-    window.revisar_ocultas_button.setVisible(should_warn_hidden)
-    if should_warn_hidden:
-        window.pending_filter_warning.setText(
-            f"{copy_text('ui.data_refresh.pendientes_otras_delegadas')} {other_delegadas_count}"
-        )
-        window.revisar_ocultas_button.setText(
-            f"{copy_text('ui.data_refresh.revisar_pendientes_ocultas_prefix')}{hidden_count})"
-        )
+    window.pending_filter_warning.setVisible(estado_vista.warning_visible)
+    window.pending_filter_warning.setText(estado_vista.warning_text)
+    window.revisar_ocultas_button.setVisible(estado_vista.revisar_visible)
+    window.revisar_ocultas_button.setText(estado_vista.revisar_text)
+    if estado_vista.warning_visible:
         logger.warning(
             "Pendientes no visibles por filtro actual delegada_id=%s hidden=%s other_delegadas=%s",
             delegada_activa_id,
             hidden_count,
             other_delegadas_count,
         )
-    else:
-        window.pending_filter_warning.setText("")
 
     if estado_dataset.motivos_exclusion:
         logger.info(

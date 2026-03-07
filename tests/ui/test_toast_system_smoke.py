@@ -211,4 +211,6 @@ def test_cierre_manual_limpia_cache_y_modelo(qtbot) -> None:
     qtbot.wait(10)
 
     assert toast_id not in manager._cache
+    assert toast_id not in manager._timers
+    assert toast_id not in manager._visibles
     assert manager._modelo.listar() == []

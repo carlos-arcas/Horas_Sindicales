@@ -3,19 +3,17 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import replace
 import logging
-import sys
 from time import monotonic
-import traceback
 from typing import Callable
 
 from PySide6.QtCore import QEvent, QObject, QTimer, Qt
 from PySide6.QtWidgets import QWidget
 
-from app.ui.copy_catalog import copy_text
 from app.ui.toasts.modelo_toast import GestorToasts as GestorToastsModelo
 from app.ui.toasts.modelo_toast import ToastModelo
 from app.ui.widgets.dialogo_detalles_toast import DialogoDetallesNotificacion
 from app.ui.widgets.overlay_toast import CapaToasts
+from app.ui.toasts.toast_payload_builder import ToastPayloadEntrada, construir_toast_payload
 from app.ui.widgets.widget_toast import NotificacionToast, TarjetaToast
 
 logger = logging.getLogger(__name__)
@@ -99,67 +97,49 @@ class GestorToasts(QObject):
         duration_ms: int | None,
         opts: dict[str, object],
     ) -> NotificacionToast | None:
-        if message is None:
+        notificacion = construir_toast_payload(
+            ToastPayloadEntrada(
+                message=message,
+                level=level,
+                title=title,
+                action_label=action_label,
+                action_callback=action_callback,
+                details=details,
+                correlation_id=correlation_id,
+                code=code,
+                origin=origin,
+                exc_info=exc_info,
+                duration_ms=duration_ms,
+                opts=opts,
+            )
+        )
+        if notificacion is None:
             return None
-        details_value = self._resolver_campo_texto(details, opts, "details")
-        code_value = self._resolver_campo_texto(code, opts, "code", "codigo") or "SIN_CODIGO"
-        origin_value = self._resolver_campo_texto(origin, opts, "origin", "origen") or "origen_desconocido"
-        correlation_value = self._resolver_campo_texto(correlation_id, opts, "correlation_id", "correlacion_id")
-        detalles_completos, tipo_excepcion = self._resolver_detalles(details_value, exc_info)
-        dedupe_key = self._crear_dedupe_key(code_value, origin_value, tipo_excepcion)
-        toast_id = f"{dedupe_key}:{int(monotonic() * 1000)}"
-        notificacion = NotificacionToast(
-            id=toast_id,
-            titulo=title or copy_text("ui.toast.notificacion"),
-            mensaje=message,
-            nivel=level,
-            detalles=detalles_completos,
-            codigo=code_value,
-            correlacion_id=correlation_value,
-            origen=origin_value,
-            action_label=action_label if isinstance(action_label, str) else None,
-            action_callback=action_callback,
-            dedupe_key=dedupe_key,
-            duracion_ms=8000 if duration_ms is None else max(0, int(duration_ms)),
+        dto = NotificacionToast(
+            id=notificacion.toast_id,
+            titulo=notificacion.titulo,
+            mensaje=notificacion.mensaje,
+            nivel=notificacion.nivel,
+            detalles=notificacion.detalles,
+            codigo=notificacion.codigo,
+            correlacion_id=notificacion.correlacion_id,
+            origen=notificacion.origen,
+            action_label=notificacion.action_label,
+            action_callback=notificacion.action_callback,
+            dedupe_key=notificacion.dedupe_key,
+            duracion_ms=notificacion.duracion_ms,
         )
         logger.info(
             "TOAST_PAYLOAD_BUILD",
             extra={
-                "toast_id": notificacion.id,
-                "dedupe_key": notificacion.dedupe_key,
-                "nivel": notificacion.nivel,
-                "codigo": notificacion.codigo,
-                "origen": notificacion.origen,
+                "toast_id": dto.id,
+                "dedupe_key": dto.dedupe_key,
+                "nivel": dto.nivel,
+                "codigo": dto.codigo,
+                "origen": dto.origen,
             },
         )
-        return notificacion
-
-    def _resolver_detalles(
-        self,
-        detalles: str | None,
-        exc_info: BaseException | tuple[type[BaseException], BaseException, object] | bool | None,
-    ) -> tuple[str | None, str | None]:
-        if isinstance(exc_info, tuple) and exc_info and isinstance(exc_info[0], type):
-            return "".join(traceback.format_exception(*exc_info)), exc_info[0].__name__
-        if isinstance(exc_info, BaseException):
-            return "".join(traceback.format_exception(type(exc_info), exc_info, exc_info.__traceback__)), type(exc_info).__name__
-        if exc_info is True:
-            clase, valor, tb = sys.exc_info()
-            if clase is not None and valor is not None:
-                return "".join(traceback.format_exception(clase, valor, tb)), clase.__name__
-        return detalles, None
-
-    def _crear_dedupe_key(self, codigo: str, origen: str, tipo_excepcion: str | None) -> str:
-        return f"{codigo}:{origen}:{tipo_excepcion or 'sin_excepcion'}"
-
-    def _resolver_campo_texto(self, valor: str | None, opts: dict[str, object], *claves: str) -> str | None:
-        if isinstance(valor, str):
-            return valor
-        for clave in claves:
-            extra = opts.get(clave)
-            if isinstance(extra, str):
-                return extra
-        return None
+        return dto
 
     def recibir_notificacion(self, notificacion: NotificacionToast) -> None:
         if not self._is_active or self._overlay is None:
