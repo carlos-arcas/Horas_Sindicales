@@ -47,6 +47,11 @@
   El smoke real deja de validar únicamente estado final (ej. existencia de PDF) y pasa a comprobar hitos contractuales por escenario (`START`, `SELECTED_ROWS`, `SAVE_PATH_CHOSEN`, `EXECUTE_OK/ERROR`, `OPEN_OK`, `RETURN_EARLY`) junto con conteos antes/después de pendientes e histórico y evidencia JSON separada por escenario + resumen maestro.  
   Esto reduce falsos verdes porque un pass exige trazabilidad funcional completa del flujo visible y, en caso de fallo, permite ubicar el punto exacto de rotura sin inferencias manuales.
 
+
+- **2026-03-07 — Fuente única runtime para dataset de pendientes en UI — Vigente**  
+  Se detectó incoherencia porque la tabla, el contador de ocultas y los mensajes de “otras delegadas” no leían siempre el mismo cálculo: en algunos ciclos se combinaba `listar_pendientes_all()` con ramas por delegada y derivaciones separadas de ocultas.  
+  Se centraliza el contrato en `calcular_estado_dataset_pendientes(...)`, que entrega simultáneamente: totales, visibles, ocultas, “otras delegadas” y motivos de exclusión por fila. `reload_pending_views` consume ese único estado para render, copy de warning/CTA y sincronización de selección, garantizando que con “ver todas delegadas” no queden ocultas por delegada.
+
 ## Procedimiento de actualización
 
 1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).

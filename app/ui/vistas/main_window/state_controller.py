@@ -195,6 +195,7 @@ class MainWindow(
         self._pending_solicitudes: list[SolicitudDTO] = []
         self._pending_all_solicitudes: list[SolicitudDTO] = []
         self._hidden_pendientes: list[SolicitudDTO] = []
+        self._pending_otras_delegadas: list[SolicitudDTO] = []
         self._historico_ids_seleccionados: set[int] = set()
         self._pending_conflict_rows: set[int] = set()
         self._pending_view_all = False

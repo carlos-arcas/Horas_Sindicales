@@ -10,6 +10,7 @@ from app.domain.services import BusinessRuleError
 from app.ui.copy_catalog import copy_text
 from app.ui.toast_helpers import toast_error
 from app.ui.vistas.main_window_helpers import build_historico_filters_payload, handle_historico_render_mismatch
+from app.ui.vistas.main_window.estado_dataset_pendientes import calcular_estado_dataset_pendientes
 
 logger = logging.getLogger(__name__)
 
@@ -94,49 +95,60 @@ def refresh_saldos(window) -> None:
 
 def reload_pending_views(window) -> None:
     persona = window._current_persona()
+    delegada_activa_id = persona.id if persona is not None else None
     logger.info(
         "UI_PENDIENTES_RELOAD_START",
         extra={
             "pending_view_all": bool(window._pending_view_all),
-            "persona_id": persona.id if persona is not None else None,
+            "persona_id": delegada_activa_id,
             "hidden_previas": len(window._hidden_pendientes),
+            "otras_delegadas_previas": len(getattr(window, "_pending_otras_delegadas", [])),
             "huerfanas_previas": len(window._orphan_pendientes),
             "pendientes_visibles_previas": len(window._pending_solicitudes),
             "pendientes_totales_previas": len(window._pending_all_solicitudes),
         },
     )
-    window._pending_all_solicitudes = list(window._solicitud_use_cases.listar_pendientes_all())
-    if window._pending_view_all:
-        window._pending_solicitudes = list(window._pending_all_solicitudes)
-    elif persona is None:
-        window._pending_solicitudes = []
-    else:
-        window._pending_solicitudes = list(window._solicitud_use_cases.listar_pendientes_por_persona(persona.id or 0))
+    pendientes_totales = list(window._solicitud_use_cases.listar_pendientes_all())
+    estado_dataset = calcular_estado_dataset_pendientes(
+        pendientes_totales=pendientes_totales,
+        delegada_activa_id=delegada_activa_id,
+        ver_todas_delegadas=bool(window._pending_view_all),
+    )
+    window._pending_all_solicitudes = estado_dataset.pendientes_totales
+    window._pending_solicitudes = estado_dataset.pendientes_visibles
+    window._hidden_pendientes = estado_dataset.pendientes_ocultas
+    window._pending_otras_delegadas = estado_dataset.pendientes_otras_delegadas
 
-    pending_visible_ids = {solicitud.id for solicitud in window._pending_solicitudes if solicitud.id is not None}
-    window._hidden_pendientes = [
-        solicitud
-        for solicitud in window._pending_all_solicitudes
-        if solicitud.id is not None and solicitud.id not in pending_visible_ids
-    ]
     hidden_count = len(window._hidden_pendientes)
+    other_delegadas_count = len(window._pending_otras_delegadas)
     should_warn_hidden = hidden_count > 0 and not window._pending_view_all
     window.pending_filter_warning.setVisible(should_warn_hidden)
     window.revisar_ocultas_button.setVisible(should_warn_hidden)
     if should_warn_hidden:
         window.pending_filter_warning.setText(
-            f"{copy_text('ui.data_refresh.pendientes_otras_delegadas')} {hidden_count}"
+            f"{copy_text('ui.data_refresh.pendientes_otras_delegadas')} {other_delegadas_count}"
         )
         window.revisar_ocultas_button.setText(
             f"{copy_text('ui.data_refresh.revisar_pendientes_ocultas_prefix')}{hidden_count})"
         )
         logger.warning(
-            "Pendientes no visibles por filtro actual delegada_id=%s hidden=%s",
-            persona.id if persona is not None else None,
+            "Pendientes no visibles por filtro actual delegada_id=%s hidden=%s other_delegadas=%s",
+            delegada_activa_id,
             hidden_count,
+            other_delegadas_count,
         )
     else:
         window.pending_filter_warning.setText("")
+
+    if estado_dataset.motivos_exclusion:
+        logger.info(
+            "UI_PENDIENTES_EXCLUSION_MOTIVOS",
+            extra={
+                "pending_view_all": bool(window._pending_view_all),
+                "persona_id": delegada_activa_id,
+                "motivos_exclusion": estado_dataset.motivos_exclusion,
+            },
+        )
 
     window._orphan_pendientes = list(window._solicitud_use_cases.listar_pendientes_huerfanas())
     window.huerfanas_model.set_solicitudes(window._orphan_pendientes)
@@ -148,6 +160,7 @@ def reload_pending_views(window) -> None:
             "pendientes_visibles": len(window._pending_solicitudes),
             "pendientes_totales": len(window._pending_all_solicitudes),
             "hidden_count": len(window._hidden_pendientes),
+            "other_delegadas_count": len(window._pending_otras_delegadas),
             "huerfanas_count": len(window._orphan_pendientes),
         },
     )
@@ -159,7 +172,7 @@ def reload_pending_views(window) -> None:
         logger.info(
             "Cambio delegada id=%s pendientes_delegada=%s pendientes_totales=%s",
             persona.id,
-            len(list(window._solicitud_use_cases.listar_pendientes_por_persona(persona.id or 0))),
+            len(window._pending_solicitudes),
             len(list(window._solicitud_use_cases.listar_pendientes_all())),
         )
 

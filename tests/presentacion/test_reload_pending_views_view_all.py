@@ -93,11 +93,17 @@ def test_reload_pending_views_con_ver_todas_no_mantiene_ocultas_por_delegada() -
         eliminar_huerfana_button=SimpleNamespace(setVisible=Mock()),
         _refresh_pending_ui_state=Mock(),
         _pending_selection_anchor_row=5,
+        _hidden_pendientes=[],
+        _orphan_pendientes=[],
+        _pending_solicitudes=[],
+        _pending_all_solicitudes=[],
+        _pending_otras_delegadas=[],
     )
 
     data_refresh.reload_pending_views(window)
 
     assert [sol.id for sol in window._pending_solicitudes] == [1, 2, 3]
     assert window._hidden_pendientes == []
+    assert window._pending_otras_delegadas == []
     assert window._pending_selection_anchor_row is None
     window._refresh_pending_ui_state.assert_called_once_with()
