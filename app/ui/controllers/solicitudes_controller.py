@@ -446,6 +446,9 @@ class SolicitudesController:
             w._hidden_pendientes = [
                 sol for sol in w._hidden_pendientes if sol.id is None or sol.id in restantes_ids
             ]
+            w._pending_otras_delegadas = [
+                sol for sol in w._pending_otras_delegadas if sol.id is None or sol.id in restantes_ids
+            ]
             w._orphan_pendientes = [
                 sol for sol in w._orphan_pendientes if sol.id is None or sol.id in restantes_ids
             ]
@@ -454,6 +457,7 @@ class SolicitudesController:
         w._pending_all_solicitudes = aplicar_confirmacion(w._pending_all_solicitudes, confirmadas_ids)
         w._pending_solicitudes = aplicar_confirmacion(w._pending_solicitudes, confirmadas_ids)
         w._hidden_pendientes = aplicar_confirmacion(w._hidden_pendientes, confirmadas_ids)
+        w._pending_otras_delegadas = aplicar_confirmacion(w._pending_otras_delegadas, confirmadas_ids)
         w._orphan_pendientes = aplicar_confirmacion(w._orphan_pendientes, confirmadas_ids)
 
 

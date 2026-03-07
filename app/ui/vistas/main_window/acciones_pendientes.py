@@ -116,6 +116,7 @@ def on_clear_pendientes(window: MainWindow) -> None:
     window._pending_solicitudes = []
     window._pending_all_solicitudes = []
     window._hidden_pendientes = []
+    window._pending_otras_delegadas = []
     window._orphan_pendientes = []
     window.pendientes_model.clear()
     window.huerfanas_model.clear()
