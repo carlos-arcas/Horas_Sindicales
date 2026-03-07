@@ -52,6 +52,11 @@
   Se detectó incoherencia porque la tabla, el contador de ocultas y los mensajes de “otras delegadas” no leían siempre el mismo cálculo: en algunos ciclos se combinaba `listar_pendientes_all()` con ramas por delegada y derivaciones separadas de ocultas.  
   Se centraliza el contrato en `calcular_estado_dataset_pendientes(...)`, que entrega simultáneamente: totales, visibles, ocultas, “otras delegadas” y motivos de exclusión por fila. `reload_pending_views` consume ese único estado para render, copy de warning/CTA y sincronización de selección, garantizando que con “ver todas delegadas” no queden ocultas por delegada.
 
+
+- **2026-03-07 — Post-confirmación de Solicitudes desacoplada a módulo puro de estado — Vigente**  
+  `SolicitudesController.aplicar_confirmacion` deja de mezclar derivación de listas y pasa a orquestar: construye entrada, delega en `resolver_estado_post_confirmacion(...)` y aplica el resultado en `window`.  
+  El contrato de post-confirmación queda explícito para `_pending_solicitudes`, `_pending_all_solicitudes`, `_pending_otras_delegadas`, `_hidden_pendientes` y `_orphan_pendientes`, reduciendo fragilidad de stubs UI y permitiendo tests puros sin Qt.
+
 ## Procedimiento de actualización
 
 1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).
