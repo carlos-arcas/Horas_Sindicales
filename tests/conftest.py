@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from app.testing.qt_harness import detectar_error_qt
+
 
 def _is_linux_headless() -> bool:
     if platform.system() != "Linux":
@@ -90,15 +92,13 @@ def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool:
     return any(token in normalized_path for token in blocked_paths) or relative_path.endswith(("/tests/ui", "/tests/presentacion"))
 
 
-def _detect_ui_backend_issue() -> str | None:
-    try:
-        import importlib
-
-        importlib.import_module("PySide6")
-        importlib.import_module("PySide6.QtWidgets")
-        return None
-    except Exception as exc:  # pragma: no cover - depende del host de ejecución
-        return f"PySide6/Qt no disponible para tests UI: {exc}"
+def _es_smoke_ui_estricto(nodeid: str) -> bool:
+    if os.getenv("HORAS_UI_SMOKE_CI") != "1":
+        return False
+    return (
+        "tests/ui/test_confirmar_pdf_mainwindow_smoke.py" in nodeid
+        or "tests/ui/test_pendientes_toasts_ci_smoke.py" in nodeid
+    )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -107,7 +107,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     core_only_run = _core_qt_block_enabled(config)
     has_ui_items = any("tests/ui/" in item.nodeid or item.get_closest_marker("ui") is not None for item in items)
     if has_ui_items and not core_only_run and _UI_BACKEND_ERROR is None:
-        _UI_BACKEND_ERROR = _detect_ui_backend_issue()
+        _UI_BACKEND_ERROR = detectar_error_qt()
     if _UI_BACKEND_ERROR is not None:
         skip_ui = pytest.mark.skip(reason=_UI_BACKEND_ERROR)
 
@@ -115,6 +115,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         if "tests/ui/" in item.nodeid and "headless_safe" not in item.keywords:
             item.add_marker(pytest.mark.ui)
         if skip_ui is not None and item.get_closest_marker("ui") is not None:
+            if _es_smoke_ui_estricto(item.nodeid):
+                continue
             item.add_marker(skip_ui)
 
     guard_nodeid = "tests/test_000_no_qt_in_core.py::test_core_suite_no_importa_pyside6"

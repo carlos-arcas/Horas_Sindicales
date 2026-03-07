@@ -35,3 +35,17 @@ def test_pytest_collection_modifyitems_only_skips_ui_items(monkeypatch) -> None:
 
     assert ui_item.markers, "El test UI debe marcarse skip sin Qt"
     assert not non_ui_item.markers, "Un test fuera de tests/ui no debe skippearse"
+
+
+def test_pytest_collection_modifyitems_no_skippea_smoke_ui_estricto(monkeypatch) -> None:
+    ui_conftest = _load_ui_conftest_module()
+    monkeypatch.setattr(ui_conftest, "_qt_ready", lambda: False)
+    monkeypatch.setenv("HORAS_UI_SMOKE_CI", "1")
+
+    smoke_confirmar = _DummyItem("tests/ui/test_confirmar_pdf_mainwindow_smoke.py")
+    smoke_pendientes = _DummyItem("tests/ui/test_pendientes_toasts_ci_smoke.py")
+
+    ui_conftest.pytest_collection_modifyitems(None, [smoke_confirmar, smoke_pendientes])
+
+    assert smoke_confirmar.markers == []
+    assert smoke_pendientes.markers == []

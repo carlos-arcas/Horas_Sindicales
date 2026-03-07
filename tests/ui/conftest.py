@@ -6,10 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.application.dto import PersonaDTO
-
-
-def _smoke_confirmar_pdf_ci_obligatorio() -> bool:
-    return os.getenv("HORAS_UI_SMOKE_CI") == "1"
+from app.testing.qt_harness import _humo_ui_estricto_activo, detectar_error_qt
 
 
 def require_qt():
@@ -22,29 +19,18 @@ def require_qt():
             "acoplar tests no-UI al backend Qt."
         )
 
-    try:
-        from PySide6.QtCore import QEvent
-        from PySide6.QtWidgets import QApplication
-
-        _ = QEvent
-        return QApplication
-    except Exception as exc:
-        mensaje_extra = ""
-        if "libGL.so.1" in str(exc):
-            mensaje_extra = (
-                " Falta dependencia nativa 'libGL.so.1' en el runner "
-                "(instalar paquete de sistema equivalente a libgl1)."
-            )
-        if _smoke_confirmar_pdf_ci_obligatorio():
+    error_qt = detectar_error_qt()
+    if error_qt is not None:
+        if _humo_ui_estricto_activo():
             raise RuntimeError(
                 "PySide6 no disponible para smoke UI obligatorio en CI "
-                "(HORAS_UI_SMOKE_CI=1)."
-                f"{mensaje_extra}"
-            ) from exc
-        pytest.skip(
-            "PySide6 no disponible correctamente en entorno local/CI",
-            allow_module_level=True,
-        )
+                f"(HORAS_UI_SMOKE_CI=1). {error_qt}"
+            )
+        pytest.skip(error_qt, allow_module_level=True)
+
+    from PySide6.QtWidgets import QApplication
+
+    return QApplication
 
 
 def crear_persona_dto_valida(nombre: str) -> PersonaDTO:
@@ -128,16 +114,19 @@ def pytest_collection_modifyitems(config, items):
     )
 
     qt_ready = _qt_ready()
-    smoke_confirmar_pdf_path = "tests/ui/test_confirmar_pdf_mainwindow_smoke.py"
+    smoke_ui_estrictos = {
+        "tests/ui/test_confirmar_pdf_mainwindow_smoke.py",
+        "tests/ui/test_pendientes_toasts_ci_smoke.py",
+    }
 
     for item in items:
         if not _is_ui_item(item):
             continue
 
         item_path = Path(str(getattr(item, "path", ""))).as_posix()
-        is_smoke_confirmar_pdf = item_path.endswith(smoke_confirmar_pdf_path)
+        es_smoke_ui_estricto = any(item_path.endswith(path) for path in smoke_ui_estrictos)
 
-        if not qt_ready and not (_smoke_confirmar_pdf_ci_obligatorio() and is_smoke_confirmar_pdf):
+        if not qt_ready and not (_humo_ui_estricto_activo() and es_smoke_ui_estricto):
             item.add_marker(skip_ui_env)
             continue
 
