@@ -92,7 +92,8 @@ def test_click_con_pdf_existente_muestra_toast_success(monkeypatch) -> None:
 
     confirmacion_actions.on_confirmar(window)
 
-    window._toast_success.assert_called_once()
+    window._finalize_confirmar_with_pdf.assert_called_once()
+    window._toast_success.assert_not_called()
 
 
 def test_error_del_use_case_muestra_toast_error_y_rehabilita_ui() -> None:
