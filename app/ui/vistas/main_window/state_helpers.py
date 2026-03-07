@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.ui.copy_catalog import copy_text
 from app.ui.vistas.personas_presenter import resolve_active_delegada_id as _resolver_delegada_activa
+
+from .estado_acciones import (
+    EntradaEstadoAccionesMainWindow,
+    resolver_estado_acciones_main_window,
+)
 
 
 def resolve_active_delegada_id(window: Any, preferred_id: object | None = None) -> int | None:
@@ -41,48 +47,67 @@ def set_processing_state(window: Any, in_progress: bool) -> None:
     if callable(status_bar):
         bar = status_bar()
         if bar is not None and hasattr(bar, "showMessage"):
-            bar.showMessage("Procesando..." if in_progress else "", 0 if in_progress else 2000)
+            bar.showMessage(
+                copy_text("ui.validacion.procesando") if in_progress else "",
+                0 if in_progress else 2000,
+            )
 
 
 def update_action_state(window: Any) -> None:
     """Sincroniza habilitación de acciones según estado actual del formulario."""
-    selected_historico_ids = set(getattr(window, "_historico_ids_seleccionados", set()))
+    form_valid, _form_message = window._validate_solicitud_form()
+    estado = resolver_estado_acciones_main_window(
+        EntradaEstadoAccionesMainWindow(
+            persona_seleccionada=window._current_persona() is not None,
+            formulario_valido=form_valid,
+            hay_errores_bloqueantes=bool(window._blocking_errors),
+            hay_pendientes_visibles=bool(window._pending_solicitudes),
+            hay_conflictos_pendientes=bool(window._pending_conflict_rows),
+            ver_todas_delegadas=bool(window._pending_view_all),
+            sync_en_progreso=bool(window._sync_in_progress),
+            cantidad_seleccion_pendientes=len(window._selected_pending_solicitudes()),
+            cantidad_seleccion_historico=len(window._selected_historico_solicitudes()),
+            cantidad_ids_historico_seleccionados=len(window._historico_ids_seleccionados),
+            cantidad_pendientes_otras_delegadas=len(window._pending_otras_delegadas),
+        )
+    )
 
-    has_persona = False
-    current_persona = getattr(window, "_current_persona", None)
-    if callable(current_persona):
-        has_persona = current_persona() is not None
-
-    has_pending = bool(getattr(window, "_pending_solicitudes", []))
-    has_selection = bool(selected_historico_ids)
-    has_blocking_errors = bool(getattr(window, "_blocking_errors", {}))
-    sync_in_progress = bool(getattr(window, "_sync_in_progress", False))
-
-    valid_form = False
-    validate_form = getattr(window, "_validate_solicitud_form", None)
-    if callable(validate_form):
-        try:
-            valid_form, _ = validate_form()
-        except Exception:
-            valid_form = False
-
-    add_enabled = has_persona and valid_form and not has_blocking_errors and not sync_in_progress
-    confirm_enabled = has_pending and not has_blocking_errors and not sync_in_progress
-    remove_enabled = has_selection and not sync_in_progress
-
-    actions = {
-        "agregar_button": add_enabled,
-        "confirmar_button": confirm_enabled,
-        "eliminar_button": remove_enabled,
-        "clear_button": has_pending and not sync_in_progress,
+    acciones = {
+        "agregar_button": estado.agregar_habilitado,
+        "insertar_sin_pdf_button": estado.insertar_sin_pdf_habilitado,
+        "confirmar_button": estado.confirmar_habilitado,
+        "edit_persona_button": estado.editar_persona_habilitado,
+        "delete_persona_button": estado.eliminar_persona_habilitado,
+        "edit_grupo_button": estado.editar_grupo_habilitado,
+        "editar_pdf_button": estado.editar_pdf_habilitado,
+        "eliminar_button": estado.eliminar_historico_habilitado,
+        "eliminar_pendiente_button": estado.eliminar_pendiente_habilitado,
+        "generar_pdf_button": estado.generar_pdf_habilitado,
+        "clear_button": estado.clear_habilitado,
     }
-    for control_name, enabled in actions.items():
+    for control_name, habilitado in acciones.items():
         control = getattr(window, control_name, None)
         if control is None:
             continue
         setter = getattr(control, "setEnabled", None)
         if callable(setter):
-            setter(enabled)
+            setter(habilitado)
+
+    eliminar_button = getattr(window, "eliminar_button", None)
+    if eliminar_button is not None and hasattr(eliminar_button, "setText"):
+        eliminar_button.setText(
+            copy_text("ui.historico.eliminar_boton").format(
+                n=estado.total_historico_seleccionado
+            )
+        )
+
+    generar_pdf_button = getattr(window, "generar_pdf_button", None)
+    if generar_pdf_button is not None and hasattr(generar_pdf_button, "setText"):
+        generar_pdf_button.setText(
+            copy_text("ui.historico.exportar_pdf_boton").format(
+                n=estado.total_historico_seleccionado
+            )
+        )
 
     refresh_status_panel = getattr(window, "_update_solicitudes_status_panel", None)
     if callable(refresh_status_panel):

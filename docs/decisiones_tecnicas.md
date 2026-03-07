@@ -57,6 +57,11 @@
   `SolicitudesController.aplicar_confirmacion` deja de mezclar derivación de listas y pasa a orquestar: construye entrada, delega en `resolver_estado_post_confirmacion(...)` y aplica el resultado en `window`.  
   El contrato de post-confirmación queda explícito para `_pending_solicitudes`, `_pending_all_solicitudes`, `_pending_otras_delegadas`, `_hidden_pendientes` y `_orphan_pendientes`, reduciendo fragilidad de stubs UI y permitiendo tests puros sin Qt.
 
+
+- **2026-03-07 — MainWindow: estado de acciones centralizado en resolver puro de presentación — Vigente**  
+  Se detectó fragilidad porque `_update_action_state` (proxy) y `state_helpers.update_action_state` derivaban flags en paralelo (persona, pendientes, selección, conflictos y sync), con riesgo de contradicciones por refresh o por cambios parciales.  
+  Se define una única fuente de verdad en `estado_acciones.py` con contrato explícito de entrada/salida (dataclasses) y función pura `resolver_estado_acciones_main_window(...)`. La UI queda como orquestador: lee estado, llama al resolver y aplica widgets/textos sin duplicar reglas.
+
 ## Procedimiento de actualización
 
 1. Añadir una nueva entrada con fecha ISO (`YYYY-MM-DD`).
