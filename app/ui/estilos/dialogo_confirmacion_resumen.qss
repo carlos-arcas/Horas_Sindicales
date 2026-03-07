@@ -1,0 +1,9 @@
+QDialog#dialogoConfirmacionResumen {{
+    background: #F8FAFC;
+    border: 2px solid {color_borde};
+    border-radius: 12px;
+}}
+QLabel {{
+    color: #1F2937;
+    font-size: 13px;
+}}

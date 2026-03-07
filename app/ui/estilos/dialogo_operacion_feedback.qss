@@ -1,0 +1,9 @@
+QDialog#dialogoOperacionFeedback {
+    background: #F7F9FC;
+    border: 1px solid #D8DEE8;
+    border-radius: 12px;
+}
+QLabel {
+    color: #1F2937;
+    font-size: 13px;
+}

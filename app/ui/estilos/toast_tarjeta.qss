@@ -1,0 +1,32 @@
+QFrame#toastWidget {{
+    background-color: {color_fondo};
+    border: 1px solid {color_acento_suave};
+    border-left: 4px solid {color_acento};
+    border-radius: 12px;
+}}
+QLabel#toastTitle {{ color: {color_texto}; font-weight: 700; font-size: 13px; }}
+QLabel#toastMessage {{ color: {color_texto}; }}
+QPushButton#toastCloseButton, QPushButton#toastDetailsButton, QPushButton#toastActionButton {{
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+}}
+QPushButton#toastCloseButton {{
+    background: transparent;
+    color: {color_texto};
+    font-weight: 600;
+}}
+QPushButton#toastCloseButton:hover {{
+    background: {color_cerrar_hover};
+    border-color: {color_acento_suave};
+}}
+QPushButton#toastCloseButton:pressed {{
+    background: {color_cerrar_pressed};
+}}
+QPushButton#toastCloseButton:focus {{
+    border-color: {color_acento};
+}}
+QPushButton#toastCloseButton:disabled {{
+    color: #8B8E95;
+    background: transparent;
+}}
