@@ -22,3 +22,23 @@ def test_detectar_error_qt_reporta_libgl_si_falta(monkeypatch) -> None:
     assert mensaje is not None
     assert "libGL.so.1" in mensaje
     assert "libgl1" in mensaje
+
+
+def test_detectar_error_pytest_qt_reporta_falta_plugin(monkeypatch) -> None:
+    def _importar(nombre_modulo: str) -> None:
+        if nombre_modulo.startswith("pytestqt"):
+            raise ModuleNotFoundError("No module named 'pytestqt'")
+
+    monkeypatch.setattr(qt_harness, "_importar_modulo", _importar)
+
+    mensaje = qt_harness.detectar_error_pytest_qt()
+
+    assert mensaje is not None
+    assert "pytest-qt" in mensaje
+    assert "pytestqt" in mensaje
+
+
+def test_detectar_error_pytest_qt_devuelve_none_si_plugin_disponible(monkeypatch) -> None:
+    monkeypatch.setattr(qt_harness, "_importar_modulo", lambda _nombre: None)
+
+    assert qt_harness.detectar_error_pytest_qt() is None
