@@ -72,6 +72,31 @@ def _agregar_pendiente(container, persona_id: int, fecha: str) -> int:
     return int(creada.id)
 
 
+def _crear_persona_valida(nombre: str) -> PersonaDTO:
+    return PersonaDTO(
+        id=None,
+        nombre=nombre,
+        genero="F",
+        horas_mes=0,
+        horas_ano=0,
+        is_active=True,
+        cuad_lun_man_min=0,
+        cuad_lun_tar_min=0,
+        cuad_mar_man_min=0,
+        cuad_mar_tar_min=0,
+        cuad_mie_man_min=0,
+        cuad_mie_tar_min=0,
+        cuad_jue_man_min=0,
+        cuad_jue_tar_min=0,
+        cuad_vie_man_min=0,
+        cuad_vie_tar_min=0,
+        cuad_sab_man_min=0,
+        cuad_sab_tar_min=0,
+        cuad_dom_man_min=0,
+        cuad_dom_tar_min=0,
+    )
+
+
 def _crear_window(tmp_path: Path):
     app = QApplication.instance() or QApplication([])
     db_path = tmp_path / "runtime_ui_pendientes_toast.sqlite3"
@@ -149,8 +174,8 @@ def test_ui_smoke_pendientes_y_toasts_con_evidencias_ci(
     try:
         caplog.set_level(logging.INFO)
 
-        persona_1 = window._persona_use_cases.crear_persona(PersonaDTO(nombre="Delegada Smoke Uno"))
-        persona_2 = window._persona_use_cases.crear_persona(PersonaDTO(nombre="Delegada Smoke Dos"))
+        persona_1 = window._persona_use_cases.crear_persona(_crear_persona_valida("Delegada Smoke Uno"))
+        persona_2 = window._persona_use_cases.crear_persona(_crear_persona_valida("Delegada Smoke Dos"))
         assert persona_1.id is not None and persona_2.id is not None
         window._load_personas(select_id=persona_1.id)
         app.processEvents()
