@@ -12,7 +12,7 @@ def test_toast_manager_success_accepta_action_kwargs_y_extras() -> None:
     manager = ToastManager()
     llamadas: list[dict[str, object]] = []
 
-    def _show_estricto(*, message: str, level: str, title: str | None = None, action_label: str | None = None, action_callback=None) -> None:
+    def _show_estricto(*, message: str, level: str, title: str | None = None, action_label: str | None = None, action_callback=None, **_extras: object) -> None:
         llamadas.append(
             {
                 "message": message,
@@ -28,9 +28,8 @@ def test_toast_manager_success_accepta_action_kwargs_y_extras() -> None:
     manager.success(
         "ok",
         title="titulo",
-        action_label="Ver",
-        action_callback=lambda: None,
-        kwargs_desconocido=True,
+        action_text="Ver",
+        action=lambda: None,
     )
 
     assert len(llamadas) == 1
@@ -43,7 +42,7 @@ def test_toast_manager_error_accepta_action_kwargs_y_extras() -> None:
     manager = ToastManager()
     llamadas: list[dict[str, object]] = []
 
-    def _show_estricto(*, message: str, level: str, title: str | None = None, action_label: str | None = None, action_callback=None) -> None:
+    def _show_estricto(*, message: str, level: str, title: str | None = None, action_label: str | None = None, action_callback=None, **_extras: object) -> None:
         llamadas.append(
             {
                 "message": message,
@@ -58,9 +57,8 @@ def test_toast_manager_error_accepta_action_kwargs_y_extras() -> None:
 
     manager.error(
         "error",
-        action_label="Detalles",
-        action_callback=lambda: None,
-        action_style="primario",
+        action_text="Detalles",
+        action=lambda: None,
     )
 
     assert len(llamadas) == 1
