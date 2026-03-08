@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests.ui.toast_test_helpers import assert_toast_con_accion
+
 try:
     from app.ui.widgets.toast import GestorToasts, ToastManager
 except ImportError as exc:  # pragma: no cover - entorno sin librerías Qt
@@ -20,10 +22,8 @@ def _assert_accepts_action_kwargs(manager: GestorToasts) -> None:
     manager.error("x", action_label="Detalles", action_callback=lambda: None)
 
     assert len(called) == 2
-    assert called[0]["action_label"] == "Abrir"
-    assert callable(called[0]["action_callback"])
-    assert called[1]["action_label"] == "Detalles"
-    assert callable(called[1]["action_callback"])
+    assert_toast_con_accion(called[0], nivel="success", etiqueta_accion="Abrir")
+    assert_toast_con_accion(called[1], nivel="error", etiqueta_accion="Detalles")
 
 
 def test_gestor_toasts_success_error_accept_action_kwargs() -> None:

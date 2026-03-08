@@ -7,6 +7,8 @@ import sys
 from types import ModuleType
 import pytest
 
+from tests.ui.toast_test_helpers import assert_toast_con_accion
+
 
 @dataclass
 class _NotificacionToast:
@@ -67,8 +69,7 @@ def test_success_acepta_action_label_action_callback() -> None:
     gestor.success("ok", action_label="Abrir", action_callback=lambda: None)
 
     assert gestor.ultima_carga is not None
-    assert gestor.ultima_carga["action_label"] == "Abrir"
-    assert callable(gestor.ultima_carga["action_callback"])
+    assert_toast_con_accion(gestor.ultima_carga, nivel="success", etiqueta_accion="Abrir")
 
 
 def test_error_acepta_action_label_action_callback() -> None:
@@ -78,8 +79,7 @@ def test_error_acepta_action_label_action_callback() -> None:
     gestor.error("fallo", action_label="Ver", action_callback=lambda: None)
 
     assert gestor.ultima_carga is not None
-    assert gestor.ultima_carga["action_label"] == "Ver"
-    assert callable(gestor.ultima_carga["action_callback"])
+    assert_toast_con_accion(gestor.ultima_carga, nivel="error", etiqueta_accion="Ver")
 
 
 def test_success_rechaza_kwargs_desconocidos_con_value_error() -> None:
@@ -108,5 +108,5 @@ def test_success_mapea_alias_action_text_y_action() -> None:
     gestor.success("ok", action_text="Detalle", action=callback)
 
     assert gestor.ultima_carga is not None
-    assert gestor.ultima_carga["action_label"] == "Detalle"
+    assert_toast_con_accion(gestor.ultima_carga, nivel="success", etiqueta_accion="Detalle")
     assert gestor.ultima_carga["action_callback"] is callback
