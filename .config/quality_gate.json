@@ -22,7 +22,9 @@
     "app/ui/controllers/solicitudes_controller.py:SolicitudesController._persist_pendiente": 10,
     "app/ui/controllers/solicitudes_controller.py:SolicitudesController.aplicar_confirmacion": 8,
     "app/ui/main_window.py:MainWindow._update_action_state": 6,
-    "app/ui/vistas/main_window/state_helpers.py:update_action_state": 8
+    "app/ui/vistas/main_window/state_helpers.py:update_action_state": 8,
+    "app/ui/vistas/main_window/acciones_personas.py:on_persona_changed": 8,
+    "app/ui/vistas/main_window/acciones_personas.py:sync_config_persona_actions": 5
   },
   "i18n_hardcode_check": {
     "rutas_objetivo": [

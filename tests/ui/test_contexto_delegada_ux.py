@@ -60,3 +60,30 @@ def test_cambiar_delegada_con_formulario_sucio_pide_confirmacion(monkeypatch: py
 
     window.close()
     app.processEvents()
+
+
+def test_cambiar_delegada_con_formulario_sucio_y_confirmacion_afirmativa_aplica_cambio(monkeypatch: pytest.MonkeyPatch) -> None:
+    app = QApplication.instance() or QApplication([])
+    window = _build_window()
+
+    p1 = window._persona_use_cases.crear_persona(PersonaDTO(nombre="Ana"))
+    p2 = window._persona_use_cases.crear_persona(PersonaDTO(nombre="Bea"))
+    window._load_personas(select_id=p1.id)
+    window.notas_input.setPlainText("Borrador pendiente")
+
+    llamadas: list[tuple[object, str, str]] = []
+
+    def _fake_question(parent, title, text, *args, **kwargs):
+        llamadas.append((parent, title, text))
+        return QMessageBox.StandardButton.Yes
+
+    monkeypatch.setattr(QMessageBox, "question", _fake_question)
+
+    window.persona_combo.setCurrentIndex(1)
+
+    assert llamadas
+    assert window.persona_combo.currentData() == p2.id
+    assert window.notas_input.toPlainText() == ""
+
+    window.close()
+    app.processEvents()
