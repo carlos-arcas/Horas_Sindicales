@@ -86,6 +86,11 @@
   Se protege el cálculo con manejo de `TypeError`/`ValueError` y se retorna `0` ante entradas inválidas para evitar caídas en reportes cuando llega un `generated_at` corrupto o incompleto.  
   Verificación recomendada: `pytest -q tests/application/test_parseo_iso_datetime.py tests/application/test_sync_reporting_datetime.py` y `python -m scripts.quality_gate`.
 
+
+- **2026-03-08 — Contexto de delegada: resolución pura para cambio + estado de configuración — Vigente**  
+  Se detectó fragilidad por lógica repartida entre handlers UI: lectura de `currentData`, decisión de confirmación por formulario sucio y habilitación de botones de configuración.  
+  Se introduce `resolver_estado_contexto_delegada(...)` en `app/ui/vistas/main_window/contexto_delegada.py` con entrada/salida tipadas para centralizar la decisión. `acciones_personas` queda como orquestador mínimo (leer widgets → resolver → confirmar si aplica → aplicar cambio), reduciendo acoplamiento y mejorando testabilidad sin Qt real.
+
 ## 2026-03-04 — Reportes de contenido y moderación (MVP)
 
 - Se implementa idempotencia con índice único parcial SQLite sobre `(denunciante_id, recurso_tipo, recurso_id)` cuando `estado='pendiente'`.

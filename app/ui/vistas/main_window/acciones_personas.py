@@ -13,6 +13,8 @@ from app.ui.copy_catalog import copy_text
 from app.ui.person_dialog import PersonaDialog
 from app.ui.vistas.personas_presenter import PersonaOption, PersonasLoadInput, build_personas_load_output
 
+from .contexto_delegada import EntradaEstadoContextoDelegada, resolver_estado_contexto_delegada
+
 try:
     from PySide6.QtCore import QDate, QTime
     from PySide6.QtWidgets import QMessageBox
@@ -137,21 +139,28 @@ def current_persona(window: MainWindow) -> PersonaDTO | None:
 
 
 def on_persona_changed(window: MainWindow, *_args) -> None:
-    nueva_persona_id = window.persona_combo.currentData()
+    estado = resolver_estado_contexto_delegada(
+        EntradaEstadoContextoDelegada(
+            delegada_actual_id=window._last_persona_id,
+            persona_combo_current_data=window.persona_combo.currentData(),
+            config_combo_current_data=window.config_delegada_combo.currentData(),
+            formulario_sucio=is_form_dirty(window),
+        )
+    )
 
-    if window._last_persona_id != nueva_persona_id and is_form_dirty(window) and not confirmar_cambio_delegada(window):
+    if estado.requiere_confirmacion and not confirmar_cambio_delegada(window):
         for index in range(window.persona_combo.count()):
             if window.persona_combo.itemData(index) == window._last_persona_id:
                 window.persona_combo.setCurrentIndex(index)
                 break
         return
 
-    if window._last_persona_id != nueva_persona_id:
+    if estado.cambio_delegada:
         save_current_draft(window, window._last_persona_id)
         window._limpiar_formulario()
-        restore_draft_for_persona(window, nueva_persona_id)
+        restore_draft_for_persona(window, estado.delegada_destino_id)
 
-    window._last_persona_id = nueva_persona_id
+    window._last_persona_id = estado.delegada_destino_id
     window.pendientes_table.clearSelection()
     window.huerfanas_table.clearSelection()
     window._reload_pending_views()
@@ -239,9 +248,16 @@ def on_delete_persona(window: MainWindow) -> None:
 
 
 def sync_config_persona_actions(window: MainWindow) -> None:
-    has_selected_persona = window.config_delegada_combo.currentData() is not None
-    window.edit_persona_button.setEnabled(has_selected_persona)
-    window.delete_persona_button.setEnabled(has_selected_persona)
+    estado = resolver_estado_contexto_delegada(
+        EntradaEstadoContextoDelegada(
+            delegada_actual_id=window._last_persona_id,
+            persona_combo_current_data=window.persona_combo.currentData(),
+            config_combo_current_data=window.config_delegada_combo.currentData(),
+            formulario_sucio=is_form_dirty(window),
+        )
+    )
+    window.edit_persona_button.setEnabled(estado.habilitar_acciones_configuracion)
+    window.delete_persona_button.setEnabled(estado.habilitar_acciones_configuracion)
 
 
 def on_config_delegada_changed(window: MainWindow, *_args) -> None:
