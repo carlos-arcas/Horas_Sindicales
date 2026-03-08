@@ -128,3 +128,7 @@
 - **2026-03-07 — Notificaciones/toasts: presentación pura para confirmar cierre y recepción de toasts — Vigente**  
   Se desacopla la construcción de copy/resumen de `NotificationService.show_confirmation_closure` hacia `app/ui/presentacion_confirmacion_notificaciones.py` y la decisión de ids a cerrar de `GestorToasts.recibir_notificacion` hacia `app/ui/toasts/presentador_recepcion_toast.py`.  
   Resultado: menor complejidad ciclomática en hotspots UI, contratos más testeables (presentación confirmación y limpieza/dedupe de recepción) y mismo comportamiento visible/callbacks del sistema de toasts.
+
+- **2026-03-08 — Consolidación de contratos de toast en helper de tests compartido — Vigente**  
+  Se detectó duplicación en tests de compatibilidad del `ToastManager` (captura de payload `show(...)` y validación de acción asociada) que elevaba ruido y coste de mantenimiento sin aportar cobertura nueva.  
+  Se extrae `tests/ui/toast_test_helpers.py` con utilidades puras para registrar llamadas y validar contrato de acción (`level`, `action_label`, `action_callback` callable), manteniendo asserts funcionales y reduciendo fragilidad por repetición.

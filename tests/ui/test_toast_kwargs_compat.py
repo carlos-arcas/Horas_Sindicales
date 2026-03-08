@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests.ui.toast_test_helpers import crear_show_estricto_con_registro
+
 try:
     from app.ui.widgets.toast import ToastManager
 except ImportError as exc:  # pragma: no cover - entorno sin stack Qt completo
@@ -10,20 +12,9 @@ except ImportError as exc:  # pragma: no cover - entorno sin stack Qt completo
 
 def test_toast_manager_success_accepta_action_kwargs_y_extras() -> None:
     manager = ToastManager()
-    llamadas: list[dict[str, object]] = []
+    llamadas, show_estricto = crear_show_estricto_con_registro()
 
-    def _show_estricto(*, message: str, level: str, title: str | None = None, action_label: str | None = None, action_callback=None, **_extras: object) -> None:
-        llamadas.append(
-            {
-                "message": message,
-                "level": level,
-                "title": title,
-                "action_label": action_label,
-                "action_callback": action_callback,
-            }
-        )
-
-    manager.show = _show_estricto  # type: ignore[method-assign]
+    manager.show = show_estricto  # type: ignore[method-assign]
 
     manager.success(
         "ok",
@@ -40,20 +31,9 @@ def test_toast_manager_success_accepta_action_kwargs_y_extras() -> None:
 
 def test_toast_manager_error_accepta_action_kwargs_y_extras() -> None:
     manager = ToastManager()
-    llamadas: list[dict[str, object]] = []
+    llamadas, show_estricto = crear_show_estricto_con_registro()
 
-    def _show_estricto(*, message: str, level: str, title: str | None = None, action_label: str | None = None, action_callback=None, **_extras: object) -> None:
-        llamadas.append(
-            {
-                "message": message,
-                "level": level,
-                "title": title,
-                "action_label": action_label,
-                "action_callback": action_callback,
-            }
-        )
-
-    manager.show = _show_estricto  # type: ignore[method-assign]
+    manager.show = show_estricto  # type: ignore[method-assign]
 
     manager.error(
         "error",
