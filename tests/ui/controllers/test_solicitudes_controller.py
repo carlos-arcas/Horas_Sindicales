@@ -71,12 +71,16 @@ def _build_window_for_add(solicitud: SolicitudDTO | None) -> SimpleNamespace:
 def test_add_pendiente_sin_conflicto_persiste() -> None:
     solicitud = _solicitud_base()
     window = _build_window_for_add(solicitud)
+    solicitud_normalizada = replace(solicitud, horas=1.5, notas="nota")
 
     controller = SolicitudesController(window)
     controller.on_add_pendiente()
 
     window._solicitud_use_cases.buscar_conflicto_pendiente.assert_called_once()
-    window._resolve_backend_conflict.assert_called_once_with(solicitud.persona_id, solicitud)
+    window._resolve_backend_conflict.assert_called_once_with(
+        solicitud_normalizada.persona_id,
+        solicitud_normalizada,
+    )
     window._solicitud_use_cases.crear_resultado.assert_called_once()
     window._reload_pending_views.assert_called_once()
     window.toast.warning.assert_not_called()
