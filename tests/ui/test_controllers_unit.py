@@ -326,9 +326,12 @@ def test_solicitudes_controller_logs_correlation_id(caplog) -> None:
     correlation_id = kwargs["correlation_id"]
     uuid.UUID(correlation_id)
 
-    mensajes = [record.getMessage() for record in caplog.records]
-    assert any("agregar_pendiente_started" in mensaje for mensaje in mensajes)
-    assert any("agregar_pendiente_succeeded" in mensaje for mensaje in mensajes)
+    eventos = {
+        registro.getMessage(): getattr(registro, "correlation_id", None)
+        for registro in caplog.records
+    }
+    assert eventos.get("crear_pendiente_started") == correlation_id
+    assert eventos.get("crear_pendiente_finished") == correlation_id
 
 
 def test_solicitudes_controller_actualiza_pendiente_en_edicion() -> None:
