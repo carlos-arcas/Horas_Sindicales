@@ -14,7 +14,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.testing.qt_harness import detectar_error_pytest_qt, detectar_error_qt
+from app.testing.qt_harness import (
+    detectar_error_pytest_qt,
+    detectar_error_qt,
+    _es_humo_ui_estricto,
+)
 
 
 def _is_linux_headless() -> bool:
@@ -97,15 +101,6 @@ def _usa_fixture_qtbot(item: pytest.Item) -> bool:
     return "qtbot" in getattr(item, "fixturenames", ())
 
 
-def _es_smoke_ui_estricto(nodeid: str) -> bool:
-    if os.getenv("HORAS_UI_SMOKE_CI") != "1":
-        return False
-    return (
-        "tests/ui/test_confirmar_pdf_mainwindow_smoke.py" in nodeid
-        or "tests/ui/test_pendientes_toasts_ci_smoke.py" in nodeid
-    )
-
-
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     global _PYTEST_QT_ERROR, _UI_BACKEND_ERROR
     skip_ui = None
@@ -129,11 +124,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(pytest.mark.ui)
 
         if skip_ui is not None and item.get_closest_marker("ui") is not None:
-            if not _es_smoke_ui_estricto(item.nodeid):
+            if not _es_humo_ui_estricto(item.nodeid):
                 item.add_marker(skip_ui)
 
         if skip_pytest_qt is not None and _usa_fixture_qtbot(item):
-            if _es_smoke_ui_estricto(item.nodeid):
+            if _es_humo_ui_estricto(item.nodeid):
                 continue
             item.add_marker(skip_pytest_qt)
 
@@ -144,7 +139,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 
 def pytest_runtest_setup(item: pytest.Item) -> None:
-    if _es_smoke_ui_estricto(item.nodeid) and _usa_fixture_qtbot(item):
+    if _es_humo_ui_estricto(item.nodeid) and _usa_fixture_qtbot(item):
         error_pytest_qt = detectar_error_pytest_qt()
         if error_pytest_qt is not None:
             raise RuntimeError(

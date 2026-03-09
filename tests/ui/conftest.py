@@ -6,7 +6,12 @@ from pathlib import Path
 import pytest
 
 from app.application.dto import PersonaDTO
-from app.testing.qt_harness import _humo_ui_estricto_activo, detectar_error_qt
+from app.testing.qt_harness import (
+    ARCHIVOS_SMOKE_UI_ESTRICTOS,
+    _es_humo_ui_estricto,
+    _humo_ui_estricto_activo,
+    detectar_error_qt,
+)
 
 
 def require_qt():
@@ -123,19 +128,17 @@ def pytest_collection_modifyitems(config, items):
     )
 
     qt_ready = _qt_ready()
-    smoke_ui_estrictos = {
-        "tests/ui/test_confirmar_pdf_mainwindow_smoke.py",
-        "tests/ui/test_pendientes_toasts_ci_smoke.py",
-    }
-
     for item in items:
         if not _is_ui_item(item):
             continue
 
         item_path = Path(str(getattr(item, "path", ""))).as_posix()
-        es_smoke_ui_estricto = any(item_path.endswith(path) for path in smoke_ui_estrictos)
+        item_nodeid = getattr(item, "nodeid", item_path)
+        es_smoke_estricto = _es_humo_ui_estricto(item_nodeid)
+        if not es_smoke_estricto:
+            es_smoke_estricto = any(item_path.endswith(path) for path in ARCHIVOS_SMOKE_UI_ESTRICTOS)
 
-        if not qt_ready and not (_humo_ui_estricto_activo() and es_smoke_ui_estricto):
+        if not qt_ready and not (_humo_ui_estricto_activo() and es_smoke_estricto):
             item.add_marker(skip_ui_env)
             continue
 

@@ -3,6 +3,11 @@ from __future__ import annotations
 import importlib
 import os
 
+ARCHIVOS_SMOKE_UI_ESTRICTOS: tuple[str, ...] = (
+    "tests/ui/test_confirmar_pdf_mainwindow_smoke.py",
+    "tests/ui/test_pendientes_toasts_ci_smoke.py",
+)
+
 
 def _importar_modulo(nombre_modulo: str) -> None:
     importlib.import_module(nombre_modulo)
@@ -10,6 +15,12 @@ def _importar_modulo(nombre_modulo: str) -> None:
 
 def _humo_ui_estricto_activo() -> bool:
     return os.getenv("HORAS_UI_SMOKE_CI") == "1"
+
+
+def _es_humo_ui_estricto(nodeid: str) -> bool:
+    if not _humo_ui_estricto_activo():
+        return False
+    return any(path in nodeid for path in ARCHIVOS_SMOKE_UI_ESTRICTOS)
 
 
 def detectar_error_qt() -> str | None:
