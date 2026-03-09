@@ -8,9 +8,12 @@ ARCHIVOS_SMOKE_UI_ESTRICTOS: tuple[str, ...] = (
     "tests/ui/test_pendientes_toasts_ci_smoke.py",
 )
 
+PLUGIN_PYTEST_QT: tuple[str, ...] = ("-p", "no:pytestqt", "-p", "no:pytestqt.plugin")
+
 
 def _importar_modulo(nombre_modulo: str) -> None:
     importlib.import_module(nombre_modulo)
+
 
 
 def _humo_ui_estricto_activo() -> bool:

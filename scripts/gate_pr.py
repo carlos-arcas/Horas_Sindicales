@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from app.testing.qt_harness import PLUGIN_PYTEST_QT
+
 ROOT = Path(__file__).resolve().parents[1]
 LOGGER = logging.getLogger(__name__)
 
@@ -26,7 +28,8 @@ def _run(cmd: list[str]) -> int:
 
 
 def _ejecutar_pytest_no_ui_con_diagnostico(marker: str = "not ui") -> int:
-    comando = [sys.executable, "-m", "pytest", "-q", "-m", marker]
+    comando_pytest = [*PLUGIN_PYTEST_QT, "-q", "-m", marker]
+    comando = [sys.executable, "-m", "pytest", *comando_pytest]
     returncode = _run(comando)
     if returncode != 255:
         return returncode
@@ -49,6 +52,8 @@ def _ejecutar_pytest_no_ui_con_diagnostico(marker: str = "not ui") -> int:
         "scripts.diagnosticar_pytest",
         "--marker",
         marker,
+        "--disable-plugin-pytestqt",
+        "true",
         "--rerun-verbose-on-255",
         "true",
     ]

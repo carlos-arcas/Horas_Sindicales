@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from app.testing.qt_harness import PLUGIN_PYTEST_QT
+
 ROOT = Path(__file__).resolve().parents[1]
 LOGS_DIR = ROOT / "logs"
 PYTEST_STDOUT_LOG = LOGS_DIR / "pytest_stdout.log"
@@ -121,17 +123,19 @@ def ejecutar_pytest(cmd: list[str], cwd: Path) -> dict[str, Any]:
     return resumen
 
 
-def ejecutar_rerun_verbose(marker: str, cwd: Path) -> dict[str, Any]:
+def ejecutar_rerun_verbose(
+    marker: str, cwd: Path, disable_plugin_pytestqt: bool = False
+) -> dict[str, Any]:
+    args_pytest = ["-m", marker, "-vv", "-x"]
+    if disable_plugin_pytestqt:
+        args_pytest = [*PLUGIN_PYTEST_QT, *args_pytest]
     comando_rerun = [
         sys.executable,
         "-X",
         "faulthandler",
         "-m",
         "pytest",
-        "-m",
-        marker,
-        "-vv",
-        "-x",
+        *args_pytest,
     ]
     resultado = _ejecutar_subproceso(cmd=comando_rerun, cwd=cwd)
     _escribir_archivo(PYTEST_STDOUT_255_VV_LOG, resultado.stdout)
@@ -181,6 +185,12 @@ def _parsear_args() -> argparse.Namespace:
         choices=["true", "false"],
         help="Si está en true, relanza pytest en -vv -x cuando returncode sea 255",
     )
+    parser.add_argument(
+        "--disable-plugin-pytestqt",
+        default="false",
+        choices=["true", "false"],
+        help="Desactiva plugin pytest-qt para diagnóstico core/no-ui.",
+    )
     return parser.parse_args()
 
 
@@ -190,22 +200,26 @@ def main() -> int:
     )
 
     args = _parsear_args()
+    args_pytest = ["-q", "-m", args.marker, *args.extra_args]
+    disable_plugin_pytestqt = args.disable_plugin_pytestqt.lower() == "true"
+    if disable_plugin_pytestqt:
+        args_pytest = [*PLUGIN_PYTEST_QT, *args_pytest]
+
     comando = [
         sys.executable,
         "-X",
         "faulthandler",
         "-m",
         "pytest",
-        "-q",
-        "-m",
-        args.marker,
-        *args.extra_args,
+        *args_pytest,
     ]
 
     resultado = ejecutar_pytest(cmd=comando, cwd=ROOT)
     rerun_habilitado = args.rerun_verbose_on_255.lower() == "true"
     if rerun_habilitado and int(resultado["returncode"]) == 255:
-        ejecutar_rerun_verbose(args.marker, ROOT)
+        ejecutar_rerun_verbose(
+            args.marker, ROOT, disable_plugin_pytestqt=disable_plugin_pytestqt
+        )
 
     return int(resultado["returncode"])
 
