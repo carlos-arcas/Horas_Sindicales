@@ -1,0 +1,15 @@
+{
+  "perfiles": [
+    {"perfil_id": "perfil-bjj-01", "alias": "GuardiaDeHierro", "bio": "Coach BJJ enfocado en técnica limpia y progreso sostenible.", "disciplina_principal": "BJJ", "seguidores": 1840},
+    {"perfil_id": "perfil-box-01", "alias": "UpperCutMadrid", "bio": "Boxeo amateur, preparación de competición y sparring inteligente.", "disciplina_principal": "Boxeo", "seguidores": 1395},
+    {"perfil_id": "perfil-mt-01", "alias": "ClinicaMuay", "bio": "Muay Thai técnico con análisis de clinch y codos.", "disciplina_principal": "Muay Thai", "seguidores": 1260},
+    {"perfil_id": "perfil-judo-01", "alias": "RandoriLab", "bio": "Judo y grappling funcional para competición.", "disciplina_principal": "Judo", "seguidores": 980}
+  ],
+  "publicaciones": [
+    {"publicacion_id": "pub-001", "perfil_id": "perfil-bjj-01", "disciplina": "BJJ", "titulo": "Drill de retención de guardia para rounds intensos", "resumen": "Secuencia de 12 minutos para mejorar frames, cadera y recuperación de media guardia.", "likes": 220, "comentarios": 34, "publicado_en": "2026-03-01T09:30:00+00:00"},
+    {"publicacion_id": "pub-002", "perfil_id": "perfil-box-01", "disciplina": "Boxeo", "titulo": "Sparring técnico: cómo bajar volumen sin perder lectura", "resumen": "Ajustes de distancia y timing para entrenar calidad con menos impacto.", "likes": 170, "comentarios": 21, "publicado_en": "2026-03-02T18:00:00+00:00"},
+    {"publicacion_id": "pub-003", "perfil_id": "perfil-mt-01", "disciplina": "Muay Thai", "titulo": "Entradas seguras al clinch desde jab", "resumen": "Tres entradas progresivas para evitar contras y consolidar control de cuello.", "likes": 205, "comentarios": 29, "publicado_en": "2026-03-03T07:45:00+00:00"},
+    {"publicacion_id": "pub-004", "perfil_id": "perfil-judo-01", "disciplina": "Judo", "titulo": "Movilidad de cadera para prevenir sobrecargas", "resumen": "Rutina corta post-entreno centrada en recuperación y rango funcional.", "likes": 96, "comentarios": 11, "publicado_en": "2026-03-04T20:15:00+00:00"},
+    {"publicacion_id": "pub-005", "perfil_id": "perfil-bjj-01", "disciplina": "Grappling", "titulo": "Plan semanal de preparación física para grapplers", "resumen": "Distribución de fuerza, acondicionamiento y descarga para llegar fresco al tatami.", "likes": 312, "comentarios": 48, "publicado_en": "2026-03-05T06:00:00+00:00"}
+  ]
+}
