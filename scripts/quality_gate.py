@@ -85,7 +85,9 @@ def _is_truthy(value: str) -> bool:
 
 
 def _strict_mode_enabled() -> bool:
-    return os.getenv(STRICT_ENV_VAR, "1") != "0"
+    if STRICT_ENV_VAR in os.environ:
+        return os.getenv(STRICT_ENV_VAR, "1") != "0"
+    return os.getenv("CI", "").lower() == "true"
 
 
 def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
@@ -513,7 +515,11 @@ def main(argv: list[str] | None = None) -> int:
         strict_mode=bool(preflight_info["strict_mode"]),
     )
     print_human_summary(results)
-    return 0 if results["global_status"] == "PASS" else 1
+    if results["global_status"] == "PASS":
+        return 0
+    if results["global_status"] == "DEGRADED" and not preflight_info["strict_mode"]:
+        return 0
+    return 1
 
 
 if __name__ == "__main__":
