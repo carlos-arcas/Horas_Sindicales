@@ -52,3 +52,7 @@ def test_es_humo_ui_estricto_requiere_flag_y_archivo_conocido(monkeypatch) -> No
     monkeypatch.setenv("HORAS_UI_SMOKE_CI", "1")
     assert qt_harness._es_humo_ui_estricto(nodeid_smoke) is True
     assert qt_harness._es_humo_ui_estricto("tests/ui/test_otra_cosa.py::test_x") is False
+
+
+def test_plugin_pytest_qt_define_bloqueo_para_runs_core() -> None:
+    assert qt_harness.PLUGIN_PYTEST_QT == ("-p", "no:pytestqt", "-p", "no:pytestqt.plugin")

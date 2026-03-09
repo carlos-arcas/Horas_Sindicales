@@ -142,3 +142,8 @@
   Se detectó duplicación en la preparación de `manager.show` para capturar payloads de `success/error` en varios tests del eje toast (compatibilidad de kwargs de acción y firma pública).  
   Se extrajo `instrumentar_manager_con_registro(...)` en `tests/ui/toast_test_helpers.py` para reutilizar un único contrato de captura tipada (`message`, `level`, `title`, `action_label`, `action_callback`) sin ocultar asserts funcionales.  
   El alcance se mantuvo exclusivamente en tests; no se tocó runtime, no se redujo cobertura y se bajó boilerplate repetido en tres módulos del eje.
+
+- **2026-03-09 — Harness pytest core/UI: desactivar `pytest-qt` en runs `not ui` desde fuente única — Vigente**  
+  Se detectó que, con `pytest-qt` instalado, el plugin intentaba autodetectar Qt en `pytest_configure` y disparaba `ImportError` al coexistir con el bloqueo contractual de `PySide6` para core (`-m "not ui"`), provocando `INTERNALERROR` en vez de fallo controlado.  
+  Se centralizó la política en `app/testing/qt_harness.py` (constante `PLUGIN_PYTEST_QT`) y se aplicó en `scripts/gate_pr.py`, `scripts/diagnosticar_pytest.py` y `scripts/quality_gate.py` para forzar `-p no:pytestqt -p no:pytestqt.plugin` solo en runs core/no-ui.  
+  Resultado: los runs core preservan el contrato “sin Qt/PySide6”, mientras que los runs UI mantienen soporte de `pytest-qt`/`qtbot`, y `HORAS_UI_SMOKE_CI=1` conserva modo estricto sin degradar a skip.
