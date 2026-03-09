@@ -88,3 +88,14 @@ def test_update_action_state_aplica_fuente_unica_de_estado_en_widgets() -> None:
     assert window.generar_pdf_button.text == copy_text("ui.historico.exportar_pdf_boton").format(n=1)
     assert window.clear_button.enabled is True
     assert window.status_panel_actualizado == 1
+
+
+def test_update_action_state_tolera_boton_historico_sin_set_text() -> None:
+    module = _load_state_helpers_module()
+    window = _WindowStub()
+    window.generar_pdf_button = object()
+
+    module.update_action_state(window)
+
+    assert window.eliminar_button.text == copy_text("ui.historico.eliminar_boton").format(n=1)
+    assert window.status_panel_actualizado == 1

@@ -72,6 +72,15 @@ def update_action_state(window: Any) -> None:
         )
     )
 
+    _aplicar_habilitacion_controles(window, estado)
+    _actualizar_textos_historico(window, estado.total_historico_seleccionado)
+
+    refresh_status_panel = getattr(window, "_update_solicitudes_status_panel", None)
+    if callable(refresh_status_panel):
+        refresh_status_panel()
+
+
+def _aplicar_habilitacion_controles(window: Any, estado: Any) -> None:
     acciones = {
         "agregar_button": estado.agregar_habilitado,
         "insertar_sin_pdf_button": estado.insertar_sin_pdf_habilitado,
@@ -93,22 +102,29 @@ def update_action_state(window: Any) -> None:
         if callable(setter):
             setter(habilitado)
 
-    eliminar_button = getattr(window, "eliminar_button", None)
-    if eliminar_button is not None and hasattr(eliminar_button, "setText"):
-        eliminar_button.setText(
-            copy_text("ui.historico.eliminar_boton").format(
-                n=estado.total_historico_seleccionado
-            )
-        )
 
-    generar_pdf_button = getattr(window, "generar_pdf_button", None)
-    if generar_pdf_button is not None and hasattr(generar_pdf_button, "setText"):
-        generar_pdf_button.setText(
-            copy_text("ui.historico.exportar_pdf_boton").format(
-                n=estado.total_historico_seleccionado
-            )
-        )
+def _actualizar_textos_historico(window: Any, total_historico_seleccionado: int) -> None:
+    _actualizar_texto_boton_historico(
+        window,
+        "eliminar_button",
+        "ui.historico.eliminar_boton",
+        total_historico_seleccionado,
+    )
+    _actualizar_texto_boton_historico(
+        window,
+        "generar_pdf_button",
+        "ui.historico.exportar_pdf_boton",
+        total_historico_seleccionado,
+    )
 
-    refresh_status_panel = getattr(window, "_update_solicitudes_status_panel", None)
-    if callable(refresh_status_panel):
-        refresh_status_panel()
+
+def _actualizar_texto_boton_historico(
+    window: Any,
+    boton_attr: str,
+    copy_key: str,
+    total_historico_seleccionado: int,
+) -> None:
+    boton = getattr(window, boton_attr, None)
+    if boton is None or not hasattr(boton, "setText"):
+        return
+    boton.setText(copy_text(copy_key).format(n=total_historico_seleccionado))

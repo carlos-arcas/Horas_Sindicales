@@ -147,3 +147,8 @@
   Se detectó que, con `pytest-qt` instalado, el plugin intentaba autodetectar Qt en `pytest_configure` y disparaba `ImportError` al coexistir con el bloqueo contractual de `PySide6` para core (`-m "not ui"`), provocando `INTERNALERROR` en vez de fallo controlado.  
   Se centralizó la política en `app/testing/qt_harness.py` (constante `PLUGIN_PYTEST_QT`) y se aplicó en `scripts/gate_pr.py`, `scripts/diagnosticar_pytest.py` y `scripts/quality_gate.py` para forzar `-p no:pytestqt -p no:pytestqt.plugin` solo en runs core/no-ui.  
   Resultado: los runs core preservan el contrato “sin Qt/PySide6”, mientras que los runs UI mantienen soporte de `pytest-qt`/`qtbot`, y `HORAS_UI_SMOKE_CI=1` conserva modo estricto sin degradar a skip.
+
+- **2026-03-09 — `update_action_state` dividido en helpers de presentación para cumplir budget de complejidad — Vigente**  
+  El `quality_gate` reportó `cc_targets: FAIL` en `app/ui/vistas/main_window/state_helpers.py:update_action_state` (CC=9 con límite=8). La función concentraba tres responsabilidades de UI: (1) cálculo de estado, (2) habilitación de controles y (3) actualización de copy en botones de histórico.  
+  Se refactorizó en el mismo módulo de presentación sin mover negocio de capa: `update_action_state` quedó como orquestador y se extrajeron `_aplicar_habilitacion_controles`, `_actualizar_textos_historico` y `_actualizar_texto_boton_historico`.  
+  Decisión: **refactor** y no ajuste de budget, porque el hotspot sí tenía responsabilidad acumulada real y el límite actual (8) sigue siendo coherente para este punto crítico de mantenibilidad UI.
