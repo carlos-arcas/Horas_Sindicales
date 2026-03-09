@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 
 def crear_show_estricto_con_registro() -> tuple[list[dict[str, object]], Callable[..., None]]:
@@ -26,6 +27,12 @@ def crear_show_estricto_con_registro() -> tuple[list[dict[str, object]], Callabl
         )
 
     return llamadas, _show_estricto
+
+
+def instrumentar_manager_con_registro(manager: Any) -> list[dict[str, object]]:
+    llamadas, show_estricto = crear_show_estricto_con_registro()
+    manager.show = show_estricto  # type: ignore[method-assign]
+    return llamadas
 
 
 def assert_toast_con_accion(

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.ui.toast_test_helpers import crear_show_estricto_con_registro
+from tests.ui.toast_test_helpers import instrumentar_manager_con_registro
 
 try:
     from app.ui.widgets.toast import ToastManager
@@ -12,9 +12,7 @@ except ImportError as exc:  # pragma: no cover - entorno sin stack Qt completo
 
 def test_toast_manager_success_accepta_action_kwargs_y_extras() -> None:
     manager = ToastManager()
-    llamadas, show_estricto = crear_show_estricto_con_registro()
-
-    manager.show = show_estricto  # type: ignore[method-assign]
+    llamadas = instrumentar_manager_con_registro(manager)
 
     manager.success(
         "ok",
@@ -31,9 +29,7 @@ def test_toast_manager_success_accepta_action_kwargs_y_extras() -> None:
 
 def test_toast_manager_error_accepta_action_kwargs_y_extras() -> None:
     manager = ToastManager()
-    llamadas, show_estricto = crear_show_estricto_con_registro()
-
-    manager.show = show_estricto  # type: ignore[method-assign]
+    llamadas = instrumentar_manager_con_registro(manager)
 
     manager.error(
         "error",

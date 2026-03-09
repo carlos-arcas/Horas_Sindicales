@@ -137,3 +137,8 @@
   Se detectó duplicación real en la preparación de stubs de módulos Qt para `app.ui.widgets.toast` en suites de compatibilidad (`test_toast_manager_api_compat` y `test_toast_manager_action_kwargs_puros`).  
   Se centralizó la carga en `tests/ui/toast_module_loader.py`, eliminando repetición de wiring de `sys.modules` y reduciendo fragilidad por divergencia entre tests que validan el mismo contrato (kwargs de acción, firma pública y validación de kwargs desconocidos).  
   El cambio mantiene los asserts funcionales intactos y mejora auditabilidad al dejar una única fuente de verdad del entorno stub para este eje de toasts.
+
+- **2026-03-09 — Consolidación de instrumentación de `ToastManager` en tests de compatibilidad — Vigente**  
+  Se detectó duplicación en la preparación de `manager.show` para capturar payloads de `success/error` en varios tests del eje toast (compatibilidad de kwargs de acción y firma pública).  
+  Se extrajo `instrumentar_manager_con_registro(...)` en `tests/ui/toast_test_helpers.py` para reutilizar un único contrato de captura tipada (`message`, `level`, `title`, `action_label`, `action_callback`) sin ocultar asserts funcionales.  
+  El alcance se mantuvo exclusivamente en tests; no se tocó runtime, no se redujo cobertura y se bajó boilerplate repetido en tres módulos del eje.

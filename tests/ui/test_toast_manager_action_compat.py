@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.ui.toast_test_helpers import assert_toast_con_accion
+from tests.ui.toast_test_helpers import assert_toast_con_accion, instrumentar_manager_con_registro
 
 try:
     from app.ui.widgets.toast import GestorToasts, ToastManager
@@ -11,12 +11,7 @@ except ImportError as exc:  # pragma: no cover - entorno sin librerías Qt
 
 
 def _assert_accepts_action_kwargs(manager: GestorToasts) -> None:
-    called: list[dict[str, object]] = []
-
-    def _fake_show(*args: object, **kwargs: object) -> None:
-        called.append(kwargs)
-
-    manager.show = _fake_show  # type: ignore[method-assign]
+    called = instrumentar_manager_con_registro(manager)
 
     manager.success("x", title="t", action_label="Abrir", action_callback=lambda: None)
     manager.error("x", action_label="Detalles", action_callback=lambda: None)
