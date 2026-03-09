@@ -356,7 +356,9 @@ class SolicitudesController:
 
     def _update_ui_after_add(self, creada: SolicitudDTO, pendiente_en_edicion: SolicitudDTO | None) -> None:
         w = self.window
-        w._reload_pending_views()
+        recargar_pendientes = getattr(w, "_reload_pending_views", None)
+        if callable(recargar_pendientes):
+            recargar_pendientes()
         actualizar_totales = getattr(w, "_update_pending_totals", None)
         if callable(actualizar_totales):
             actualizar_totales()
