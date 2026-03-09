@@ -38,7 +38,9 @@ def test_detectar_error_pytest_qt_reporta_falta_plugin(monkeypatch) -> None:
     assert "pytestqt" in mensaje
 
 
-def test_detectar_error_pytest_qt_devuelve_none_si_plugin_disponible(monkeypatch) -> None:
+def test_detectar_error_pytest_qt_devuelve_none_si_plugin_disponible(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(qt_harness, "_importar_modulo", lambda _nombre: None)
 
     assert qt_harness.detectar_error_pytest_qt() is None
@@ -51,8 +53,40 @@ def test_es_humo_ui_estricto_requiere_flag_y_archivo_conocido(monkeypatch) -> No
 
     monkeypatch.setenv("HORAS_UI_SMOKE_CI", "1")
     assert qt_harness._es_humo_ui_estricto(nodeid_smoke) is True
-    assert qt_harness._es_humo_ui_estricto("tests/ui/test_otra_cosa.py::test_x") is False
+    assert (
+        qt_harness._es_humo_ui_estricto("tests/ui/test_otra_cosa.py::test_x") is False
+    )
 
 
 def test_plugin_pytest_qt_define_bloqueo_para_runs_core() -> None:
-    assert qt_harness.PLUGIN_PYTEST_QT == ("-p", "no:pytestqt", "-p", "no:pytestqt.plugin")
+    assert qt_harness.PLUGIN_PYTEST_QT == (
+        "-p",
+        "no:pytestqt",
+        "-p",
+        "no:pytestqt.plugin",
+    )
+
+
+def test__construir_entorno_ejecucion_pytest_core_activa_bloqueo_y_pytest_cov() -> None:
+    entorno = qt_harness._construir_entorno_ejecucion_pytest_core(
+        {"PYTEST_PLUGINS": "plugin_demo"}, activar_pytest_cov=True
+    )
+
+    assert entorno["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
+    assert entorno["PYTEST_CORE_SIN_QT"] == "1"
+    assert entorno["PYTEST_PLUGINS"] == "plugin_demo,pytest_cov"
+
+
+def test__contexto_entorno_pytest_core_restaura_entorno(monkeypatch) -> None:
+    monkeypatch.setenv("PYTEST_PLUGINS", "plugin_demo")
+    monkeypatch.delenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", raising=False)
+    monkeypatch.delenv("PYTEST_CORE_SIN_QT", raising=False)
+
+    with qt_harness._contexto_entorno_pytest_core(activar_pytest_cov=True):
+        assert qt_harness.os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
+        assert qt_harness.os.environ["PYTEST_CORE_SIN_QT"] == "1"
+        assert qt_harness.os.environ["PYTEST_PLUGINS"] == "plugin_demo,pytest_cov"
+
+    assert qt_harness.os.environ.get("PYTEST_DISABLE_PLUGIN_AUTOLOAD") is None
+    assert qt_harness.os.environ.get("PYTEST_CORE_SIN_QT") is None
+    assert qt_harness.os.environ["PYTEST_PLUGINS"] == "plugin_demo"

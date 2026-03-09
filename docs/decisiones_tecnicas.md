@@ -147,3 +147,9 @@
   Se detectó que, con `pytest-qt` instalado, el plugin intentaba autodetectar Qt en `pytest_configure` y disparaba `ImportError` al coexistir con el bloqueo contractual de `PySide6` para core (`-m "not ui"`), provocando `INTERNALERROR` en vez de fallo controlado.  
   Se centralizó la política en `app/testing/qt_harness.py` (constante `PLUGIN_PYTEST_QT`) y se aplicó en `scripts/gate_pr.py`, `scripts/diagnosticar_pytest.py` y `scripts/quality_gate.py` para forzar `-p no:pytestqt -p no:pytestqt.plugin` solo en runs core/no-ui.  
   Resultado: los runs core preservan el contrato “sin Qt/PySide6”, mientras que los runs UI mantienen soporte de `pytest-qt`/`qtbot`, y `HORAS_UI_SMOKE_CI=1` conserva modo estricto sin degradar a skip.
+
+
+- **2026-03-09 — Harness core/no-ui blindado con `PYTEST_DISABLE_PLUGIN_AUTOLOAD` y contexto único — Vigente**  
+  Se confirmó que `-p no:pytestqt` no alcanzaba en todos los entrypoints de CI: `pytest` podía cargar temprano plugins de terceros y disparar autodetección Qt antes de que operaran filtros de colección.  
+  Se consolidó una fuente única en `app/testing/qt_harness.py` para construir contexto core (`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, `PYTEST_CORE_SIN_QT=1`) y, cuando aplica cobertura, reinyectar solo `pytest_cov` vía `PYTEST_PLUGINS`. Los runners core (`gate_pr`, `quality_gate`, `diagnosticar_pytest`) ahora usan este contrato, manteniendo runs UI con `pytest-qt/qtbot` y conservando `HORAS_UI_SMOKE_CI=1` en modo estricto.
+
