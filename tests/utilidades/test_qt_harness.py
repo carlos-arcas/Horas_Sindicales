@@ -42,3 +42,13 @@ def test_detectar_error_pytest_qt_devuelve_none_si_plugin_disponible(monkeypatch
     monkeypatch.setattr(qt_harness, "_importar_modulo", lambda _nombre: None)
 
     assert qt_harness.detectar_error_pytest_qt() is None
+
+
+def test_es_humo_ui_estricto_requiere_flag_y_archivo_conocido(monkeypatch) -> None:
+    nodeid_smoke = "tests/ui/test_confirmar_pdf_mainwindow_smoke.py::test_algo"
+    monkeypatch.delenv("HORAS_UI_SMOKE_CI", raising=False)
+    assert qt_harness._es_humo_ui_estricto(nodeid_smoke) is False
+
+    monkeypatch.setenv("HORAS_UI_SMOKE_CI", "1")
+    assert qt_harness._es_humo_ui_estricto(nodeid_smoke) is True
+    assert qt_harness._es_humo_ui_estricto("tests/ui/test_otra_cosa.py::test_x") is False
