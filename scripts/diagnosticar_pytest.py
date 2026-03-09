@@ -11,7 +11,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from app.testing.qt_harness import PLUGIN_PYTEST_QT
+from app.testing.qt_harness import (
+    PLUGIN_PYTEST_QT,
+    _construir_entorno_ejecucion_pytest_core,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 LOGS_DIR = ROOT / "logs"
@@ -84,8 +87,17 @@ def _escribir_archivo(ruta: Path, contenido: str) -> None:
     ruta.write_text(contenido, encoding="utf-8")
 
 
-def _ejecutar_subproceso(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    entorno = {**os.environ, "PYTHONFAULTHANDLER": "1", "PYTHONUNBUFFERED": "1"}
+def _ejecutar_subproceso(
+    cmd: list[str],
+    cwd: Path,
+    *,
+    entorno_base: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    entorno = {
+        **(entorno_base or os.environ),
+        "PYTHONFAULTHANDLER": "1",
+        "PYTHONUNBUFFERED": "1",
+    }
     return subprocess.run(
         cmd,
         cwd=cwd,
@@ -96,8 +108,13 @@ def _ejecutar_subproceso(cmd: list[str], cwd: Path) -> subprocess.CompletedProce
     )
 
 
-def ejecutar_pytest(cmd: list[str], cwd: Path) -> dict[str, Any]:
-    resultado = _ejecutar_subproceso(cmd=cmd, cwd=cwd)
+def ejecutar_pytest(
+    cmd: list[str],
+    cwd: Path,
+    *,
+    entorno_base: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    resultado = _ejecutar_subproceso(cmd=cmd, cwd=cwd, entorno_base=entorno_base)
 
     _escribir_archivo(PYTEST_STDOUT_LOG, resultado.stdout)
     _escribir_archivo(PYTEST_STDERR_LOG, resultado.stderr)
@@ -124,7 +141,10 @@ def ejecutar_pytest(cmd: list[str], cwd: Path) -> dict[str, Any]:
 
 
 def ejecutar_rerun_verbose(
-    marker: str, cwd: Path, disable_plugin_pytestqt: bool = False
+    marker: str,
+    cwd: Path,
+    disable_plugin_pytestqt: bool = False,
+    entorno_base: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     args_pytest = ["-m", marker, "-vv", "-x"]
     if disable_plugin_pytestqt:
@@ -137,7 +157,9 @@ def ejecutar_rerun_verbose(
         "pytest",
         *args_pytest,
     ]
-    resultado = _ejecutar_subproceso(cmd=comando_rerun, cwd=cwd)
+    resultado = _ejecutar_subproceso(
+        cmd=comando_rerun, cwd=cwd, entorno_base=entorno_base
+    )
     _escribir_archivo(PYTEST_STDOUT_255_VV_LOG, resultado.stdout)
     _escribir_archivo(PYTEST_STDERR_255_VV_LOG, resultado.stderr)
 
@@ -214,11 +236,18 @@ def main() -> int:
         *args_pytest,
     ]
 
-    resultado = ejecutar_pytest(cmd=comando, cwd=ROOT)
+    entorno_base: dict[str, str] | None = None
+    if disable_plugin_pytestqt:
+        entorno_base = _construir_entorno_ejecucion_pytest_core()
+
+    resultado = ejecutar_pytest(cmd=comando, cwd=ROOT, entorno_base=entorno_base)
     rerun_habilitado = args.rerun_verbose_on_255.lower() == "true"
     if rerun_habilitado and int(resultado["returncode"]) == 255:
         ejecutar_rerun_verbose(
-            args.marker, ROOT, disable_plugin_pytestqt=disable_plugin_pytestqt
+            args.marker,
+            ROOT,
+            disable_plugin_pytestqt=disable_plugin_pytestqt,
+            entorno_base=entorno_base,
         )
 
     return int(resultado["returncode"])

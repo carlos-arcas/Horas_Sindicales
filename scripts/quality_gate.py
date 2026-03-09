@@ -15,7 +15,7 @@ from typing import Any, Callable
 
 import pytest
 
-from app.testing.qt_harness import PLUGIN_PYTEST_QT
+from app.testing.qt_harness import _contexto_entorno_pytest_core
 from scripts.i18n.check_hardcode_i18n import (
     ConfigCheck,
     analizar_rutas,
@@ -417,7 +417,8 @@ def build_report(
     base_runner = pytest_runner or pytest.main
 
     def runner(args_pytest: list[str]) -> int:
-        return base_runner([*PLUGIN_PYTEST_QT, *args_pytest])
+        with _contexto_entorno_pytest_core(activar_pytest_cov=True):
+            return base_runner(args_pytest)
     records: list[dict[str, str]] = []
 
     results: dict[str, Any] = {}

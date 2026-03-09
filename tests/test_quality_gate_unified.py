@@ -16,7 +16,9 @@ class _Runner:
 def _set_temp_reports(monkeypatch, tmp_path: Path) -> None:
     logs = tmp_path / "logs"
     monkeypatch.setattr(quality_gate, "LOGS_DIR", logs)
-    monkeypatch.setattr(quality_gate, "QUALITY_REPORT_JSON", logs / "quality_report.json")
+    monkeypatch.setattr(
+        quality_gate, "QUALITY_REPORT_JSON", logs / "quality_report.json"
+    )
     monkeypatch.setattr(quality_gate, "QUALITY_REPORT_MD", logs / "quality_report.md")
     monkeypatch.setattr(quality_gate, "QUALITY_REPORT_TXT", logs / "quality_report.txt")
 
@@ -25,18 +27,30 @@ def _mock_i18n_guard_pass(monkeypatch) -> None:
     monkeypatch.setattr(
         quality_gate,
         "run_i18n_hardcode_guard",
-        lambda *_args, **_kwargs: {"status": "PASS", "detail": "i18n ok", "total_hallazgos": 0},
+        lambda *_args, **_kwargs: {
+            "status": "PASS",
+            "detail": "i18n ok",
+            "total_hallazgos": 0,
+        },
     )
 
 
 def test_quality_gate_unified_pass(monkeypatch, tmp_path: Path) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
     _mock_i18n_guard_pass(monkeypatch)
-    monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
+    monkeypatch.setattr(
+        quality_gate,
+        "load_config",
+        lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]},
+    )
     monkeypatch.setattr(
         quality_gate,
         "run_pytest_coverage",
-        lambda *_args, **_kwargs: {"status": "PASS", "detail": "coverage ok", "value": 86.5},
+        lambda *_args, **_kwargs: {
+            "status": "PASS",
+            "detail": "coverage ok",
+            "value": 86.5,
+        },
     )
     monkeypatch.setattr(
         quality_gate,
@@ -62,11 +76,19 @@ def test_quality_gate_unified_pass(monkeypatch, tmp_path: Path) -> None:
 def test_quality_gate_unified_fail_naming(monkeypatch, tmp_path: Path) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
     _mock_i18n_guard_pass(monkeypatch)
-    monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
+    monkeypatch.setattr(
+        quality_gate,
+        "load_config",
+        lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]},
+    )
     monkeypatch.setattr(
         quality_gate,
         "run_pytest_coverage",
-        lambda *_args, **_kwargs: {"status": "PASS", "detail": "coverage ok", "value": 90},
+        lambda *_args, **_kwargs: {
+            "status": "PASS",
+            "detail": "coverage ok",
+            "value": 90,
+        },
     )
     monkeypatch.setattr(
         quality_gate,
@@ -93,11 +115,19 @@ def test_quality_gate_unified_fail_naming(monkeypatch, tmp_path: Path) -> None:
 def test_quality_gate_unified_fail_coverage(monkeypatch, tmp_path: Path) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
     _mock_i18n_guard_pass(monkeypatch)
-    monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
+    monkeypatch.setattr(
+        quality_gate,
+        "load_config",
+        lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]},
+    )
     monkeypatch.setattr(
         quality_gate,
         "run_pytest_coverage",
-        lambda *_args, **_kwargs: {"status": "FAIL", "detail": "coverage bajo", "value": 70},
+        lambda *_args, **_kwargs: {
+            "status": "FAIL",
+            "detail": "coverage bajo",
+            "value": 70,
+        },
     )
     monkeypatch.setattr(
         quality_gate,
@@ -124,11 +154,19 @@ def test_quality_gate_unified_fail_coverage(monkeypatch, tmp_path: Path) -> None
 def test_quality_gate_unified_json_structure(monkeypatch, tmp_path: Path) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
     _mock_i18n_guard_pass(monkeypatch)
-    monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
+    monkeypatch.setattr(
+        quality_gate,
+        "load_config",
+        lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]},
+    )
     monkeypatch.setattr(
         quality_gate,
         "run_pytest_coverage",
-        lambda *_args, **_kwargs: {"status": "PASS", "detail": "coverage ok", "value": 90},
+        lambda *_args, **_kwargs: {
+            "status": "PASS",
+            "detail": "coverage ok",
+            "value": 90,
+        },
     )
     monkeypatch.setattr(
         quality_gate,
@@ -148,7 +186,9 @@ def test_quality_gate_unified_json_structure(monkeypatch, tmp_path: Path) -> Non
 
     quality_gate.build_report(pytest_runner=_Runner())
 
-    payload = json.loads((tmp_path / "logs" / "quality_report.json").read_text(encoding="utf-8"))
+    payload = json.loads(
+        (tmp_path / "logs" / "quality_report.json").read_text(encoding="utf-8")
+    )
     results = payload["results"]
 
     assert set(results) >= {
@@ -186,7 +226,11 @@ def test_sin_pytest_cov_non_strict_modo_degradado(monkeypatch, tmp_path: Path) -
     monkeypatch.setenv("QUALITY_GATE_STRICT", "0")
     monkeypatch.setattr(quality_gate.pytest, "main", lambda *_args, **_kwargs: 0)
     monkeypatch.setattr(quality_gate.importlib.util, "find_spec", lambda _name: None)
-    monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
+    monkeypatch.setattr(
+        quality_gate,
+        "load_config",
+        lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]},
+    )
 
     counters = {"contractual": 0, "naming": 0}
 
@@ -213,7 +257,9 @@ def test_sin_pytest_cov_non_strict_modo_degradado(monkeypatch, tmp_path: Path) -
     exit_code = quality_gate.main([])
 
     assert exit_code == 1
-    payload = json.loads((tmp_path / "logs" / "quality_report.json").read_text(encoding="utf-8"))
+    payload = json.loads(
+        (tmp_path / "logs" / "quality_report.json").read_text(encoding="utf-8")
+    )
     results = payload["results"]
 
     assert results["coverage"]["status"] == "SKIP"
@@ -230,16 +276,26 @@ def test_sin_pytest_cov_non_strict_modo_degradado(monkeypatch, tmp_path: Path) -
     assert counters["naming"] == 1
 
 
-def test_build_report_fuerza_no_cargar_pytestqt_en_runner_core(monkeypatch, tmp_path: Path) -> None:
+def test_build_report_fuerza_entorno_core_sin_autoload_qt(
+    monkeypatch, tmp_path: Path
+) -> None:
     _set_temp_reports(monkeypatch, tmp_path)
     _mock_i18n_guard_pass(monkeypatch)
-    monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
+    monkeypatch.setattr(
+        quality_gate,
+        "load_config",
+        lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]},
+    )
 
     llamadas: list[list[str]] = []
 
     class _RunnerSpy:
         def __call__(self, args: list[str]) -> int:
             llamadas.append(args)
+            assert args == ["-q", "-m", "not ui"]
+            assert quality_gate.os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
+            assert quality_gate.os.environ["PYTEST_CORE_SIN_QT"] == "1"
+            assert "pytest_cov" in quality_gate.os.environ.get("PYTEST_PLUGINS", "")
             return 0
 
     def _fake_coverage(_threshold, _targets, _records, pytest_runner):
@@ -248,13 +304,23 @@ def test_build_report_fuerza_no_cargar_pytestqt_en_runner_core(monkeypatch, tmp_
         return {"status": "PASS", "detail": "coverage ok", "value": 88.0}
 
     monkeypatch.setattr(quality_gate, "run_pytest_coverage", _fake_coverage)
-    monkeypatch.setattr(quality_gate, "run_contractual_test", lambda *_a, **_k: {"status": "PASS", "detail": "ok", "exit_code": 0})
-    monkeypatch.setattr(quality_gate, "run_naming_guard", lambda *_a, **_k: {"status": "PASS", "detail": "naming ok"})
-    monkeypatch.setattr(quality_gate, "run_cc_targets_guard", lambda *_a, **_k: {"status": "PASS", "detail": "targets=1, failing=0"})
+    monkeypatch.setattr(
+        quality_gate,
+        "run_contractual_test",
+        lambda *_a, **_k: {"status": "PASS", "detail": "ok", "exit_code": 0},
+    )
+    monkeypatch.setattr(
+        quality_gate,
+        "run_naming_guard",
+        lambda *_a, **_k: {"status": "PASS", "detail": "naming ok"},
+    )
+    monkeypatch.setattr(
+        quality_gate,
+        "run_cc_targets_guard",
+        lambda *_a, **_k: {"status": "PASS", "detail": "targets=1, failing=0"},
+    )
 
     resultado = quality_gate.build_report(pytest_runner=_RunnerSpy())
 
     assert resultado["global_status"] == "PASS"
     assert llamadas
-    assert llamadas[0][:4] == ["-p", "no:pytestqt", "-p", "no:pytestqt.plugin"]
-    assert llamadas[0][4:] == ["-q", "-m", "not ui"]
