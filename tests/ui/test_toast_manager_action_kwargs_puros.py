@@ -1,20 +1,14 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any
-
 from tests.ui.toast_module_loader import cargar_modulo_toast_con_stubs
+from tests.ui.toast_test_helpers import instrumentar_manager_con_registro
 
 
 def test_success_y_error_aceptan_action_kwargs_sin_typeerror() -> None:
     modulo_toast = cargar_modulo_toast_con_stubs()
     manager = modulo_toast.ToastManager()
-    llamadas: list[dict[str, Any]] = []
-
-    def _show_captura(**kwargs: Any) -> None:
-        llamadas.append(kwargs)
-
-    manager.show = _show_captura  # type: ignore[method-assign]
+    llamadas = instrumentar_manager_con_registro(manager)
 
     manager.success("ok", action_label="Abrir", action_callback=lambda: None)
     manager.error("fallo", action_label="Detalles", action_callback=lambda: None)
@@ -29,12 +23,7 @@ def test_success_y_error_aceptan_action_kwargs_sin_typeerror() -> None:
 def test_action_callback_no_callable_se_ignora_de_forma_segura() -> None:
     modulo_toast = cargar_modulo_toast_con_stubs()
     manager = modulo_toast.ToastManager()
-    llamadas: list[dict[str, Any]] = []
-
-    def _show_captura(**kwargs: Any) -> None:
-        llamadas.append(kwargs)
-
-    manager.show = _show_captura  # type: ignore[method-assign]
+    llamadas = instrumentar_manager_con_registro(manager)
 
     manager.success("ok", action_label="Abrir", action_callback="invalido")
 
