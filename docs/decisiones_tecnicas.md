@@ -132,3 +132,8 @@
 - **2026-03-08 — Consolidación de contratos de toast en helper de tests compartido — Vigente**  
   Se detectó duplicación en tests de compatibilidad del `ToastManager` (captura de payload `show(...)` y validación de acción asociada) que elevaba ruido y coste de mantenimiento sin aportar cobertura nueva.  
   Se extrae `tests/ui/toast_test_helpers.py` con utilidades puras para registrar llamadas y validar contrato de acción (`level`, `action_label`, `action_callback` callable), manteniendo asserts funcionales y reduciendo fragilidad por repetición.
+
+- **2026-03-09 — Consolidación de carga stub de `ToastManager` en tests UI — Vigente**  
+  Se detectó duplicación real en la preparación de stubs de módulos Qt para `app.ui.widgets.toast` en suites de compatibilidad (`test_toast_manager_api_compat` y `test_toast_manager_action_kwargs_puros`).  
+  Se centralizó la carga en `tests/ui/toast_module_loader.py`, eliminando repetición de wiring de `sys.modules` y reduciendo fragilidad por divergencia entre tests que validan el mismo contrato (kwargs de acción, firma pública y validación de kwargs desconocidos).  
+  El cambio mantiene los asserts funcionales intactos y mejora auditabilidad al dejar una única fuente de verdad del entorno stub para este eje de toasts.

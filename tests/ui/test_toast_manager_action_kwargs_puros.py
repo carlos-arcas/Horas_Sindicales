@@ -1,48 +1,13 @@
 from __future__ import annotations
 
-import importlib
 import inspect
-import sys
-import types
 from typing import Any
 
-
-def _cargar_modulo_toast_sin_qt() -> types.ModuleType:
-    """Carga `app.ui.widgets.toast` con stubs mínimos para evitar runtime Qt."""
-
-    modulo_dialogo = types.ModuleType("app.ui.widgets.dialogo_detalles_toast")
-    modulo_dialogo.DialogoDetallesNotificacion = type("DialogoDetallesNotificacion", (), {})
-
-    modulo_overlay = types.ModuleType("app.ui.widgets.overlay_toast")
-    modulo_overlay.CapaToasts = type("CapaToasts", (), {})
-
-    modulo_widget_toast = types.ModuleType("app.ui.widgets.widget_toast")
-    modulo_widget_toast.NotificacionToast = type("NotificacionToast", (), {})
-    modulo_widget_toast.TarjetaToast = type("TarjetaToast", (), {})
-
-    class _GestorToastsBase:
-        def show(self, **kwargs: Any) -> None:  # pragma: no cover - verificado vía monkeypatch en tests
-            return None
-
-    modulo_gestor = types.ModuleType("app.ui.widgets.gestor_toasts")
-    modulo_gestor.GestorToasts = _GestorToastsBase
-
-    stubs = {
-        modulo_dialogo.__name__: modulo_dialogo,
-        modulo_overlay.__name__: modulo_overlay,
-        modulo_widget_toast.__name__: modulo_widget_toast,
-        modulo_gestor.__name__: modulo_gestor,
-    }
-
-    for nombre, modulo in stubs.items():
-        sys.modules[nombre] = modulo
-
-    sys.modules.pop("app.ui.widgets.toast", None)
-    return importlib.import_module("app.ui.widgets.toast")
+from tests.ui.toast_module_loader import cargar_modulo_toast_con_stubs
 
 
 def test_success_y_error_aceptan_action_kwargs_sin_typeerror() -> None:
-    modulo_toast = _cargar_modulo_toast_sin_qt()
+    modulo_toast = cargar_modulo_toast_con_stubs()
     manager = modulo_toast.ToastManager()
     llamadas: list[dict[str, Any]] = []
 
@@ -62,7 +27,7 @@ def test_success_y_error_aceptan_action_kwargs_sin_typeerror() -> None:
 
 
 def test_action_callback_no_callable_se_ignora_de_forma_segura() -> None:
-    modulo_toast = _cargar_modulo_toast_sin_qt()
+    modulo_toast = cargar_modulo_toast_con_stubs()
     manager = modulo_toast.ToastManager()
     llamadas: list[dict[str, Any]] = []
 
@@ -79,7 +44,7 @@ def test_action_callback_no_callable_se_ignora_de_forma_segura() -> None:
 
 
 def test_firma_expone_parametros_opcionales_de_accion() -> None:
-    modulo_toast = _cargar_modulo_toast_sin_qt()
+    modulo_toast = cargar_modulo_toast_con_stubs()
 
     firma_success = inspect.signature(modulo_toast.ToastManager.success)
     firma_error = inspect.signature(modulo_toast.ToastManager.error)
