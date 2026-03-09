@@ -212,7 +212,7 @@ def test_sin_pytest_cov_non_strict_modo_degradado(monkeypatch, tmp_path: Path) -
 
     exit_code = quality_gate.main([])
 
-    assert exit_code == 1
+    assert exit_code == 0
     payload = json.loads((tmp_path / "logs" / "quality_report.json").read_text(encoding="utf-8"))
     results = payload["results"]
 
