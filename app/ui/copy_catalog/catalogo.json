@@ -526,5 +526,6 @@
   "ui.validacion.duplicada_pendiente_detalle": "Ya existe una pendiente igual para esta delegada, fecha y tramo horario.",
   "ui.validacion.duplicada_pendiente_acciones": "Puedes ir a la existente o crear igualmente.",
   "ui.validacion.crear_igualmente": "Crear igualmente",
-  "ui.validacion.duplicados_no_permitido": "No permitido por la regla de negocio de duplicados."
+  "ui.validacion.duplicados_no_permitido": "No permitido por la regla de negocio de duplicados.",
+  "ui.notificacion.solicitud_anadida_ok": "Solicitud agregada a pendientes. OK"
 }
