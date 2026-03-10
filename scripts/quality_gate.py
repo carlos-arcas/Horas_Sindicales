@@ -96,7 +96,11 @@ def _strict_mode_enabled() -> bool:
 
 
 def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
-    if pytest.main(["--version"]) != 0:
+    with _aplicar_entorno_pytest_core_no_ui():
+        exit_code_pytest = pytest.main(
+            _construir_args_pytest_core_no_ui(["--version"])
+        )
+    if exit_code_pytest != 0:
         LOGGER.error(
             "Falta pytest en el entorno activo. Ejecuta: python -m pip install -r requirements-dev.txt"
         )
