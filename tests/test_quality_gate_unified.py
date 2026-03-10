@@ -256,5 +256,5 @@ def test_build_report_fuerza_no_cargar_pytestqt_en_runner_core(monkeypatch, tmp_
 
     assert resultado["global_status"] == "PASS"
     assert llamadas
-    assert llamadas[0][:4] == ["-p", "no:pytestqt", "-p", "no:pytestqt.plugin"]
-    assert llamadas[0][4:] == ["-q", "-m", "not ui"]
+    assert llamadas[0][:6] == ["-p", "pytest_cov", "-p", "no:pytestqt", "-p", "no:pytestqt.plugin"]
+    assert llamadas[0][6:] == ["-q", "-m", "not ui"]

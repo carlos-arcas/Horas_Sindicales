@@ -56,3 +56,24 @@ def test_es_humo_ui_estricto_requiere_flag_y_archivo_conocido(monkeypatch) -> No
 
 def test_plugin_pytest_qt_define_bloqueo_para_runs_core() -> None:
     assert qt_harness.PLUGIN_PYTEST_QT == ("-p", "no:pytestqt", "-p", "no:pytestqt.plugin")
+
+
+def test__construir_args_pytest_core_no_ui_reinyecta_pytest_cov_si_corresponde() -> None:
+    assert qt_harness._construir_args_pytest_core_no_ui(["-q", "-m", "not ui"]) == [
+        "-p",
+        "no:pytestqt",
+        "-p",
+        "no:pytestqt.plugin",
+        "-q",
+        "-m",
+        "not ui",
+    ]
+    assert qt_harness._construir_args_pytest_core_no_ui(["-q"], habilitar_pytest_cov=True)[:2] == ["-p", "pytest_cov"]
+
+
+def test__construir_env_pytest_core_no_ui_fuerza_entorno_contractual() -> None:
+    entorno = qt_harness._construir_env_pytest_core_no_ui({"X": "1"})
+
+    assert entorno["X"] == "1"
+    assert entorno["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
+    assert entorno["PYTEST_CORE_SIN_QT"] == "1"

@@ -152,3 +152,9 @@
   El `quality_gate` reportó `cc_targets: FAIL` en `app/ui/vistas/main_window/state_helpers.py:update_action_state` (CC=9 con límite=8). La función concentraba tres responsabilidades de UI: (1) cálculo de estado, (2) habilitación de controles y (3) actualización de copy en botones de histórico.  
   Se refactorizó en el mismo módulo de presentación sin mover negocio de capa: `update_action_state` quedó como orquestador y se extrajeron `_aplicar_habilitacion_controles`, `_actualizar_textos_historico` y `_actualizar_texto_boton_historico`.  
   Decisión: **refactor** y no ajuste de budget, porque el hotspot sí tenía responsabilidad acumulada real y el límite actual (8) sigue siendo coherente para este punto crítico de mantenibilidad UI.
+
+
+- **2026-03-10 — Política única de arranque pytest core/no-ui: autoload OFF + reinyección explícita de plugins — Vigente**  
+  Se confirmó un rojo de harness donde `pytest-qt` podía autoload-earse antes de aplicar `-p no:pytestqt`, detonando `INTERNALERROR` al coexistir con el bloqueo contractual de `PySide6` en `tests/conftest.py`.  
+  Se fija política auditable para runs core/no-ui: `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` + `PYTEST_CORE_SIN_QT=1`, y se reinyectan explícitamente los plugins requeridos por comando (`-p pytest_cov` cuando aplica cobertura, `-p no:pytestqt -p no:pytestqt.plugin` para blindar ausencia de Qt). Esta política se aplica de forma homogénea en `scripts/gate_pr.py`, `scripts/diagnosticar_pytest.py`, `scripts/quality_gate.py` y en pasos shell directos de `.github/workflows/ci.yml`.  
+  Resultado esperado: los jobs core/no-ui no descubren Qt/PySide6 ni cargan `pytest-qt` por autoload, se mantiene cobertura con `pytest-cov`, y los jobs UI/smoke conservan `qtbot` bajo `HORAS_UI_SMOKE_CI=1` estricto.

@@ -52,13 +52,16 @@ jobs:
         run: python -m compileall -q app scripts tests
 
       - name: Secret scanning por contenido
-        run: pytest -q -m "not ui" tests/test_no_secrets_content_scan.py
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+          PYTEST_CORE_SIN_QT: "1"
+        run: pytest -q -p pytest_cov -p no:pytestqt -p no:pytestqt.plugin -m "not ui" tests/test_no_secrets_content_scan.py
 
       - name: Tests CORE + coverage (sin UI)
         run: |
           COVERAGE_FAIL_UNDER=$(python -c "import json; d=json.load(open('.config/quality_gate.json', encoding='utf-8')); print(d.get('coverage_fail_under_core', d['coverage_fail_under']))")
           COVERAGE_TARGETS=$(python -c "import json; d=json.load(open('.config/quality_gate.json', encoding='utf-8')); print(' '.join(f'--cov={x}' for x in d.get('core_coverage_targets', ['app'])))")
-          pytest -q -m "not ui" ${COVERAGE_TARGETS} --cov-report=term-missing --cov-fail-under=${COVERAGE_FAIL_UNDER}
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTEST_CORE_SIN_QT=1 pytest -q -p pytest_cov -p no:pytestqt -p no:pytestqt.plugin -m "not ui" ${COVERAGE_TARGETS} --cov-report=term-missing --cov-fail-under=${COVERAGE_FAIL_UNDER}
 
       - name: Reporte de calidad (LOC/CC/Coverage por paquete)
         run: |

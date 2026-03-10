@@ -15,7 +15,7 @@ from typing import Any, Callable
 
 import pytest
 
-from app.testing.qt_harness import PLUGIN_PYTEST_QT
+from app.testing.qt_harness import _construir_args_pytest_core_no_ui
 from scripts.i18n.check_hardcode_i18n import (
     ConfigCheck,
     analizar_rutas,
@@ -57,7 +57,9 @@ def load_config() -> dict[str, object]:
 
 
 def load_coverage_threshold(config: dict[str, object]) -> int:
-    threshold = config.get("coverage_fail_under_core", config.get("coverage_fail_under"))
+    threshold = config.get(
+        "coverage_fail_under_core", config.get("coverage_fail_under")
+    )
     if not isinstance(threshold, int):
         raise SystemExit(
             f"Umbral de cobertura inválido en {CONFIG_PATH}. "
@@ -102,9 +104,13 @@ def preflight_pytest(allow_missing_pytest_cov: bool = False) -> dict[str, Any]:
 
     if importlib.util.find_spec("pytest_cov") is None:
         if os.getenv("HS_AUTO_INSTALL_DEPS", "") in {"1", "true", "TRUE", "yes", "YES"}:
-            LOGGER.warning("pytest-cov ausente. Intentando auto-instalación controlada...")
+            LOGGER.warning(
+                "pytest-cov ausente. Intentando auto-instalación controlada..."
+            )
             cmd = [sys.executable, "-m", "pip", "install", "pytest-cov==6.3.0"]
-            install_result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            install_result = subprocess.run(
+                cmd, capture_output=True, text=True, check=False
+            )
             if install_result.returncode != 0:
                 LOGGER.error(
                     "Falló auto-instalación de pytest-cov (returncode=%s).",
@@ -211,7 +217,9 @@ def run_pytest_coverage(
         if isinstance(value, (int, float)):
             coverage_value = round(float(value), 2)
 
-    passed = exit_code == 0 and coverage_value is not None and coverage_value >= threshold
+    passed = (
+        exit_code == 0 and coverage_value is not None and coverage_value >= threshold
+    )
     detail = (
         f"coverage_core={coverage_value}%, umbral={threshold}%"
         if coverage_value is not None
@@ -219,7 +227,9 @@ def run_pytest_coverage(
     )
     status = "PASS" if passed else "FAIL"
     _record(records, "coverage", status, detail)
-    return _make_result(status, detail, value=coverage_value, threshold=threshold, exit_code=exit_code)
+    return _make_result(
+        status, detail, value=coverage_value, threshold=threshold, exit_code=exit_code
+    )
 
 
 def run_contractual_test(
@@ -235,17 +245,23 @@ def run_contractual_test(
     return _make_result(status, detail, exit_code=exit_code)
 
 
-def run_cc_targets_guard(config: dict[str, object], records: list[dict[str, str]]) -> dict[str, Any]:
+def run_cc_targets_guard(
+    config: dict[str, object], records: list[dict[str, str]]
+) -> dict[str, Any]:
     from scripts import report_quality
 
     raw_targets = config.get("cc_targets", {})
     if not isinstance(raw_targets, dict):
-        raise SystemExit("El campo cc_targets en .config/quality_gate.json debe ser un objeto JSON")
+        raise SystemExit(
+            "El campo cc_targets en .config/quality_gate.json debe ser un objeto JSON"
+        )
 
     cc_targets: dict[str, int] = {}
     for key, value in raw_targets.items():
         if not isinstance(key, str) or not isinstance(value, int):
-            raise SystemExit("Cada target de cc_targets debe ser string y cada límite debe ser entero")
+            raise SystemExit(
+                "Cada target de cc_targets debe ser string y cada límite debe ser entero"
+            )
         cc_targets[key] = value
 
     evaluated, has_failures = report_quality._evaluate_config_targets(
@@ -277,10 +293,14 @@ def _load_i18n_check_config(config: dict[str, object]) -> ConfigCheck:
     return ConfigCheck(
         rutas_objetivo=tuple(raw.get("rutas_objetivo", defaults.rutas_objetivo)),
         rutas_excluidas=tuple(raw.get("rutas_excluidas", defaults.rutas_excluidas)),
-        archivos_excluidos=tuple(raw.get("archivos_excluidos", defaults.archivos_excluidos)),
+        archivos_excluidos=tuple(
+            raw.get("archivos_excluidos", defaults.archivos_excluidos)
+        ),
         patron_clave_i18n=str(raw.get("patron_clave_i18n", defaults.patron_clave_i18n)),
         patrones_tecnicos_permitidos=tuple(
-            raw.get("patrones_tecnicos_permitidos", defaults.patrones_tecnicos_permitidos)
+            raw.get(
+                "patrones_tecnicos_permitidos", defaults.patrones_tecnicos_permitidos
+            )
         ),
         wrappers_logger_permitidos=tuple(
             raw.get("wrappers_logger_permitidos", defaults.wrappers_logger_permitidos)
@@ -288,7 +308,9 @@ def _load_i18n_check_config(config: dict[str, object]) -> ConfigCheck:
     )
 
 
-def run_i18n_hardcode_guard(config: dict[str, object], records: list[dict[str, str]]) -> dict[str, Any]:
+def run_i18n_hardcode_guard(
+    config: dict[str, object], records: list[dict[str, str]]
+) -> dict[str, Any]:
     check = _load_i18n_check_config(config)
     rutas = [ROOT / ruta for ruta in check.rutas_objetivo if (ROOT / ruta).exists()]
     hallazgos = analizar_rutas(rutas, check)
@@ -301,7 +323,13 @@ def run_i18n_hardcode_guard(config: dict[str, object], records: list[dict[str, s
         if hallazgos:
             print(renderizar_hallazgos(hallazgos))
         _record(records, "i18n_hardcode", status, detail)
-        return _make_result(status, detail, nuevos_hallazgos=len(hallazgos), total_hallazgos=len(hallazgos), baseline=0)
+        return _make_result(
+            status,
+            detail,
+            nuevos_hallazgos=len(hallazgos),
+            total_hallazgos=len(hallazgos),
+            baseline=0,
+        )
 
     baseline_ids = cargar_baseline(BASELINE_I18N_HARDCODE_PATH)
     hallazgos_nuevos = filtrar_nuevos(hallazgos, baseline_ids)
@@ -322,7 +350,9 @@ def run_i18n_hardcode_guard(config: dict[str, object], records: list[dict[str, s
 
 def _load_naming_baseline() -> dict[str, set[str]]:
     if not BASELINE_NAMING_PATH.exists():
-        raise SystemExit("Falta .config/naming_baseline.json para controlar regresión de naming debt.")
+        raise SystemExit(
+            "Falta .config/naming_baseline.json para controlar regresión de naming debt."
+        )
 
     data = json.loads(BASELINE_NAMING_PATH.read_text(encoding="utf-8"))
     archivos = data.get("archivos_con_naming_ingles", [])
@@ -339,16 +369,15 @@ def run_naming_guard(records: list[dict[str, str]]) -> dict[str, Any]:
 
     archivos_actuales = set(reporte["archivos_con_naming_ingles"])
     simbolos_actuales = {
-        f"{item['archivo']}::{item['simbolo']}" for item in reporte["simbolos_publicos_en_ingles"]
+        f"{item['archivo']}::{item['simbolo']}"
+        for item in reporte["simbolos_publicos_en_ingles"]
     }
     nuevos_archivos = sorted(archivos_actuales - baseline["archivos"])
     nuevos_simbolos = sorted(simbolos_actuales - baseline["simbolos"])
 
     has_regression = bool(nuevos_archivos or nuevos_simbolos)
     status = "FAIL" if has_regression else "PASS"
-    detail = (
-        f"nuevos_archivos={len(nuevos_archivos)}, nuevos_simbolos={len(nuevos_simbolos)}"
-    )
+    detail = f"nuevos_archivos={len(nuevos_archivos)}, nuevos_simbolos={len(nuevos_simbolos)}"
     _record(records, "naming", status, detail)
 
     return _make_result(
@@ -365,11 +394,20 @@ def run_naming_guard(records: list[dict[str, str]]) -> dict[str, Any]:
 def write_reports(payload: dict[str, Any], records: list[dict[str, str]]) -> None:
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     QUALITY_REPORT_JSON.write_text(
-        json.dumps({"results": payload, "events": records}, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(
+            {"results": payload, "events": records}, ensure_ascii=False, indent=2
+        )
+        + "\n",
         encoding="utf-8",
     )
 
-    lines = ["# Quality Gate Unificado", "", "## Estado global", f"- **{payload['global_status']}**", ""]
+    lines = [
+        "# Quality Gate Unificado",
+        "",
+        "## Estado global",
+        f"- **{payload['global_status']}**",
+        "",
+    ]
     lines.append("## Modo degradado")
     lines.append(f"- activo: **{str(payload['degraded_mode']).lower()}**")
     if payload.get("degraded_reason"):
@@ -392,7 +430,15 @@ def write_reports(payload: dict[str, Any], records: list[dict[str, str]]) -> Non
             f"| {event['timestamp']} | {event['area']} | {event['status']} | {event['detalle']} |"
         )
 
-    lines.extend(["", "## Resumen JSON", "```json", json.dumps(payload, ensure_ascii=False, indent=2), "```"])
+    lines.extend(
+        [
+            "",
+            "## Resumen JSON",
+            "```json",
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            "```",
+        ]
+    )
     QUALITY_REPORT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     txt_lines = [
@@ -400,7 +446,8 @@ def write_reports(payload: dict[str, Any], records: list[dict[str, str]]) -> Non
         f"global_status={payload['global_status']}",
         f"degraded_mode={str(payload['degraded_mode']).lower()}",
         f"strict_mode={str(payload.get('strict_mode', True)).lower()}",
-        "checks_omitidos=" + (", ".join(omitted_checks) if omitted_checks else "ninguno"),
+        "checks_omitidos="
+        + (", ".join(omitted_checks) if omitted_checks else "ninguno"),
     ]
     QUALITY_REPORT_TXT.write_text("\n".join(txt_lines) + "\n", encoding="utf-8")
 
@@ -418,21 +465,37 @@ def build_report(
     coverage_targets = load_core_coverage_targets(config)
     base_runner = pytest_runner or pytest.main
 
+    habilitar_pytest_cov = not degraded_mode
+
     def runner(args_pytest: list[str]) -> int:
-        return base_runner([*PLUGIN_PYTEST_QT, *args_pytest])
+        return base_runner(
+            _construir_args_pytest_core_no_ui(
+                args_pytest, habilitar_pytest_cov=habilitar_pytest_cov
+            )
+        )
+
     records: list[dict[str, str]] = []
 
     results: dict[str, Any] = {}
     checks_omitidos = checks_omitidos or []
     if degraded_mode:
-        detail = degraded_reason or "pytest-cov no disponible; ejecutado en modo degradado"
+        detail = (
+            degraded_reason or "pytest-cov no disponible; ejecutado en modo degradado"
+        )
         _record(records, "coverage", "SKIP", detail)
-        results["coverage"] = _make_result("SKIP", detail, value=None, threshold=threshold, exit_code=None)
+        results["coverage"] = _make_result(
+            "SKIP", detail, value=None, threshold=threshold, exit_code=None
+        )
     else:
-        results["coverage"] = run_pytest_coverage(threshold, coverage_targets, records, runner)
+        results["coverage"] = run_pytest_coverage(
+            threshold, coverage_targets, records, runner
+        )
 
     results["cc_budget"] = run_contractual_test(
-        "cc_budget", "tests/test_quality_gate_metrics.py::test_quality_gate_size_and_complexity", records, runner
+        "cc_budget",
+        "tests/test_quality_gate_metrics.py::test_quality_gate_size_and_complexity",
+        records,
+        runner,
     )
     results["cc_targets"] = run_cc_targets_guard(config, records)
     results["architecture"] = run_contractual_test(
@@ -460,7 +523,11 @@ def build_report(
     results["strict_mode"] = strict_mode
     if all(item == "PASS" for item in statuses) and not has_coverage_skip:
         results["global_status"] = "PASS"
-    elif all(item in {"PASS", "SKIP"} for item in statuses) and has_coverage_skip and degraded_mode:
+    elif (
+        all(item in {"PASS", "SKIP"} for item in statuses)
+        and has_coverage_skip
+        and degraded_mode
+    ):
         results["global_status"] = "DEGRADED"
     else:
         results["global_status"] = "FAIL"
@@ -486,7 +553,9 @@ def print_human_summary(results: dict[str, Any]) -> None:
     if results.get("degraded_mode"):
         print(f"- degraded_mode: true | razón: {results.get('degraded_reason')}")
     print(f"GLOBAL: {results['global_status']}")
-    print(f"Reportes: {QUALITY_REPORT_MD.as_posix()} | {QUALITY_REPORT_JSON.as_posix()}")
+    print(
+        f"Reportes: {QUALITY_REPORT_MD.as_posix()} | {QUALITY_REPORT_JSON.as_posix()}"
+    )
 
 
 def _parse_args(argv: list[str] | None = None) -> Any:
