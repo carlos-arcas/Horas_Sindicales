@@ -301,3 +301,35 @@ def test_build_report_aplica_entorno_core_no_ui_en_todos_los_subruns(monkeypatch
     }
     assert "PYTEST_DISABLE_PLUGIN_AUTOLOAD" not in quality_gate.os.environ
     assert quality_gate.os.environ["PYTEST_CORE_SIN_QT"] == "0"
+
+
+def test_preflight_pytest_ejecuta_version_con_entorno_core_no_ui(monkeypatch) -> None:
+    trazas: list[dict[str, object]] = []
+
+    def _pytest_main_spy(args: list[str]) -> int:
+        trazas.append(
+            {
+                "args": args,
+                "PYTEST_DISABLE_PLUGIN_AUTOLOAD": quality_gate.os.environ.get("PYTEST_DISABLE_PLUGIN_AUTOLOAD"),
+                "PYTEST_CORE_SIN_QT": quality_gate.os.environ.get("PYTEST_CORE_SIN_QT"),
+            }
+        )
+        return 0
+
+    monkeypatch.setattr(quality_gate.pytest, "main", _pytest_main_spy)
+    monkeypatch.setattr(quality_gate.importlib.util, "find_spec", lambda _name: object())
+    monkeypatch.delenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", raising=False)
+    monkeypatch.setenv("PYTEST_CORE_SIN_QT", "0")
+
+    resultado = quality_gate.preflight_pytest()
+
+    assert resultado["degraded_mode"] is False
+    assert trazas == [
+        {
+            "args": ["-p", "no:pytestqt", "-p", "no:pytestqt.plugin", "--version"],
+            "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+            "PYTEST_CORE_SIN_QT": "1",
+        }
+    ]
+    assert "PYTEST_DISABLE_PLUGIN_AUTOLOAD" not in quality_gate.os.environ
+    assert quality_gate.os.environ["PYTEST_CORE_SIN_QT"] == "0"
