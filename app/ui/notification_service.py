@@ -9,7 +9,6 @@ from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLa
 
 from app.application.dto import SolicitudDTO
 from app.application.dtos.contexto_operacion import ContextoOperacion
-from app.domain.time_utils import minutes_to_hhmm
 from app.ui.copy_catalog import copy_text
 from app.ui.presentacion_confirmacion_notificaciones import construir_presentacion_confirmacion
 from app.ui.presentador_feedback_notificaciones import (
@@ -22,6 +21,7 @@ from app.ui.estilos.cargador_estilos_notificaciones import (
     construir_estilo_dialogo_operacion_feedback,
 )
 from app.ui.patterns import SPACING_BASE, apply_modal_behavior, build_modal_actions
+from app.ui.toast_helpers import toast_success
 from app.ui.widgets.toast import GestorToasts
 
 
@@ -128,8 +128,6 @@ class NotificationService:
             level=payload.level,
             title=normalized.title,
             details="\n".join(payload.details),
-            action_label=copy_text("ui.sync.ver_detalles"),
-            action_callback=lambda item=normalized: self.show_operation_details(item),
             duration_ms=7000,
         )
         if show_details:
@@ -145,19 +143,10 @@ class NotificationService:
         dialog.exec()
 
     def notify_added_pending(self, solicitud: SolicitudDTO, *, on_undo: Callable[[], None]) -> None:
-        duration_minutes = int(round(solicitud.horas * 60))
-        tramo = "completo" if solicitud.completo else f"{solicitud.desde}-{solicitud.hasta}"
-        self.notify_operation(
-            OperationFeedback(
-                title=copy_text("ui.notificacion.solicitud_anadida_titulo"),
-                happened=(
-                    f"{copy_text("ui.notificacion.solicitud_guardada_prefijo")} {solicitud.fecha_pedida} ({tramo}, "
-                    f"{minutes_to_hhmm(duration_minutes)})."
-                ),
-                affected_count=1,
-                incidents=copy_text("ui.notificacion.sin_incidencias"),
-                next_step=copy_text("ui.notificacion.revisar_pendientes"),
-            )
+        _ = (solicitud, on_undo)
+        toast_success(
+            self._toast,
+            copy_text("ui.notificacion.solicitud_anadida_ok"),
         )
 
     def notify_validation_error(self, *, what: str, why: str, how: str) -> None:

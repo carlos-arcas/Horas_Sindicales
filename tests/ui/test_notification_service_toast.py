@@ -40,8 +40,8 @@ def test_notify_operation_success_visible_simple_y_detalles_en_segunda_capa() ->
     assert call["level"] == "success"
     assert "Ha ido bien" in str(call["message"])
     assert "correlation_id" not in str(call["message"])
-    assert "Ver detalles" == call["action_label"]
-    assert callable(call["action_callback"])
+    assert call.get("action_label") is None
+    assert call.get("action_callback") is None
     assert "correlation_id=CID-007" in str(call["details"])
 
 
@@ -56,3 +56,33 @@ def test_notify_operation_error_visible_simple_y_detalles_en_segunda_capa() -> N
     assert "Ha ido mal" in str(call["message"])
     assert "stack=detalle técnico" not in str(call["message"])
     assert "stack=detalle técnico" in str(call["details"])
+
+
+def test_notify_added_pending_muestra_copy_conciso_sin_acciones_extra() -> None:
+    from app.application.dto import SolicitudDTO
+
+    toast = _ToastSpy()
+    service = NotificationService(toast=toast, parent=None)  # type: ignore[arg-type]
+
+    service.notify_added_pending(
+        SolicitudDTO(
+            id=7,
+            persona_id=10,
+            fecha_solicitud="2026-03-10",
+            fecha_pedida="2026-03-10",
+            desde="09:00",
+            hasta="10:00",
+            completo=False,
+            horas=1.0,
+            observaciones="",
+            pdf_path=None,
+            pdf_hash=None,
+        ),
+        on_undo=lambda: None,
+    )
+
+    assert len(toast.calls) == 1
+    call = toast.calls[0]
+    assert call["message"] == "Solicitud agregada a pendientes. OK"
+    assert call.get("action_label") is None
+    assert call.get("action_callback") is None
