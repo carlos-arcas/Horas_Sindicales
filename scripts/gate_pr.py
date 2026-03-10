@@ -131,7 +131,7 @@ def main() -> int:
 
     commands.extend(
         [
-            ([sys.executable, "-m", "pytest", "-q", "tests/golden/botones"], None),
+            _comando_pytest_core_no_ui(["-q", "tests/golden/botones"]),
             ([sys.executable, "-m", "scripts.i18n.check_hardcode_i18n"], None),
             ([sys.executable, "-m", "scripts.features_sync"], None),
             _comando_pytest_core_no_ui(["-q", "tests/test_no_secrets_committed.py"]),
