@@ -30,10 +30,20 @@ def _run(cmd: list[str], env: dict[str, str] | None = None) -> int:
     return completed.returncode
 
 
-def _ejecutar_pytest_no_ui_con_diagnostico(marker: str = "not ui") -> int:
-    comando_pytest = _construir_args_pytest_core_no_ui(["-q", "-m", marker])
+def _comando_pytest_core_no_ui(
+    args_pytest: list[str], *, habilitar_pytest_cov: bool = False
+) -> tuple[list[str], dict[str, str]]:
+    comando_pytest = _construir_args_pytest_core_no_ui(
+        args_pytest,
+        habilitar_pytest_cov=habilitar_pytest_cov,
+    )
     comando = [sys.executable, "-m", "pytest", *comando_pytest]
-    returncode = _run(comando, env=_construir_env_pytest_core_no_ui())
+    return comando, _construir_env_pytest_core_no_ui()
+
+
+def _ejecutar_pytest_no_ui_con_diagnostico(marker: str = "not ui") -> int:
+    comando, entorno = _comando_pytest_core_no_ui(["-q", "-m", marker])
+    returncode = _run(comando, env=entorno)
     if returncode != 255:
         return returncode
 
@@ -75,41 +85,44 @@ def main() -> int:
     run_mypy = os.getenv("HS_RUN_MYPY", "0") in {"1", "true", "TRUE"}
     has_pytest_cov = importlib.util.find_spec("pytest_cov") is not None
 
-    commands: list[list[str]] = [
-        [sys.executable, "-m", "ruff", "check", "."],
-        [
-            sys.executable,
-            "-m",
-            "ruff",
-            "format",
-            "--check",
-            "scripts/gate_rapido.py",
-            "scripts/gate_pr.py",
-            "scripts/features_sync.py",
-            "scripts/diagnosticar_pytest.py",
-        ],
+    commands: list[tuple[list[str], dict[str, str] | None]] = [
+        ([sys.executable, "-m", "ruff", "check", "."], None),
+        (
+            [
+                sys.executable,
+                "-m",
+                "ruff",
+                "format",
+                "--check",
+                "scripts/gate_rapido.py",
+                "scripts/gate_pr.py",
+                "scripts/features_sync.py",
+                "scripts/diagnosticar_pytest.py",
+            ],
+            None,
+        ),
     ]
     if run_mypy:
-        commands.append([sys.executable, "-m", "mypy", "app"])
+        commands.append(([sys.executable, "-m", "mypy", "app"], None))
 
     commands.append(
-        [sys.executable, "-m", "pytest", "-q", "tests/domain", "tests/application"]
+        _comando_pytest_core_no_ui(["-q", "tests/domain", "tests/application"])
     )
 
     if has_pytest_cov:
         commands.append(
-            [
-                sys.executable,
-                "-m",
-                "pytest",
-                "-q",
-                "tests/domain",
-                "tests/application",
-                "--cov=app/domain",
-                "--cov=app/application",
-                "--cov-report=term-missing",
-                "--cov-fail-under=85",
-            ]
+            _comando_pytest_core_no_ui(
+                [
+                    "-q",
+                    "tests/domain",
+                    "tests/application",
+                    "--cov=app/domain",
+                    "--cov=app/application",
+                    "--cov-report=term-missing",
+                    "--cov-fail-under=85",
+                ],
+                habilitar_pytest_cov=True,
+            )
         )
     else:
         LOGGER.warning(
@@ -118,31 +131,19 @@ def main() -> int:
 
     commands.extend(
         [
-            [sys.executable, "-m", "pytest", "-q", "tests/golden/botones"],
-            [sys.executable, "-m", "scripts.i18n.check_hardcode_i18n"],
-            [sys.executable, "-m", "scripts.features_sync"],
-            [
-                sys.executable,
-                "-m",
-                "pytest",
-                "-q",
-                "tests/test_no_secrets_committed.py",
-            ],
-            [
-                sys.executable,
-                "-m",
-                "pytest",
-                "-q",
-                "tests/test_no_secrets_content_scan.py",
-            ],
+            ([sys.executable, "-m", "pytest", "-q", "tests/golden/botones"], None),
+            ([sys.executable, "-m", "scripts.i18n.check_hardcode_i18n"], None),
+            ([sys.executable, "-m", "scripts.features_sync"], None),
+            _comando_pytest_core_no_ui(["-q", "tests/test_no_secrets_committed.py"]),
+            _comando_pytest_core_no_ui(["-q", "tests/test_no_secrets_content_scan.py"]),
         ]
     )
 
     try:
         if _ejecutar_pytest_no_ui_con_diagnostico("not ui") != 0:
             return 1
-        for command in commands:
-            if _run(command) != 0:
+        for command, env in commands:
+            if _run(command, env=env) != 0:
                 return 1
     except GateStepError as error:
         LOGGER.error("gate_pr_error", extra={"error": str(error)})
