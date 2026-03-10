@@ -9,10 +9,33 @@ ARCHIVOS_SMOKE_UI_ESTRICTOS: tuple[str, ...] = (
 )
 
 PLUGIN_PYTEST_QT: tuple[str, ...] = ("-p", "no:pytestqt", "-p", "no:pytestqt.plugin")
+PLUGIN_PYTEST_COV: tuple[str, ...] = ("-p", "pytest_cov",)
+ENV_PYTEST_CORE_NO_UI: tuple[tuple[str, str], ...] = (
+    ("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1"),
+    ("PYTEST_CORE_SIN_QT", "1"),
+)
 
 
 def _importar_modulo(nombre_modulo: str) -> None:
     importlib.import_module(nombre_modulo)
+
+
+def _construir_args_pytest_core_no_ui(
+    args_pytest: list[str], *, habilitar_pytest_cov: bool = False
+) -> list[str]:
+    prefijo_plugins: list[str] = [*PLUGIN_PYTEST_QT]
+    if habilitar_pytest_cov:
+        prefijo_plugins = [*PLUGIN_PYTEST_COV, *prefijo_plugins]
+    return [*prefijo_plugins, *args_pytest]
+
+
+def _construir_env_pytest_core_no_ui(
+    entorno_base: dict[str, str] | None = None,
+) -> dict[str, str]:
+    entorno = dict(os.environ if entorno_base is None else entorno_base)
+    for clave, valor in ENV_PYTEST_CORE_NO_UI:
+        entorno[clave] = valor
+    return entorno
 
 
 

@@ -8,7 +8,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-from app.testing.qt_harness import PLUGIN_PYTEST_QT
+from app.testing.qt_harness import (
+    _construir_args_pytest_core_no_ui,
+    _construir_env_pytest_core_no_ui,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 LOGGER = logging.getLogger(__name__)
@@ -18,9 +21,9 @@ class GateStepError(RuntimeError):
     pass
 
 
-def _run(cmd: list[str]) -> int:
+def _run(cmd: list[str], env: dict[str, str] | None = None) -> int:
     LOGGER.info("gate_pr_step_start", extra={"cmd": cmd})
-    completed = subprocess.run(cmd, cwd=ROOT, check=False)
+    completed = subprocess.run(cmd, cwd=ROOT, check=False, env=env)
     LOGGER.info(
         "gate_pr_step_end", extra={"cmd": cmd, "returncode": completed.returncode}
     )
@@ -28,9 +31,9 @@ def _run(cmd: list[str]) -> int:
 
 
 def _ejecutar_pytest_no_ui_con_diagnostico(marker: str = "not ui") -> int:
-    comando_pytest = [*PLUGIN_PYTEST_QT, "-q", "-m", marker]
+    comando_pytest = _construir_args_pytest_core_no_ui(["-q", "-m", marker])
     comando = [sys.executable, "-m", "pytest", *comando_pytest]
-    returncode = _run(comando)
+    returncode = _run(comando, env=_construir_env_pytest_core_no_ui())
     if returncode != 255:
         return returncode
 
@@ -52,7 +55,7 @@ def _ejecutar_pytest_no_ui_con_diagnostico(marker: str = "not ui") -> int:
         "scripts.diagnosticar_pytest",
         "--marker",
         marker,
-        "--disable-plugin-pytestqt",
+        "--core-no-ui",
         "true",
         "--rerun-verbose-on-255",
         "true",

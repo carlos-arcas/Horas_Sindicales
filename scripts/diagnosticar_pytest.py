@@ -11,7 +11,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from app.testing.qt_harness import PLUGIN_PYTEST_QT
+from app.testing.qt_harness import (
+    _construir_args_pytest_core_no_ui,
+    _construir_env_pytest_core_no_ui,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 LOGS_DIR = ROOT / "logs"
@@ -84,8 +87,14 @@ def _escribir_archivo(ruta: Path, contenido: str) -> None:
     ruta.write_text(contenido, encoding="utf-8")
 
 
-def _ejecutar_subproceso(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+def _ejecutar_subproceso(
+    cmd: list[str],
+    cwd: Path,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     entorno = {**os.environ, "PYTHONFAULTHANDLER": "1", "PYTHONUNBUFFERED": "1"}
+    if env is not None:
+        entorno.update(env)
     return subprocess.run(
         cmd,
         cwd=cwd,
@@ -96,8 +105,12 @@ def _ejecutar_subproceso(cmd: list[str], cwd: Path) -> subprocess.CompletedProce
     )
 
 
-def ejecutar_pytest(cmd: list[str], cwd: Path) -> dict[str, Any]:
-    resultado = _ejecutar_subproceso(cmd=cmd, cwd=cwd)
+def ejecutar_pytest(
+    cmd: list[str],
+    cwd: Path,
+    env: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    resultado = _ejecutar_subproceso(cmd=cmd, cwd=cwd, env=env)
 
     _escribir_archivo(PYTEST_STDOUT_LOG, resultado.stdout)
     _escribir_archivo(PYTEST_STDERR_LOG, resultado.stderr)
@@ -124,11 +137,15 @@ def ejecutar_pytest(cmd: list[str], cwd: Path) -> dict[str, Any]:
 
 
 def ejecutar_rerun_verbose(
-    marker: str, cwd: Path, disable_plugin_pytestqt: bool = False
+    marker: str,
+    cwd: Path,
+    core_no_ui: bool = False,
 ) -> dict[str, Any]:
     args_pytest = ["-m", marker, "-vv", "-x"]
-    if disable_plugin_pytestqt:
-        args_pytest = [*PLUGIN_PYTEST_QT, *args_pytest]
+    env_extra: dict[str, str] | None = None
+    if core_no_ui:
+        args_pytest = _construir_args_pytest_core_no_ui(args_pytest)
+        env_extra = _construir_env_pytest_core_no_ui()
     comando_rerun = [
         sys.executable,
         "-X",
@@ -137,7 +154,7 @@ def ejecutar_rerun_verbose(
         "pytest",
         *args_pytest,
     ]
-    resultado = _ejecutar_subproceso(cmd=comando_rerun, cwd=cwd)
+    resultado = _ejecutar_subproceso(cmd=comando_rerun, cwd=cwd, env=env_extra)
     _escribir_archivo(PYTEST_STDOUT_255_VV_LOG, resultado.stdout)
     _escribir_archivo(PYTEST_STDERR_255_VV_LOG, resultado.stderr)
 
@@ -186,10 +203,10 @@ def _parsear_args() -> argparse.Namespace:
         help="Si está en true, relanza pytest en -vv -x cuando returncode sea 255",
     )
     parser.add_argument(
-        "--disable-plugin-pytestqt",
+        "--core-no-ui",
         default="false",
         choices=["true", "false"],
-        help="Desactiva plugin pytest-qt para diagnóstico core/no-ui.",
+        help="Activa política core/no-ui: bloquea autoload global y desactiva pytest-qt.",
     )
     return parser.parse_args()
 
@@ -201,9 +218,11 @@ def main() -> int:
 
     args = _parsear_args()
     args_pytest = ["-q", "-m", args.marker, *args.extra_args]
-    disable_plugin_pytestqt = args.disable_plugin_pytestqt.lower() == "true"
-    if disable_plugin_pytestqt:
-        args_pytest = [*PLUGIN_PYTEST_QT, *args_pytest]
+    core_no_ui = args.core_no_ui.lower() == "true"
+    env_extra: dict[str, str] | None = None
+    if core_no_ui:
+        args_pytest = _construir_args_pytest_core_no_ui(args_pytest)
+        env_extra = _construir_env_pytest_core_no_ui()
 
     comando = [
         sys.executable,
@@ -214,12 +233,10 @@ def main() -> int:
         *args_pytest,
     ]
 
-    resultado = ejecutar_pytest(cmd=comando, cwd=ROOT)
+    resultado = ejecutar_pytest(cmd=comando, cwd=ROOT, env=env_extra)
     rerun_habilitado = args.rerun_verbose_on_255.lower() == "true"
     if rerun_habilitado and int(resultado["returncode"]) == 255:
-        ejecutar_rerun_verbose(
-            args.marker, ROOT, disable_plugin_pytestqt=disable_plugin_pytestqt
-        )
+        ejecutar_rerun_verbose(args.marker, ROOT, core_no_ui=core_no_ui)
 
     return int(resultado["returncode"])
 
