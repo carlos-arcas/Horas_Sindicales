@@ -15,7 +15,10 @@ from typing import Any, Callable
 
 import pytest
 
-from app.testing.qt_harness import _construir_args_pytest_core_no_ui
+from app.testing.qt_harness import (
+    _aplicar_entorno_pytest_core_no_ui,
+    _construir_args_pytest_core_no_ui,
+)
 from scripts.i18n.check_hardcode_i18n import (
     ConfigCheck,
     analizar_rutas,
@@ -468,11 +471,12 @@ def build_report(
     habilitar_pytest_cov = not degraded_mode
 
     def runner(args_pytest: list[str]) -> int:
-        return base_runner(
-            _construir_args_pytest_core_no_ui(
-                args_pytest, habilitar_pytest_cov=habilitar_pytest_cov
+        with _aplicar_entorno_pytest_core_no_ui():
+            return base_runner(
+                _construir_args_pytest_core_no_ui(
+                    args_pytest, habilitar_pytest_cov=habilitar_pytest_cov
+                )
             )
-        )
 
     records: list[dict[str, str]] = []
 
