@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib
 import os
+from contextlib import contextmanager
+from typing import Iterator
 
 ARCHIVOS_SMOKE_UI_ESTRICTOS: tuple[str, ...] = (
     "tests/ui/test_confirmar_pdf_mainwindow_smoke.py",
@@ -36,6 +38,23 @@ def _construir_env_pytest_core_no_ui(
     for clave, valor in ENV_PYTEST_CORE_NO_UI:
         entorno[clave] = valor
     return entorno
+
+
+@contextmanager
+def _aplicar_entorno_pytest_core_no_ui() -> Iterator[None]:
+    valores_previos: dict[str, str | None] = {
+        clave: os.environ.get(clave) for clave, _ in ENV_PYTEST_CORE_NO_UI
+    }
+    for clave, valor in ENV_PYTEST_CORE_NO_UI:
+        os.environ[clave] = valor
+    try:
+        yield
+    finally:
+        for clave, valor_previo in valores_previos.items():
+            if valor_previo is None:
+                os.environ.pop(clave, None)
+            else:
+                os.environ[clave] = valor_previo
 
 
 

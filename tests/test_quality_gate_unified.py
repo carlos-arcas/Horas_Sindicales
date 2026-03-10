@@ -258,3 +258,46 @@ def test_build_report_fuerza_no_cargar_pytestqt_en_runner_core(monkeypatch, tmp_
     assert llamadas
     assert llamadas[0][:6] == ["-p", "pytest_cov", "-p", "no:pytestqt", "-p", "no:pytestqt.plugin"]
     assert llamadas[0][6:] == ["-q", "-m", "not ui"]
+
+
+def test_build_report_aplica_entorno_core_no_ui_en_todos_los_subruns(monkeypatch, tmp_path: Path) -> None:
+    _set_temp_reports(monkeypatch, tmp_path)
+    _mock_i18n_guard_pass(monkeypatch)
+    monkeypatch.setattr(quality_gate, "load_config", lambda: {"coverage_fail_under_core": 80, "core_coverage_targets": ["app"]})
+
+    trazas_entorno: list[dict[str, str | None]] = []
+
+    class _RunnerSpy:
+        def __call__(self, _args: list[str]) -> int:
+            trazas_entorno.append(
+                {
+                    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": quality_gate.os.environ.get("PYTEST_DISABLE_PLUGIN_AUTOLOAD"),
+                    "PYTEST_CORE_SIN_QT": quality_gate.os.environ.get("PYTEST_CORE_SIN_QT"),
+                }
+            )
+            return 0
+
+    monkeypatch.delenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", raising=False)
+    monkeypatch.setenv("PYTEST_CORE_SIN_QT", "0")
+    monkeypatch.setattr(
+        quality_gate,
+        "run_pytest_coverage",
+        lambda _threshold, _targets, _records, pytest_runner: (
+            pytest_runner(["-q", "-m", "not ui"]),
+            {"status": "PASS", "detail": "coverage ok", "value": 88.0},
+        )[1],
+    )
+    monkeypatch.setattr(quality_gate, "run_contractual_test", lambda *_a, **_k: {"status": "PASS", "detail": "ok", "exit_code": 0})
+    monkeypatch.setattr(quality_gate, "run_naming_guard", lambda *_a, **_k: {"status": "PASS", "detail": "naming ok"})
+    monkeypatch.setattr(quality_gate, "run_cc_targets_guard", lambda *_a, **_k: {"status": "PASS", "detail": "targets=1, failing=0"})
+
+    resultado = quality_gate.build_report(pytest_runner=_RunnerSpy())
+
+    assert resultado["global_status"] == "PASS"
+    assert len(trazas_entorno) == 1
+    assert trazas_entorno[0] == {
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+        "PYTEST_CORE_SIN_QT": "1",
+    }
+    assert "PYTEST_DISABLE_PLUGIN_AUTOLOAD" not in quality_gate.os.environ
+    assert quality_gate.os.environ["PYTEST_CORE_SIN_QT"] == "0"

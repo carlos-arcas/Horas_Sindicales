@@ -77,3 +77,15 @@ def test__construir_env_pytest_core_no_ui_fuerza_entorno_contractual() -> None:
     assert entorno["X"] == "1"
     assert entorno["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
     assert entorno["PYTEST_CORE_SIN_QT"] == "1"
+
+
+def test__aplicar_entorno_pytest_core_no_ui_aplica_y_restaura(monkeypatch) -> None:
+    monkeypatch.delenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", raising=False)
+    monkeypatch.setenv("PYTEST_CORE_SIN_QT", "0")
+
+    with qt_harness._aplicar_entorno_pytest_core_no_ui():
+        assert qt_harness.os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
+        assert qt_harness.os.environ["PYTEST_CORE_SIN_QT"] == "1"
+
+    assert "PYTEST_DISABLE_PLUGIN_AUTOLOAD" not in qt_harness.os.environ
+    assert qt_harness.os.environ["PYTEST_CORE_SIN_QT"] == "0"
