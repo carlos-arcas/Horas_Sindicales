@@ -47,16 +47,39 @@ def test_main_blinda_subruns_core_no_ui_post_ruff(monkeypatch) -> None:
 
     assert comandos_pytest
     for cmd, env in comandos_pytest:
-        es_ui = "tests/golden/botones" in cmd
-        if es_ui:
-            assert env is None
-            continue
         assert env is not None
         assert env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
         assert env["PYTEST_CORE_SIN_QT"] == "1"
         assert "-p" in cmd
         assert "no:pytestqt" in cmd
         assert "no:pytestqt.plugin" in cmd
+
+
+def test_main_ejecuta_golden_bajo_contrato_core_no_ui(monkeypatch) -> None:
+    llamadas: list[tuple[list[str], dict[str, str] | None]] = []
+
+    def _run_falso(cmd: list[str], env: dict[str, str] | None = None) -> int:
+        llamadas.append((cmd, env))
+        return 0
+
+    monkeypatch.setattr(gate_pr, "_run", _run_falso)
+    monkeypatch.setattr(gate_pr.importlib.util, "find_spec", lambda _name: object())
+    monkeypatch.setattr(gate_pr.subprocess, "run", lambda *_args, **_kwargs: type("R", (), {"returncode": 0})())
+
+    assert gate_pr.main() == 0
+
+    golden = [
+        (cmd, env)
+        for cmd, env in llamadas
+        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"] and "tests/golden/botones" in cmd
+    ]
+    assert len(golden) == 1
+    comando, entorno = golden[0]
+    assert entorno is not None
+    assert entorno["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
+    assert entorno["PYTEST_CORE_SIN_QT"] == "1"
+    assert "no:pytestqt" in comando
+    assert "no:pytestqt.plugin" in comando
 
 
 def test_main_reinyecta_pytest_cov_solo_en_coverage(monkeypatch) -> None:
