@@ -250,7 +250,8 @@ def test_actualizar_toast_agrega_boton_detalles_y_emite_id(qtbot) -> None:
     manager.warning("Mensaje inicial", code="D1", origin="origen.test", details=None, duration_ms=4000)
     toast = next(iter(manager._visibles.values()))
 
-    assert toast._btn_detalles is None
+    assert toast._btn_detalles is not None
+    assert not toast._btn_detalles.isVisible()
 
     manager.warning("Mensaje con detalle", code="D1", origin="origen.test", details="trace", duration_ms=4000)
 
@@ -283,3 +284,54 @@ def test_actualizar_toast_no_duplica_boton_detalles(qtbot) -> None:
     botones_detalles = toast.findChildren(type(toast._btn_cerrar), "toastDetailsButton")
     assert len(botones_detalles) == 1
     assert botones_detalles[0].isVisible()
+
+
+def test_boton_accion_visible_y_habilitado_segun_contrato(qtbot) -> None:
+    window = QMainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    manager = GestorToasts()
+    manager.attach_to(window)
+
+    manager.info("Mensaje", action_label="Reintentar", action_callback=None, duration_ms=4000)
+    toast = next(iter(manager._visibles.values()))
+
+    assert toast._btn_accion.isVisible()
+    assert not toast._btn_accion.isEnabled()
+
+    called = {"count": 0}
+
+    def _accion() -> None:
+        called["count"] += 1
+
+    manager.info("Mensaje", action_label="Reintentar", action_callback=_accion, duration_ms=4000)
+
+    assert toast._btn_accion.isVisible()
+    assert toast._btn_accion.isEnabled()
+    qtbot.mouseClick(toast._btn_accion, Qt.MouseButton.LeftButton)
+    assert called["count"] == 1
+
+
+def test_detalles_transicion_sin_con_sin_no_duplica(qtbot) -> None:
+    window = QMainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    manager = GestorToasts()
+    manager.attach_to(window)
+
+    manager.warning("Mensaje", code="D3", origin="origen.test", details=None, duration_ms=4000)
+    toast = next(iter(manager._visibles.values()))
+
+    assert toast._btn_detalles is not None
+    assert not toast._btn_detalles.isVisible()
+
+    manager.warning("Mensaje", code="D3", origin="origen.test", details="detalle 1", duration_ms=4000)
+    assert toast._btn_detalles.isVisible()
+
+    manager.warning("Mensaje", code="D3", origin="origen.test", details=None, duration_ms=4000)
+    assert not toast._btn_detalles.isVisible()
+
+    botones_detalles = toast.findChildren(type(toast._btn_cerrar), "toastDetailsButton")
+    assert len(botones_detalles) == 1
