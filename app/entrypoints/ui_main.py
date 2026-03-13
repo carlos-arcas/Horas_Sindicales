@@ -144,14 +144,20 @@ class _CoordinadorArranqueConCierreDeterminista:
             return []
         return construir_info_top_level_widgets(widgets)
 
-    def _activar_y_visibilizar_ventana(self, window) -> None:
+    def _activar_y_visibilizar_ventana(self, window, *, iniciar_maximizada: bool = False) -> None:
         if not _es_objeto_qt_valido(window):
             return
         from PySide6.QtCore import Qt
 
-        safe_call(window, "showNormal")
-        safe_call(window, "show")
-        safe_call(window, "setWindowState", Qt.WindowState.WindowActive)
+        if iniciar_maximizada:
+            safe_call(window, "showMaximized")
+        else:
+            safe_call(window, "show")
+
+        estado_actual = safe_call(window, "windowState")
+        if estado_actual is None:
+            estado_actual = Qt.WindowState.WindowNoState
+        safe_call(window, "setWindowState", estado_actual | Qt.WindowState.WindowActive)
         safe_call(window, "raise_")
         safe_call(window, "activateWindow")
 
@@ -227,7 +233,7 @@ class _CoordinadorArranqueConCierreDeterminista:
             ventana = getattr(orquestador, "wizard_bienvenida", None)
             validar_ventana_creada(ventana)
             self._marcar_boot_stage("wizard_created")
-            return ventana
+            return ventana, False
 
         self._marcar_boot_stage("main_window_create_start")
         ventana = self.main_window_factory(
@@ -242,7 +248,7 @@ class _CoordinadorArranqueConCierreDeterminista:
             resolved_container.cargar_datos_demo_caso_uso,
         )
         self._marcar_boot_stage("main_window_created")
-        return ventana
+        return ventana, bool(orquestador.debe_iniciar_maximizada())
 
     def _instalar_filtro_diagnostico_eventos_ventana(self) -> None:
         if not self._debug_eventos_ventana_habilitado:
@@ -320,14 +326,17 @@ class _CoordinadorArranqueConCierreDeterminista:
                 orquestador = self.orquestador_factory(deps_arranque, self.i18n)
                 self._marcar_boot_stage("finalize_before_create_window")
                 self._dump_top_level_widgets("before_create_window")
-                ventana = self._crear_ventana_arranque(
+                ventana, iniciar_maximizada = self._crear_ventana_arranque(
                     deps_arranque,
                     orquestador,
                     resolved_container,
                 )
                 self._marcar_boot_stage("finalize_window_created")
                 self._establecer_referencias_fuertes(ventana)
-                self._activar_y_visibilizar_ventana(ventana)
+                self._activar_y_visibilizar_ventana(
+                    ventana,
+                    iniciar_maximizada=iniciar_maximizada,
+                )
                 self._marcar_boot_stage("finalize_after_show_called")
                 self._dump_top_level_widgets("after_show")
                 self._cerrar_splash_con_ventana(ventana)

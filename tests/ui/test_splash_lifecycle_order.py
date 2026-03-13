@@ -214,6 +214,70 @@ def test_on_finished_restaura_quit_on_last_window_closed(monkeypatch) -> None:
     assert coord._quit_on_last_window_closed is True
 
 
+def test_on_finished_muestra_mainwindow_directamente_maximizada(monkeypatch) -> None:
+    class _QTimerFake:
+        @staticmethod
+        def singleShot(_ms, callback):
+            callback()
+
+    class _MainWindowSpy:
+        def __init__(self) -> None:
+            self.eventos: list[str] = []
+            self._estado = 0
+
+        def show(self) -> None:
+            self.eventos.append("show")
+
+        def showMaximized(self) -> None:
+            self.eventos.append("showMaximized")
+            self._estado = 2
+
+        def windowState(self) -> int:
+            self.eventos.append("windowState")
+            return self._estado
+
+        def setWindowState(self, _valor) -> None:
+            self.eventos.append("setWindowState")
+
+        def raise_(self) -> None:
+            self.eventos.append("raise")
+
+        def activateWindow(self) -> None:
+            self.eventos.append("activateWindow")
+
+    monkeypatch.setitem(
+        sys.modules, "app.ui.qt_compat", SimpleNamespace(QTimer=_QTimerFake)
+    )
+    monkeypatch.setitem(
+        sys.modules, "PySide6.QtCore", SimpleNamespace(QTimer=_QTimerFake)
+    )
+
+    monkeypatch.setattr(ui_main, "ReiniciarOnboarding", lambda _repo: object())
+
+    events: list[str] = []
+    splash = FakeSplash(events=events)
+    timer = FakeTimer(events=events)
+    coord = _CoordinatorFake(splash=splash, timer=timer, events=events)
+    ventana_spy = _MainWindowSpy()
+    coord.main_window_factory = lambda *_args, **_kwargs: ventana_spy
+    coord.orquestador_factory = lambda _deps, _i18n: SimpleNamespace(
+        resolver_onboarding=lambda: True,
+        debe_iniciar_maximizada=lambda: True,
+    )
+
+    payload = ResultadoArranqueCore(
+        container=SimpleNamespace(
+            repositorio_preferencias=None, cargar_datos_demo_caso_uso=None
+        )
+    )
+
+    coord.on_finished(payload)
+
+    assert "showMaximized" in ventana_spy.eventos
+    assert "show" not in ventana_spy.eventos
+    assert ventana_spy.eventos.index("showMaximized") < ventana_spy.eventos.index("raise")
+
+
 def test_guardia_muestra_fallback_si_no_hay_ventana_visible(monkeypatch) -> None:
     class _QTimerFake:
         @staticmethod
