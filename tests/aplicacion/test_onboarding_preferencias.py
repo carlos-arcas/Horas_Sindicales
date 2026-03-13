@@ -9,7 +9,7 @@ from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
     GuardarPreferenciaPantallaCompleta,
     ObtenerPreferenciaPantallaCompleta,
 )
-from aplicacion.preferencias_claves import ONBOARDING_COMPLETADO, PANTALLA_COMPLETA
+from aplicacion.preferencias_claves import INICIAR_MAXIMIZADA, ONBOARDING_COMPLETADO
 from aplicacion.puertos.repositorio_preferencias import IRepositorioPreferencias
 
 
@@ -50,11 +50,11 @@ def test_pantalla_completa_default_false_y_persistencia_true_false() -> None:
     assert obtener.ejecutar() is False
 
     guardar.ejecutar(True)
-    assert repositorio.obtener_bool(PANTALLA_COMPLETA, por_defecto=False) is True
+    assert repositorio.obtener_bool(INICIAR_MAXIMIZADA, por_defecto=False) is True
     assert obtener.ejecutar() is True
 
     guardar.ejecutar(False)
-    assert repositorio.obtener_bool(PANTALLA_COMPLETA, por_defecto=True) is False
+    assert repositorio.obtener_bool(INICIAR_MAXIMIZADA, por_defecto=True) is False
     assert obtener.ejecutar() is False
 
 

@@ -55,7 +55,7 @@ def test_orquestador_no_muestra_wizard_si_onboarding_ya_completado() -> None:
     assert not deps.marcar_onboarding_completado.calls
 
 
-def test_orquestador_guarda_onboarding_y_preferencias_al_finalizar(monkeypatch) -> None:
+def test_orquestador_guarda_onboarding_e_idioma_sin_contaminar_preferencia_arranque(monkeypatch) -> None:
     deps = _deps(onboarding_completado=False)
 
     class WizardFalso:
@@ -76,6 +76,6 @@ def test_orquestador_guarda_onboarding_y_preferencias_al_finalizar(monkeypatch) 
     ok = orquestador.resolver_onboarding(parent=object())
 
     assert ok is True
-    assert deps.guardar_preferencia_pantalla_completa.calls == [(False,)]
+    assert deps.guardar_preferencia_pantalla_completa.calls == []
     assert deps.guardar_idioma_ui.calls == [("en",)]
     assert deps.marcar_onboarding_completado.calls == [()]

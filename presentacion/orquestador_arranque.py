@@ -56,7 +56,7 @@ class OrquestadorArranqueUI:
         if wizard.exec() != WizardBienvenida.Accepted:
             return False
 
-        self._deps.guardar_preferencia_pantalla_completa.ejecutar(wizard.pantalla_completa_por_defecto)
+        # El wizard de onboarding no debe alterar la preferencia de arranque maximizado.
         self._deps.guardar_idioma_ui.ejecutar(wizard.idioma_seleccionado)
         self._deps.marcar_onboarding_completado.ejecutar()
         return True
