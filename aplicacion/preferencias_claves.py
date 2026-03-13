@@ -1,6 +1,7 @@
 """Claves de preferencias usadas por los casos de uso."""
 
 ONBOARDING_COMPLETADO = "onboarding_completado"
-PANTALLA_COMPLETA = "pantalla_completa"
+INICIAR_MAXIMIZADA = "pantalla_completa"
+PANTALLA_COMPLETA = INICIAR_MAXIMIZADA
 
 IDIOMA_UI = "idioma_ui"
