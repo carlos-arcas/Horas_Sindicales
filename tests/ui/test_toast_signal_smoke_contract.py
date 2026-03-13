@@ -17,7 +17,11 @@ def test_toast_detalles_slot_nombrado_y_sin_lambda() -> None:
     assert "clicked.connect(lambda" not in source
 
 
-def test_overlay_ignora_mouse_fuera_de_toast() -> None:
+def test_overlay_passthrough_mouse_es_selectivo() -> None:
     source = Path("app/ui/widgets/overlay_toast.py").read_text(encoding="utf-8")
-    assert "def _debe_ignorar_evento_mouse" in source
-    assert "self.childAt(posicion) is None" in source
+    assert "def event(" not in source
+    assert "def mousePressEvent" in source
+    assert "def mouseReleaseEvent" in source
+    assert "def mouseDoubleClickEvent" in source
+    assert "QApplication.sendEvent" in source
+    assert "self.childAt(posicion_local) is not None" in source
