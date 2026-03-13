@@ -70,6 +70,7 @@ class TarjetaToast(QFrame):
         acciones.addStretch(1)
         self._acciones_layout = acciones
         self._btn_detalles: QPushButton | None = None
+        self._asegurar_boton_detalles()
         self._sincronizar_boton_detalles()
         self._btn_accion = QPushButton(self.notificacion.action_label or "")
         self._btn_accion.setObjectName("toastActionButton")
@@ -107,15 +108,21 @@ class TarjetaToast(QFrame):
         self._btn_accion.setEnabled(notificacion.action_callback is not None)
         self._sincronizar_boton_detalles()
 
-    def _sincronizar_boton_detalles(self) -> None:
-        hay_detalles = bool(self.notificacion.detalles)
-        if hay_detalles and self._btn_detalles is None:
-            self._btn_detalles = QPushButton(copy_text("ui.sync.ver_detalles"))
-            self._btn_detalles.setObjectName("toastDetailsButton")
-            self._btn_detalles.clicked.connect(lambda: self.solicitar_detalles.emit(self.notificacion.id))
-            self._acciones_layout.insertWidget(1, self._btn_detalles)
+    def _asegurar_boton_detalles(self) -> None:
         if self._btn_detalles is not None:
-            self._btn_detalles.setVisible(hay_detalles)
+            return
+        self._btn_detalles = QPushButton(copy_text("ui.sync.ver_detalles"))
+        self._btn_detalles.setObjectName("toastDetailsButton")
+        self._btn_detalles.clicked.connect(self._emitir_solicitud_detalles)
+        self._acciones_layout.insertWidget(1, self._btn_detalles)
+
+    def _emitir_solicitud_detalles(self) -> None:
+        self.solicitar_detalles.emit(self.notificacion.id)
+
+    def _sincronizar_boton_detalles(self) -> None:
+        self._asegurar_boton_detalles()
+        hay_detalles = bool(self.notificacion.detalles)
+        self._btn_detalles.setVisible(hay_detalles)
 
     def _ejecutar_accion(self) -> None:
         logger.info(
