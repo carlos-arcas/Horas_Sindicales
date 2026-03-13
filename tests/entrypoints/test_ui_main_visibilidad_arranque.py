@@ -7,26 +7,34 @@ from app.entrypoints import ui_main
 
 
 class _WindowSpy:
-    def __init__(self, estado_inicial: int = 0) -> None:
+    def __init__(self, estado_inicial: int = 0, *, maximizacion_real: bool | None = None) -> None:
         self.eventos: list[str] = []
         self._estado = estado_inicial
+        self._maximizacion_real = maximizacion_real
+        self.ultimo_estado_asignado = None
 
     def show(self) -> None:
         self.eventos.append("show")
 
     def showMaximized(self) -> None:
         self.eventos.append("showMaximized")
+        if self._maximizacion_real is not False:
+            self._estado = 2
 
     def isMaximized(self) -> bool:
         self.eventos.append("isMaximized")
-        return bool(self._estado == 2)
+        if self._maximizacion_real is None:
+            return bool(self._estado == 2)
+        return self._maximizacion_real
 
     def windowState(self) -> int:
         self.eventos.append("windowState")
         return self._estado
 
-    def setWindowState(self, _valor) -> None:
+    def setWindowState(self, valor) -> None:
         self.eventos.append("setWindowState")
+        self.ultimo_estado_asignado = valor
+        self._estado = valor
 
     def raise_(self) -> None:
         self.eventos.append("raise")
@@ -36,7 +44,7 @@ class _WindowSpy:
 
 
 
-def test_activar_y_visibilizar_ventana_maximiza_sin_show(monkeypatch) -> None:
+def _stub_qt(monkeypatch) -> None:
     monkeypatch.setitem(
         sys.modules,
         "PySide6.QtCore",
@@ -44,7 +52,12 @@ def test_activar_y_visibilizar_ventana_maximiza_sin_show(monkeypatch) -> None:
     )
     monkeypatch.setattr(ui_main, "_es_objeto_qt_valido", lambda _obj: True)
 
-    window = _WindowSpy(estado_inicial=0)
+
+
+def test_activar_y_visibilizar_ventana_maximiza_sin_show_ni_degradacion(monkeypatch) -> None:
+    _stub_qt(monkeypatch)
+
+    window = _WindowSpy(estado_inicial=0, maximizacion_real=False)
     coordinador = SimpleNamespace()
 
     ui_main._CoordinadorArranqueConCierreDeterminista._activar_y_visibilizar_ventana(
@@ -55,16 +68,12 @@ def test_activar_y_visibilizar_ventana_maximiza_sin_show(monkeypatch) -> None:
 
     assert "showMaximized" in window.eventos
     assert "show" not in window.eventos
+    assert "setWindowState" not in window.eventos
 
 
 
 def test_activar_y_visibilizar_ventana_no_fuerza_maximizado(monkeypatch) -> None:
-    monkeypatch.setitem(
-        sys.modules,
-        "PySide6.QtCore",
-        SimpleNamespace(Qt=SimpleNamespace(WindowState=SimpleNamespace(WindowNoState=0, WindowActive=8, WindowMaximized=2))),
-    )
-    monkeypatch.setattr(ui_main, "_es_objeto_qt_valido", lambda _obj: True)
+    _stub_qt(monkeypatch)
 
     window = _WindowSpy(estado_inicial=0)
     coordinador = SimpleNamespace()
@@ -81,12 +90,7 @@ def test_activar_y_visibilizar_ventana_no_fuerza_maximizado(monkeypatch) -> None
 
 
 def test_activar_y_visibilizar_ventana_respeta_estado_maximizado_restaurado(monkeypatch) -> None:
-    monkeypatch.setitem(
-        sys.modules,
-        "PySide6.QtCore",
-        SimpleNamespace(Qt=SimpleNamespace(WindowState=SimpleNamespace(WindowNoState=0, WindowActive=8, WindowMaximized=2))),
-    )
-    monkeypatch.setattr(ui_main, "_es_objeto_qt_valido", lambda _obj: True)
+    _stub_qt(monkeypatch)
 
     window = _WindowSpy(estado_inicial=2)
     coordinador = SimpleNamespace()
@@ -99,6 +103,26 @@ def test_activar_y_visibilizar_ventana_respeta_estado_maximizado_restaurado(monk
 
     assert "showMaximized" in window.eventos
     assert "show" not in window.eventos
+
+
+
+def test_activar_y_visibilizar_ventana_foco_no_pisa_estado_visual(monkeypatch) -> None:
+    _stub_qt(monkeypatch)
+
+    window = _WindowSpy(estado_inicial=0)
+    coordinador = SimpleNamespace()
+
+    ui_main._CoordinadorArranqueConCierreDeterminista._activar_y_visibilizar_ventana(
+        coordinador,
+        window,
+        iniciar_maximizada=True,
+    )
+
+    assert "raise" in window.eventos
+    assert "activateWindow" in window.eventos
+    assert window.eventos.index("showMaximized") < window.eventos.index("raise")
+    assert window.eventos.index("raise") < window.eventos.index("activateWindow")
+    assert "setWindowState" not in window.eventos
 
 
 
