@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QPoint, Qt
-from PySide6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtCore import QPoint, QPointF, Qt
+from PySide6.QtGui import QMouseEvent
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
 
 class CapaToasts(QWidget):
@@ -17,33 +18,55 @@ class CapaToasts(QWidget):
         self.hide()
         self.reposicionar()
 
-    def event(self, evento: QEvent) -> bool:
-        if self._debe_ignorar_evento_mouse(evento):
-            evento.ignore()
-            return False
-        return super().event(evento)
+    def mousePressEvent(self, evento: QMouseEvent) -> None:
+        if self._reenviar_evento_si_fuera_de_toast(evento):
+            return
+        super().mousePressEvent(evento)
 
-    def _debe_ignorar_evento_mouse(self, evento: QEvent) -> bool:
-        tipos_mouse = {
-            QEvent.Type.MouseButtonPress,
-            QEvent.Type.MouseButtonRelease,
-            QEvent.Type.MouseButtonDblClick,
-            QEvent.Type.MouseMove,
-            QEvent.Type.Wheel,
-        }
-        if evento.type() not in tipos_mouse:
-            return False
-        posicion = self._extraer_posicion_local(evento)
-        if posicion is None:
-            return False
-        return self.childAt(posicion) is None
+    def mouseReleaseEvent(self, evento: QMouseEvent) -> None:
+        if self._reenviar_evento_si_fuera_de_toast(evento):
+            return
+        super().mouseReleaseEvent(evento)
 
-    def _extraer_posicion_local(self, evento: QEvent) -> QPoint | None:
-        if hasattr(evento, "position"):
-            return evento.position().toPoint()  # type: ignore[no-any-return]
-        if hasattr(evento, "pos"):
-            return evento.pos()  # type: ignore[no-any-return]
-        return None
+    def mouseDoubleClickEvent(self, evento: QMouseEvent) -> None:
+        if self._reenviar_evento_si_fuera_de_toast(evento):
+            return
+        super().mouseDoubleClickEvent(evento)
+
+    def _reenviar_evento_si_fuera_de_toast(self, evento: QMouseEvent) -> bool:
+        posicion_local = evento.position().toPoint()
+        if self.childAt(posicion_local) is not None:
+            return False
+
+        posicion_global = evento.globalPosition().toPoint()
+        destino = self._obtener_widget_passthrough(posicion_global)
+        if destino is None:
+            return False
+
+        posicion_destino = destino.mapFromGlobal(posicion_global)
+        evento_reenviado = QMouseEvent(
+            evento.type(),
+            QPointF(posicion_destino),
+            QPointF(posicion_global),
+            evento.button(),
+            evento.buttons(),
+            evento.modifiers(),
+        )
+        QApplication.sendEvent(destino, evento_reenviado)
+        evento.accept()
+        return True
+
+    def _obtener_widget_passthrough(self, posicion_global: QPoint) -> QWidget | None:
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        try:
+            destino = QApplication.widgetAt(posicion_global)
+        finally:
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        if destino is None:
+            return None
+        if destino is self or self.isAncestorOf(destino):
+            return None
+        return destino
 
     @property
     def layout_toasts(self) -> QVBoxLayout:

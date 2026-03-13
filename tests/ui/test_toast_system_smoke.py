@@ -6,7 +6,7 @@ from tests.ui.conftest import require_qt
 require_qt()
 
 from PySide6.QtCore import QObject, Qt, Signal
-from PySide6.QtWidgets import QMainWindow
+from PySide6.QtWidgets import QMainWindow, QPushButton
 
 from app.ui.widgets.toast import GestorToasts
 from app.ui.widgets.toast import NotificacionToast
@@ -335,3 +335,64 @@ def test_detalles_transicion_sin_con_sin_no_duplica(qtbot) -> None:
 
     botones_detalles = toast.findChildren(type(toast._btn_cerrar), "toastDetailsButton")
     assert len(botones_detalles) == 1
+
+def test_detalles_emite_id_actual_tras_actualizaciones_consecutivas(qtbot) -> None:
+    window = QMainWindow()
+    qtbot.addWidget(window)
+    window.show()
+
+    manager = GestorToasts()
+    manager.attach_to(window)
+
+    manager.warning("Mensaje", code="D4", origin="origen.test", details="detalle 1", duration_ms=4000)
+    toast = next(iter(manager._visibles.values()))
+
+    ids_emitidos: list[str] = []
+    toast.solicitar_detalles.connect(ids_emitidos.append)
+
+    for idx in range(2, 5):
+        manager.warning(
+            "Mensaje",
+            code="D4",
+            origin="origen.test",
+            details=f"detalle {idx}",
+            duration_ms=4000,
+        )
+        assert toast.notificacion.id == "WARN:D4"
+        qtbot.mouseClick(toast._btn_detalles, Qt.MouseButton.LeftButton)
+
+    assert ids_emitidos == ["WARN:D4", "WARN:D4", "WARN:D4"]
+    botones_detalles = toast.findChildren(type(toast._btn_cerrar), "toastDetailsButton")
+    assert len(botones_detalles) == 1
+
+
+
+def test_overlay_permite_click_en_host_fuera_de_tarjeta(qtbot) -> None:
+    window = QMainWindow()
+    window.resize(900, 700)
+    qtbot.addWidget(window)
+
+    boton_host = QPushButton("Host", window)
+    boton_host.setObjectName("hostMainButton")
+    boton_host.setGeometry(40, 640, 140, 32)
+
+    clicks = {"count": 0}
+
+    def _on_click() -> None:
+        clicks["count"] += 1
+
+    boton_host.clicked.connect(_on_click)
+
+    window.show()
+
+    manager = GestorToasts()
+    manager.attach_to(window)
+    manager.success("Mensaje", action_label="Abrir", action_callback=lambda: None, duration_ms=4000)
+
+    assert len(manager._visibles) == 1
+
+    posicion_global = boton_host.mapToGlobal(boton_host.rect().center())
+    posicion_en_window = window.mapFromGlobal(posicion_global)
+    qtbot.mouseClick(window, Qt.MouseButton.LeftButton, pos=posicion_en_window)
+
+    assert clicks["count"] == 1
