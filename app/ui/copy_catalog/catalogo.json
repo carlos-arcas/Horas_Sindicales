@@ -108,7 +108,7 @@
   "ui.confirmacion.archivo_ya_existe_titulo": "Archivo ya existe",
   "ui.confirmacion.archivo_ya_existe_texto": "Ya existe un PDF con ese nombre en la carpeta elegida.",
   "ui.confirmacion.archivo_ya_existe_info": "Elige cómo continuar para evitar perder información.",
-  "ui.confirmacion.guardar_como": "Guardar como {nombre}",
+  "ui.confirmacion.guardar_como": "Guardar como…",
   "ui.confirmacion.cambiar_carpeta": "Cambiar carpeta",
   "ui.confirmacion.sobrescribir": "Sobrescribir",
   "ui.confirmacion.cancelar": "Cancelar",
@@ -527,5 +527,13 @@
   "ui.validacion.duplicada_pendiente_acciones": "Puedes ir a la existente o crear igualmente.",
   "ui.validacion.crear_igualmente": "Crear igualmente",
   "ui.validacion.duplicados_no_permitido": "No permitido por la regla de negocio de duplicados.",
-  "ui.notificacion.solicitud_anadida_ok": "Solicitud agregada a pendientes. OK"
+  "ui.notificacion.solicitud_anadida_ok": "Solicitud agregada a pendientes. OK",
+  "ui.confirmacion.no_mostrar_mas": "No mostrar de nuevo",
+  "ui.comun.aceptar": "Aceptar",
+  "ui.confirmacion.previsualizacion_pdf_titulo": "Previsualización PDF",
+  "ui.confirmacion.previsualizacion_pdf_descripcion": "Genera una vista previa antes de guardar.",
+  "ui.confirmacion.generar_actualizar_vista": "Generar/Actualizar vista",
+  "ui.confirmacion.vista_previa_lista": "Vista previa lista: {nombre}",
+  "ui.historico.detalle_solicitud_titulo": "Detalle de solicitud",
+  "ui.error_details.qdialog_close_missing": "QDialogButtonBox.Close debe existir para mantener foco principal"
 }

@@ -346,13 +346,25 @@ def on_open_saldos_modal(window: object) -> None:
             QMessageBox.information(window, titulo, mensaje)
         return
 
-    dialogo = dialogo_class(window)
-    window._dialogo_saldos = dialogo
-    ejecutar_modal = getattr(dialogo, "exec", None)
-    if callable(ejecutar_modal):
-        ejecutar_modal()
-        return
+    try:
+        dialogo = dialogo_class(window)
+        window._dialogo_saldos = dialogo
+        ejecutar_modal = getattr(dialogo, "exec", None)
+        if callable(ejecutar_modal):
+            ejecutar_modal()
+            return
 
-    mostrar_dialogo = getattr(dialogo, "show", None)
-    if callable(mostrar_dialogo):
-        mostrar_dialogo()
+        mostrar_dialogo = getattr(dialogo, "show", None)
+        if callable(mostrar_dialogo):
+            mostrar_dialogo()
+    except Exception as exc:
+        logger.exception(
+            "UI_SALDOS_MODAL_OPEN_FAILED",
+            extra={"accion": "open_saldos_modal"},
+            exc_info=exc,
+        )
+        if hasattr(window, "toast") and hasattr(window.toast, "error"):
+            window.toast.error(
+                copy_text("ui.errores.error_inesperado"),
+                title=copy_text("ui.error_details.toast_title"),
+            )

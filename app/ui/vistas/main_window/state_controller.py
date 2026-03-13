@@ -71,6 +71,7 @@ from .layout_builder import (
     HistoricoDetalleDialog,
     OptionalConfirmDialog,
     PdfPreviewDialog,
+    SaldosDetalleDialog,
 )
 from .navegacion_mixin import NavegacionMainWindowMixin, TAB_HISTORICO
 from .refresco_mixin import RefrescoMainWindowMixin
@@ -259,6 +260,7 @@ class MainWindow(
         self._pdf_preview_dialog_class = PdfPreviewDialog
         self._historico_detalle_dialog_class = HistoricoDetalleDialog
         self._optional_confirm_dialog_class = OptionalConfirmDialog
+        self._saldos_dialog_class = SaldosDetalleDialog
 
         self.setWindowTitle(copy_text("ui.sync.window_title"))
         self._build_ui()

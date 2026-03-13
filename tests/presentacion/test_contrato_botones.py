@@ -67,3 +67,12 @@ def test_aplicar_contrato_deshabilita_boton_si_falta_dependencia_opcional() -> N
     assert window.open_saldos_modal_button.habilitado is False
     assert "disponible" in window.open_saldos_modal_button.tooltip.lower()
 
+
+
+def test_aplicar_contrato_mantiene_boton_saldos_habilitado_si_dependencia_esta_disponible() -> None:
+    window = VentanaFalsa(incluir_saldos=True)
+
+    aplicar_contrato_botones_criticos_runtime(window)
+
+    assert window.open_saldos_modal_button.habilitado is True
+    assert window.open_saldos_modal_button.tooltip == ""
