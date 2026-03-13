@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from aplicacion.preferencias_claves import INICIAR_MAXIMIZADA, INICIAR_MAXIMIZADA_LEGACY
 import json
 from pathlib import Path
 
 from app.domain.models import SheetsConfig
 from app.infrastructure import local_config
-from app.infrastructure.local_config import SheetsConfigStore
+from app.infrastructure.local_config import RepositorioPreferenciasIni, SheetsConfigStore
 
 
 def test_resolve_appdata_dir_usa_variable_de_entorno(monkeypatch, tmp_path: Path) -> None:
@@ -85,3 +86,16 @@ def test_credentials_path_apunta_a_secrets_credentials(tmp_path: Path) -> None:
     store = SheetsConfigStore(base_dir=tmp_path)
 
     assert store.credentials_path() == tmp_path / "secrets" / "credentials.json"
+
+
+def test_repositorio_preferencias_ini_lee_legacy_y_escribe_clave_nueva(tmp_path: Path) -> None:
+    ruta = tmp_path / "preferencias.ini"
+    repo = RepositorioPreferenciasIni(ruta)
+
+    repo.guardar_bool(INICIAR_MAXIMIZADA_LEGACY, True)
+
+    assert repo.obtener_bool(INICIAR_MAXIMIZADA, por_defecto=False) is True
+
+    repo.guardar_bool(INICIAR_MAXIMIZADA, False)
+
+    assert repo.obtener_bool(INICIAR_MAXIMIZADA, por_defecto=True) is False

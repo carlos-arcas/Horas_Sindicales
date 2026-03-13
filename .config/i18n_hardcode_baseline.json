@@ -6400,7 +6400,7 @@
     {
       "id": "e3204221a03a48eb2f83de854898c27f3e844bc16d4bd48883e97942f29e45f1",
       "ruta": "app/ui/vistas/builders/builders_sync_panel.py",
-      "texto": "_on_toggle_preferencia_pantalla_completa",
+      "texto": "_on_toggle_preferencia_inicio_maximizado",
       "scope": "create_sync_panel"
     },
     {

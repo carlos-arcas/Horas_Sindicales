@@ -26,7 +26,7 @@ class WizardBienvenida(QDialog):
         i18n: I18nManager,
         obtener_ruta_guia_sync: ObtenerRutaGuiaSync,
         idioma_inicial: str,
-        pantalla_completa_inicial: bool,
+        iniciar_maximizada_inicial: bool,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -37,7 +37,7 @@ class WizardBienvenida(QDialog):
         self._stack = QStackedWidget()
         self._progress = QProgressBar()
         self._progress.setRange(1, self.TOTAL_PASOS)
-        self._paginas = self._crear_paginas(idioma_inicial, pantalla_completa_inicial)
+        self._paginas = self._crear_paginas(idioma_inicial, iniciar_maximizada_inicial)
         for pagina in self._paginas:
             self._stack.addWidget(pagina)
 
@@ -58,16 +58,16 @@ class WizardBienvenida(QDialog):
         self._actualizar_estado_botones()
 
     @property
-    def pantalla_completa_por_defecto(self) -> bool:
-        return self._pagina_preferencias.check_pantalla_completa.isChecked()
+    def iniciar_maximizada_por_defecto(self) -> bool:
+        return self._pagina_preferencias.check_inicio_maximizado.isChecked()
 
     @property
     def idioma_seleccionado(self) -> str:
         return self._pagina_preferencias.idioma_seleccionado()
 
-    def _crear_paginas(self, idioma_inicial: str, pantalla_completa_inicial: bool) -> list[QWidget]:
+    def _crear_paginas(self, idioma_inicial: str, iniciar_maximizada_inicial: bool) -> list[QWidget]:
         self._pagina_preferencias = PaginaPreferencias(self._i18n, idioma_inicial)
-        self._pagina_preferencias.check_pantalla_completa.setChecked(pantalla_completa_inicial)
+        self._pagina_preferencias.check_inicio_maximizado.setChecked(iniciar_maximizada_inicial)
         return [
             PaginaBienvenida(self._i18n),
             PaginaBasicos(self._i18n),

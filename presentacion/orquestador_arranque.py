@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from aplicacion.casos_de_uso.documentos import ObtenerRutaGuiaSync
 from aplicacion.casos_de_uso.idioma import GuardarIdiomaUI, ObtenerIdiomaUI
 from aplicacion.casos_de_uso.onboarding import MarcarOnboardingCompletado, ObtenerEstadoOnboarding
-from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
-    GuardarPreferenciaPantallaCompleta,
-    ObtenerPreferenciaPantallaCompleta,
+from aplicacion.casos_de_uso.preferencia_inicio_maximizado import (
+    GuardarPreferenciaInicioMaximizado,
+    ObtenerPreferenciaInicioMaximizado,
 )
 from app.ui.qt_hilos import asegurar_en_hilo_ui
 from presentacion.i18n import I18nManager
@@ -17,8 +17,8 @@ from presentacion.i18n import I18nManager
 class DependenciasArranque:
     obtener_estado_onboarding: ObtenerEstadoOnboarding
     marcar_onboarding_completado: MarcarOnboardingCompletado
-    guardar_preferencia_pantalla_completa: GuardarPreferenciaPantallaCompleta
-    obtener_preferencia_pantalla_completa: ObtenerPreferenciaPantallaCompleta
+    guardar_preferencia_inicio_maximizado: GuardarPreferenciaInicioMaximizado
+    obtener_preferencia_inicio_maximizado: ObtenerPreferenciaInicioMaximizado
     obtener_idioma_ui: ObtenerIdiomaUI
     guardar_idioma_ui: GuardarIdiomaUI
     obtener_ruta_guia_sync: ObtenerRutaGuiaSync
@@ -43,7 +43,7 @@ class OrquestadorArranqueUI:
             self._i18n,
             self._deps.obtener_ruta_guia_sync,
             idioma_inicial=self._deps.obtener_idioma_ui.ejecutar(),
-            pantalla_completa_inicial=self._deps.obtener_preferencia_pantalla_completa.ejecutar(),
+            iniciar_maximizada_inicial=self._deps.obtener_preferencia_inicio_maximizado.ejecutar(),
             parent=parent,
         )
         self.wizard_bienvenida = wizard
@@ -63,4 +63,4 @@ class OrquestadorArranqueUI:
 
     def debe_iniciar_maximizada(self) -> bool:
         """Define si la ventana principal debe abrirse maximizada."""
-        return self._deps.obtener_preferencia_pantalla_completa.ejecutar()
+        return self._deps.obtener_preferencia_inicio_maximizado.ejecutar()

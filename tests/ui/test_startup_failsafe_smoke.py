@@ -16,8 +16,8 @@ class _DummyUseCase:
 @dataclass
 class _DummyDeps:
     obtener_idioma_ui: _DummyUseCase
-    guardar_preferencia_pantalla_completa: object = None
-    obtener_preferencia_pantalla_completa: object = None
+    guardar_preferencia_inicio_maximizado: object = None
+    obtener_preferencia_inicio_maximizado: object = None
 
 
 class _DummyOrquestador:

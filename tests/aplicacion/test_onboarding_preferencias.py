@@ -5,9 +5,9 @@ from aplicacion.casos_de_uso.onboarding import (
     ObtenerEstadoOnboarding,
     ReiniciarOnboarding,
 )
-from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
-    GuardarPreferenciaPantallaCompleta,
-    ObtenerPreferenciaPantallaCompleta,
+from aplicacion.casos_de_uso.preferencia_inicio_maximizado import (
+    GuardarPreferenciaInicioMaximizado,
+    ObtenerPreferenciaInicioMaximizado,
 )
 from aplicacion.preferencias_claves import INICIAR_MAXIMIZADA, ONBOARDING_COMPLETADO
 from aplicacion.puertos.repositorio_preferencias import IRepositorioPreferencias
@@ -42,10 +42,10 @@ def test_marcar_onboarding_completado_persiste_true() -> None:
     assert obtener_estado.ejecutar() is True
 
 
-def test_pantalla_completa_default_false_y_persistencia_true_false() -> None:
+def test_inicio_maximizado_default_false_y_persistencia_true_false() -> None:
     repositorio = FakeRepositorioPreferencias()
-    obtener = ObtenerPreferenciaPantallaCompleta(repositorio)
-    guardar = GuardarPreferenciaPantallaCompleta(repositorio)
+    obtener = ObtenerPreferenciaInicioMaximizado(repositorio)
+    guardar = GuardarPreferenciaInicioMaximizado(repositorio)
 
     assert obtener.ejecutar() is False
 

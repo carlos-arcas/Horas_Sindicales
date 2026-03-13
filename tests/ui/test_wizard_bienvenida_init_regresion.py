@@ -31,7 +31,7 @@ def test_wizard_bienvenida_no_lanza_attribute_error_en_init(tmp_path: Path) -> N
             I18nManager("es"),
             ObtenerRutaGuiaSync(ProveedorDocumentosFalso(ruta_guia)),
             idioma_inicial="es",
-            pantalla_completa_inicial=False,
+            iniciar_maximizada_inicial=False,
         )
     except AttributeError as exc:  # pragma: no cover - test de regresión
         pytest.fail(f"WizardBienvenida lanzó AttributeError durante __init__: {exc}")

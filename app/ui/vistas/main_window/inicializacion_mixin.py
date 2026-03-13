@@ -53,17 +53,17 @@ class InicializacionMainWindowMixin:
         if hasattr(main_tabs, "addTab") and hasattr(main_tabs, "indexOf") and main_tabs.indexOf(fallback_page) == -1:
             main_tabs.addTab(fallback_page, tab_text)
 
-    def _inicializar_preferencia_pantalla_completa(self) -> None:
-        if self.preferencia_pantalla_completa_check is None or self._obtener_preferencia_pantalla_completa is None:
+    def _inicializar_preferencia_inicio_maximizado(self) -> None:
+        if self.preferencia_inicio_maximizado_check is None or self._obtener_preferencia_inicio_maximizado is None:
             return
-        preferencia = self._obtener_preferencia_pantalla_completa.ejecutar()
-        self.preferencia_pantalla_completa_check.blockSignals(True)
-        self.preferencia_pantalla_completa_check.setChecked(preferencia)
-        self.preferencia_pantalla_completa_check.blockSignals(False)
+        preferencia = self._obtener_preferencia_inicio_maximizado.ejecutar()
+        self.preferencia_inicio_maximizado_check.blockSignals(True)
+        self.preferencia_inicio_maximizado_check.setChecked(preferencia)
+        self.preferencia_inicio_maximizado_check.blockSignals(False)
 
-    def _on_toggle_preferencia_pantalla_completa(self, valor: bool) -> None:
-        if self._guardar_preferencia_pantalla_completa is not None:
-            self._guardar_preferencia_pantalla_completa.ejecutar(valor)
+    def _on_toggle_preferencia_inicio_maximizado(self, valor: bool) -> None:
+        if self._guardar_preferencia_inicio_maximizado is not None:
+            self._guardar_preferencia_inicio_maximizado.ejecutar(valor)
 
     def _apply_help_preferences(self) -> None:
         apply_help_preferences(self)

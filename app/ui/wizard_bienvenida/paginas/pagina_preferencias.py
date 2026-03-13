@@ -12,13 +12,13 @@ class PaginaPreferencias(QWidget):
 
         self._titulo = QLabel()
         self._titulo.setProperty("role", "h3")
-        self._check_pantalla_completa = QCheckBox()
+        self._check_inicio_maximizado = QCheckBox()
         self._label_idioma = QLabel()
         self._combo_idioma = QComboBox()
 
         layout = QVBoxLayout(self)
         layout.addWidget(self._titulo)
-        layout.addWidget(self._check_pantalla_completa)
+        layout.addWidget(self._check_inicio_maximizado)
         layout.addWidget(self._label_idioma)
         layout.addWidget(self._combo_idioma)
         layout.addStretch(1)
@@ -28,8 +28,8 @@ class PaginaPreferencias(QWidget):
         self.actualizar_textos()
 
     @property
-    def check_pantalla_completa(self) -> QCheckBox:
-        return self._check_pantalla_completa
+    def check_inicio_maximizado(self) -> QCheckBox:
+        return self._check_inicio_maximizado
 
     @property
     def combo_idioma(self) -> QComboBox:
@@ -44,7 +44,7 @@ class PaginaPreferencias(QWidget):
 
     def actualizar_textos(self) -> None:
         self._titulo.setText(self._i18n.t("wizard_paso_4"))
-        self._check_pantalla_completa.setText(self._i18n.t("wizard_pref_fullscreen"))
+        self._check_inicio_maximizado.setText(self._i18n.t("wizard_pref_inicio_maximizado"))
         self._label_idioma.setText(self._i18n.t("wizard_pref_idioma"))
         idioma_anterior = self.idioma_seleccionado()
         self._combo_idioma.clear()

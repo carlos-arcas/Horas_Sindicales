@@ -15,9 +15,9 @@ from aplicacion.casos_de_uso.onboarding import (
     ObtenerEstadoOnboarding,
     ReiniciarOnboarding,
 )
-from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
-    GuardarPreferenciaPantallaCompleta,
-    ObtenerPreferenciaPantallaCompleta,
+from aplicacion.casos_de_uso.preferencia_inicio_maximizado import (
+    GuardarPreferenciaInicioMaximizado,
+    ObtenerPreferenciaInicioMaximizado,
 )
 from app.application.use_cases.cargar_datos_demo_caso_uso import CargarDatosDemoCasoUso
 from app.bootstrap.captura_fallos_fatales import (
@@ -601,10 +601,10 @@ def _construir_dependencias_arranque(container):
     return DependenciasArranque(
         obtener_estado_onboarding=ObtenerEstadoOnboarding(repo_pref),
         marcar_onboarding_completado=MarcarOnboardingCompletado(repo_pref),
-        guardar_preferencia_pantalla_completa=GuardarPreferenciaPantallaCompleta(
+        guardar_preferencia_inicio_maximizado=GuardarPreferenciaInicioMaximizado(
             repo_pref
         ),
-        obtener_preferencia_pantalla_completa=ObtenerPreferenciaPantallaCompleta(
+        obtener_preferencia_inicio_maximizado=ObtenerPreferenciaInicioMaximizado(
             repo_pref
         ),
         obtener_idioma_ui=ObtenerIdiomaUI(repo_pref),
@@ -781,8 +781,8 @@ def run_ui(container=None) -> int:
             resolved_container.validacion_preventiva_lock_use_case,
             resolved_container.confirmar_pendientes_pdf_caso_uso,
             resolved_container.crear_pendiente_caso_uso,
-            guardar_preferencia_pantalla_completa=deps_arranque.guardar_preferencia_pantalla_completa,
-            obtener_preferencia_pantalla_completa=deps_arranque.obtener_preferencia_pantalla_completa,
+            guardar_preferencia_inicio_maximizado=deps_arranque.guardar_preferencia_inicio_maximizado,
+            obtener_preferencia_inicio_maximizado=deps_arranque.obtener_preferencia_inicio_maximizado,
             servicio_i18n=resolved_container.servicio_i18n,
         )
 

@@ -32,7 +32,7 @@ def test_wizard_instancia_y_navega_basico(tmp_path: Path) -> None:
         I18nManager("es"),
         ObtenerRutaGuiaSync(StubProveedorDocumentos(guia)),
         idioma_inicial="es",
-        pantalla_completa_inicial=False,
+        iniciar_maximizada_inicial=False,
     )
 
     assert wizard.findChildren(QPushButton)

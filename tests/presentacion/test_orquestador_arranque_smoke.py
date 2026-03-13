@@ -27,8 +27,8 @@ def _deps(onboarding_completado: bool) -> DependenciasArranque:
     return DependenciasArranque(
         obtener_estado_onboarding=StubCasoUso(onboarding_completado),
         marcar_onboarding_completado=StubCasoUso(),
-        guardar_preferencia_pantalla_completa=StubCasoUso(),
-        obtener_preferencia_pantalla_completa=StubCasoUso(True),
+        guardar_preferencia_inicio_maximizado=StubCasoUso(),
+        obtener_preferencia_inicio_maximizado=StubCasoUso(True),
         obtener_idioma_ui=StubCasoUso("es"),
         guardar_idioma_ui=StubCasoUso(),
         obtener_ruta_guia_sync=StubCasoUso("/tmp/guia.md"),
@@ -61,9 +61,9 @@ def test_orquestador_guarda_onboarding_e_idioma_sin_contaminar_preferencia_arran
     class WizardFalso:
         Accepted = 1
 
-        def __init__(self, _i18n, _guia_sync, idioma_inicial, pantalla_completa_inicial, parent=None) -> None:
+        def __init__(self, _i18n, _guia_sync, idioma_inicial, iniciar_maximizada_inicial, parent=None) -> None:
             self.idioma_seleccionado = "en"
-            self.pantalla_completa_por_defecto = not pantalla_completa_inicial
+            self.iniciar_maximizada_por_defecto = not iniciar_maximizada_inicial
             self.idioma_inicial = idioma_inicial
             self.parent = parent
 
@@ -76,6 +76,6 @@ def test_orquestador_guarda_onboarding_e_idioma_sin_contaminar_preferencia_arran
     ok = orquestador.resolver_onboarding(parent=object())
 
     assert ok is True
-    assert deps.guardar_preferencia_pantalla_completa.calls == []
+    assert deps.guardar_preferencia_inicio_maximizado.calls == []
     assert deps.guardar_idioma_ui.calls == [("en",)]
     assert deps.marcar_onboarding_completado.calls == [()]

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 QSettings = pytest.importorskip("PySide6.QtCore", exc_type=ImportError).QSettings
 
-from aplicacion.preferencias_claves import INICIAR_MAXIMIZADA, ONBOARDING_COMPLETADO
+from aplicacion.preferencias_claves import INICIAR_MAXIMIZADA, INICIAR_MAXIMIZADA_LEGACY, ONBOARDING_COMPLETADO
 from infraestructura.repositorio_preferencias_qsettings import RepositorioPreferenciasQSettings
 
 pytestmark = pytest.mark.ui
@@ -40,10 +40,31 @@ def test_lectura_legacy_string_bool_desde_ini(tmp_path: Path) -> None:
     settings_file = tmp_path / "preferencias.ini"
     legacy = QSettings(str(settings_file), QSettings.IniFormat)
     legacy.setValue(ONBOARDING_COMPLETADO, "true")
-    legacy.setValue(INICIAR_MAXIMIZADA, "0")
+    legacy.setValue(INICIAR_MAXIMIZADA_LEGACY, "0")
     legacy.sync()
 
     repo = _build_repo(tmp_path)
 
     assert repo.obtener_bool(ONBOARDING_COMPLETADO, por_defecto=False) is True
+    assert repo.obtener_bool(INICIAR_MAXIMIZADA, por_defecto=True) is False
+
+
+def test_guardar_inicio_maximizado_persiste_en_clave_nueva(tmp_path: Path) -> None:
+    repo = _build_repo(tmp_path)
+
+    repo.guardar_bool(INICIAR_MAXIMIZADA, True)
+
+    settings = QSettings(str(tmp_path / "preferencias.ini"), QSettings.IniFormat)
+    assert settings.value(INICIAR_MAXIMIZADA) is True
+    assert settings.contains(INICIAR_MAXIMIZADA)
+
+
+def test_lectura_prioriza_clave_nueva_sobre_legacy(tmp_path: Path) -> None:
+    settings = QSettings(str(tmp_path / "preferencias.ini"), QSettings.IniFormat)
+    settings.setValue(INICIAR_MAXIMIZADA_LEGACY, True)
+    settings.setValue(INICIAR_MAXIMIZADA, False)
+    settings.sync()
+
+    repo = _build_repo(tmp_path)
+
     assert repo.obtener_bool(INICIAR_MAXIMIZADA, por_defecto=True) is False
