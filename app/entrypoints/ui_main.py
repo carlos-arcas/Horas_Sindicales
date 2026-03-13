@@ -149,14 +149,24 @@ class _CoordinadorArranqueConCierreDeterminista:
             return
         from PySide6.QtCore import Qt
 
-        if iniciar_maximizada:
+        try:
+            estado_actual = window.windowState()
+        except RuntimeError:
+            estado_actual = Qt.WindowState.WindowNoState
+        if estado_actual is None:
+            estado_actual = Qt.WindowState.WindowNoState
+
+        try:
+            esta_maximizada = bool(window.isMaximized())
+        except (AttributeError, RuntimeError):
+            esta_maximizada = False
+        if not esta_maximizada:
+            esta_maximizada = bool(estado_actual & Qt.WindowState.WindowMaximized)
+        if iniciar_maximizada or esta_maximizada:
             safe_call(window, "showMaximized")
         else:
             safe_call(window, "show")
 
-        estado_actual = safe_call(window, "windowState")
-        if estado_actual is None:
-            estado_actual = Qt.WindowState.WindowNoState
         safe_call(window, "setWindowState", estado_actual | Qt.WindowState.WindowActive)
         safe_call(window, "raise_")
         safe_call(window, "activateWindow")
