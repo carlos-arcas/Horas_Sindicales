@@ -166,3 +166,8 @@
 - **2026-03-10 — Cierre de escape residual en sub-run `tests/golden/botones` dentro de `gate_pr` — Vigente**  
   Se verificó que aún existía una invocación directa `python -m pytest -q tests/golden/botones` en `scripts/gate_pr.py` fuera de `_comando_pytest_core_no_ui(...)`; por esa vía el runner quedaba sin `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` y podía autoload-ear `pytest-qt`, reproduciendo el `INTERNALERROR` por `libEGL.so.1` en CI.  
   Se migró ese sub-run a la misma fábrica reusable de comandos core/no-ui para unificar política de plugins/entorno en todo `gate_pr` y se reforzó el contrato con tests en `tests/tools/test_gate_pr.py` que exigen blindaje explícito también para `tests/golden/botones`.
+
+- **2026-03-13 — Contrato explícito de capacidades opcionales para botones de MainWindow — Vigente**  
+  Se detectó deuda técnica en el contrato runtime de botones: la disponibilidad de `open_saldos_modal_button` dependía de `hasattr/getattr` sobre un atributo privado mágico (`_saldos_dialog_class`) sin declarar capacidad de forma explícita.  
+  Se introduce `app/ui/vistas/main_window/capacidades_opcionales.py` como registro explícito (`capacidades_opcionales`) y APIs pequeñas (`registrar_capacidades_opcionales`, `obtener_capacidad_opcional`, `capacidad_disponible`). `state_controller` registra `modal_saldos_detalle` en el arranque, `acciones_personas` consume la capacidad declarada para abrir el modal y `contrato_botones` declara dependencias opcionales por botón mediante `nombre_capacidad_opcional`.  
+  Resultado: se mantiene UX vigente (habilitar/deshabilitar + tooltip de indisponibilidad), se elimina la dependencia del atributo privado mágico para saldos y el contrato queda más testeable y mantenible sin reescritura de MainWindow.

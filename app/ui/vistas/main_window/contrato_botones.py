@@ -4,6 +4,10 @@ from dataclasses import dataclass
 import logging
 
 from app.ui.copy_catalog import copy_text
+from app.ui.vistas.main_window.capacidades_opcionales import (
+    CAPACIDAD_MODAL_SALDOS_DETALLE,
+    capacidad_disponible,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -14,6 +18,7 @@ class ContratoBoton:
     nombre_atributo_boton: str
     nombre_handler: str
     clave_motivo_no_disponible: str | None = None
+    nombre_capacidad_opcional: str | None = None
     critico: bool = True
 
 
@@ -26,7 +31,12 @@ class IncidenciaContratoBoton:
 
 
 CONTRATOS_BOTONES_CRITICOS: tuple[ContratoBoton, ...] = (
-    ContratoBoton("open_saldos_modal_button", "_on_open_saldos_modal", "ui.saldos.modal_no_disponible"),
+    ContratoBoton(
+        "open_saldos_modal_button",
+        "_on_open_saldos_modal",
+        "ui.saldos.modal_no_disponible",
+        nombre_capacidad_opcional=CAPACIDAD_MODAL_SALDOS_DETALLE,
+    ),
     ContratoBoton("add_persona_button", "_on_add_persona", "ui.wiring.boton_no_disponible"),
     ContratoBoton("edit_persona_button", "_on_edit_persona", "ui.wiring.boton_no_disponible"),
     ContratoBoton("edit_grupo_button", "_on_edit_grupo", "ui.wiring.boton_no_disponible"),
@@ -133,9 +143,7 @@ def _resolver_disponibilidad(window: object, contrato: ContratoBoton) -> tuple[b
     if not callable(handler):
         return False, contrato.clave_motivo_no_disponible or "ui.wiring.boton_no_disponible"
 
-    if contrato.nombre_atributo_boton == "open_saldos_modal_button":
-        dialogo = getattr(window, "_saldos_dialog_class", None)
-        if dialogo is None:
-            return False, "ui.saldos.modal_no_disponible"
+    if contrato.nombre_capacidad_opcional and not capacidad_disponible(window, contrato.nombre_capacidad_opcional):
+        return False, contrato.clave_motivo_no_disponible or "ui.wiring.boton_no_disponible"
 
     return True, ""

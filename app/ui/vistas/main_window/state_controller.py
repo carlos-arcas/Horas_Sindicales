@@ -65,6 +65,11 @@ from aplicacion.casos_de_uso.preferencia_inicio_maximizado import (
 )
 from aplicacion.puertos.proveedor_i18n import ProveedorI18N
 
+from .capacidades_opcionales import (
+    CAPACIDAD_MODAL_SALDOS_DETALLE,
+    capacidad_disponible,
+    registrar_capacidades_opcionales,
+)
 from .acciones_mixin import AccionesMainWindowMixin
 from .estado_mixin import EstadoMainWindowMixin
 from .inicializacion_mixin import InicializacionMainWindowMixin
@@ -260,7 +265,10 @@ class MainWindow(
         self._pdf_preview_dialog_class = PdfPreviewDialog
         self._historico_detalle_dialog_class = HistoricoDetalleDialog
         self._optional_confirm_dialog_class = OptionalConfirmDialog
-        self._saldos_dialog_class = SaldosDetalleDialog
+        registrar_capacidades_opcionales(
+            self,
+            {CAPACIDAD_MODAL_SALDOS_DETALLE: SaldosDetalleDialog},
+        )
 
         self.setWindowTitle(copy_text("ui.sync.window_title"))
         self._build_ui()
@@ -289,6 +297,9 @@ class MainWindow(
         self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
         self._post_init_ui()
+
+    def tiene_capacidad_opcional(self, nombre_capacidad: str) -> bool:
+        return capacidad_disponible(self, nombre_capacidad)
 
 
     def _apply_sync_report(self, report: object) -> None: return super()._apply_sync_report(report)

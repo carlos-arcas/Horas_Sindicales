@@ -10,6 +10,10 @@ from app.application.claves_configuracion import (
 )
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.ui.copy_catalog import copy_text
+from app.ui.vistas.main_window.capacidades_opcionales import (
+    CAPACIDAD_MODAL_SALDOS_DETALLE,
+    obtener_capacidad_opcional,
+)
 from app.ui.person_dialog import PersonaDialog
 from app.ui.vistas.personas_presenter import PersonaOption, PersonasLoadInput, build_personas_load_output
 
@@ -335,7 +339,7 @@ def normalize_input_heights(window: MainWindow) -> None:
 def on_open_saldos_modal(window: object) -> None:
     """Abre el modal de saldos de forma segura."""
 
-    dialogo_class = getattr(window, "_saldos_dialog_class", None)
+    dialogo_class = obtener_capacidad_opcional(window, CAPACIDAD_MODAL_SALDOS_DETALLE)
     if dialogo_class is None:
         mensaje = copy_text("ui.saldos.modal_no_disponible")
         titulo = copy_text("ui.saldos.modal_no_disponible_titulo")
