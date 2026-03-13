@@ -103,13 +103,13 @@ def _construir_seccion_pdf(window: "MainWindow", config_layout: QVBoxLayout) -> 
 
 def _construir_seccion_preferencias(window: "MainWindow", config_layout: QVBoxLayout) -> None:
     preferencias_card, preferencias_layout = window._create_card(copy_text("ui.sync.preferencias"))
-    window.preferencia_pantalla_completa_check = QCheckBox(copy_text("ui.sync.maximizada_por_defecto"))
+    window.preferencia_inicio_maximizado_check = QCheckBox(copy_text("ui.sync.maximizada_por_defecto"))
     conectar_evento_sync_panel(
         window,
-        window.preferencia_pantalla_completa_check.toggled,
-        "_on_toggle_preferencia_pantalla_completa",
+        window.preferencia_inicio_maximizado_check.toggled,
+        "_on_toggle_preferencia_inicio_maximizado",
     )
-    preferencias_layout.addWidget(window.preferencia_pantalla_completa_check)
+    preferencias_layout.addWidget(window.preferencia_inicio_maximizado_check)
     config_layout.addWidget(preferencias_card)
 
 

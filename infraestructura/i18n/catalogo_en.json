@@ -91,7 +91,7 @@
   "wizard_paso_2": "Basics",
   "wizard_paso_3": "Sync",
   "wizard_paso_4": "Preferences",
-  "wizard_pref_fullscreen": "Open in full screen by default",
+  "wizard_pref_inicio_maximizado": "Open app maximized by default",
   "wizard_pref_idioma": "Language",
   "wizard_progreso": "Step {actual} of {total}",
   "wizard_sync_dialog_error": "Unable to load Sync guide.",

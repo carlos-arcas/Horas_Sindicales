@@ -34,7 +34,7 @@ class _ObtenerPreferenciaStub:
 
 
 @pytest.mark.ui
-def test_configuracion_muestra_y_guarda_preferencia_pantalla_completa(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_configuracion_muestra_y_guarda_preferencia_inicio_maximizado(monkeypatch: pytest.MonkeyPatch) -> None:
     qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
 
     from app.ui.vistas.main_window import MainWindow
@@ -62,15 +62,15 @@ def test_configuracion_muestra_y_guarda_preferencia_pantalla_completa(monkeypatc
         sheets_service=_NoOpService(),
         sync_sheets_use_case=_FakeSyncService(),
         conflicts_service=_NoOpService(),
-        guardar_preferencia_pantalla_completa=guardar,
-        obtener_preferencia_pantalla_completa=obtener,
+        guardar_preferencia_inicio_maximizado=guardar,
+        obtener_preferencia_inicio_maximizado=obtener,
     )
 
     try:
-        assert window.preferencia_pantalla_completa_check is not None
-        assert window.preferencia_pantalla_completa_check.isChecked() is True
+        assert window.preferencia_inicio_maximizado_check is not None
+        assert window.preferencia_inicio_maximizado_check.isChecked() is True
 
-        window.preferencia_pantalla_completa_check.setChecked(False)
+        window.preferencia_inicio_maximizado_check.setChecked(False)
 
         assert guardar.calls == [False]
     finally:

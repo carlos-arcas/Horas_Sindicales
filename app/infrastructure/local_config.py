@@ -7,6 +7,7 @@ import os
 import uuid
 from pathlib import Path
 
+from aplicacion.preferencias_claves import INICIAR_MAXIMIZADA, INICIAR_MAXIMIZADA_LEGACY
 from aplicacion.puertos.repositorio_preferencias import IRepositorioPreferencias
 from app.application.ports.sistema_archivos_puerto import DocumentoNoEncontradoError, ProveedorDocumentosPuerto
 from app.bootstrap.logging import log_operational_error
@@ -117,17 +118,23 @@ class RepositorioPreferenciasIni(IRepositorioPreferencias):
 
     def obtener_bool(self, clave: str, por_defecto: bool) -> bool:
         parser = self._cargar_parser()
-        if not parser.has_option(_SECTION_PREFERENCIAS, clave):
-            return por_defecto
-        try:
-            return parser.getboolean(_SECTION_PREFERENCIAS, clave)
-        except ValueError:
-            log_operational_error(
-                logger,
-                "Valor booleano inválido en preferencias INI; se usa por defecto.",
-                extra={"clave": clave, "por_defecto": por_defecto},
-            )
-            return por_defecto
+        claves_a_consultar = [clave]
+        if clave == INICIAR_MAXIMIZADA:
+            claves_a_consultar.append(INICIAR_MAXIMIZADA_LEGACY)
+
+        for clave_actual in claves_a_consultar:
+            if not parser.has_option(_SECTION_PREFERENCIAS, clave_actual):
+                continue
+            try:
+                return parser.getboolean(_SECTION_PREFERENCIAS, clave_actual)
+            except ValueError:
+                log_operational_error(
+                    logger,
+                    "Valor booleano inválido en preferencias INI; se usa por defecto.",
+                    extra={"clave": clave_actual, "por_defecto": por_defecto},
+                )
+                return por_defecto
+        return por_defecto
 
     def guardar_bool(self, clave: str, valor: bool) -> None:
         parser = self._cargar_parser()

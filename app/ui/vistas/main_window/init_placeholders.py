@@ -46,5 +46,5 @@ def inicializar_placeholders(window) -> None:
     window.total_preview_input = None
     window.add_persona_button = window.edit_persona_button = window.delete_persona_button = None
     window.edit_grupo_button = window.opciones_button = window.config_delegada_combo = None
-    window.preferencia_pantalla_completa_check = None
+    window.preferencia_inicio_maximizado_check = None
     window.cuadrante_warning_label = None

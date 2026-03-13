@@ -7,6 +7,7 @@ from typing import Any
 
 from PySide6.QtCore import QSettings
 
+from aplicacion.preferencias_claves import INICIAR_MAXIMIZADA, INICIAR_MAXIMIZADA_LEGACY
 from aplicacion.puertos.repositorio_preferencias import IRepositorioPreferencias
 from app.bootstrap.logging import log_operational_error
 
@@ -29,19 +30,26 @@ class RepositorioPreferenciasQSettings(IRepositorioPreferencias):
         self._settings = settings or QSettings(organization, application)
 
     def obtener_bool(self, clave: str, por_defecto: bool) -> bool:
-        if not self._settings.contains(clave):
-            return por_defecto
+        claves_a_consultar = [clave]
+        if clave == INICIAR_MAXIMIZADA:
+            claves_a_consultar.append(INICIAR_MAXIMIZADA_LEGACY)
 
-        raw = self._settings.value(clave, por_defecto)
-        coerced = _coerce_bool(raw)
-        if coerced is None:
-            log_operational_error(
-                LOGGER,
-                "Valor de preferencia inválido; se usa valor por defecto.",
-                extra={"clave": clave, "valor": raw, "por_defecto": por_defecto},
-            )
-            return por_defecto
-        return coerced
+        for clave_actual in claves_a_consultar:
+            if not self._settings.contains(clave_actual):
+                continue
+
+            raw = self._settings.value(clave_actual, por_defecto)
+            coerced = _coerce_bool(raw)
+            if coerced is None:
+                log_operational_error(
+                    LOGGER,
+                    "Valor de preferencia inválido; se usa valor por defecto.",
+                    extra={"clave": clave_actual, "valor": raw, "por_defecto": por_defecto},
+                )
+                return por_defecto
+            return coerced
+
+        return por_defecto
 
     def guardar_bool(self, clave: str, valor: bool) -> None:
         try:

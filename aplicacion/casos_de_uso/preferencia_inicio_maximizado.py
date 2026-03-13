@@ -6,7 +6,7 @@ from aplicacion.preferencias_claves import INICIAR_MAXIMIZADA
 from aplicacion.puertos.repositorio_preferencias import IRepositorioPreferencias
 
 
-class ObtenerPreferenciaPantallaCompleta:
+class ObtenerPreferenciaInicioMaximizado:
     """Obtiene la preferencia de iniciar la app maximizada."""
 
     def __init__(self, repositorio_preferencias: IRepositorioPreferencias) -> None:
@@ -19,7 +19,7 @@ class ObtenerPreferenciaPantallaCompleta:
         )
 
 
-class GuardarPreferenciaPantallaCompleta:
+class GuardarPreferenciaInicioMaximizado:
     """Guarda la preferencia de iniciar la app maximizada."""
 
     def __init__(self, repositorio_preferencias: IRepositorioPreferencias) -> None:

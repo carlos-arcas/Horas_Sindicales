@@ -58,9 +58,9 @@ from app.ui.vistas.main_window.importaciones import (
     SolicitudesController,
     SyncController,
 )
-from aplicacion.casos_de_uso.preferencia_pantalla_completa import (
-    GuardarPreferenciaPantallaCompleta,
-    ObtenerPreferenciaPantallaCompleta,
+from aplicacion.casos_de_uso.preferencia_inicio_maximizado import (
+    GuardarPreferenciaInicioMaximizado,
+    ObtenerPreferenciaInicioMaximizado,
 )
 from aplicacion.puertos.proveedor_i18n import ProveedorI18N
 
@@ -151,9 +151,9 @@ class MainWindow(
         | None = None,
         confirmar_pendientes_pdf_caso_uso: ConfirmarPendientesPdfCasoUso | None = None,
         crear_pendiente_caso_uso: CrearPendienteCasoUso | None = None,
-        guardar_preferencia_pantalla_completa: GuardarPreferenciaPantallaCompleta
+        guardar_preferencia_inicio_maximizado: GuardarPreferenciaInicioMaximizado
         | None = None,
-        obtener_preferencia_pantalla_completa: ObtenerPreferenciaPantallaCompleta
+        obtener_preferencia_inicio_maximizado: ObtenerPreferenciaInicioMaximizado
         | None = None,
         servicio_i18n: ProveedorI18N | None = None,
     ) -> None:
@@ -173,11 +173,11 @@ class MainWindow(
         self._confirmar_pendientes_pdf_caso_uso = confirmar_pendientes_pdf_caso_uso
         self._crear_pendiente_caso_uso = crear_pendiente_caso_uso
         self._alert_snooze: dict[str, str] = {}
-        self._guardar_preferencia_pantalla_completa = (
-            guardar_preferencia_pantalla_completa
+        self._guardar_preferencia_inicio_maximizado = (
+            guardar_preferencia_inicio_maximizado
         )
-        self._obtener_preferencia_pantalla_completa = (
-            obtener_preferencia_pantalla_completa
+        self._obtener_preferencia_inicio_maximizado = (
+            obtener_preferencia_inicio_maximizado
         )
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._servicio_i18n = servicio_i18n
@@ -265,7 +265,7 @@ class MainWindow(
         self.stack = self.stacked_pages or self.centralWidget() or self.main_tabs
         registrar_refresco_idioma(self._refrescar_textos_sync)
         self._refrescar_textos_sync()
-        self._inicializar_preferencia_pantalla_completa()
+        self._inicializar_preferencia_inicio_maximizado()
         self._apply_help_preferences()
         self._apply_solicitudes_tooltips()
         self._validate_required_widgets()
