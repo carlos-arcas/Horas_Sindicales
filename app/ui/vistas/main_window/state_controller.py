@@ -45,6 +45,7 @@ from app.application.use_cases.validacion_preventiva_lock_use_case import (
 from app.bootstrap.logging import log_operational_error
 from app.domain.sync_models import SyncAttemptReport, SyncExecutionPlan
 from app.ui.copy_catalog import copy_text
+from app.ui.dialogos.dialogo_saldos_detalle import SaldosDetalleDialog
 from app.ui.i18n_interfaz import configurar_i18n_interfaz, registrar_refresco_idioma
 from app.ui.qt_hilos import assert_hilo_ui_o_log
 from app.ui.vistas.main_window.importaciones import (
@@ -71,7 +72,6 @@ from .layout_builder import (
     HistoricoDetalleDialog,
     OptionalConfirmDialog,
     PdfPreviewDialog,
-    SaldosDetalleDialog,
 )
 from .navegacion_mixin import NavegacionMainWindowMixin, TAB_HISTORICO
 from .refresco_mixin import RefrescoMainWindowMixin
