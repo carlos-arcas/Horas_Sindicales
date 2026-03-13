@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from app.ui.vistas.main_window.acciones_personas import on_open_saldos_modal
-from app.ui.vistas.main_window.capacidades_opcionales import CAPACIDAD_MODAL_SALDOS_DETALLE
+from app.ui.vistas.main_window.capacidades_opcionales import (
+    CAPACIDAD_MODAL_SALDOS_DETALLE,
+    registrar_capacidades_opcionales,
+)
 
 
 class ToastFalso:
@@ -26,7 +29,9 @@ class DialogoSaldosFalso:
 
 class VentanaFalsa:
     def __init__(self, dialogo_class: object | None) -> None:
-        self.capacidades_opcionales = {CAPACIDAD_MODAL_SALDOS_DETALLE: dialogo_class} if dialogo_class else {}
+        registrar_capacidades_opcionales(self, {})
+        if dialogo_class is not None:
+            self.registro_capacidades_opcionales.registrar(CAPACIDAD_MODAL_SALDOS_DETALLE, dialogo_class)
         self.toast = ToastFalso()
         self._dialogo_saldos = None
 

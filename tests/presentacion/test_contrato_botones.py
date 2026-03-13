@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from app.ui.vistas.main_window.capacidades_opcionales import CAPACIDAD_MODAL_SALDOS_DETALLE
+from app.ui.vistas.main_window.capacidades_opcionales import (
+    CAPACIDAD_MODAL_SALDOS_DETALLE,
+    registrar_capacidades_opcionales,
+)
 from app.ui.vistas.main_window.contrato_botones import (
     CONTRATOS_BOTONES_CRITICOS,
     aplicar_contrato_botones_criticos_runtime,
@@ -25,9 +28,9 @@ class VentanaFalsa:
         for contrato in CONTRATOS_BOTONES_CRITICOS:
             setattr(self, contrato.nombre_atributo_boton, BotonFalso())
             setattr(self, contrato.nombre_handler, lambda *args, **kwargs: None)
-        self.capacidades_opcionales = {}
+        registrar_capacidades_opcionales(self, {})
         if incluir_saldos:
-            self.capacidades_opcionales[CAPACIDAD_MODAL_SALDOS_DETALLE] = object
+            self.registro_capacidades_opcionales.registrar(CAPACIDAD_MODAL_SALDOS_DETALLE, object)
 
 
 def test_validar_contrato_botones_valido_sin_incidencias() -> None:
@@ -87,3 +90,10 @@ def test_aplicar_contrato_saldos_no_depende_de_atributo_magico_privado() -> None
     aplicar_contrato_botones_criticos_runtime(window)
 
     assert window.open_saldos_modal_button.habilitado is True
+
+
+def test_contrato_saldos_usa_registro_capacidades_y_no_dict_libre() -> None:
+    window = VentanaFalsa(incluir_saldos=True)
+
+    assert hasattr(window, "registro_capacidades_opcionales")
+    assert not hasattr(window, "capacidades_opcionales")
