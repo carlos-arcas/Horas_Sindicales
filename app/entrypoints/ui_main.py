@@ -167,7 +167,6 @@ class _CoordinadorArranqueConCierreDeterminista:
         else:
             safe_call(window, "show")
 
-        safe_call(window, "setWindowState", estado_actual | Qt.WindowState.WindowActive)
         safe_call(window, "raise_")
         safe_call(window, "activateWindow")
 

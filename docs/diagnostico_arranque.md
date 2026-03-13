@@ -47,4 +47,5 @@ Política vigente:
 - Si `iniciar_maximizada=True`, la activación usa `showMaximized()` y evita `show()` en el primer pintado útil.
 - Si `iniciar_maximizada=False`, se usa `show()` salvo que la ventana ya reporte estado maximizado restaurado.
 - El flujo de wizard (`onboarding` pendiente) siempre retorna `iniciar_maximizada=False` para no contaminar el contrato de la ventana principal.
+- No se reutiliza un `windowState()` previo para forzar `setWindowState(...)` tras `show...`; así se evita pisar un maximizado recién aplicado con estado obsoleto.
 - `raise_()` y `activateWindow()` solo elevan foco; no degradan el modo elegido de visibilidad inicial.
