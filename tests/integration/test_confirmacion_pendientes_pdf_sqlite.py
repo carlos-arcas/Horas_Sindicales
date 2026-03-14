@@ -4,14 +4,21 @@ from pathlib import Path
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
-from app.application.use_cases.confirmacion_pdf.caso_uso import ConfirmarPendientesPdfCasoUso
-from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion
+from app.application.use_cases.confirmacion_pdf.caso_uso import (
+    ConfirmarPendientesPdfCasoUso,
+)
+from app.application.use_cases.confirmacion_pdf.modelos import (
+    SolicitudConfirmarPdfPeticion,
+)
 from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import (
     CrearPendienteCasoUso,
     SolicitudCrearPendientePeticion,
 )
 from app.domain.models import Persona
-from app.infrastructure.confirmacion_pdf.adaptadores import RepositorioSolicitudesDesdeCasosUso
+from app.infrastructure.confirmacion_pdf.adaptadores import (
+    GeneradorPdfConfirmadasDesdeCasosUso,
+    RepositorioSolicitudesDesdeCasosUso,
+)
 
 
 class SistemaArchivosFake:
@@ -56,7 +63,9 @@ def _crear_persona(persona_repo) -> int:
     return int(persona.id)
 
 
-def _solicitud(persona_id: int, fecha: str, desde: str = "09:00", hasta: str = "10:00") -> SolicitudDTO:
+def _solicitud(
+    persona_id: int, fecha: str, desde: str = "09:00", hasta: str = "10:00"
+) -> SolicitudDTO:
     return SolicitudDTO(
         id=None,
         persona_id=persona_id,
@@ -73,7 +82,9 @@ def _solicitud(persona_id: int, fecha: str, desde: str = "09:00", hasta: str = "
     )
 
 
-def _crear_caso_confirmacion(solicitud_repo, persona_repo) -> ConfirmarPendientesPdfCasoUso:
+def _crear_caso_confirmacion(
+    solicitud_repo, persona_repo
+) -> ConfirmarPendientesPdfCasoUso:
     solicitudes_uc = SolicitudUseCases(
         solicitud_repo,
         persona_repo,
@@ -82,15 +93,20 @@ def _crear_caso_confirmacion(solicitud_repo, persona_repo) -> ConfirmarPendiente
     )
     return ConfirmarPendientesPdfCasoUso(
         repositorio=RepositorioSolicitudesDesdeCasosUso(solicitudes_uc),
+        generador_pdf=GeneradorPdfConfirmadasDesdeCasosUso(solicitudes_uc),
         sistema_archivos=SistemaArchivosFake(),
     )
 
 
-def test_crear_pendiente_y_listar_pendientes_sqlite(connection, solicitud_repo, persona_repo) -> None:
+def test_crear_pendiente_y_listar_pendientes_sqlite(
+    connection, solicitud_repo, persona_repo
+) -> None:
     persona_id = _crear_persona(persona_repo)
     solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo)
 
-    creada, _saldos = solicitudes_uc.agregar_solicitud(_solicitud(persona_id, "2026-01-10"))
+    creada, _saldos = solicitudes_uc.agregar_solicitud(
+        _solicitud(persona_id, "2026-01-10")
+    )
 
     pendientes = list(solicitudes_uc.listar_pendientes_all())
 
@@ -98,7 +114,9 @@ def test_crear_pendiente_y_listar_pendientes_sqlite(connection, solicitud_repo, 
     assert any(item.id == creada.id for item in pendientes)
 
 
-def test_regresion_crear_pendiente_retorna_ids_para_refresco_tabla(connection, solicitud_repo, persona_repo) -> None:
+def test_regresion_crear_pendiente_retorna_ids_para_refresco_tabla(
+    connection, solicitud_repo, persona_repo
+) -> None:
     persona_id = _crear_persona(persona_repo)
     solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo)
     adapter = RepositorioSolicitudesDesdeCasosUso(solicitudes_uc)
@@ -111,13 +129,19 @@ def test_regresion_crear_pendiente_retorna_ids_para_refresco_tabla(connection, s
         )
     )
 
-    ids_reales = [item.id for item in solicitudes_uc.listar_pendientes_all() if item.id is not None]
+    ids_reales = [
+        item.id
+        for item in solicitudes_uc.listar_pendientes_all()
+        if item.id is not None
+    ]
     assert resultado.solicitud_id is not None
     assert resultado.solicitud_id in resultado.pendientes_ids
     assert resultado.pendientes_ids == ids_reales
 
 
-def test_confirmar_sin_pdf_actualiza_pendientes_restantes(connection, solicitud_repo, persona_repo) -> None:
+def test_confirmar_sin_pdf_actualiza_pendientes_restantes(
+    connection, solicitud_repo, persona_repo
+) -> None:
     persona_id = _crear_persona(persona_repo)
     solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo)
     primera, _ = solicitudes_uc.agregar_solicitud(_solicitud(persona_id, "2026-01-10"))
@@ -132,7 +156,9 @@ def test_confirmar_sin_pdf_actualiza_pendientes_restantes(connection, solicitud_
         )
     )
 
-    pendientes_restantes = list(SolicitudUseCases(solicitud_repo, persona_repo).listar_pendientes_all())
+    pendientes_restantes = list(
+        SolicitudUseCases(solicitud_repo, persona_repo).listar_pendientes_all()
+    )
 
     assert resultado.confirmadas_ids == [primera.id]
     assert resultado.errores == []
@@ -140,7 +166,9 @@ def test_confirmar_sin_pdf_actualiza_pendientes_restantes(connection, solicitud_
     assert [item.id for item in pendientes_restantes] == [segunda.id]
 
 
-def test_confirmar_con_pdf_confirma_y_devuelve_ruta_pdf(connection, solicitud_repo, persona_repo, tmp_path) -> None:
+def test_confirmar_con_pdf_confirma_y_devuelve_ruta_pdf(
+    connection, solicitud_repo, persona_repo, tmp_path
+) -> None:
     persona_id = _crear_persona(persona_repo)
     solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo)
     primera, _ = solicitudes_uc.agregar_solicitud(_solicitud(persona_id, "2026-01-10"))
@@ -157,7 +185,9 @@ def test_confirmar_con_pdf_confirma_y_devuelve_ruta_pdf(connection, solicitud_re
         )
     )
 
-    pendientes_restantes = list(SolicitudUseCases(solicitud_repo, persona_repo).listar_pendientes_all())
+    pendientes_restantes = list(
+        SolicitudUseCases(solicitud_repo, persona_repo).listar_pendientes_all()
+    )
 
     assert resultado.ruta_pdf == ruta_pdf
     assert ruta_pdf.exists()
