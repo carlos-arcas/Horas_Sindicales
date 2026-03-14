@@ -97,3 +97,13 @@ def test_contrato_saldos_usa_registro_capacidades_y_no_dict_libre() -> None:
 
     assert hasattr(window, "registro_capacidades_opcionales")
     assert not hasattr(window, "capacidades_opcionales")
+
+
+def test_import_modulos_capacidades_y_contrato_sin_qt() -> None:
+    import importlib
+
+    modulo_capacidades = importlib.import_module("app.ui.vistas.main_window.capacidades_opcionales")
+    modulo_contrato = importlib.import_module("app.ui.vistas.main_window.contrato_botones")
+
+    assert hasattr(modulo_capacidades, "RegistroCapacidadesOpcionales")
+    assert hasattr(modulo_contrato, "aplicar_contrato_botones_criticos_runtime")
