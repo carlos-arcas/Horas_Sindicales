@@ -14,7 +14,6 @@ from app.ui.vistas.main_window.capacidades_opcionales import (
     CAPACIDAD_MODAL_SALDOS_DETALLE,
     obtener_capacidad_opcional,
 )
-from app.ui.person_dialog import PersonaDialog
 from app.ui.vistas.personas_presenter import PersonaOption, PersonasLoadInput, build_personas_load_output
 
 from .contexto_delegada import EntradaEstadoContextoDelegada, resolver_estado_contexto_delegada
@@ -172,8 +171,16 @@ def on_persona_changed(window: MainWindow, *_args) -> None:
     window._update_global_context()
 
 
+def _crear_dialogo_persona(*args, **kwargs):
+    """Import diferido para evitar dependencia de Qt en paths puros de tests."""
+
+    from app.ui.person_dialog import PersonaDialog
+
+    return PersonaDialog(*args, **kwargs)
+
+
 def on_add_persona(window: MainWindow) -> None:
-    dialog = PersonaDialog(window)
+    dialog = _crear_dialogo_persona(window)
     persona_dto = dialog.get_persona()
     if persona_dto is None:
         logger.info("Creación de persona cancelada")
@@ -199,7 +206,7 @@ def on_edit_persona(window: MainWindow) -> None:
             title=copy_text("ui.personas.delegada_requerida"),
         )
         return
-    dialog = PersonaDialog(window, persona)
+    dialog = _crear_dialogo_persona(window, persona)
     persona_dto = dialog.get_persona()
     if persona_dto is None:
         logger.info("Edición de persona cancelada")

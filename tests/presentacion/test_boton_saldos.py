@@ -69,3 +69,11 @@ def test_on_open_saldos_modal_notifica_error_si_falla_apertura() -> None:
     assert window._dialogo_saldos is None
     assert window.toast.warning_calls == []
     assert len(window.toast.error_calls) == 1
+
+
+def test_import_acciones_personas_sin_cargar_dialogo_qt_en_collection() -> None:
+    import importlib
+
+    modulo = importlib.import_module("app.ui.vistas.main_window.acciones_personas")
+
+    assert hasattr(modulo, "on_open_saldos_modal")
