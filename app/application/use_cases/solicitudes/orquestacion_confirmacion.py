@@ -66,6 +66,21 @@ def confirmar_lote_y_generar_pdf(
         raise BusinessRuleError("; ".join(preflight.conflictos.conflictos))
 
     creadas, pendientes, errores = confirmar_solicitudes_lote(solicitudes_list, correlation_id=correlation_id)
+    if errores or not creadas:
+        if correlation_id:
+            log_event(
+                logger,
+                "confirmar_lote_pdf_skipped",
+                {
+                    "creadas": len(creadas),
+                    "pendientes": len(pendientes),
+                    "errores": len(errores),
+                    "motivo": "errores_confirmacion" if errores else "sin_creadas",
+                },
+                correlation_id,
+            )
+        return creadas, pendientes, errores, None
+
     pdf_path, creadas = generar_pdf_confirmadas(creadas, destino_resuelto, correlation_id=correlation_id)
 
     if correlation_id:
