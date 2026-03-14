@@ -67,23 +67,28 @@ def finalize_confirmar_with_pdf(
     pendientes_restantes: list[SolicitudDTO] | None,
 ) -> None:
     logger.debug("_finalize_confirmar_with_pdf paso=ruta_pdf_final ruta=%s", str(generado) if generado else None)
+    window._procesar_resultado_confirmacion(confirmadas_ids, errores, pendientes_restantes)
+    window._notify_historico_filter_if_hidden(creadas)
+
+    flujo_confirmacion_exitoso = bool(generado and creadas and not errores)
     if generado and window.abrir_pdf_check.isChecked():
         logger.debug("_finalize_confirmar_with_pdf paso=intento_abrir_pdf enabled=True")
         abrir_archivo_local(generado)
         logger.info("UI_CONFIRMAR_PDF_OPEN_OK", extra={"pdf_path": str(generado)})
-    if generado and creadas:
+    if flujo_confirmacion_exitoso:
         pdf_hash = creadas[0].pdf_hash
         fechas = [solicitud.fecha_pedida for solicitud in creadas]
         window._sync_service.register_pdf_log(persona.id or 0, fechas, pdf_hash)
         if correlation_id:
             log_event(logger, "register_pdf_log", {"persona_id": persona.id or 0, "fechas": len(fechas)}, correlation_id)
-        window._ask_push_after_pdf()
         window._toast_success(copy_text("ui.confirmacion.ok_pdf_generado"), title=copy_text("ui.preferencias.confirmacion"))
         if generado.exists():
             window._show_pdf_actions_dialog(generado)
-    window._procesar_resultado_confirmacion(confirmadas_ids, errores, pendientes_restantes)
-    window._show_confirmation_closure(creadas, errores, operation_name="confirmar_y_generar_pdf", correlation_id=correlation_id)
-    window._notify_historico_filter_if_hidden(creadas)
+        window._ask_push_after_pdf()
+        return
+
+    if errores:
+        window._show_confirmation_closure(creadas, errores, operation_name="confirmar_y_generar_pdf", correlation_id=correlation_id)
 
 
 def show_confirmation_closure(
@@ -120,7 +125,7 @@ def build_confirmation_payload(
         saldo_disponible=window.saldos_card.saldo_periodo_restante_text(),
         correlation_id=correlation_id,
         on_view_history=window._focus_historico_search,
-        on_sync_now=window._on_push_now,
+        on_sync_now=None,
         on_return_to_operativa=lambda: window.main_tabs.setCurrentIndex(0),
         on_undo=(lambda: window._undo_confirmation(undo_ids)),
     )

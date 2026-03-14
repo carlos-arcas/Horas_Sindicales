@@ -395,7 +395,7 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         assert "UI_CONFIRMAR_PDF_EXCEPTION" not in mensajes_s2
         assert "UI_CONFIRMAR_HANDLER_FALLO" not in mensajes_s2
         assert payloads_cierre[-1]["on_undo"]
-        assert payloads_cierre[-1]["on_sync_now"]
+        assert not payloads_cierre[-1]["on_sync_now"]
         assert payloads_cierre[-1]["on_view_history"]
 
         conteos_finales_s2 = _estado_conteos(window, container)
@@ -472,7 +472,7 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         assert "UI_CONFIRMAR_PDF_EXCEPTION" not in mensajes_s3
         assert "UI_CONFIRMAR_HANDLER_FALLO" not in mensajes_s3
         assert payloads_cierre[-1]["on_undo"]
-        assert payloads_cierre[-1]["on_sync_now"]
+        assert not payloads_cierre[-1]["on_sync_now"]
         assert payloads_cierre[-1]["on_view_history"]
 
         conteos_finales_s3 = _estado_conteos(window, container)
@@ -557,7 +557,7 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         assert called_ask_push_after_pdf >= 2
         assert len(called_show_pdf_actions_dialog) >= 2
         assert closure_undo_callbacks >= 2
-        assert closure_sync_callbacks >= 2
+        assert closure_sync_callbacks == 0
         assert closure_focus_callbacks >= 2
         assert len(undo_calls) == 0
     finally:

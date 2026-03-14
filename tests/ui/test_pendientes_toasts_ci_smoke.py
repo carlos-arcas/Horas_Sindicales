@@ -259,7 +259,7 @@ def test_ui_smoke_pendientes_y_toasts_con_evidencias_ci(
             and "UI_CONFIRMAR_PDF_EXCEPTION" not in mensajes_confirmar
             and "UI_CONFIRMAR_HANDLER_FALLO" not in mensajes_confirmar
             and callbacks.get("on_undo", False)
-            and callbacks.get("on_sync_now", False)
+            and not callbacks.get("on_sync_now", False)
             and callbacks.get("on_view_history", False)
         )
         _guardar_evidencia(
