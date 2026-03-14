@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.application.dto import SolicitudDTO
-from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
+from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder import (
     PdfConfirmadasEntrada,
     plan_pdf_confirmadas,
 )

@@ -6,8 +6,8 @@ import pytest
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
-from app.application.use_cases.solicitudes.pdf_confirmadas_builder import PdfAction, PdfConfirmadasPlan
-from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
+from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder import PdfAction, PdfConfirmadasPlan
+from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner import run_pdf_confirmadas_plan
 from app.core.errors import InfraError
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError

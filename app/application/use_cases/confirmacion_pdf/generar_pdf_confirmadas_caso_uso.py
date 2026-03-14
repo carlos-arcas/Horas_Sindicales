@@ -7,19 +7,19 @@ from typing import Iterable
 
 from app.application.dto import SolicitudDTO
 from app.application.ports.pdf_puerto import GeneradorPdfPuerto
-from app.application.use_cases.solicitudes.confirmacion_pdf_service import (
+from app.application.use_cases.confirmacion_pdf.orquestacion_pdf_confirmadas import (
+    generar_pdf_confirmadas as generar_pdf_confirmadas_orquestado,
+)
+from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder import (
+    plan_pdf_confirmadas,
+)
+from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner import (
+    run_pdf_confirmadas_plan,
+)
+from app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas import (
     generar_incident_id as _generar_incident_id,
     hash_file as _hash_file,
     pdf_intro_text as _pdf_intro_text,
-)
-from app.application.use_cases.solicitudes.orquestacion_confirmacion import (
-    generar_pdf_confirmadas as generar_pdf_confirmadas_orquestado,
-)
-from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
-    plan_pdf_confirmadas,
-)
-from app.application.use_cases.solicitudes.pdf_confirmadas_runner import (
-    run_pdf_confirmadas_plan,
 )
 from app.domain.ports import (
     GrupoConfigRepository,

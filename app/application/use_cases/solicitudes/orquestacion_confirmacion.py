@@ -10,11 +10,11 @@ from app.application.operaciones.confirmacion_pdf_operacion import (
 )
 from app.application.use_cases.solicitudes.auxiliares_caso_uso import ErrorAplicacionSolicitud
 from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import ConfirmarSinPdfAction
-from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
+from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder import (
     PdfConfirmadasEntrada,
     plan_pdf_confirmadas,
 )
-from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
+from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner import run_pdf_confirmadas_plan
 from app.core.errors import InfraError
 from app.core.observability import log_event
 from app.domain.services import BusinessRuleError
