@@ -6,17 +6,16 @@ from __future__ import annotations
 # self.pending_details_button.setCheckable(False)
 # self.pending_details_content.setVisible(True)
 
-from app.ui.vistas.main_window import (
-    MainWindow as _MainWindowBase,
+from app.ui.qt_compat import QMainWindow, QTimer
+from app.ui.vistas.init_refresh import run_init_refresh
+from app.ui.vistas.main_window.layout_builder import (
     HistoricoDetalleDialog,
     OptionalConfirmDialog,
     PdfPreviewDialog,
-    QMainWindow,
-    TAB_HISTORICO,
-    resolve_active_delegada_id,
 )
-from app.ui.qt_compat import QTimer
-from app.ui.vistas.init_refresh import run_init_refresh
+from app.ui.vistas.main_window.navegacion_mixin import TAB_HISTORICO
+from app.ui.vistas.main_window.state_controller import MainWindow as _MainWindowBase
+from app.ui.vistas.main_window.state_helpers import resolve_active_delegada_id
 import logging
 from typing import Callable
 
