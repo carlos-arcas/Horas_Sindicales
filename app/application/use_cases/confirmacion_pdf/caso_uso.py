@@ -6,7 +6,7 @@ import logging
 from app.core.observability import generate_correlation_id, log_event
 from app.application.dto import SolicitudDTO
 from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion, SolicitudConfirmarPdfResultado
-from app.application.use_cases.confirmacion_pdf.puertos import GeneradorPdfPuerto, RepositorioSolicitudes, SistemaArchivosPuerto
+from app.application.use_cases.confirmacion_pdf.puertos import RepositorioSolicitudes, SistemaArchivosPuerto
 
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ConfirmarPendientesPdfCasoUso:
     repositorio: RepositorioSolicitudes
-    generador_pdf: GeneradorPdfPuerto
     sistema_archivos: SistemaArchivosPuerto
 
     def __call__(self, request: SolicitudConfirmarPdfPeticion) -> SolicitudConfirmarPdfResultado:

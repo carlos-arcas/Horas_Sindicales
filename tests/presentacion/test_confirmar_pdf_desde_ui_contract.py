@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Any
 
 from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfResultado
-from app.ui.vistas.confirmacion_orquestacion import ResultadoConfirmacionFlujo, run_confirmacion_plan
+from app.ui.copy_catalog import copy_text
+from app.ui.vistas.confirmacion_orquestacion import ResultadoConfirmacionFlujo, execute_confirmar_with_pdf, run_confirmacion_plan
 
 
 @dataclass
@@ -118,3 +119,36 @@ def test_contrato_confirmar_pdf_desde_ui_con_ruta_valida() -> None:
     assert window.finalize_calls == 1
     assert window.outcome is not None
     assert window.refrescos == ["pendientes", "historico", "saldos"]
+
+
+class VentanaSinCasoUso:
+    def __init__(self) -> None:
+        self._pending_all_solicitudes = []
+        self._set_processing_state_calls: list[bool] = []
+        self.errores_criticos: list[Exception] = []
+
+    def _set_processing_state(self, valor: bool) -> None:
+        self._set_processing_state_calls.append(valor)
+
+    def _show_critical_error(self, exc: Exception) -> None:
+        self.errores_criticos.append(exc)
+
+    @property
+    def _solicitudes_controller(self):
+        raise AssertionError("La vista no debe usar _solicitudes_controller en confirmar+PDF.")
+
+
+def test_execute_confirmar_pdf_falla_si_no_hay_caso_uso_configurado() -> None:
+    window = VentanaSinCasoUso()
+
+    resultado = execute_confirmar_with_pdf(
+        window,
+        persona=PersonaFalsa(id=1),
+        selected=[SolicitudFalsa(id=7)],
+        pdf_path="/tmp/ok.pdf",
+    )
+
+    assert resultado is None
+    assert window._set_processing_state_calls == [True, False]
+    assert len(window.errores_criticos) == 1
+    assert str(window.errores_criticos[0]) == copy_text("ui.errores.error_inesperado")

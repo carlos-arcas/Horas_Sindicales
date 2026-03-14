@@ -16,7 +16,6 @@ from app.ui.vistas.confirmacion_eventos_auditoria import (
 )
 from app.ui.vistas.confirmacion_presenter import ConfirmacionEntrada, plan_confirmacion
 from app.ui.vistas.confirmacion_presentador_pendientes import (
-    calcular_filtro_delegada_para_confirmacion,
     contar_pendientes_restantes,
     filtrar_pendientes_restantes,
     seleccionar_creadas_por_ids,
@@ -50,7 +49,7 @@ def execute_confirmar_with_pdf(window: Any, persona: PersonaDTO, selected: list[
                 build_confirmar_pdf_started_event(selected, pdf_path),
                 operation.correlation_id,
             )
-            resultado_flujo = _confirmar_lote(window, persona, selected, pdf_path, operation.correlation_id)
+            resultado_flujo = _confirmar_lote(window, selected, pdf_path, operation.correlation_id)
             log_event(
                 logger,
                 "confirmar_y_generar_pdf_finished",
@@ -78,32 +77,13 @@ def execute_confirmar_with_pdf(window: Any, persona: PersonaDTO, selected: list[
 
 def _confirmar_lote(
     window: Any,
-    persona: PersonaDTO,
     selected: list[SolicitudDTO],
     pdf_path: str,
     correlation_id: str,
 ) -> ResultadoConfirmacionFlujo:
     caso_uso = getattr(window, "_confirmar_pendientes_pdf_caso_uso", None)
     if caso_uso is None:
-        filtro_delegada = calcular_filtro_delegada_para_confirmacion(window._pending_view_all, persona.id)
-        confirmadas_ids, errores, ruta_pdf, creadas, pendientes_restantes = window._solicitudes_controller.confirmar_lote(
-            selected,
-            correlation_id=correlation_id,
-            generar_pdf=True,
-            pdf_path=pdf_path,
-            filtro_delegada=filtro_delegada,
-        )
-        estado = "OK_CON_PDF" if ruta_pdf and not errores and bool(creadas) else ("ERROR_INSERCION" if errores else "SIN_CONFIRMADAS")
-        resultado = SolicitudConfirmarPdfResultado(
-            estado=estado,
-            confirmadas=len(confirmadas_ids),
-            confirmadas_ids=confirmadas_ids,
-            errores=errores,
-            pdf_generado=ruta_pdf if estado == "OK_CON_PDF" else None,
-            sync_permitido=bool(ruta_pdf and not errores and bool(creadas)),
-            pendientes_restantes=[sol.id for sol in pendientes_restantes or [] if sol.id is not None],
-        )
-        return ResultadoConfirmacionFlujo(None, resultado, creadas, pendientes_restantes)
+        raise RuntimeError(copy_text("ui.errores.error_inesperado"))
     request = SolicitudConfirmarPdfPeticion(
         pendientes_ids=[solicitud.id for solicitud in selected if solicitud.id is not None],
         generar_pdf=True,

@@ -40,7 +40,6 @@ def test_flujo_solicitud_pdf_historico_contrato_prioridad_1(tmp_path: Path) -> N
 
         confirmacion_caso_uso = ConfirmarPendientesPdfCasoUso(
             repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases),
-            generador_pdf=generador_pdf,
             sistema_archivos=fs_local,
         )
 

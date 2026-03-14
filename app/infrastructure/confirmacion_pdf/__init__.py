@@ -1,6 +1,3 @@
-from app.infrastructure.confirmacion_pdf.adaptadores import (
-    GeneradorPdfDesdeCasosUso,
-    RepositorioSolicitudesDesdeCasosUso,
-)
+from app.infrastructure.confirmacion_pdf.adaptadores import RepositorioSolicitudesDesdeCasosUso
 
-__all__ = ["GeneradorPdfDesdeCasosUso", "RepositorioSolicitudesDesdeCasosUso"]
+__all__ = ["RepositorioSolicitudesDesdeCasosUso"]

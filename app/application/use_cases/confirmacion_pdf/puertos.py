@@ -22,8 +22,4 @@ class RepositorioSolicitudes(Protocol):
     ) -> tuple[Path | None, list[int], str]: ...
 
 
-class GeneradorPdfPuerto(Protocol):
-    def generar_pdf_pendientes(self, pendientes: list[SolicitudDTO], destino: Path, correlation_id: str | None = None) -> tuple[Path | None, list[int], str]: ...
-
-
-__all__ = ["RepositorioSolicitudes", "GeneradorPdfPuerto", "SistemaArchivosPuerto"]
+__all__ = ["RepositorioSolicitudes", "SistemaArchivosPuerto"]
