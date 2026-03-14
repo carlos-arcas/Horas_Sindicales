@@ -13,6 +13,9 @@ from app.application.use_cases.confirmacion_pdf.caso_uso import (
 from app.application.use_cases.confirmacion_pdf.modelos import (
     SolicitudConfirmarPdfPeticion,
 )
+from app.application.use_cases.confirmacion_pdf.generar_pdf_confirmadas_caso_uso import (
+    GenerarPdfSolicitudesConfirmadasCasoUso,
+)
 from app.domain.models import Persona
 from app.infrastructure.confirmacion_pdf.adaptadores import (
     GeneradorPdfConfirmadasDesdeCasosUso,
@@ -50,7 +53,13 @@ def test_flujo_solicitud_pdf_historico_contrato_prioridad_1(tmp_path: Path) -> N
 
         confirmacion_caso_uso = ConfirmarPendientesPdfCasoUso(
             repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases),
-            generador_pdf=GeneradorPdfConfirmadasDesdeCasosUso(solicitud_use_cases),
+            generador_pdf=GeneradorPdfConfirmadasDesdeCasosUso(
+                GenerarPdfSolicitudesConfirmadasCasoUso(
+                    repo=solicitud_repo,
+                    persona_repo=persona_repo,
+                    generador_pdf=generador_pdf,
+                )
+            ),
             sistema_archivos=fs_local,
         )
 

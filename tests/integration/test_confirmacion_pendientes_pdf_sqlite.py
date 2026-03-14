@@ -10,6 +10,9 @@ from app.application.use_cases.confirmacion_pdf.caso_uso import (
 from app.application.use_cases.confirmacion_pdf.modelos import (
     SolicitudConfirmarPdfPeticion,
 )
+from app.application.use_cases.confirmacion_pdf.generar_pdf_confirmadas_caso_uso import (
+    GenerarPdfSolicitudesConfirmadasCasoUso,
+)
 from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import (
     CrearPendienteCasoUso,
     SolicitudCrearPendientePeticion,
@@ -93,7 +96,14 @@ def _crear_caso_confirmacion(
     )
     return ConfirmarPendientesPdfCasoUso(
         repositorio=RepositorioSolicitudesDesdeCasosUso(solicitudes_uc),
-        generador_pdf=GeneradorPdfConfirmadasDesdeCasosUso(solicitudes_uc),
+        generador_pdf=GeneradorPdfConfirmadasDesdeCasosUso(
+            GenerarPdfSolicitudesConfirmadasCasoUso(
+                repo=solicitud_repo,
+                persona_repo=persona_repo,
+                config_repo=None,
+                generador_pdf=GeneradorPdfFake(),
+            )
+        ),
         sistema_archivos=SistemaArchivosFake(),
     )
 
