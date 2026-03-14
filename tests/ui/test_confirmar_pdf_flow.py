@@ -108,3 +108,102 @@ def test_error_del_use_case_muestra_toast_error_y_rehabilita_ui() -> None:
 
     window._toast_error.assert_called_once()
     window._set_processing_state.assert_called_with(False)
+
+
+
+def _build_window_finalize(eventos: list[str]) -> SimpleNamespace:
+    return SimpleNamespace(
+        abrir_pdf_check=SimpleNamespace(isChecked=lambda: False),
+        _procesar_resultado_confirmacion=lambda *_args: eventos.append("insertar_historico"),
+        _notify_historico_filter_if_hidden=lambda *_args: eventos.append("notificar_historico"),
+        _sync_service=SimpleNamespace(register_pdf_log=lambda *_args: eventos.append("registrar_pdf_log")),
+        _toast_success=lambda *_args, **_kwargs: eventos.append("toast_ok"),
+        _show_pdf_actions_dialog=lambda *_args: eventos.append("dialogo_pdf"),
+        _ask_push_after_pdf=lambda: eventos.append("preguntar_sync"),
+        _show_confirmation_closure=lambda *_args, **_kwargs: eventos.append("cierre_detalle"),
+    )
+
+
+def _build_solicitud_confirmada() -> SolicitudDTO:
+    return SolicitudDTO(
+        id=7,
+        persona_id=1,
+        fecha_solicitud="2026-01-01",
+        fecha_pedida="2026-01-01",
+        desde="09:00",
+        hasta="10:00",
+        completo=False,
+        horas=1.0,
+        observaciones="",
+        pdf_path="/tmp/salida.pdf",
+        pdf_hash="hash-1",
+    )
+
+
+def test_finalize_confirmar_with_pdf_respeta_orden_historico_pdf_y_sync(monkeypatch) -> None:
+    eventos: list[str] = []
+    window = _build_window_finalize(eventos)
+    persona = SimpleNamespace(id=1)
+    ruta_pdf = Path('/tmp/salida.pdf')
+    monkeypatch.setattr(confirmacion_actions, 'abrir_archivo_local', lambda *_args: eventos.append('abrir_pdf'))
+    monkeypatch.setattr(Path, 'exists', lambda self: self == ruta_pdf)
+
+    confirmacion_actions.finalize_confirmar_with_pdf(
+        window,
+        persona,
+        'corr-1',
+        ruta_pdf,
+        [_build_solicitud_confirmada()],
+        [7],
+        [],
+        [],
+    )
+
+    assert eventos == [
+        'insertar_historico',
+        'notificar_historico',
+        'registrar_pdf_log',
+        'toast_ok',
+        'dialogo_pdf',
+        'preguntar_sync',
+    ]
+
+
+def test_finalize_confirmar_with_pdf_con_error_no_pide_sync_y_muestra_cierre() -> None:
+    eventos: list[str] = []
+    window = _build_window_finalize(eventos)
+    persona = SimpleNamespace(id=1)
+
+    confirmacion_actions.finalize_confirmar_with_pdf(
+        window,
+        persona,
+        'corr-1',
+        None,
+        [_build_solicitud_confirmada()],
+        [],
+        ['error_pdf'],
+        [],
+    )
+
+    assert 'preguntar_sync' not in eventos
+    assert 'cierre_detalle' in eventos
+
+
+def test_build_confirmation_payload_no_expone_accion_sync() -> None:
+    window = SimpleNamespace(
+        _personas=[SimpleNamespace(id=1, nombre='Ana')],
+        saldos_card=SimpleNamespace(saldo_periodo_restante_text=lambda: '10:00'),
+        _focus_historico_search=lambda: None,
+        _on_push_now=lambda: None,
+        main_tabs=SimpleNamespace(setCurrentIndex=lambda _index: None),
+        _undo_confirmation=lambda _ids: None,
+    )
+
+    payload = confirmacion_actions.build_confirmation_payload(
+        window,
+        [_build_solicitud_confirmada()],
+        [],
+        correlation_id='corr-1',
+    )
+
+    assert payload.on_sync_now is None
