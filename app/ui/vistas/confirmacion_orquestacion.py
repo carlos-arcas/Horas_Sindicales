@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, TypeAlias
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Callable
 
-from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion
+from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion, SolicitudConfirmarPdfResultado
 from app.application.use_cases.solicitudes.validaciones import validar_seleccion_confirmacion
 from app.bootstrap.logging import log_operational_error
 from app.core.observability import OperationContext, log_event
@@ -27,17 +28,17 @@ if TYPE_CHECKING:
     from app.application.dto import PersonaDTO, SolicitudDTO
 
 logger = logging.getLogger(__name__)
-ResultadoConfirmacionPdf: TypeAlias = tuple[
-    str | None,
-    Path | None,
-    list["SolicitudDTO"],
-    list[int],
-    list[str],
-    list["SolicitudDTO"] | None,
-]
 
 
-def execute_confirmar_with_pdf(window: Any, persona: PersonaDTO, selected: list[SolicitudDTO], pdf_path: str) -> ResultadoConfirmacionPdf | None:
+@dataclass(frozen=True)
+class ResultadoConfirmacionFlujo:
+    correlation_id: str | None
+    resultado: SolicitudConfirmarPdfResultado
+    creadas: list["SolicitudDTO"]
+    pendientes_restantes: list["SolicitudDTO"] | None
+
+
+def execute_confirmar_with_pdf(window: Any, persona: PersonaDTO, selected: list[SolicitudDTO], pdf_path: str) -> ResultadoConfirmacionFlujo | None:
     correlation_id: str | None = None
     try:
         window._set_processing_state(True)
@@ -49,20 +50,25 @@ def execute_confirmar_with_pdf(window: Any, persona: PersonaDTO, selected: list[
                 build_confirmar_pdf_started_event(selected, pdf_path),
                 operation.correlation_id,
             )
-            confirmadas_ids, errores, generado, creadas, pendientes_restantes = _confirmar_lote(window, persona, selected, pdf_path, operation.correlation_id)
+            resultado_flujo = _confirmar_lote(window, persona, selected, pdf_path, operation.correlation_id)
             log_event(
                 logger,
                 "confirmar_y_generar_pdf_finished",
                 build_confirmar_pdf_finished_event(
-                    creadas=creadas,
-                    confirmadas_ids=confirmadas_ids,
-                    errores=errores,
-                    pendientes_restantes_count=contar_pendientes_restantes(pendientes_restantes),
-                    pdf_generado=bool(generado),
+                    creadas=resultado_flujo.creadas,
+                    confirmadas_ids=resultado_flujo.resultado.confirmadas_ids,
+                    errores=resultado_flujo.resultado.errores,
+                    pendientes_restantes_count=contar_pendientes_restantes(resultado_flujo.pendientes_restantes),
+                    pdf_generado=bool(resultado_flujo.resultado.pdf_generado),
                 ),
                 operation.correlation_id,
             )
-            return correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes
+            return ResultadoConfirmacionFlujo(
+                correlation_id=correlation_id,
+                resultado=resultado_flujo.resultado,
+                creadas=resultado_flujo.creadas,
+                pendientes_restantes=resultado_flujo.pendientes_restantes,
+            )
     except Exception as exc:  # pragma: no cover - fallback
         _manejar_error_confirmar_pdf(window, persona, correlation_id, exc)
         return None
@@ -76,17 +82,28 @@ def _confirmar_lote(
     selected: list[SolicitudDTO],
     pdf_path: str,
     correlation_id: str,
-) -> tuple[list[int], list[str], Path | None, list[SolicitudDTO], list[SolicitudDTO] | None]:
+) -> ResultadoConfirmacionFlujo:
     caso_uso = getattr(window, "_confirmar_pendientes_pdf_caso_uso", None)
     if caso_uso is None:
         filtro_delegada = calcular_filtro_delegada_para_confirmacion(window._pending_view_all, persona.id)
-        return window._solicitudes_controller.confirmar_lote(
+        confirmadas_ids, errores, ruta_pdf, creadas, pendientes_restantes = window._solicitudes_controller.confirmar_lote(
             selected,
             correlation_id=correlation_id,
             generar_pdf=True,
             pdf_path=pdf_path,
             filtro_delegada=filtro_delegada,
         )
+        estado = "OK_CON_PDF" if ruta_pdf and not errores and bool(creadas) else ("ERROR_INSERCION" if errores else "SIN_CONFIRMADAS")
+        resultado = SolicitudConfirmarPdfResultado(
+            estado=estado,
+            confirmadas=len(confirmadas_ids),
+            confirmadas_ids=confirmadas_ids,
+            errores=errores,
+            pdf_generado=ruta_pdf if estado == "OK_CON_PDF" else None,
+            sync_permitido=bool(ruta_pdf and not errores and bool(creadas)),
+            pendientes_restantes=[sol.id for sol in pendientes_restantes or [] if sol.id is not None],
+        )
+        return ResultadoConfirmacionFlujo(None, resultado, creadas, pendientes_restantes)
     request = SolicitudConfirmarPdfPeticion(
         pendientes_ids=[solicitud.id for solicitud in selected if solicitud.id is not None],
         generar_pdf=True,
@@ -96,7 +113,12 @@ def _confirmar_lote(
     result = caso_uso(request)
     creadas = seleccionar_creadas_por_ids(selected, result.confirmadas_ids)
     pendientes_restantes = filtrar_pendientes_restantes(window._pending_all_solicitudes, result.pendientes_restantes)
-    return result.confirmadas_ids, result.errores, result.ruta_pdf, creadas, pendientes_restantes
+    return ResultadoConfirmacionFlujo(
+        correlation_id=correlation_id,
+        resultado=result,
+        creadas=creadas,
+        pendientes_restantes=pendientes_restantes,
+    )
 
 
 def _manejar_error_confirmar_pdf(window: Any, persona: PersonaDTO, correlation_id: str | None, exc: Exception) -> None:
@@ -165,8 +187,8 @@ def run_confirmacion_plan(
     log_extra: dict[str, Any],
     apply_show_error: Callable[[Any, Any], None],
     apply_prompt_pdf: Callable[[Any, list[SolicitudDTO]], str | None],
-    apply_confirm: Callable[[Any, PersonaDTO | None, list[SolicitudDTO], str | None], ResultadoConfirmacionPdf | None],
-    apply_finalize: Callable[[Any, PersonaDTO | None, ResultadoConfirmacionPdf | None], None],
+    apply_confirm: Callable[[Any, PersonaDTO | None, list[SolicitudDTO], str | None], ResultadoConfirmacionFlujo | None],
+    apply_finalize: Callable[[Any, PersonaDTO | None, ResultadoConfirmacionFlujo | None], None],
 ) -> None:
     preconfirm_ok = window._run_preconfirm_checks()
     state: dict[str, Any] = {
@@ -213,8 +235,8 @@ def _ejecutar_acciones_plan(
     return_early: Callable[[str], None],
     apply_show_error: Callable[[Any, Any], None],
     apply_prompt_pdf: Callable[[Any, list[SolicitudDTO]], str | None],
-    apply_confirm: Callable[[Any, PersonaDTO | None, list[SolicitudDTO], str | None], ResultadoConfirmacionPdf | None],
-    apply_finalize: Callable[[Any, PersonaDTO | None, ResultadoConfirmacionPdf | None], None],
+    apply_confirm: Callable[[Any, PersonaDTO | None, list[SolicitudDTO], str | None], ResultadoConfirmacionFlujo | None],
+    apply_finalize: Callable[[Any, PersonaDTO | None, ResultadoConfirmacionFlujo | None], None],
 ) -> bool:
     for action in actions:
         if action.action_type == "SHOW_ERROR":

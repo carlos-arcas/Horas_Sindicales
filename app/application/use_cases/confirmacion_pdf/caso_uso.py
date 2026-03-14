@@ -31,7 +31,11 @@ class ConfirmarPendientesPdfCasoUso:
                 {"errores": len(errores_preflight)},
                 correlation_id,
             )
-            return SolicitudConfirmarPdfResultado(errores=errores_preflight)
+            return SolicitudConfirmarPdfResultado(
+                estado="ERROR_PRECONDICION",
+                errores=errores_preflight,
+                sync_permitido=False,
+            )
 
         pendientes = self.repositorio.listar_pendientes()
         pendientes_por_id = {solicitud.id: solicitud for solicitud in pendientes if solicitud.id is not None}
@@ -49,20 +53,22 @@ class ConfirmarPendientesPdfCasoUso:
                 correlation_id=correlation_id,
             )
             pendientes_actuales = self.repositorio.listar_pendientes()
+            confirmadas_ids = [sol.id for sol in creadas if sol.id is not None]
             log_event(
                 logger,
                 "confirmacion_pdf_confirmadas_sin_pdf",
                 {
-                    "confirmadas": len(creadas),
+                    "confirmadas": len(confirmadas_ids),
                     "pendientes_restantes": len(pendientes_actuales),
                     "errores": len(errores),
                 },
                 correlation_id,
             )
-            return SolicitudConfirmarPdfResultado(
-                confirmadas_ids=[sol.id for sol in creadas if sol.id is not None],
+            return self._build_resultado(
+                confirmadas_ids=confirmadas_ids,
                 errores=errores,
                 pendientes_restantes=[sol.id for sol in pendientes_actuales if sol.id is not None],
+                pdf_generado=None,
             )
 
         assert request.destino_pdf is not None
@@ -72,7 +78,7 @@ class ConfirmarPendientesPdfCasoUso:
             destino_pdf=request.destino_pdf,
             correlation_id=correlation_id,
         )
-        errores = [] if confirmadas_ids else [resumen]
+        errores = [] if confirmadas_ids and ruta_pdf is not None else [resumen]
         pendientes_actuales = self.repositorio.listar_pendientes()
         restantes = [sol.id for sol in pendientes_actuales if sol.id is not None]
         log_event(
@@ -82,14 +88,15 @@ class ConfirmarPendientesPdfCasoUso:
                 "confirmadas": len(confirmadas_ids),
                 "pendientes_restantes": len(restantes),
                 "ruta_pdf": str(ruta_pdf) if ruta_pdf else None,
+                "errores": len(errores),
             },
             correlation_id,
         )
-        return SolicitudConfirmarPdfResultado(
+        return self._build_resultado(
             confirmadas_ids=confirmadas_ids,
             errores=errores,
-            ruta_pdf=ruta_pdf,
             pendientes_restantes=restantes,
+            pdf_generado=ruta_pdf if not errores else None,
         )
 
     def _seleccionar_pendientes_o_error(
@@ -114,8 +121,10 @@ class ConfirmarPendientesPdfCasoUso:
             correlation_id,
         )
         return pendientes_seleccionados, SolicitudConfirmarPdfResultado(
+            estado="ERROR_PRECONDICION",
             errores=[f"Pendientes inexistentes: {', '.join(str(item) for item in faltantes)}"],
             pendientes_restantes=sorted(pendientes_por_id),
+            sync_permitido=False,
         )
 
     def _validar_preflight(self, request: SolicitudConfirmarPdfPeticion) -> list[str]:
@@ -125,3 +134,52 @@ class ConfirmarPendientesPdfCasoUso:
         if request.generar_pdf and request.destino_pdf is None:
             errores.append("Debes indicar una ruta de destino para el PDF.")
         return errores
+
+    def _build_resultado(
+        self,
+        *,
+        confirmadas_ids: list[int],
+        errores: list[str],
+        pendientes_restantes: list[int],
+        pdf_generado,
+    ) -> SolicitudConfirmarPdfResultado:
+        if errores:
+            estado = "ERROR_INSERCION" if not confirmadas_ids else "ERROR_PDF"
+            return SolicitudConfirmarPdfResultado(
+                estado=estado,
+                confirmadas=len(confirmadas_ids),
+                confirmadas_ids=confirmadas_ids,
+                errores=errores,
+                pdf_generado=None,
+                sync_permitido=False,
+                pendientes_restantes=pendientes_restantes,
+            )
+        if not confirmadas_ids:
+            return SolicitudConfirmarPdfResultado(
+                estado="SIN_CONFIRMADAS",
+                confirmadas=0,
+                confirmadas_ids=[],
+                errores=[],
+                pdf_generado=None,
+                sync_permitido=False,
+                pendientes_restantes=pendientes_restantes,
+            )
+        if pdf_generado is not None:
+            return SolicitudConfirmarPdfResultado(
+                estado="OK_CON_PDF",
+                confirmadas=len(confirmadas_ids),
+                confirmadas_ids=confirmadas_ids,
+                errores=[],
+                pdf_generado=pdf_generado,
+                sync_permitido=True,
+                pendientes_restantes=pendientes_restantes,
+            )
+        return SolicitudConfirmarPdfResultado(
+            estado="OK_SIN_PDF",
+            confirmadas=len(confirmadas_ids),
+            confirmadas_ids=confirmadas_ids,
+            errores=[],
+            pdf_generado=None,
+            sync_permitido=False,
+            pendientes_restantes=pendientes_restantes,
+        )

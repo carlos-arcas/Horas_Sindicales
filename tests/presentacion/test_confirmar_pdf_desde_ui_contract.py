@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from app.ui.vistas.confirmacion_orquestacion import run_confirmacion_plan
+from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfResultado
+from app.ui.vistas.confirmacion_orquestacion import ResultadoConfirmacionFlujo, run_confirmacion_plan
 
 
 @dataclass
@@ -45,7 +46,21 @@ class VentanaFalsa:
         self.confirm_calls += 1
         if self.pdf_path is None:
             return None
-        self.outcome = ("corr-1", Path(self.pdf_path), [], [sid for sid in self.selected_ids if sid is not None], [], [])
+        ids = [sid for sid in self.selected_ids if sid is not None]
+        self.outcome = ResultadoConfirmacionFlujo(
+            correlation_id="corr-1",
+            resultado=SolicitudConfirmarPdfResultado(
+                estado="OK_CON_PDF",
+                confirmadas=len(ids),
+                confirmadas_ids=ids,
+                errores=[],
+                pdf_generado=Path(self.pdf_path),
+                sync_permitido=True,
+                pendientes_restantes=[],
+            ),
+            creadas=[],
+            pendientes_restantes=[],
+        )
         return self.outcome
 
     def apply_finalize(self, _window: Any, _persona: PersonaFalsa | None, outcome: Any) -> None:
