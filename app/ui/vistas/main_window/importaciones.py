@@ -53,12 +53,10 @@ try:
         log_estado_pendientes,
         show_sync_error_dialog_from_exception,
     )
-    from app.ui.vistas.main_window import (
-        acciones_pendientes,
-        acciones_personas,
-        acciones_sincronizacion,
-        validacion_preventiva,
-    )
+    import app.ui.vistas.main_window.acciones_pendientes as acciones_pendientes
+    import app.ui.vistas.main_window.acciones_personas as acciones_personas
+    import app.ui.vistas.main_window.acciones_sincronizacion as acciones_sincronizacion
+    import app.ui.vistas.main_window.validacion_preventiva as validacion_preventiva
     from app.ui.vistas.solicitudes_presenter import ActionStateInput, build_action_state
 except ImportError:  # pragma: no cover - habilita import parcial sin dependencias de UI/Qt
     def _qt_unavailable(*args, **kwargs):

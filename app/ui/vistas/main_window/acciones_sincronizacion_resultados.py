@@ -17,7 +17,7 @@ from app.ui.conflicts_dialog import ConflictsDialog
 from app.ui.error_mapping import map_error_to_ui_message
 from app.ui.notification_service import OperationFeedback
 from app.ui.sync_reporting import build_config_incomplete_report, build_failed_report, build_simulation_report, build_sync_report
-from app.ui.vistas.main_window import dialogos_sincronizacion
+import app.ui.vistas.main_window.dialogos_sincronizacion as dialogos_sincronizacion
 from app.ui.vistas.main_window_helpers import show_sync_error_dialog_from_exception
 from app.ui.workers.sincronizacion_workers import PushWorker
 from app.bootstrap.logging import log_operational_error

@@ -10,8 +10,8 @@ from app.domain.sync_models import SyncExecutionPlan, SyncSummary
 from app.ui.conflicts_dialog import ConflictsDialog
 from app.ui.notification_service import OperationFeedback
 from app.ui.sync_reporting import to_markdown
-from app.ui.vistas.main_window import acciones_sincronizacion_resultados as resultados
-from app.ui.vistas.main_window import dialogos_sincronizacion
+import app.ui.vistas.main_window.dialogos_sincronizacion as dialogos_sincronizacion
+import app.ui.vistas.main_window.acciones_sincronizacion_resultados as resultados
 from app.ui.i18n_interfaz import texto_interfaz, texto_interfaz_heredado
 from app.ui.vistas.ui_helpers import abrir_archivo_local
 from app.bootstrap.logging import log_operational_error
