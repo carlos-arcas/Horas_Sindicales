@@ -11,6 +11,8 @@ class FakeRepositorio:
     def __init__(self, pendientes: list[SolicitudDTO]) -> None:
         self._pendientes = pendientes
         self.confirmar_sin_pdf_calls = 0
+        self.force_insert_error = False
+        self.force_pdf_error = False
 
     def listar_pendientes(self) -> list[SolicitudDTO]:
         return list(self._pendientes)
@@ -21,12 +23,16 @@ class FakeRepositorio:
         creadas = [sol for sol in self._pendientes if sol.id in ids]
         restantes = [sol for sol in self._pendientes if sol.id not in ids]
         self._pendientes = restantes
+        if self.force_insert_error:
+            return [], list(self._pendientes), ["error_insercion"]
         return creadas, restantes, []
 
     def confirmar_con_pdf(self, pendientes: list[SolicitudDTO], destino_pdf: Path, correlation_id: str | None = None):
-        ids = {sol.id for sol in pendientes}
-        self._pendientes = [sol for sol in self._pendientes if sol.id not in ids]
-        return destino_pdf, sorted(item for item in ids if item is not None), "OK"
+        ids = [sol.id for sol in pendientes if sol.id is not None]
+        if self.force_pdf_error:
+            return None, ids, "error_pdf"
+        self._pendientes = [sol for sol in self._pendientes if sol.id not in set(ids)]
+        return destino_pdf, sorted(ids), "OK"
 
 
 class FakeGeneradorPdf:
@@ -62,65 +68,71 @@ def _solicitud(solicitud_id: int) -> SolicitudDTO:
     )
 
 
-def test_caso_ok_con_pdf() -> None:
+def test_caso_correcto_contrato_tipado_ok_con_pdf() -> None:
     repo = FakeRepositorio([_solicitud(1), _solicitud(2)])
-    generador = FakeGeneradorPdf()
-    fs = FakeFs()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, FakeGeneradorPdf(), FakeFs())
 
     result = caso_uso.execute(
         SolicitudConfirmarPdfPeticion(pendientes_ids=[1], generar_pdf=True, destino_pdf=Path("/tmp/salida.pdf"))
     )
 
-    assert result.ruta_pdf == Path("/tmp/salida.pdf")
+    assert result.estado == "OK_CON_PDF"
+    assert result.confirmadas == 1
     assert result.confirmadas_ids == [1]
+    assert result.pdf_generado == Path("/tmp/salida.pdf")
+    assert result.sync_permitido is True
     assert result.errores == []
 
 
-def test_caso_error_seleccion_vacia() -> None:
+def test_caso_error_insercion_no_genera_pdf_ni_sync() -> None:
     repo = FakeRepositorio([_solicitud(1)])
-    generador = FakeGeneradorPdf()
-    fs = FakeFs()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
+    repo.force_insert_error = True
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, FakeGeneradorPdf(), FakeFs())
 
-    result = caso_uso.execute(SolicitudConfirmarPdfPeticion(pendientes_ids=[], generar_pdf=True, destino_pdf=Path("/tmp/a.pdf")))
+    result = caso_uso.execute(SolicitudConfirmarPdfPeticion(pendientes_ids=[1], generar_pdf=False))
 
-    assert result.confirmadas_ids == []
-    assert result.errores
-    assert repo.confirmar_sin_pdf_calls == 0
-    assert generador.calls == 0
+    assert result.estado == "ERROR_INSERCION"
+    assert result.confirmadas == 0
+    assert result.pdf_generado is None
+    assert result.sync_permitido is False
+    assert result.errores == ["error_insercion"]
 
 
-def test_caso_error_pdf_sin_destino() -> None:
+def test_caso_error_pdf_no_habilita_sync() -> None:
     repo = FakeRepositorio([_solicitud(1)])
-    generador = FakeGeneradorPdf()
-    fs = FakeFs()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
+    repo.force_pdf_error = True
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, FakeGeneradorPdf(), FakeFs())
 
-    result = caso_uso.execute(SolicitudConfirmarPdfPeticion(pendientes_ids=[1], generar_pdf=True, destino_pdf=None))
+    result = caso_uso.execute(
+        SolicitudConfirmarPdfPeticion(pendientes_ids=[1], generar_pdf=True, destino_pdf=Path("/tmp/fallo.pdf"))
+    )
 
-    assert result.errores
-    assert generador.calls == 0
+    assert result.estado == "ERROR_PDF"
+    assert result.confirmadas == 1
+    assert result.confirmadas_ids == [1]
+    assert result.pdf_generado is None
+    assert result.sync_permitido is False
+    assert result.errores == ["error_pdf"]
 
 
-def test_caso_ok_sin_pdf() -> None:
-    repo = FakeRepositorio([_solicitud(1), _solicitud(2)])
-    generador = FakeGeneradorPdf()
-    fs = FakeFs()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
+def test_caso_sin_confirmadas_no_genera_pdf_ni_sync() -> None:
+    repo = FakeRepositorio([_solicitud(1)])
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, FakeGeneradorPdf(), FakeFs())
 
-    result = caso_uso.execute(SolicitudConfirmarPdfPeticion(pendientes_ids=[1, 2], generar_pdf=False))
+    result = caso_uso.execute(
+        SolicitudConfirmarPdfPeticion(pendientes_ids=[999], generar_pdf=True, destino_pdf=Path("/tmp/none.pdf"))
+    )
 
-    assert sorted(result.confirmadas_ids) == [1, 2]
-    assert result.ruta_pdf is None
-    assert generador.calls == 0
+    assert result.estado == "ERROR_PRECONDICION"
+    assert result.confirmadas == 0
+    assert result.pdf_generado is None
+    assert result.sync_permitido is False
 
 
 def test_preflight_no_toca_disco() -> None:
     repo = FakeRepositorio([_solicitud(1)])
-    generador = FakeGeneradorPdf()
     fs = FakeFs()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, FakeGeneradorPdf(), fs)
 
     caso_uso.execute(SolicitudConfirmarPdfPeticion(pendientes_ids=[], generar_pdf=True, destino_pdf=None))
 
@@ -129,9 +141,7 @@ def test_preflight_no_toca_disco() -> None:
 
 def test_caso_uso_es_invocable_como_callable() -> None:
     repo = FakeRepositorio([_solicitud(1)])
-    generador = FakeGeneradorPdf()
-    fs = FakeFs()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador, fs)
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, FakeGeneradorPdf(), FakeFs())
 
     resultado = caso_uso(
         SolicitudConfirmarPdfPeticion(
@@ -141,5 +151,6 @@ def test_caso_uso_es_invocable_como_callable() -> None:
         )
     )
 
-    assert resultado.ruta_pdf == Path("/tmp/callable.pdf")
+    assert resultado.estado == "OK_CON_PDF"
+    assert resultado.pdf_generado == Path("/tmp/callable.pdf")
     assert resultado.confirmadas_ids == [1]

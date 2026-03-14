@@ -16,6 +16,8 @@ from PySide6.QtCore import QItemSelectionModel
 from PySide6.QtWidgets import QFileDialog
 
 from app.application.dto import SolicitudDTO
+from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfResultado
+from app.ui.vistas.confirmacion_orquestacion import ResultadoConfirmacionFlujo
 from app.bootstrap.container import build_container
 from app.infrastructure.db import configure_sqlite_connection
 from app.ui.main_window import MainWindow
@@ -213,7 +215,20 @@ def test_ui_smoke_pendientes_y_toasts_con_evidencias_ci(
 
         def _capturar_execute(_persona, selected, _pdf_path):
             capturado["ids"] = [sol.id for sol in selected if sol.id is not None]
-            return ("corr-test", tmp_path / "fake.pdf", selected, capturado["ids"], [], window._pending_solicitudes)
+            return ResultadoConfirmacionFlujo(
+                correlation_id="corr-test",
+                resultado=SolicitudConfirmarPdfResultado(
+                    estado="OK_CON_PDF",
+                    confirmadas=len(capturado["ids"]),
+                    confirmadas_ids=capturado["ids"],
+                    errores=[],
+                    pdf_generado=tmp_path / "fake.pdf",
+                    sync_permitido=True,
+                    pendientes_restantes=[sol.id for sol in window._pending_solicitudes if sol.id is not None],
+                ),
+                creadas=selected,
+                pendientes_restantes=window._pending_solicitudes,
+            )
 
         monkeypatch.setattr(window, "_execute_confirmar_with_pdf", _capturar_execute)
         monkeypatch.setattr(window, "_finalize_confirmar_with_pdf", lambda *_args, **_kwargs: None)

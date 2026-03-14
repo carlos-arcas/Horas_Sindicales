@@ -96,10 +96,12 @@ def test_flujo_solicitud_pdf_historico_contrato_prioridad_1(tmp_path: Path) -> N
             )
         )
 
+        resultado_dict = asdict(resultado_confirmacion)
+        resultado_dict["pdf_generado"] = str(resultado_confirmacion.pdf_generado) if resultado_confirmacion.pdf_generado else None
         (tmp_path / "resumen_confirmacion.json").write_text(
             json.dumps(
                 {
-                    **asdict(resultado_confirmacion),
+                    **resultado_dict,
                     "ruta_pdf": str(resultado_confirmacion.ruta_pdf) if resultado_confirmacion.ruta_pdf else None,
                 },
                 ensure_ascii=False,

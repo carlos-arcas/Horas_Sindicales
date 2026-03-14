@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
+from app.ui.vistas.confirmacion_orquestacion import ResultadoConfirmacionFlujo
 from app.ui.vistas.ui_helpers import abrir_archivo_local, abrir_carpeta_contenedora
 
 if TYPE_CHECKING:
@@ -15,14 +16,6 @@ if TYPE_CHECKING:
     from app.ui.vistas.confirmacion_presenter import ConfirmAction
 
 logger = logging.getLogger(__name__)
-ResultadoConfirmacionPdf: TypeAlias = tuple[
-    str | None,
-    Path | None,
-    list["SolicitudDTO"],
-    list[int],
-    list[str],
-    list["SolicitudDTO"] | None,
-]
 
 
 def prompt_confirm_pdf_path(window: Any, selected: list[SolicitudDTO]) -> str | None:
@@ -124,7 +117,7 @@ def apply_prompt_pdf(window: Any, selected: list[SolicitudDTO]) -> str | None:
     return pdf_path
 
 
-def apply_confirm(window: Any, persona: PersonaDTO | None, selected: list[SolicitudDTO], pdf_path: str | None) -> ResultadoConfirmacionPdf | None:
+def apply_confirm(window: Any, persona: PersonaDTO | None, selected: list[SolicitudDTO], pdf_path: str | None) -> ResultadoConfirmacionFlujo | None:
     if persona is None or pdf_path is None:
         return None
     try:
@@ -144,34 +137,46 @@ def apply_confirm(window: Any, persona: PersonaDTO | None, selected: list[Solici
         return None
 
 
-def apply_finalize(window: Any, persona: PersonaDTO | None, outcome: ResultadoConfirmacionPdf | None) -> None:
+def apply_finalize(window: Any, persona: PersonaDTO | None, outcome: ResultadoConfirmacionFlujo | None) -> None:
     if persona is None or outcome is None:
         logger.info(
             "UI_CONFIRMAR_TOAST_SUCCESS_DESCARTADO",
             extra={"motivo": "sin_persona_o_sin_outcome"},
         )
         return
-    correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes = outcome
-    logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(generado) if generado else None)
-    window._finalize_confirmar_with_pdf(persona, correlation_id, generado, creadas, confirmadas_ids, errores, pendientes_restantes)
+    resultado = outcome.resultado
+    logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(resultado.pdf_generado) if resultado.pdf_generado else None)
+    window._finalize_confirmar_with_pdf(
+        persona,
+        outcome.correlation_id,
+        resultado.pdf_generado,
+        outcome.creadas,
+        resultado.confirmadas_ids,
+        resultado.errores,
+        outcome.pendientes_restantes,
+    )
     logger.info(
         "UI_CONFIRMAR_PDF_OK",
         extra={
             "persona_id": persona.id if persona is not None else None,
-            "confirmadas_count": len(confirmadas_ids),
-            "errores_count": len(errores),
-            "pdf_generado": bool(generado),
-            "correlation_id": correlation_id,
+            "confirmadas_count": resultado.confirmadas,
+            "errores_count": len(resultado.errores),
+            "pdf_generado": bool(resultado.pdf_generado),
+            "sync_permitido": resultado.sync_permitido,
+            "estado": resultado.estado,
+            "correlation_id": outcome.correlation_id,
         },
     )
-    if generado is None or not generado.exists():
+    if resultado.pdf_generado is None or not resultado.pdf_generado.exists():
         logger.warning(
             "UI_CONFIRMAR_TOAST_SUCCESS_DESCARTADO",
             extra={
                 "motivo": "pdf_no_generado_o_inexistente",
-                "pdf_generado": bool(generado),
-                "correlation_id": correlation_id,
-                "confirmadas_count": len(confirmadas_ids),
-                "errores_count": len(errores),
+                "pdf_generado": bool(resultado.pdf_generado),
+                "sync_permitido": resultado.sync_permitido,
+                "estado": resultado.estado,
+                "correlation_id": outcome.correlation_id,
+                "confirmadas_count": resultado.confirmadas,
+                "errores_count": len(resultado.errores),
             },
         )

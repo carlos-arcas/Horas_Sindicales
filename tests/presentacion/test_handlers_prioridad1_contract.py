@@ -46,6 +46,8 @@ def _registrar_stub_pyside() -> None:
 _registrar_stub_pyside()
 
 from app.application.dto import SolicitudDTO
+from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfResultado
+from app.ui.vistas.confirmacion_orquestacion import ResultadoConfirmacionFlujo
 from app.ui.vistas.main_window import acciones_pendientes
 from app.ui.vistas.main_window.acciones_mixin import AccionesMainWindowMixin
 
@@ -381,7 +383,21 @@ def test_run_confirmacion_plan_invoca_finalize_con_outcome() -> None:
     selected = [_build_solicitud()]
     persona = SimpleNamespace(id=1)
     apply_prompt_pdf = Mock(return_value="/tmp/salida.pdf")
-    apply_confirm = Mock(return_value=("corr-1", Path("/tmp/salida.pdf"), [], [7], [], []))
+    outcome = ResultadoConfirmacionFlujo(
+        correlation_id="corr-1",
+        resultado=SolicitudConfirmarPdfResultado(
+            estado="OK_CON_PDF",
+            confirmadas=1,
+            confirmadas_ids=[7],
+            errores=[],
+            pdf_generado=Path("/tmp/salida.pdf"),
+            sync_permitido=True,
+            pendientes_restantes=[],
+        ),
+        creadas=[],
+        pendientes_restantes=[],
+    )
+    apply_confirm = Mock(return_value=outcome)
     apply_finalize = Mock()
 
     run_confirmacion_plan(
@@ -398,4 +414,4 @@ def test_run_confirmacion_plan_invoca_finalize_con_outcome() -> None:
 
     apply_prompt_pdf.assert_called_once_with(window, selected)
     apply_confirm.assert_called_once_with(window, persona, selected, "/tmp/salida.pdf")
-    apply_finalize.assert_called_once_with(window, persona, ("corr-1", Path("/tmp/salida.pdf"), [], [7], [], []))
+    apply_finalize.assert_called_once_with(window, persona, outcome)

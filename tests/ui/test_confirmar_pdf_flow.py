@@ -9,7 +9,9 @@ from tests.ui.conftest import require_qt
 require_qt()
 
 from app.application.dto import SolicitudDTO
+from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfResultado
 from app.ui.vistas import confirmacion_actions
+from app.ui.vistas.confirmacion_orquestacion import ResultadoConfirmacionFlujo
 
 
 class _FechaHora:
@@ -36,7 +38,22 @@ def _build_window() -> SimpleNamespace:
         _toast_success=Mock(),
         _prompt_confirm_pdf_path=lambda _selected: "/tmp/salida.pdf",
         _last_selected_pdf_path=None,
-        _execute_confirmar_with_pdf=Mock(return_value=("corr-1", Path("/tmp/salida.pdf"), [], [7], [], [])),
+        _execute_confirmar_with_pdf=Mock(
+            return_value=ResultadoConfirmacionFlujo(
+                correlation_id="corr-1",
+                resultado=SolicitudConfirmarPdfResultado(
+                    estado="OK_CON_PDF",
+                    confirmadas=1,
+                    confirmadas_ids=[7],
+                    errores=[],
+                    pdf_generado=Path("/tmp/salida.pdf"),
+                    sync_permitido=True,
+                    pendientes_restantes=[],
+                ),
+                creadas=[],
+                pendientes_restantes=[],
+            )
+        ),
         _selected_pending_solicitudes=lambda: [
             SolicitudDTO(
                 id=7,
@@ -216,7 +233,20 @@ def test_on_confirmar_respeta_flujo_historico_pdf_sync() -> None:
     def _execute(_persona, _selected, _pdf_path):
         eventos.append("insertar_historico")
         eventos.append("generar_pdf")
-        return ("corr-1", Path("/tmp/salida.pdf"), [solicitud], [7], [], [])
+        return ResultadoConfirmacionFlujo(
+            correlation_id="corr-1",
+            resultado=SolicitudConfirmarPdfResultado(
+                estado="OK_CON_PDF",
+                confirmadas=1,
+                confirmadas_ids=[7],
+                errores=[],
+                pdf_generado=Path("/tmp/salida.pdf"),
+                sync_permitido=True,
+                pendientes_restantes=[],
+            ),
+            creadas=[solicitud],
+            pendientes_restantes=[],
+        )
 
     window = _build_window()
     window._execute_confirmar_with_pdf = Mock(side_effect=_execute)
