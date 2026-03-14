@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from types import SimpleNamespace
 from typing import Any
 
 from app.ui.copy_catalog import copy_text
@@ -15,6 +16,11 @@ class _HistoricoActionsFallback:
         return _qt_unavailable
 
 
+class _NamespaceImportaciones(SimpleNamespace):
+    def como_dict(self) -> dict[str, Any]:
+        return dict(vars(self))
+
+
 def _es_import_error_qt_esperado(error: ImportError) -> bool:
     nombre_modulo = getattr(error, "name", "") or ""
     mensaje = str(error)
@@ -23,7 +29,7 @@ def _es_import_error_qt_esperado(error: ImportError) -> bool:
         "shiboken6",
         "Qt",
     )
-    return nombre_modulo.startswith(("PySide6", "shiboken6")) or any(pista in mensaje for pista in pistas_qt)
+    return nombre_modulo.startswith(("PySide6", "shiboken6", "Qt")) or any(pista in mensaje for pista in pistas_qt)
 
 
 def _cargar_importacion_grupo(
@@ -36,6 +42,14 @@ def _cargar_importacion_grupo(
         if _es_import_error_qt_esperado(error):
             return fallback
         raise
+
+
+def _resolver_namespace_importaciones(
+    cargar: Callable[[], dict[str, Any]],
+    fallback: dict[str, Any],
+) -> _NamespaceImportaciones:
+    simbolos = _cargar_importacion_grupo(cargar, fallback)
+    return _NamespaceImportaciones(**simbolos)
 
 
 def _cargar_grupo_dialogos_y_controllers() -> dict[str, Any]:
@@ -240,6 +254,70 @@ _FALLBACK_GRUPO_HELPERS: dict[str, Any] = {
     "show_sync_error_dialog_from_exception": _qt_unavailable,
 }
 
-globals().update(_cargar_importacion_grupo(_cargar_grupo_dialogos_y_controllers, _FALLBACK_GRUPO_DIALOGOS))
-globals().update(_cargar_importacion_grupo(_cargar_grupo_acciones_y_estado, _FALLBACK_GRUPO_ACCIONES))
-globals().update(_cargar_importacion_grupo(_cargar_grupo_helpers_builders_y_sync, _FALLBACK_GRUPO_HELPERS))
+
+namespace_dialogos = _resolver_namespace_importaciones(_cargar_grupo_dialogos_y_controllers, _FALLBACK_GRUPO_DIALOGOS)
+namespace_acciones = _resolver_namespace_importaciones(_cargar_grupo_acciones_y_estado, _FALLBACK_GRUPO_ACCIONES)
+namespace_helpers = _resolver_namespace_importaciones(_cargar_grupo_helpers_builders_y_sync, _FALLBACK_GRUPO_HELPERS)
+
+ConflictsDialog = namespace_dialogos.ConflictsDialog
+GrupoConfigDialog = namespace_dialogos.GrupoConfigDialog
+PdfConfigDialog = namespace_dialogos.PdfConfigDialog
+UiErrorMessage = namespace_dialogos.UiErrorMessage
+map_error_to_ui_message = namespace_dialogos.map_error_to_ui_message
+GestorToasts = namespace_dialogos.GestorToasts
+PersonasController = namespace_dialogos.PersonasController
+SolicitudesController = namespace_dialogos.SolicitudesController
+SyncController = namespace_dialogos.SyncController
+PdfController = namespace_dialogos.PdfController
+ConfirmationSummaryPayload = namespace_dialogos.ConfirmationSummaryPayload
+NotificationService = namespace_dialogos.NotificationService
+OperationFeedback = namespace_dialogos.OperationFeedback
+
+acciones_pendientes = namespace_acciones.acciones_pendientes
+acciones_personas = namespace_acciones.acciones_personas
+acciones_sincronizacion = namespace_acciones.acciones_sincronizacion
+validacion_preventiva = namespace_acciones.validacion_preventiva
+toast_error = namespace_acciones.toast_error
+toast_success = namespace_acciones.toast_success
+historico_actions = namespace_acciones.historico_actions
+ActionStateInput = namespace_acciones.ActionStateInput
+build_action_state = namespace_acciones.build_action_state
+debe_habilitar_confirmar_pdf = namespace_acciones.debe_habilitar_confirmar_pdf
+ask_push_after_pdf = namespace_acciones.ask_push_after_pdf
+build_confirmation_payload = namespace_acciones.build_confirmation_payload
+execute_confirmar_with_pdf = namespace_acciones.execute_confirmar_with_pdf
+finalize_confirmar_with_pdf = namespace_acciones.finalize_confirmar_with_pdf
+iterar_pendientes_en_tabla = namespace_acciones.iterar_pendientes_en_tabla
+on_confirmar = namespace_acciones.on_confirmar
+on_insertar_sin_pdf = namespace_acciones.on_insertar_sin_pdf
+prompt_confirm_pdf_path = namespace_acciones.prompt_confirm_pdf_path
+show_confirmation_closure = namespace_acciones.show_confirmation_closure
+show_pdf_actions_dialog = namespace_acciones.show_pdf_actions_dialog
+sum_solicitudes_minutes = namespace_acciones.sum_solicitudes_minutes
+undo_confirmation = namespace_acciones.undo_confirmation
+
+SaldosCard = namespace_helpers.SaldosCard
+PushWorker = namespace_helpers.PushWorker
+MainWindowHealthMixin = namespace_helpers.MainWindowHealthMixin
+apply_modal_behavior = namespace_helpers.apply_modal_behavior
+build_modal_actions = namespace_helpers.build_modal_actions
+status_badge = namespace_helpers.status_badge
+STATUS_PATTERNS = namespace_helpers.STATUS_PATTERNS
+build_config_incomplete_report = namespace_helpers.build_config_incomplete_report
+build_failed_report = namespace_helpers.build_failed_report
+build_simulation_report = namespace_helpers.build_simulation_report
+build_sync_report = namespace_helpers.build_sync_report
+list_sync_history = namespace_helpers.list_sync_history
+load_sync_report = namespace_helpers.load_sync_report
+persist_report = namespace_helpers.persist_report
+to_markdown = namespace_helpers.to_markdown
+run_init_refresh = namespace_helpers.run_init_refresh
+build_main_window_widgets = namespace_helpers.build_main_window_widgets
+build_shell_layout = namespace_helpers.build_shell_layout
+build_status_bar = namespace_helpers.build_status_bar
+abrir_archivo_local = namespace_helpers.abrir_archivo_local
+build_estado_pendientes_debug_payload = namespace_helpers.build_estado_pendientes_debug_payload
+build_historico_filters_payload = namespace_helpers.build_historico_filters_payload
+handle_historico_render_mismatch = namespace_helpers.handle_historico_render_mismatch
+log_estado_pendientes = namespace_helpers.log_estado_pendientes
+show_sync_error_dialog_from_exception = namespace_helpers.show_sync_error_dialog_from_exception
