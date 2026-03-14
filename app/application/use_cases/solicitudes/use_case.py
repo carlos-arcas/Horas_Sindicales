@@ -794,26 +794,6 @@ class SolicitudUseCases:
             solicitudes, destino, correlation_id=correlation_id
         )
 
-    def generar_pdf_para_confirmadas(
-        self,
-        confirmadas: Iterable[SolicitudDTO],
-        destino: Path,
-        correlation_id: str | None = None,
-    ) -> tuple[Path | None, list[int], str]:
-        confirmadas_list = list(confirmadas)
-        if not confirmadas_list:
-            return None, [], "Sin confirmadas para generar PDF."
-
-        ruta, actualizadas = self._generar_pdf_confirmadas(
-            confirmadas_list,
-            destino,
-            correlation_id=correlation_id,
-        )
-        if ruta is None:
-            return None, [], "No se generó el PDF."
-        ids_confirmadas = [sol.id for sol in actualizadas if sol.id is not None]
-        return ruta, ids_confirmadas, "OK"
-
     def confirmar_y_generar_pdf_por_filtro(
         self,
         *,

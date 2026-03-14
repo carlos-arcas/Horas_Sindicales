@@ -24,6 +24,9 @@ from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.confirmacion_pdf.caso_uso import (
     ConfirmarPendientesPdfCasoUso,
 )
+from app.application.use_cases.confirmacion_pdf.generar_pdf_confirmadas_caso_uso import (
+    GenerarPdfSolicitudesConfirmadasCasoUso,
+)
 from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import (
     CrearPendienteCasoUso,
 )
@@ -109,9 +112,17 @@ def build_container(
     solicitud_use_cases = SolicitudUseCases(
         solicitud_repo, persona_repo, grupo_repo, generador_pdf
     )
+    generador_pdf_confirmadas_caso_uso = GenerarPdfSolicitudesConfirmadasCasoUso(
+        repo=solicitud_repo,
+        persona_repo=persona_repo,
+        config_repo=grupo_repo,
+        generador_pdf=generador_pdf,
+    )
     confirmar_pendientes_pdf_caso_uso = ConfirmarPendientesPdfCasoUso(
         repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases),
-        generador_pdf=GeneradorPdfConfirmadasDesdeCasosUso(solicitud_use_cases),
+        generador_pdf=GeneradorPdfConfirmadasDesdeCasosUso(
+            generador_pdf_confirmadas_caso_uso
+        ),
         sistema_archivos=SistemaArchivosLocal(),
     )
     crear_pendiente_caso_uso = CrearPendienteCasoUso(
