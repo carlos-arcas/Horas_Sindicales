@@ -20,10 +20,11 @@ except Exception:  # pragma: no cover
         return
 
 
-from app.ui.vistas.main_window.importaciones import (
-    acciones_pendientes,
+from app.ui.vistas import historico_actions
+
+from . import acciones_pendientes
+from .main_window_helpers import (
     build_estado_pendientes_debug_payload,
-    historico_actions,
     log_estado_pendientes,
 )
 

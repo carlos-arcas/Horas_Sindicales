@@ -40,9 +40,33 @@ def test_importaciones_no_depende_de_globals_update_como_nucleo() -> None:
     assert "globals().update" not in codigo
 
 
-def test_importaciones_expone_namespaces_y_compatibilidad_publica() -> None:
+def test_importaciones_expone_namespaces_y_compatibilidad_publica_minima() -> None:
     assert hasattr(importaciones, "namespace_dialogos")
     assert hasattr(importaciones, "namespace_acciones")
     assert hasattr(importaciones, "namespace_helpers")
     assert importaciones.toast_error is importaciones.namespace_acciones.toast_error
     assert importaciones.status_badge is importaciones.namespace_helpers.status_badge
+    assert (
+        importaciones.run_init_refresh
+        is importaciones.namespace_helpers.run_init_refresh
+    )
+
+
+def test_importaciones_limita_aliases_planos_legacy() -> None:
+    assert importaciones.__all__ == [
+        "namespace_dialogos",
+        "namespace_acciones",
+        "namespace_helpers",
+        "GestorToasts",
+        "PersonasController",
+        "SolicitudesController",
+        "SyncController",
+        "PdfController",
+        "NotificationService",
+        "PushWorker",
+        "SaldosCard",
+        "MainWindowHealthMixin",
+        "toast_error",
+        "status_badge",
+        "run_init_refresh",
+    ]

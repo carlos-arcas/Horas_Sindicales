@@ -7,7 +7,7 @@ from typing import Any
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
 from app.ui.qt_compat import QAbstractItemView, QDate, QHeaderView, QTableView
-from app.ui.vistas.main_window.importaciones import status_badge
+from app.ui.patterns import status_badge
 from . import handlers_layout
 
 SINGLE_LINE_CLASS_NAMES = {
@@ -36,7 +36,11 @@ def apply_help_preferences(window: Any) -> None:
         return
     settings_key = copy_text("ui.preferencias.settings_show_help_key")
     raw_value = window._settings.value(settings_key, True)
-    show_help = raw_value.strip().lower() in {"1", "true", "yes", "on"} if isinstance(raw_value, str) else bool(raw_value)
+    show_help = (
+        raw_value.strip().lower() in {"1", "true", "yes", "on"}
+        if isinstance(raw_value, str)
+        else bool(raw_value)
+    )
     show_help_toggle.blockSignals(True)
     show_help_toggle.setChecked(show_help)
     show_help_toggle.blockSignals(False)
@@ -61,7 +65,11 @@ def on_help_toggle_changed(window: Any, enabled: bool) -> None:
 
 def apply_solicitudes_tooltips(window: Any, enabled: bool | None = None) -> None:
     if enabled is None:
-        enabled = bool(getattr(getattr(window, "show_help_toggle", None), "isChecked", lambda: True)())
+        enabled = bool(
+            getattr(
+                getattr(window, "show_help_toggle", None), "isChecked", lambda: True
+            )()
+        )
     help_text_by_widget = (
         ("persona_combo", "solicitudes.tooltip_delegada"),
         ("fecha_input", "solicitudes.tooltip_fecha"),
@@ -95,7 +103,12 @@ def warmup_sync_client(window: Any, logger_obj: logging.Logger) -> None:
         try:
             ensure_connection()
         except Exception as exc:  # pragma: no cover
-            log_operational_error(logger_obj, "SYNC_WARMUP_FAILED", exc=exc, extra={"operation": "sync_warmup"})
+            log_operational_error(
+                logger_obj,
+                "SYNC_WARMUP_FAILED",
+                exc=exc,
+                extra={"operation": "sync_warmup"},
+            )
 
     threading.Thread(target=_run_warmup, daemon=True).start()
 
@@ -114,11 +127,18 @@ def update_conflicts_reminder(window: Any, logger_obj: logging.Logger) -> None:
     if i18n_actual is None:
         return
     try:
-        total_conflictos_pendientes = int(window._conflicts_service.count_conflicts()) if hasattr(window, "_conflicts_service") and window._conflicts_service is not None else 0
+        total_conflictos_pendientes = (
+            int(window._conflicts_service.count_conflicts())
+            if hasattr(window, "_conflicts_service")
+            and window._conflicts_service is not None
+            else 0
+        )
         if total_conflictos_pendientes > 0:
             reminder_widget.setVisible(True)
             texto_base = copy_text("ui.sync.conflictos_pendientes")
-            reminder_widget.setText(texto_base.replace("0", str(total_conflictos_pendientes), 1))
+            reminder_widget.setText(
+                texto_base.replace("0", str(total_conflictos_pendientes), 1)
+            )
             return
         reminder_widget.setVisible(False)
     except Exception:
@@ -168,10 +188,28 @@ def _size_hint_height(widget: object) -> int | None:
 
 def normalize_input_heights(window: Any, logger_obj: logging.Logger) -> None:
     try:
-        names = ("persona_combo", "fecha_input", "desde_input", "hasta_input", "notas_input")
-        widgets = [widget for name in names if (widget := getattr(window, name, None)) is not None]
-        single_line_widgets = [widget for widget in widgets if type(widget).__name__ in SINGLE_LINE_CLASS_NAMES]
-        heights = [height for widget in single_line_widgets if (height := _size_hint_height(widget)) is not None]
+        names = (
+            "persona_combo",
+            "fecha_input",
+            "desde_input",
+            "hasta_input",
+            "notas_input",
+        )
+        widgets = [
+            widget
+            for name in names
+            if (widget := getattr(window, name, None)) is not None
+        ]
+        single_line_widgets = [
+            widget
+            for widget in widgets
+            if type(widget).__name__ in SINGLE_LINE_CLASS_NAMES
+        ]
+        heights = [
+            height
+            for widget in single_line_widgets
+            if (height := _size_hint_height(widget)) is not None
+        ]
         if not heights:
             return
         target_height = max(heights)
@@ -180,18 +218,37 @@ def normalize_input_heights(window: Any, logger_obj: logging.Logger) -> None:
             if callable(set_fixed_height):
                 set_fixed_height(target_height)
     except Exception as exc:
-        log_operational_error(logger_obj, "UI_NORMALIZE_INPUT_HEIGHTS_FAILED", exc=exc, extra={"contexto": "mainwindow._normalize_input_heights"})
+        log_operational_error(
+            logger_obj,
+            "UI_NORMALIZE_INPUT_HEIGHTS_FAILED",
+            exc=exc,
+            extra={"contexto": "mainwindow._normalize_input_heights"},
+        )
 
 
 def update_responsive_columns(window: Any, logger_obj: logging.Logger) -> None:
     try:
         handlers_layout.update_responsive_columns(window)
     except Exception as exc:
-        log_operational_error(logger_obj, "UI_UPDATE_RESPONSIVE_COLUMNS_FAILED", exc=exc, extra={"contexto": "mainwindow._update_responsive_columns"})
+        log_operational_error(
+            logger_obj,
+            "UI_UPDATE_RESPONSIVE_COLUMNS_FAILED",
+            exc=exc,
+            extra={"contexto": "mainwindow._update_responsive_columns"},
+        )
 
 
 def configure_operativa_focus_order(window: Any) -> None:
-    focus_chain = (("persona_combo", "fecha_input"), ("fecha_input", "desde_input"), ("desde_input", "hasta_input"), ("hasta_input", "completo_check"), ("completo_check", "notas_input"), ("notas_input", "agregar_button"), ("agregar_button", "insertar_sin_pdf_button"), ("insertar_sin_pdf_button", "confirmar_button"))
+    focus_chain = (
+        ("persona_combo", "fecha_input"),
+        ("fecha_input", "desde_input"),
+        ("desde_input", "hasta_input"),
+        ("hasta_input", "completo_check"),
+        ("completo_check", "notas_input"),
+        ("notas_input", "agregar_button"),
+        ("agregar_button", "insertar_sin_pdf_button"),
+        ("insertar_sin_pdf_button", "confirmar_button"),
+    )
     for before_name, after_name in focus_chain:
         before_widget = getattr(window, before_name, None)
         after_widget = getattr(window, after_name, None)
@@ -200,7 +257,13 @@ def configure_operativa_focus_order(window: Any) -> None:
 
 
 def configure_historico_focus_order(window: Any, logger_obj: logging.Logger) -> None:
-    focus_chain = (("historico_search_input", "historico_estado_combo"), ("historico_estado_combo", "historico_delegada_combo"), ("historico_delegada_combo", "historico_desde_date"), ("historico_desde_date", "historico_hasta_date"), ("historico_hasta_date", "historico_table"))
+    focus_chain = (
+        ("historico_search_input", "historico_estado_combo"),
+        ("historico_estado_combo", "historico_delegada_combo"),
+        ("historico_delegada_combo", "historico_desde_date"),
+        ("historico_desde_date", "historico_hasta_date"),
+        ("historico_hasta_date", "historico_table"),
+    )
     set_tab_order = getattr(window, "setTabOrder", None)
     if not callable(set_tab_order):
         logger_obj.warning("UI_SET_TAB_ORDER_NOT_AVAILABLE")
@@ -209,7 +272,10 @@ def configure_historico_focus_order(window: Any, logger_obj: logging.Logger) -> 
         before_widget = getattr(window, before_name, None)
         after_widget = getattr(window, after_name, None)
         if before_widget is None or after_widget is None:
-            logger_obj.warning("UI_TAB_ORDER_SKIPPED_MISSING_WIDGET", extra={"before": before_name, "after": after_name})
+            logger_obj.warning(
+                "UI_TAB_ORDER_SKIPPED_MISSING_WIDGET",
+                extra={"before": before_name, "after": after_name},
+            )
             continue
         set_tab_order(before_widget, after_widget)
 
@@ -246,7 +312,9 @@ def configure_solicitudes_table(table: QTableView) -> None:
 
 
 def on_fecha_changed(window: Any, qdate: QDate) -> None:
-    window._fecha_seleccionada = QDate(qdate) if hasattr(qdate, "isValid") and qdate.isValid() else None
+    window._fecha_seleccionada = (
+        QDate(qdate) if hasattr(qdate, "isValid") and qdate.isValid() else None
+    )
     update_preview = getattr(window, "_update_solicitud_preview", None)
     if callable(update_preview):
         update_preview()
