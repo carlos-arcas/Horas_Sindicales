@@ -8,18 +8,28 @@ from app.application.ports.sistema_archivos_puerto import SistemaArchivosPuerto
 
 
 class RepositorioSolicitudes(Protocol):
-    def crear_pendiente(self, solicitud: SolicitudDTO, correlation_id: str | None = None) -> SolicitudDTO: ...
+    def crear_pendiente(
+        self, solicitud: SolicitudDTO, correlation_id: str | None = None
+    ) -> SolicitudDTO: ...
 
     def listar_pendientes(self) -> list[SolicitudDTO]: ...
 
-    def confirmar_sin_pdf(self, pendientes: list[SolicitudDTO], correlation_id: str | None = None) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]: ...
+    def confirmar_sin_pdf(
+        self, pendientes: list[SolicitudDTO], correlation_id: str | None = None
+    ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]: ...
 
-    def confirmar_con_pdf(
+
+class GeneradorPdfConfirmadasPuerto(Protocol):
+    def generar_pdf_confirmadas(
         self,
-        pendientes: list[SolicitudDTO],
+        confirmadas: list[SolicitudDTO],
         destino_pdf: Path,
         correlation_id: str | None = None,
     ) -> tuple[Path | None, list[int], str]: ...
 
 
-__all__ = ["RepositorioSolicitudes", "SistemaArchivosPuerto"]
+__all__ = [
+    "GeneradorPdfConfirmadasPuerto",
+    "RepositorioSolicitudes",
+    "SistemaArchivosPuerto",
+]
