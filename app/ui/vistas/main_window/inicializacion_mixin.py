@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import logging
 
-from app.ui.qt_compat import QLabel, QDate, QFrame, QSizePolicy, QTableView, QTimer, QVBoxLayout, QWidget
+from app.ui.qt_compat import (
+    QLabel,
+    QDate,
+    QFrame,
+    QSizePolicy,
+    QTableView,
+    QTimer,
+    QVBoxLayout,
+    QWidget,
+)
 from app.ui.copy_catalog import copy_text
 from app.ui.i18n_interfaz import cambiar_idioma_interfaz, texto_interfaz
 
@@ -20,7 +29,7 @@ from .utilidades_controlador_estado import (
     status_to_label,
     warmup_sync_client,
 )
-from app.ui.vistas.main_window.importaciones import run_init_refresh
+from app.ui.vistas.init_refresh import run_init_refresh
 from .contrato_botones import aplicar_contrato_botones_criticos_runtime
 
 logger = logging.getLogger(__name__)
@@ -32,29 +41,51 @@ class InicializacionMainWindowMixin:
 
     def _refrescar_textos_sync(self) -> None:
         if hasattr(self, "sync_panel_status"):
-            self.sync_panel_status.setText(texto_interfaz("ui.sync.panel.estado_pendiente"))
+            self.sync_panel_status.setText(
+                texto_interfaz("ui.sync.panel.estado_pendiente")
+            )
         if hasattr(self, "sync_status_label"):
-            self.sync_status_label.setText(texto_interfaz("ui.sync.panel.sincronizando"))
+            self.sync_status_label.setText(
+                texto_interfaz("ui.sync.panel.sincronizando")
+            )
         reminder = getattr(self, "conflicts_reminder_label", None)
         if reminder is not None and reminder.isVisible():
-            reminder.setText(texto_interfaz("ui.sync.panel.conflictos_pendientes", cantidad=self._safe_conflicts_count()))
+            reminder.setText(
+                texto_interfaz(
+                    "ui.sync.panel.conflictos_pendientes",
+                    cantidad=self._safe_conflicts_count(),
+                )
+            )
 
     def _safe_conflicts_count(self) -> int:
         return safe_conflicts_count(self)
 
     def _post_init_ui(self) -> None:
         main_tabs = getattr(self, "main_tabs", None)
-        if main_tabs is None or not hasattr(main_tabs, "count") or main_tabs.count() >= 1:
+        if (
+            main_tabs is None
+            or not hasattr(main_tabs, "count")
+            or main_tabs.count() >= 1
+        ):
             return
         fallback_page = getattr(self, "page_solicitudes", None) or QWidget(self)
         if not getattr(fallback_page, "objectName", lambda: "")():
             fallback_page.setObjectName("page_solicitudes_fallback")
-        tab_text = fallback_page.windowTitle() if hasattr(fallback_page, "windowTitle") else ""
-        if hasattr(main_tabs, "addTab") and hasattr(main_tabs, "indexOf") and main_tabs.indexOf(fallback_page) == -1:
+        tab_text = (
+            fallback_page.windowTitle() if hasattr(fallback_page, "windowTitle") else ""
+        )
+        if (
+            hasattr(main_tabs, "addTab")
+            and hasattr(main_tabs, "indexOf")
+            and main_tabs.indexOf(fallback_page) == -1
+        ):
             main_tabs.addTab(fallback_page, tab_text)
 
     def _inicializar_preferencia_inicio_maximizado(self) -> None:
-        if self.preferencia_inicio_maximizado_check is None or self._obtener_preferencia_inicio_maximizado is None:
+        if (
+            self.preferencia_inicio_maximizado_check is None
+            or self._obtener_preferencia_inicio_maximizado is None
+        ):
             return
         preferencia = self._obtener_preferencia_inicio_maximizado.ejecutar()
         self.preferencia_inicio_maximizado_check.blockSignals(True)
@@ -105,7 +136,9 @@ class InicializacionMainWindowMixin:
         )
         for widget_name in required_widgets:
             if not hasattr(self, widget_name):
-                raise RuntimeError(f"{copy_text('ui.sync.mainwindow_incompleta')} {widget_name}")
+                raise RuntimeError(
+                    f"{copy_text('ui.sync.mainwindow_incompleta')} {widget_name}"
+                )
 
     def _create_card(self, title: str) -> tuple[QFrame, QVBoxLayout]:
         card = QFrame()
@@ -185,7 +218,9 @@ class InicializacionMainWindowMixin:
         configure_solicitudes_table(table)
 
     def _on_fecha_changed(self, qdate: QDate) -> None:
-        self._fecha_seleccionada = QDate(qdate) if hasattr(qdate, "isValid") and qdate.isValid() else None
+        self._fecha_seleccionada = (
+            QDate(qdate) if hasattr(qdate, "isValid") and qdate.isValid() else None
+        )
         refrescar_operativa = getattr(self, "_refrescar_estado_operativa", None)
         if callable(refrescar_operativa):
             refrescar_operativa("fecha_changed")

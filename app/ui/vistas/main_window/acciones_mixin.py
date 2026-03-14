@@ -4,21 +4,21 @@ import logging
 
 from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
-from app.ui.vistas.main_window.importaciones import (
-    MainWindowHealthMixin,
-    acciones_pendientes,
-    acciones_sincronizacion,
+from app.ui.toast_helpers import toast_error
+from app.ui.vistas import historico_actions
+from app.ui.vistas.confirmacion_actions import (
     ask_push_after_pdf,
     execute_confirmar_with_pdf,
     finalize_confirmar_with_pdf,
-    historico_actions,
     on_confirmar as on_confirmar_handler,
     on_insertar_sin_pdf,
     show_confirmation_closure,
     show_pdf_actions_dialog,
-    toast_error,
     undo_confirmation,
 )
+from app.ui.vistas.main_window_health_mixin import MainWindowHealthMixin
+
+from . import acciones_pendientes, acciones_sincronizacion
 from . import validacion_preventiva
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,14 @@ class AccionesMainWindowMixin:
             pendientes_restantes,
         )
 
-    def _show_confirmation_closure(self, creadas, errores, *, operation_name: str, correlation_id: str | None = None) -> None:
+    def _show_confirmation_closure(
+        self,
+        creadas,
+        errores,
+        *,
+        operation_name: str,
+        correlation_id: str | None = None,
+    ) -> None:
         return show_confirmation_closure(
             self,
             creadas,
@@ -73,19 +80,25 @@ class AccionesMainWindowMixin:
         errores: list[str],
         pendientes_restantes,
     ) -> None:
-        self._solicitudes_controller.aplicar_confirmacion(confirmadas_ids, pendientes_restantes)
+        self._solicitudes_controller.aplicar_confirmacion(
+            confirmadas_ids, pendientes_restantes
+        )
         self._reload_pending_views()
         self._refresh_historico()
         self._refresh_saldos()
         if errores:
-            self.toast.warning("\n".join(errores), title=copy_text("ui.validacion.validacion"))
+            self.toast.warning(
+                "\n".join(errores), title=copy_text("ui.validacion.validacion")
+            )
 
     def _on_open_saldos_modal(self) -> None:
         from . import acciones_personas
 
         return acciones_personas.on_open_saldos_modal(self)
 
-    def _on_completo_changed(self, checked: object = False, *_args: object, **_kwargs: object) -> None:
+    def _on_completo_changed(
+        self, checked: object = False, *_args: object, **_kwargs: object
+    ) -> None:
         from . import form_handlers
 
         return form_handlers.on_completo_changed(self, checked)
@@ -155,7 +168,9 @@ class AccionesMainWindowMixin:
         from pathlib import Path
 
         from app.ui.qt_compat import QFileDialog
-        from app.ui.vistas.confirmacion_adaptador_qt import resolver_colision_destino_pdf
+        from app.ui.vistas.confirmacion_adaptador_qt import (
+            resolver_colision_destino_pdf,
+        )
 
         if not isinstance(selected, list) or not selected:
             return None
@@ -184,8 +199,12 @@ class AccionesMainWindowMixin:
             extra={
                 "checked": bool(checked),
                 "hidden_previas": len(getattr(self, "_hidden_pendientes", [])),
-                "pendientes_visibles_previas": len(getattr(self, "_pending_solicitudes", [])),
-                "pendientes_totales_previas": len(getattr(self, "_pending_all_solicitudes", [])),
+                "pendientes_visibles_previas": len(
+                    getattr(self, "_pending_solicitudes", [])
+                ),
+                "pendientes_totales_previas": len(
+                    getattr(self, "_pending_all_solicitudes", [])
+                ),
             },
         )
         self._pending_view_all = checked
