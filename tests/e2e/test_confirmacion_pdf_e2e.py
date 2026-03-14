@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 from app.application.dto import SolicitudDTO
-from app.application.use_cases.solicitudes.confirmacion_pdf_service import hash_file
-from app.application.use_cases.solicitudes.pdf_confirmadas_builder import PdfConfirmadasEntrada, plan_pdf_confirmadas
-from app.application.use_cases.solicitudes.pdf_confirmadas_runner import run_pdf_confirmadas_plan
+from app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas import hash_file
+from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder import PdfConfirmadasEntrada, plan_pdf_confirmadas
+from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner import run_pdf_confirmadas_plan
 from app.core import metrics as metrics_module
 from app.core.errors import InfraError
 from app.core.metrics import MetricsRegistry
@@ -86,7 +86,7 @@ def _solicitud(sid: int) -> SolicitudDTO:
 def isolated_metrics(monkeypatch: pytest.MonkeyPatch) -> MetricsRegistry:
     isolated = MetricsRegistry()
     monkeypatch.setattr(metrics_module, "metrics_registry", isolated)
-    import app.application.use_cases.solicitudes.pdf_confirmadas_runner as runner_module
+    import app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner as runner_module
 
     monkeypatch.setattr(runner_module, "metrics_registry", isolated)
     return isolated
