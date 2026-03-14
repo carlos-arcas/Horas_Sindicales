@@ -28,11 +28,6 @@ class GeneradorPdfFake:
         return destino
 
 
-class GeneradorPdfNoUsado:
-    def generar_pdf_pendientes(self, pendientes, destino, correlation_id=None):
-        return destino, [sol.id for sol in pendientes if sol.id is not None], "OK"
-
-
 def _crear_persona(persona_repo) -> int:
     persona = persona_repo.create(
         Persona(
@@ -87,7 +82,6 @@ def _crear_caso_confirmacion(solicitud_repo, persona_repo) -> ConfirmarPendiente
     )
     return ConfirmarPendientesPdfCasoUso(
         repositorio=RepositorioSolicitudesDesdeCasosUso(solicitudes_uc),
-        generador_pdf=GeneradorPdfNoUsado(),
         sistema_archivos=SistemaArchivosFake(),
     )
 

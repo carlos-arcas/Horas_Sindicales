@@ -22,7 +22,6 @@ from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import Crear
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.infrastructure.cargador_datos_demo_sqlite import CargadorDatosDemoSQLite
 from app.infrastructure.confirmacion_pdf.adaptadores import (
-    GeneradorPdfDesdeCasosUso,
     RepositorioSolicitudesDesdeCasosUso,
 )
 from app.infrastructure.db import _default_db_path, get_connection
@@ -97,7 +96,6 @@ def build_container(
     solicitud_use_cases = SolicitudUseCases(solicitud_repo, persona_repo, grupo_repo, generador_pdf)
     confirmar_pendientes_pdf_caso_uso = ConfirmarPendientesPdfCasoUso(
         repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases),
-        generador_pdf=GeneradorPdfDesdeCasosUso(solicitud_use_cases),
         sistema_archivos=SistemaArchivosLocal(),
     )
     crear_pendiente_caso_uso = CrearPendienteCasoUso(

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
-from app.application.use_cases.confirmacion_pdf.puertos import GeneradorPdfPuerto, RepositorioSolicitudes
+from app.application.use_cases.confirmacion_pdf.puertos import RepositorioSolicitudes
 
 
 class RepositorioSolicitudesDesdeCasosUso(RepositorioSolicitudes):
@@ -37,23 +37,5 @@ class RepositorioSolicitudesDesdeCasosUso(RepositorioSolicitudes):
             filtro_delegada=None,
             pendientes=pendientes,
             destino=destino_pdf,
-            correlation_id=correlation_id,
-        )
-
-
-class GeneradorPdfDesdeCasosUso(GeneradorPdfPuerto):
-    def __init__(self, solicitud_use_cases: SolicitudUseCases) -> None:
-        self._solicitud_use_cases = solicitud_use_cases
-
-    def generar_pdf_pendientes(
-        self,
-        pendientes: list[SolicitudDTO],
-        destino: Path,
-        correlation_id: str | None = None,
-    ) -> tuple[Path | None, list[int], str]:
-        return self._solicitud_use_cases.confirmar_y_generar_pdf_por_filtro(
-            filtro_delegada=None,
-            pendientes=pendientes,
-            destino=destino,
             correlation_id=correlation_id,
         )
