@@ -207,3 +207,37 @@ def test_build_confirmation_payload_no_expone_accion_sync() -> None:
     )
 
     assert payload.on_sync_now is None
+
+
+def test_on_confirmar_respeta_flujo_historico_pdf_sync() -> None:
+    eventos: list[str] = []
+    solicitud = _build_solicitud_confirmada()
+
+    def _execute(_persona, _selected, _pdf_path):
+        eventos.append("insertar_historico")
+        eventos.append("generar_pdf")
+        return ("corr-1", Path("/tmp/salida.pdf"), [solicitud], [7], [], [])
+
+    window = _build_window()
+    window._execute_confirmar_with_pdf = Mock(side_effect=_execute)
+    window._finalize_confirmar_with_pdf = Mock(
+        side_effect=lambda *_args: eventos.append("pedir_sync")
+    )
+
+    confirmacion_actions.on_confirmar(window)
+
+    assert eventos == ["insertar_historico", "generar_pdf", "pedir_sync"]
+
+
+def test_on_confirmar_error_pdf_no_pide_sync_y_no_muestra_cierre_tecnico() -> None:
+    window = _build_window()
+    window._execute_confirmar_with_pdf = Mock(side_effect=RuntimeError("error_pdf"))
+    window._ask_push_after_pdf = Mock()
+    window._show_confirmation_closure = Mock()
+
+    confirmacion_actions.on_confirmar(window)
+
+    window._ask_push_after_pdf.assert_not_called()
+    window._show_confirmation_closure.assert_not_called()
+    window._finalize_confirmar_with_pdf.assert_not_called()
+    window._toast_error.assert_called_once()
