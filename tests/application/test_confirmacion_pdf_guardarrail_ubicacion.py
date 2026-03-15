@@ -6,22 +6,20 @@ from pathlib import Path
 
 RUTA_SOLICITUDES = Path("app/application/use_cases/solicitudes")
 RUTA_ORQUESTACION_SOLICITUDES = RUTA_SOLICITUDES / "orquestacion_confirmacion.py"
-ARCHIVOS_PDF_CONFIRMADAS_PERMITIDOS = {
+WRAPPERS_PDF_CONFIRMADAS_PROHIBIDOS = {
     "confirmacion_pdf_service.py",
     "pdf_confirmadas_builder.py",
     "pdf_confirmadas_runner.py",
+    "servicio_preflight_pdf.py",
 }
 
 
-def test_solicitudes_no_define_nuevos_modulos_pdf_confirmadas() -> None:
-    archivos_pdf = {
-        ruta.name
-        for ruta in RUTA_SOLICITUDES.glob("*pdf*confirmad*.py")
-    }
-    assert archivos_pdf <= ARCHIVOS_PDF_CONFIRMADAS_PERMITIDOS
+def test_solicitudes_no_define_wrappers_confirmacion_pdf_legacy() -> None:
+    archivos_py = {ruta.name for ruta in RUTA_SOLICITUDES.glob("*.py")}
+    assert WRAPPERS_PDF_CONFIRMADAS_PROHIBIDOS.isdisjoint(archivos_py)
 
 
-def test_orquestacion_confirmacion_delega_flujo_pdf_al_bounded_context() -> None:
+def test_orquestacion_confirmacion_no_reexporta_flujo_pdf() -> None:
     arbol = ast.parse(RUTA_ORQUESTACION_SOLICITUDES.read_text(encoding="utf-8"))
 
     funciones_locales = {
@@ -30,13 +28,9 @@ def test_orquestacion_confirmacion_delega_flujo_pdf_al_bounded_context() -> None
     assert "confirmar_lote_y_generar_pdf" not in funciones_locales
     assert "generar_pdf_confirmadas" not in funciones_locales
 
-    imports_origen_pdf = {
-        alias.name
+    imports_confirmacion_pdf = {
+        nodo.module
         for nodo in arbol.body
-        if isinstance(nodo, ast.ImportFrom)
-        and nodo.module
-        == "app.application.use_cases.confirmacion_pdf.orquestacion_confirmacion_pdf"
-        for alias in nodo.names
+        if isinstance(nodo, ast.ImportFrom) and nodo.module
     }
-    assert "confirmar_lote_y_generar_pdf" in imports_origen_pdf
-    assert "generar_pdf_confirmadas" in imports_origen_pdf
+    assert "app.application.use_cases.confirmacion_pdf.orquestacion_confirmacion_pdf" not in imports_confirmacion_pdf

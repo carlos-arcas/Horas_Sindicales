@@ -36,7 +36,7 @@ from app.application.use_cases.solicitudes.auxiliares_caso_uso import (
     resumen_confirmacion_pdf,
     seleccionar_solicitudes_por_filtro,
 )
-from app.application.use_cases.solicitudes.orquestacion_confirmacion import (
+from app.application.use_cases.confirmacion_pdf.orquestacion_compat_solicitudes import (
     confirmar_solicitudes_lote as confirmar_solicitudes_lote_orquestado,
     resolver_o_crear_solicitud as resolver_o_crear_solicitud_orquestado,
 )

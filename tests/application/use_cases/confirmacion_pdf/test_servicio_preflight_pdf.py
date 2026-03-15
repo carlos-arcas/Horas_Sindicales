@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
+from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
     EntradaNombrePdf,
     ServicioPreflightPdf,
 )
