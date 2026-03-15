@@ -7,7 +7,7 @@ import pytest
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
-from app.application.use_cases.solicitudes import use_case as use_case_module
+from app.application.use_cases.confirmacion_pdf import coordinador_confirmacion_pdf as coordinador_module
 from app.application.use_cases.solicitudes.validaciones import validar_solicitud_dto_declarativo
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError, ValidacionError
@@ -136,11 +136,15 @@ def test_confirmar_lote_resuelve_destino_pdf_una_sola_vez(connection, tmp_path: 
     destino.write_bytes(b"contenido previo")
 
     with (
-        patch.object(use_case, "resolver_destino_pdf", wraps=use_case.resolver_destino_pdf) as spy_use_case,
         patch.object(
-            use_case_module,
+            use_case._coordinador_confirmacion_pdf,
+            "resolver_destino_pdf",
+            wraps=use_case._coordinador_confirmacion_pdf.resolver_destino_pdf,
+        ) as spy_use_case,
+        patch.object(
+            coordinador_module,
             "resolver_ruta_sin_colision",
-            wraps=use_case_module.resolver_ruta_sin_colision,
+            wraps=coordinador_module.resolver_ruta_sin_colision,
         ) as spy_policy,
     ):
         _, _, errores, ruta_pdf = use_case.confirmar_lote_y_generar_pdf([_solicitud(persona_id)], destino)

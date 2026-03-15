@@ -180,13 +180,13 @@ def test_orquestador_invoca_builder_y_runner(monkeypatch) -> None:
         assert plan.reason_code == "NO_SOLICITUDES"
         return None, []
 
-    import app.application.use_cases.solicitudes.use_case as uc_module
+    import app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf as coord_module
 
-    monkeypatch.setattr(uc_module, "plan_pdf_confirmadas", _fake_builder)
-    monkeypatch.setattr(uc_module, "run_pdf_confirmadas_plan", _fake_runner)
+    monkeypatch.setattr(coord_module, "plan_pdf_confirmadas", _fake_builder)
+    monkeypatch.setattr(coord_module, "run_pdf_confirmadas_plan", _fake_runner)
 
     use_case = SolicitudUseCases(_Repo(), _PersonaRepo(_persona()), config_repo=_ConfigRepo(), generador_pdf=_Pdf(), fs=SistemaArchivosLocal())
-    path, actualizadas = use_case._generar_pdf_confirmadas([solicitud], Path("/tmp/x.pdf"), correlation_id=None)
+    path, actualizadas = use_case._coordinador_confirmacion_pdf._generar_pdf_confirmadas([solicitud], Path("/tmp/x.pdf"), correlation_id=None)
 
     assert path is None
     assert actualizadas == [solicitud]
