@@ -32,6 +32,7 @@ from app.application.use_cases.confirmacion_pdf.generar_pdf_confirmadas_caso_uso
 )
 from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import (
     CrearPendienteCasoUso,
+    SolicitudCrearPendientePeticion,
 )
 from app.application.use_cases.health_check import HealthCheckUseCase
 from app.infrastructure.cargador_datos_demo_sqlite import CargadorDatosDemoSQLite
@@ -139,13 +140,25 @@ def build_container(
     crear_pendiente_caso_uso = CrearPendienteCasoUso(
         repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases)
     )
+
+    def crear_pendiente_para_confirmacion_pdf(solicitud, *, correlation_id=None):
+        resultado = crear_pendiente_caso_uso.execute(
+            SolicitudCrearPendientePeticion(
+                solicitud=solicitud,
+                correlation_id=correlation_id,
+            )
+        )
+        if resultado.solicitud_creada is None:
+            raise ValueError(resultado.errores[0] if resultado.errores else "No se pudo crear la solicitud pendiente.")
+        return resultado.solicitud_creada
+
     coordinador_confirmacion_pdf = CoordinadorConfirmacionPdf(
         repo=solicitud_repo,
         persona_repo=persona_repo,
         fs=SistemaArchivosLocal(),
         config_repo=grupo_repo,
         generador_pdf=generador_pdf,
-        agregar_solicitud=solicitud_use_cases.agregar_solicitud,
+        crear_pendiente=crear_pendiente_para_confirmacion_pdf,
         logger=LOGGER,
     )
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)

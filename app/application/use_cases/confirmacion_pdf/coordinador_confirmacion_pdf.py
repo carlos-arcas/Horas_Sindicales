@@ -58,7 +58,7 @@ class CoordinadorConfirmacionPdf:
     repo: SolicitudRepository
     persona_repo: PersonaRepository
     fs: SistemaArchivosPuerto
-    agregar_solicitud: Callable[..., tuple[SolicitudDTO, object]]
+    crear_pendiente: Callable[..., SolicitudDTO]
     config_repo: GrupoConfigRepository | None = None
     generador_pdf: GeneradorPdfPuerto | None = None
     logger: logging.Logger | None = None
@@ -178,7 +178,7 @@ class CoordinadorConfirmacionPdf:
             correlation_id=correlation_id,
             get_by_id=self.repo.get_by_id,
             solicitud_to_dto=_solicitud_to_dto,
-            agregar_solicitud=self.agregar_solicitud,
+            crear_pendiente=self.crear_pendiente,
         )
 
     def _generar_pdf_confirmadas(

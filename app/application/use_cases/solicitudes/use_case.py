@@ -135,7 +135,7 @@ class SolicitudUseCases:
             fs=self._fs,
             config_repo=self._config_repo,
             generador_pdf=self._generador_pdf,
-            agregar_solicitud=self.agregar_solicitud,
+            crear_pendiente=self._crear_pendiente_desde_coordinador,
             logger=logger,
         )
 
@@ -623,9 +623,14 @@ class SolicitudUseCases:
             total_cuadrante_por_fecha=_total_cuadrante_por_fecha,
         )
 
-    @property
-    def coordinador_confirmacion_pdf(self) -> CoordinadorConfirmacionPdf:
-        return self._coordinador_confirmacion_pdf
+    def _crear_pendiente_desde_coordinador(
+        self,
+        solicitud: SolicitudDTO,
+        *,
+        correlation_id: str | None = None,
+    ) -> SolicitudDTO:
+        creada, _ = self.agregar_solicitud(solicitud, correlation_id=correlation_id)
+        return creada
 
     def confirmar_lote_y_generar_pdf(
         self,
