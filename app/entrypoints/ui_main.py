@@ -780,6 +780,7 @@ def run_ui(container=None) -> int:
             resolved_container.alert_engine,
             resolved_container.validacion_preventiva_lock_use_case,
             resolved_container.confirmar_pendientes_pdf_caso_uso,
+            resolved_container.coordinador_confirmacion_pdf,
             resolved_container.crear_pendiente_caso_uso,
             guardar_preferencia_inicio_maximizado=deps_arranque.guardar_preferencia_inicio_maximizado,
             obtener_preferencia_inicio_maximizado=deps_arranque.obtener_preferencia_inicio_maximizado,

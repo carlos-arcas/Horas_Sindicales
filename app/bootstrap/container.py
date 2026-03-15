@@ -24,6 +24,9 @@ from app.application.use_cases.alert_engine import AlertEngine
 from app.application.use_cases.confirmacion_pdf.caso_uso import (
     ConfirmarPendientesPdfCasoUso,
 )
+from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
+    CoordinadorConfirmacionPdf,
+)
 from app.application.use_cases.confirmacion_pdf.generar_pdf_confirmadas_caso_uso import (
     GenerarPdfSolicitudesConfirmadasCasoUso,
 )
@@ -81,6 +84,7 @@ class AppContainer:
     alert_engine: AlertEngine
     validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase
     confirmar_pendientes_pdf_caso_uso: ConfirmarPendientesPdfCasoUso
+    coordinador_confirmacion_pdf: CoordinadorConfirmacionPdf
     crear_pendiente_caso_uso: CrearPendienteCasoUso
     repositorio_preferencias: IRepositorioPreferencias
     cargar_datos_demo_caso_uso: CargarDatosDemoCasoUso
@@ -122,8 +126,11 @@ def build_container(
         config_repo=grupo_repo,
         generador_pdf=generador_pdf,
     )
+    repositorio_solicitudes_confirmacion_pdf = RepositorioSolicitudesDesdeCasosUso(
+        solicitud_use_cases
+    )
     confirmar_pendientes_pdf_caso_uso = ConfirmarPendientesPdfCasoUso(
-        repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases),
+        repositorio=repositorio_solicitudes_confirmacion_pdf,
         generador_pdf=GeneradorPdfConfirmadasDesdeCasosUso(
             generador_pdf_confirmadas_caso_uso
         ),
@@ -132,6 +139,7 @@ def build_container(
     crear_pendiente_caso_uso = CrearPendienteCasoUso(
         repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases)
     )
+    coordinador_confirmacion_pdf = solicitud_use_cases.coordinador_confirmacion_pdf
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)
 
     config_store = LocalConfigStore()
@@ -190,6 +198,7 @@ def build_container(
         alert_engine=alert_engine,
         validacion_preventiva_lock_use_case=validacion_preventiva_lock_use_case,
         confirmar_pendientes_pdf_caso_uso=confirmar_pendientes_pdf_caso_uso,
+        coordinador_confirmacion_pdf=coordinador_confirmacion_pdf,
         crear_pendiente_caso_uso=crear_pendiente_caso_uso,
         repositorio_preferencias=repositorio_preferencias,
         cargar_datos_demo_caso_uso=cargar_datos_demo_caso_uso,
