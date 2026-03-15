@@ -42,6 +42,7 @@ def test_solicitudes_use_case_importa_dependencias_pdf_desde_confirmacion_pdf() 
     assert "app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas" in imports
     assert "app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder" in imports
     assert "app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner" in imports
+    assert "app.application.use_cases.confirmacion_pdf.orquestacion_confirmacion_pdf" in imports
     assert "app.application.use_cases.solicitudes.confirmacion_pdf_service" not in imports
     assert "app.application.use_cases.solicitudes.pdf_confirmadas_builder" not in imports
     assert "app.application.use_cases.solicitudes.pdf_confirmadas_runner" not in imports
