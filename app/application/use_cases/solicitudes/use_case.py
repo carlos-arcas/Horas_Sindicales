@@ -55,8 +55,8 @@ from app.application.use_cases.solicitudes.helpers_puros_2 import (
     rango_en_minutos,
     solicitud_desde_dto,
 )
-from app.application.use_cases.solicitudes.confirmacion_pdf_service import (
-    PathFileSystem,
+from app.application.use_cases.confirmacion_pdf.path_file_system import PathFileSystem
+from app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas import (
     generar_incident_id as _generar_incident_id,
     hash_file as _hash_file,
     pdf_intro_text as _pdf_intro_text,
@@ -64,10 +64,10 @@ from app.application.use_cases.solicitudes.confirmacion_pdf_service import (
 from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import (
     plan_confirmar_sin_pdf,
 )
-from app.application.use_cases.solicitudes.pdf_confirmadas_builder import (
+from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder import (
     plan_pdf_confirmadas,
 )
-from app.application.use_cases.solicitudes.pdf_confirmadas_runner import (
+from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner import (
     run_pdf_confirmadas_plan,
 )
 from app.application.use_cases.solicitudes.pdf_destino_policy import (

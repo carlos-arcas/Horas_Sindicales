@@ -8,13 +8,10 @@ from app.application.operaciones.confirmacion_pdf_operacion import (
     ConfirmacionPdfOperacion,
     RequestConfirmacionPdf,
 )
-from app.application.use_cases.solicitudes.auxiliares_caso_uso import ErrorAplicacionSolicitud
 from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import ConfirmarSinPdfAction
-from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder import (
-    PdfConfirmadasEntrada,
-    plan_pdf_confirmadas,
+from app.application.use_cases.confirmacion_pdf.orquestacion_pdf_confirmadas import (
+    generar_pdf_confirmadas as generar_pdf_confirmadas_feature,
 )
-from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner import run_pdf_confirmadas_plan
 from app.core.errors import InfraError
 from app.core.observability import log_event
 from app.domain.services import BusinessRuleError
@@ -149,38 +146,28 @@ def generar_pdf_confirmadas(
     pdf_intro_text,
     hash_file,
     generar_incident_id,
-    planificador_pdf=plan_pdf_confirmadas,
-    runner_pdf=run_pdf_confirmadas_plan,
+    planificador_pdf=None,
+    runner_pdf=None,
     logger: logging.Logger,
     correlation_id: str | None,
 ) -> tuple[Path | None, list[SolicitudDTO]]:
-    pdf_options = config_repo.get() if config_repo else None
-    entrada = PdfConfirmadasEntrada(
-        creadas=tuple(creadas),
+    """Compatibilidad temporal: delega al bounded context confirmacion_pdf."""
+
+    return generar_pdf_confirmadas_feature(
+        creadas=creadas,
         destino=destino,
-        persona=persona_repo.get_by_id(creadas[0].persona_id) if creadas else None,
-        generador_configurado=generador_pdf is not None,
-        intro_text=pdf_intro_text(pdf_options),
-        logo_path=pdf_options.pdf_logo_path if pdf_options else None,
-        include_hours_in_horario=(pdf_options.pdf_include_hours_in_horario if pdf_options else None),
-    )
-    plan = planificador_pdf(entrada)
-    pdf_path, actualizadas = runner_pdf(
-        plan,
+        config_repo=config_repo,
+        persona_repo=persona_repo,
         generador_pdf=generador_pdf,
         repo=repo,
-        correlation_id=correlation_id,
-        logger=logger,
+        pdf_intro_text=pdf_intro_text,
         hash_file=hash_file,
-        incident_id_factory=generar_incident_id,
-        app_error_factory=lambda incident_id: ErrorAplicacionSolicitud(
-            "No se pudo generar el PDF por un error técnico",
-            incident_id=incident_id,
-        ),
+        generar_incident_id=generar_incident_id,
+        planificador_pdf=planificador_pdf,
+        runner_pdf=runner_pdf,
+        logger=logger,
+        correlation_id=correlation_id,
     )
-    if pdf_path is None:
-        return None, creadas
-    return pdf_path, actualizadas
 
 
 def confirmar_sin_pdf(

@@ -6,7 +6,7 @@ import pytest
 
 from app.application.dto import PeriodoFiltro
 from app.application.use_cases import SolicitudUseCases
-from app.application.use_cases.solicitudes.confirmacion_pdf_service import hash_file
+from app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas import hash_file
 from app.core import metrics as metrics_module
 from app.core.metrics import MetricsRegistry
 from app.domain.models import Persona, Solicitud

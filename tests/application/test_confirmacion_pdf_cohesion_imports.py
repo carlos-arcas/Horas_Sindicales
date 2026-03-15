@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 RUTA_CASO_USO = Path("app/application/use_cases/confirmacion_pdf/generar_pdf_confirmadas_caso_uso.py")
+RUTA_SOLICITUDES_USE_CASE = Path("app/application/use_cases/solicitudes/use_case.py")
 
 
 def _imports_desde_modulo(path_archivo: Path) -> set[str]:
@@ -32,3 +33,15 @@ def test_generar_pdf_confirmadas_depende_de_contexto_confirmacion_pdf() -> None:
     assert "app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder" in imports
     assert "app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner" in imports
     assert "app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas" in imports
+
+
+def test_solicitudes_use_case_importa_dependencias_pdf_desde_confirmacion_pdf() -> None:
+    imports = _imports_desde_modulo(RUTA_SOLICITUDES_USE_CASE)
+
+    assert "app.application.use_cases.confirmacion_pdf.path_file_system" in imports
+    assert "app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas" in imports
+    assert "app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder" in imports
+    assert "app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner" in imports
+    assert "app.application.use_cases.solicitudes.confirmacion_pdf_service" not in imports
+    assert "app.application.use_cases.solicitudes.pdf_confirmadas_builder" not in imports
+    assert "app.application.use_cases.solicitudes.pdf_confirmadas_runner" not in imports
