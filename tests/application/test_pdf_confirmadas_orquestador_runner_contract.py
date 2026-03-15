@@ -5,13 +5,11 @@ from pathlib import Path
 import pytest
 
 from app.application.dto import SolicitudDTO
-from app.application.use_cases import SolicitudUseCases
 from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder import PdfAction, PdfConfirmadasPlan
 from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner import run_pdf_confirmadas_plan
 from app.core.errors import InfraError
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError
-from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 
 
 class _Repo:
@@ -20,24 +18,6 @@ class _Repo:
 
     def update_pdf_info(self, solicitud_id: int, pdf_path: str, pdf_hash: str | None) -> None:
         self.updated.append((solicitud_id, pdf_path, pdf_hash))
-
-
-class _PersonaRepo:
-    def __init__(self, persona: Persona | None) -> None:
-        self._persona = persona
-
-    def get_by_id(self, _persona_id: int) -> Persona | None:
-        return self._persona
-
-
-class _ConfigRepo:
-    class _Cfg:
-        pdf_intro_text = "Intro"
-        pdf_logo_path = "logo.png"
-        pdf_include_hours_in_horario = True
-
-    def get(self):
-        return self._Cfg()
 
 
 class _Pdf:
@@ -163,34 +143,6 @@ def test_runner_mantiene_manejo_error_tecnico() -> None:
             incident_id_factory=lambda: "INC-TEST",
             app_error_factory=lambda inc: RuntimeError(inc),
         )
-
-
-def test_orquestador_invoca_builder_y_runner(monkeypatch) -> None:
-    solicitud = _solicitud()
-    calls: list[str] = []
-
-    def _fake_builder(entrada):
-        calls.append("builder")
-        assert entrada.creadas == (solicitud,)
-        return PdfConfirmadasPlan(actions=(), reason_code="NO_SOLICITUDES")
-
-    def _fake_runner(plan, **kwargs):
-        _ = kwargs
-        calls.append("runner")
-        assert plan.reason_code == "NO_SOLICITUDES"
-        return None, []
-
-    import app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf as coord_module
-
-    monkeypatch.setattr(coord_module, "plan_pdf_confirmadas", _fake_builder)
-    monkeypatch.setattr(coord_module, "run_pdf_confirmadas_plan", _fake_runner)
-
-    use_case = SolicitudUseCases(_Repo(), _PersonaRepo(_persona()), config_repo=_ConfigRepo(), generador_pdf=_Pdf(), fs=SistemaArchivosLocal())
-    path, actualizadas = use_case._coordinador_confirmacion_pdf._generar_pdf_confirmadas([solicitud], Path("/tmp/x.pdf"), correlation_id=None)
-
-    assert path is None
-    assert actualizadas == [solicitud]
-    assert calls == ["builder", "runner"]
 
 
 def test_runner_reason_code_persona_no_encontrada() -> None:

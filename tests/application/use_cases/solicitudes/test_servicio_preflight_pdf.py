@@ -6,7 +6,9 @@ from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
     EntradaNombrePdf,
     ServicioPreflightPdf,
 )
-from app.application.use_cases.solicitudes.use_case import SolicitudUseCases
+from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
+    CoordinadorConfirmacionPdf,
+)
 
 
 class FakeSistemaArchivos:
@@ -94,14 +96,15 @@ def test_use_case_resuelve_colision_con_renombrado_automatico(tmp_path: Path) ->
         str(destino.resolve(strict=False)),
         str((tmp_path / "colision (1).pdf").resolve(strict=False)),
     }
-    use_case = SolicitudUseCases(
+    coordinador = CoordinadorConfirmacionPdf(
         repo=object(),
         persona_repo=object(),
         generador_pdf=FakeGeneradorPdf(),
         fs=FakeSistemaArchivos(existentes),
+        crear_pendiente=lambda solicitud, correlation_id=None: solicitud,
     )
 
-    resolucion = use_case._coordinador_confirmacion_pdf.resolver_destino_pdf(
+    resolucion = coordinador.resolver_destino_pdf(
         destino, overwrite=False, auto_rename=True
     )
 

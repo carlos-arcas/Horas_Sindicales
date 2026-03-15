@@ -8,6 +8,9 @@ import pytest
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
 from app.application.use_cases.confirmacion_pdf import coordinador_confirmacion_pdf as coordinador_module
+from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
+    CoordinadorConfirmacionPdf,
+)
 from app.application.use_cases.solicitudes.validaciones import validar_solicitud_dto_declarativo
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError, ValidacionError
@@ -137,9 +140,10 @@ def test_confirmar_lote_resuelve_destino_pdf_una_sola_vez(connection, tmp_path: 
 
     with (
         patch.object(
-            use_case._coordinador_confirmacion_pdf,
+            CoordinadorConfirmacionPdf,
             "resolver_destino_pdf",
-            wraps=use_case._coordinador_confirmacion_pdf.resolver_destino_pdf,
+            autospec=True,
+            wraps=CoordinadorConfirmacionPdf.resolver_destino_pdf,
         ) as spy_use_case,
         patch.object(
             coordinador_module,
