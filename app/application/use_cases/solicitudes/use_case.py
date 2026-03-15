@@ -72,7 +72,6 @@ from app.application.use_cases.solicitudes.servicio_saldos import (
     sugerir_nombre_pdf_historico as _sugerir_nombre_pdf_historico,
 )
 from app.application.use_cases.solicitudes.auxiliares_caso_uso import (
-    ResolucionDestinoPdf,
     calcular_totales_globales_desde_fuentes,
     calcular_resumen_saldos_desde_fuentes,
     construir_conflicto_dia,
@@ -624,24 +623,9 @@ class SolicitudUseCases:
             total_cuadrante_por_fecha=_total_cuadrante_por_fecha,
         )
 
-    def sugerir_nombre_pdf(self, solicitudes: Iterable[SolicitudDTO]) -> str:
-        try:
-            return self._coordinador_confirmacion_pdf.sugerir_nombre_pdf(solicitudes)
-        except ValueError as exc:
-            raise BusinessRuleError(str(exc)) from exc
-
-    def resolver_destino_pdf(
-        self,
-        destino: Path,
-        *,
-        overwrite: bool = False,
-        auto_rename: bool = True,
-    ) -> ResolucionDestinoPdf:
-        return self._coordinador_confirmacion_pdf.resolver_destino_pdf(
-            destino=destino,
-            overwrite=overwrite,
-            auto_rename=auto_rename,
-        )
+    @property
+    def coordinador_confirmacion_pdf(self) -> CoordinadorConfirmacionPdf:
+        return self._coordinador_confirmacion_pdf
 
     def confirmar_lote_y_generar_pdf(
         self,
@@ -696,21 +680,6 @@ class SolicitudUseCases:
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:
         return self.confirmar_lote_y_generar_pdf(
             solicitudes, destino, correlation_id=correlation_id
-        )
-
-    def confirmar_y_generar_pdf_por_filtro(
-        self,
-        *,
-        filtro_delegada: int | None,
-        pendientes: Iterable[SolicitudDTO],
-        destino: Path,
-        correlation_id: str | None = None,
-    ) -> tuple[Path | None, list[int], str]:
-        return self._coordinador_confirmacion_pdf.confirmar_y_generar_pdf_por_filtro(
-            filtro_delegada=filtro_delegada,
-            pendientes=pendientes,
-            destino=destino,
-            correlation_id=correlation_id,
         )
 
     def generar_pdf_historico(

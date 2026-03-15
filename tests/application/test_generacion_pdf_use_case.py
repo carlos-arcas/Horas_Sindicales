@@ -198,7 +198,7 @@ def test_confirmar_pdf_por_filtro_none_incluye_varias_delegadas(
         pdf_hash=None,
         notas=None,
     )
-    ruta, ids, resumen = use_case.confirmar_y_generar_pdf_por_filtro(
+    ruta, ids, resumen = use_case.coordinador_confirmacion_pdf.confirmar_y_generar_pdf_por_filtro(
         filtro_delegada=None, pendientes=[s1, s2], destino=tmp_path / "mix.pdf"
     )
     assert ruta is not None
@@ -251,7 +251,7 @@ def test_confirmar_pdf_por_filtro_delegada_aplica_subset(
         pdf_hash=None,
         notas=None,
     )
-    ruta, ids, _ = use_case.confirmar_y_generar_pdf_por_filtro(
+    ruta, ids, _ = use_case.coordinador_confirmacion_pdf.confirmar_y_generar_pdf_por_filtro(
         filtro_delegada=int(persona.id or 0),
         pendientes=[s1],
         destino=tmp_path / "one.pdf",
@@ -267,7 +267,7 @@ def test_confirmar_pdf_por_filtro_sin_pendientes_devuelve_warning(
     solicitud_repo = SolicitudRepositorySQLite(connection)
     fake_pdf = FakeGeneradorPdf()
     use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal())
-    ruta, ids, resumen = use_case.confirmar_y_generar_pdf_por_filtro(
+    ruta, ids, resumen = use_case.coordinador_confirmacion_pdf.confirmar_y_generar_pdf_por_filtro(
         filtro_delegada=None, pendientes=[], destino=tmp_path / "none.pdf"
     )
     assert ruta is None
