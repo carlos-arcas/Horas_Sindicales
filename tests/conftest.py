@@ -153,6 +153,7 @@ from app.application.dto import SolicitudDTO
 from app.application.use_cases import PersonaUseCases, SolicitudUseCases
 from app.domain.models import Persona
 from app.infrastructure.migrations import run_migrations
+from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
 
 
@@ -180,7 +181,7 @@ def solicitud_use_cases(
     solicitud_repo: SolicitudRepositorySQLite,
     persona_repo: RepositorioPersonasSQLite,
 ) -> SolicitudUseCases:
-    return SolicitudUseCases(solicitud_repo, persona_repo)
+    return SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal())
 
 
 

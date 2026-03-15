@@ -112,7 +112,7 @@ def test_crear_pendiente_y_listar_pendientes_sqlite(
     connection, solicitud_repo, persona_repo
 ) -> None:
     persona_id = _crear_persona(persona_repo)
-    solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo)
+    solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosFake())
 
     creada, _saldos = solicitudes_uc.agregar_solicitud(
         _solicitud(persona_id, "2026-01-10")
@@ -128,7 +128,7 @@ def test_regresion_crear_pendiente_retorna_ids_para_refresco_tabla(
     connection, solicitud_repo, persona_repo
 ) -> None:
     persona_id = _crear_persona(persona_repo)
-    solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo)
+    solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosFake())
     adapter = RepositorioSolicitudesDesdeCasosUso(solicitudes_uc)
     caso = CrearPendienteCasoUso(repositorio=adapter)
 
@@ -153,7 +153,7 @@ def test_confirmar_sin_pdf_actualiza_pendientes_restantes(
     connection, solicitud_repo, persona_repo
 ) -> None:
     persona_id = _crear_persona(persona_repo)
-    solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo)
+    solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosFake())
     primera, _ = solicitudes_uc.agregar_solicitud(_solicitud(persona_id, "2026-01-10"))
     segunda, _ = solicitudes_uc.agregar_solicitud(_solicitud(persona_id, "2026-01-11"))
 
@@ -167,7 +167,7 @@ def test_confirmar_sin_pdf_actualiza_pendientes_restantes(
     )
 
     pendientes_restantes = list(
-        SolicitudUseCases(solicitud_repo, persona_repo).listar_pendientes_all()
+        SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosFake()).listar_pendientes_all()
     )
 
     assert resultado.confirmadas_ids == [primera.id]
@@ -180,7 +180,7 @@ def test_confirmar_con_pdf_confirma_y_devuelve_ruta_pdf(
     connection, solicitud_repo, persona_repo, tmp_path
 ) -> None:
     persona_id = _crear_persona(persona_repo)
-    solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo)
+    solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosFake())
     primera, _ = solicitudes_uc.agregar_solicitud(_solicitud(persona_id, "2026-01-10"))
     segunda, _ = solicitudes_uc.agregar_solicitud(_solicitud(persona_id, "2026-01-11"))
 
@@ -196,7 +196,7 @@ def test_confirmar_con_pdf_confirma_y_devuelve_ruta_pdf(
     )
 
     pendientes_restantes = list(
-        SolicitudUseCases(solicitud_repo, persona_repo).listar_pendientes_all()
+        SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosFake()).listar_pendientes_all()
     )
 
     assert resultado.ruta_pdf == ruta_pdf

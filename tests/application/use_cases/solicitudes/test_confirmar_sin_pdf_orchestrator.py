@@ -47,7 +47,7 @@ def _build_action(solicitud: SolicitudDTO) -> ConfirmarSinPdfAction:
 
 
 def _use_case() -> SolicitudUseCases:
-    return SolicitudUseCases(repo=Mock(), persona_repo=Mock())
+    return SolicitudUseCases(repo=Mock(), persona_repo=Mock(), fs=Mock())
 
 
 def test_confirmar_sin_pdf_invoca_planner(monkeypatch: pytest.MonkeyPatch) -> None:

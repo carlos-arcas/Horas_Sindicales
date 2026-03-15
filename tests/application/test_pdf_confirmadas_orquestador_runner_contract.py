@@ -11,6 +11,7 @@ from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner import ru
 from app.core.errors import InfraError
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError
+from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 
 
 class _Repo:
@@ -184,7 +185,7 @@ def test_orquestador_invoca_builder_y_runner(monkeypatch) -> None:
     monkeypatch.setattr(uc_module, "plan_pdf_confirmadas", _fake_builder)
     monkeypatch.setattr(uc_module, "run_pdf_confirmadas_plan", _fake_runner)
 
-    use_case = SolicitudUseCases(_Repo(), _PersonaRepo(_persona()), config_repo=_ConfigRepo(), generador_pdf=_Pdf())
+    use_case = SolicitudUseCases(_Repo(), _PersonaRepo(_persona()), config_repo=_ConfigRepo(), generador_pdf=_Pdf(), fs=SistemaArchivosLocal())
     path, actualizadas = use_case._generar_pdf_confirmadas([solicitud], Path("/tmp/x.pdf"), correlation_id=None)
 
     assert path is None
