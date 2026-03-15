@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 from pathlib import Path
 
 import pytest
@@ -104,7 +105,7 @@ def test_exportacion_pdf_historico_e2e_genera_pdf_vacio_y_metricas(tmp_path: Pat
     persona = _persona()
     repo = FakeSolicitudRepoHistorico()
     generador = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(repo=repo, persona_repo=FakePersonaRepo(persona), generador_pdf=generador)
+    use_case = SolicitudUseCases(repo=repo, persona_repo=FakePersonaRepo(persona), generador_pdf=generador, fs=SistemaArchivosLocal())
 
     before = isolated_metrics.snapshot()
     pdf_path = use_case.exportar_historico_pdf(

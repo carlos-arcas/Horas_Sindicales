@@ -110,7 +110,7 @@ def build_container(
     persona_use_cases = PersonaUseCases(persona_repo, base_cuadrantes_service)
     generador_pdf = GeneradorPdfReportlab()
     solicitud_use_cases = SolicitudUseCases(
-        solicitud_repo, persona_repo, grupo_repo, generador_pdf
+        solicitud_repo, persona_repo, grupo_repo, generador_pdf, SistemaArchivosLocal()
     )
     generador_pdf_confirmadas_caso_uso = GenerarPdfSolicitudesConfirmadasCasoUso(
         repo=solicitud_repo,
