@@ -50,15 +50,14 @@ def resolver_o_crear_solicitud(
     correlation_id: str | None,
     get_by_id,
     solicitud_to_dto,
-    agregar_solicitud,
+    crear_pendiente,
 ) -> SolicitudDTO:
     if solicitud.id is not None:
         existente = get_by_id(solicitud.id)
         if existente is None:
             raise BusinessRuleError("La solicitud pendiente ya no existe.")
         return solicitud_to_dto(existente)
-    creada, _ = agregar_solicitud(solicitud, correlation_id=correlation_id)
-    return creada
+    return crear_pendiente(solicitud, correlation_id=correlation_id)
 
 
 def confirmar_sin_pdf(

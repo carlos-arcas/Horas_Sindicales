@@ -112,7 +112,7 @@ def test_use_case_colision_pdf_resuelve_ruta_alternativa_sin_io_real(tmp_path: P
         fs=FakeSistemaArchivos(existentes),
     )
 
-    resolucion = use_case.coordinador_confirmacion_pdf.resolver_destino_pdf(destino, overwrite=False, auto_rename=True)
+    resolucion = use_case._coordinador_confirmacion_pdf.resolver_destino_pdf(destino, overwrite=False, auto_rename=True)
 
     assert resolucion.colision_detectada is True
     assert str(resolucion.ruta_destino).endswith("colision (2).pdf")
