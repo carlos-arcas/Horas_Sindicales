@@ -8,7 +8,9 @@ from app.application.use_cases.solicitudes.servicio_preverificacion_pdf import (
     EntradaNombrePdf,
     ServicioPreverificacionPdf,
 )
-from app.application.use_cases.solicitudes.use_case import SolicitudUseCases
+from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
+    CoordinadorConfirmacionPdf,
+)
 
 
 class FakeSistemaArchivos:
@@ -105,14 +107,15 @@ def test_use_case_colision_pdf_resuelve_ruta_alternativa_sin_io_real(tmp_path: P
         str((tmp_path / "colision (1).pdf").resolve(strict=False)),
     }
 
-    use_case = SolicitudUseCases(
+    coordinador = CoordinadorConfirmacionPdf(
         repo=object(),
         persona_repo=object(),
         generador_pdf=FakeGeneradorPdf(),
         fs=FakeSistemaArchivos(existentes),
+        crear_pendiente=lambda solicitud, correlation_id=None: solicitud,
     )
 
-    resolucion = use_case._coordinador_confirmacion_pdf.resolver_destino_pdf(destino, overwrite=False, auto_rename=True)
+    resolucion = coordinador.resolver_destino_pdf(destino, overwrite=False, auto_rename=True)
 
     assert resolucion.colision_detectada is True
     assert str(resolucion.ruta_destino).endswith("colision (2).pdf")
