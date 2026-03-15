@@ -9,6 +9,7 @@ from app.infrastructure.repos_sqlite import (
     RepositorioPersonasSQLite,
     SolicitudRepositorySQLite,
 )
+from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 
 
 class FakeGeneradorPdf:
@@ -79,7 +80,7 @@ def test_confirmar_lote_llama_puerto_pdf_con_datos_esperados(
     )
 
     fake_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal())
     solicitud = SolicitudDTO(
         id=None,
         persona_id=int(persona.id or 0),
@@ -168,7 +169,7 @@ def test_confirmar_pdf_por_filtro_none_incluye_varias_delegadas(
         )
     )
     fake_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal())
     s1 = SolicitudDTO(
         id=None,
         persona_id=int(p1.id or 0),
@@ -235,7 +236,7 @@ def test_confirmar_pdf_por_filtro_delegada_aplica_subset(
         )
     )
     fake_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal())
     s1 = SolicitudDTO(
         id=None,
         persona_id=int(persona.id or 0),
@@ -265,7 +266,7 @@ def test_confirmar_pdf_por_filtro_sin_pendientes_devuelve_warning(
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     fake_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal())
     ruta, ids, resumen = use_case.confirmar_y_generar_pdf_por_filtro(
         filtro_delegada=None, pendientes=[], destino=tmp_path / "none.pdf"
     )
@@ -305,7 +306,7 @@ def test_confirmar_lote_colision_pdf_renombra_destino_sin_error(
     )
 
     fake_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal())
     solicitud = SolicitudDTO(
         id=None,
         persona_id=int(persona.id or 0),
@@ -385,7 +386,7 @@ def test_generar_pdf_historico_resuelve_personas_por_fila(connection, tmp_path: 
         )
     )
     fake_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal())
     solicitudes = [
         SolicitudDTO(
             id=1, persona_id=int(dora.id or 0), fecha_solicitud="2025-02-01", fecha_pedida="2025-02-01",

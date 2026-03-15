@@ -55,7 +55,6 @@ from app.application.use_cases.solicitudes.helpers_puros_2 import (
     rango_en_minutos,
     solicitud_desde_dto,
 )
-from app.application.use_cases.confirmacion_pdf.path_file_system import PathFileSystem
 from app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas import (
     generar_incident_id as _generar_incident_id,
     hash_file as _hash_file,
@@ -138,6 +137,35 @@ from app.application.use_cases.solicitudes.validacion_service import (
 
 logger = logging.getLogger(__name__)
 
+class _SistemaArchivosNoConfigurado(SistemaArchivosPuerto):
+    def _error(self) -> RuntimeError:
+        return RuntimeError("SistemaArchivosPuerto no configurado")
+
+    def existe_ruta(self, ruta: Path) -> bool:
+        raise self._error()
+
+    def existe(self, ruta: Path) -> bool:
+        raise self._error()
+
+    def leer_texto(self, ruta: Path) -> str:
+        raise self._error()
+
+    def leer_bytes(self, ruta: Path) -> bytes:
+        raise self._error()
+
+    def escribir_texto(self, ruta: Path, contenido: str) -> None:
+        raise self._error()
+
+    def escribir_bytes(self, ruta: Path, contenido: bytes) -> None:
+        raise self._error()
+
+    def mkdir(self, ruta: Path, *, parents: bool = True, exist_ok: bool = True) -> None:
+        raise self._error()
+
+    def listar(self, base: Path) -> list[Path]:
+        raise self._error()
+
+
 
 class SolicitudUseCases:
     """Casos de uso para solicitudes."""
@@ -154,7 +182,7 @@ class SolicitudUseCases:
         self._persona_repo = persona_repo
         self._config_repo = config_repo
         self._generador_pdf = generador_pdf
-        self._fs = fs or PathFileSystem()
+        self._fs = fs or _SistemaArchivosNoConfigurado()
         self._servicio_preflight_pdf = ServicioPreflightPdf(
             fs=self._fs,
             generador_pdf=self._generador_pdf,

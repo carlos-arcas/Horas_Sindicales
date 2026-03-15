@@ -38,7 +38,7 @@ def test_generar_pdf_confirmadas_depende_de_contexto_confirmacion_pdf() -> None:
 def test_solicitudes_use_case_importa_dependencias_pdf_desde_confirmacion_pdf() -> None:
     imports = _imports_desde_modulo(RUTA_SOLICITUDES_USE_CASE)
 
-    assert "app.application.use_cases.confirmacion_pdf.path_file_system" in imports
+    assert "app.infrastructure.sistema_archivos.path_file_system" not in imports
     assert "app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas" in imports
     assert "app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder" in imports
     assert "app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner" in imports
