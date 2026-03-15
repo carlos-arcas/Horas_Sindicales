@@ -106,11 +106,13 @@ from app.application.use_cases.solicitudes.auxiliares_caso_uso import (
     confirmar_sin_pdf_con_manejador,
     ejecutar_confirmar_sin_pdf_action,
 )
-from app.application.use_cases.solicitudes.orquestacion_confirmacion import (
+from app.application.use_cases.confirmacion_pdf.orquestacion_confirmacion_pdf import (
     confirmar_lote_y_generar_pdf as confirmar_lote_y_generar_pdf_orquestado,
+    generar_pdf_confirmadas as generar_pdf_confirmadas_orquestado,
+)
+from app.application.use_cases.solicitudes.orquestacion_confirmacion import (
     confirmar_sin_pdf as confirmar_sin_pdf_orquestado,
     confirmar_solicitudes_lote as confirmar_solicitudes_lote_orquestado,
-    generar_pdf_confirmadas as generar_pdf_confirmadas_orquestado,
     resolver_o_crear_solicitud as resolver_o_crear_solicitud_orquestado,
     run_confirmar_sin_pdf_action as run_confirmar_sin_pdf_action_orquestado,
 )

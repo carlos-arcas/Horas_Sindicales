@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.application.dto import SolicitudDTO
-from app.application.use_cases.solicitudes.orquestacion_confirmacion import confirmar_lote_y_generar_pdf
+from app.application.use_cases.confirmacion_pdf.orquestacion_confirmacion_pdf import confirmar_lote_y_generar_pdf
 
 
 def _solicitud() -> SolicitudDTO:
