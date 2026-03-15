@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def prompt_confirm_pdf_path(window: Any, selected: list[SolicitudDTO]) -> str | None:
-    default_name = window._coordinador_confirmacion_pdf.sugerir_nombre_pdf(selected)
+    default_name = window._servicio_destino_pdf_confirmacion.sugerir_nombre_pdf(selected)
     default_path = str(Path.home() / default_name)
     pdf_path, _ = QFileDialog.getSaveFileName(
         window,

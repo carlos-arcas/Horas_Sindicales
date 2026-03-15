@@ -175,7 +175,7 @@ class AccionesMainWindowMixin:
         if not isinstance(selected, list) or not selected:
             return None
 
-        sugerir_nombre = getattr(self._coordinador_confirmacion_pdf, "sugerir_nombre_pdf", None)
+        sugerir_nombre = getattr(self._servicio_destino_pdf_confirmacion, "sugerir_nombre_pdf", None)
         if not callable(sugerir_nombre):
             return None
 

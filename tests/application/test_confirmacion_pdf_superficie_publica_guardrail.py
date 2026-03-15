@@ -11,6 +11,7 @@ RUTA_HISTORICO_ACTIONS = Path("app/ui/vistas/historico_actions.py")
 RUTA_ACCIONES_MIXIN = Path("app/ui/vistas/main_window/acciones_mixin.py")
 RUTA_BOOTSTRAP_CONTAINER = Path("app/bootstrap/container.py")
 RUTA_STATE_CONTROLLER = Path("app/ui/vistas/main_window/state_controller.py")
+RUTA_COORDINADOR = Path("app/application/use_cases/confirmacion_pdf/coordinador_confirmacion_pdf.py")
 
 
 def _metodos_publicos(path_archivo: Path, *, clase: str) -> set[str]:
@@ -41,6 +42,17 @@ def test_solicitud_use_cases_reduce_wrappers_confirmacion_pdf_legacy() -> None:
     assert "coordinador_confirmacion_pdf" not in metodos_publicos
 
 
+
+
+def test_coordinador_confirmacion_pdf_no_expone_preflight_destino() -> None:
+    metodos_publicos = _metodos_publicos(
+        RUTA_COORDINADOR,
+        clase="CoordinadorConfirmacionPdf",
+    )
+
+    assert "sugerir_nombre_pdf" not in metodos_publicos
+    assert "resolver_destino_pdf" not in metodos_publicos
+
 def test_consumidores_ui_confirmacion_pdf_evitan_service_locator_solicitud_use_cases() -> None:
     rutas = [
         RUTA_CONTROLLER_SOLICITUDES,
@@ -51,23 +63,25 @@ def test_consumidores_ui_confirmacion_pdf_evitan_service_locator_solicitud_use_c
     contenido = "\n".join(ruta.read_text(encoding="utf-8") for ruta in rutas)
 
     assert "_solicitud_use_cases.coordinador_confirmacion_pdf" not in contenido
-    assert "_coordinador_confirmacion_pdf" in contenido
+    assert "_servicio_destino_pdf_confirmacion" in contenido
     assert "_solicitud_use_cases.sugerir_nombre_pdf(" not in contenido
     assert "_solicitud_use_cases.resolver_destino_pdf(" not in contenido
     assert "_solicitud_use_cases.confirmar_y_generar_pdf_por_filtro(" not in contenido
 
 
-def test_bootstrap_inyecta_coordinador_confirmacion_pdf_directo() -> None:
+def test_bootstrap_inyecta_dependencias_confirmacion_pdf_desacopladas() -> None:
     contenido = RUTA_BOOTSTRAP_CONTAINER.read_text(encoding="utf-8")
 
     assert "coordinador_confirmacion_pdf = solicitud_use_cases.coordinador_confirmacion_pdf" not in contenido
     assert "coordinador_confirmacion_pdf = CoordinadorConfirmacionPdf(" in contenido
     assert "agregar_solicitud=solicitud_use_cases.agregar_solicitud" not in contenido
     assert "crear_pendiente=crear_pendiente_para_confirmacion_pdf" in contenido
+    assert "servicio_destino_pdf_confirmacion = ServicioDestinoPdfConfirmacion(" in contenido
 
 
-def test_main_window_exige_coordinador_confirmacion_pdf_explicito() -> None:
+def test_main_window_exige_dependencias_pdf_explicitas() -> None:
     contenido = RUTA_STATE_CONTROLLER.read_text(encoding="utf-8")
 
     assert "or solicitud_use_cases.coordinador_confirmacion_pdf" not in contenido
     assert "self._coordinador_confirmacion_pdf = coordinador_confirmacion_pdf" in contenido
+    assert "self._servicio_destino_pdf_confirmacion = servicio_destino_pdf_confirmacion" in contenido
