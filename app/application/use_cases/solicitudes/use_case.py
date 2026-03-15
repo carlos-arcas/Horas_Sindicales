@@ -56,26 +56,13 @@ from app.application.use_cases.solicitudes.helpers_puros_2 import (
     solicitud_desde_dto,
 )
 from app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas import (
-    generar_incident_id as _generar_incident_id,
-    hash_file as _hash_file,
     pdf_intro_text as _pdf_intro_text,
+)
+from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
+    CoordinadorConfirmacionPdf,
 )
 from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import (
     plan_confirmar_sin_pdf,
-)
-from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder import (
-    plan_pdf_confirmadas,
-)
-from app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner import (
-    run_pdf_confirmadas_plan,
-)
-from app.application.use_cases.solicitudes.pdf_destino_policy import (
-    resolver_colision_pdf,
-    resolver_ruta_sin_colision,
-)
-from app.application.use_cases.solicitudes.servicio_preflight_pdf import (
-    EntradaNombrePdf,
-    ServicioPreflightPdf,
 )
 from app.application.use_cases.solicitudes.servicio_saldos import (
     acumular_consumo_anual_por_personas as _acumular_consumo_anual_por_personas,
@@ -85,7 +72,6 @@ from app.application.use_cases.solicitudes.servicio_saldos import (
     sugerir_nombre_pdf_historico as _sugerir_nombre_pdf_historico,
 )
 from app.application.use_cases.solicitudes.auxiliares_caso_uso import (
-    NOMBRE_PDF_POR_DEFECTO,
     ResolucionDestinoPdf,
     calcular_totales_globales_desde_fuentes,
     calcular_resumen_saldos_desde_fuentes,
@@ -94,25 +80,15 @@ from app.application.use_cases.solicitudes.auxiliares_caso_uso import (
     ejecutar_exportacion_pdf_historico,
     ids_para_sustitucion,
     obtener_persona_o_error,
-    resolver_destino_pdf as resolver_destino_pdf_helper,
-    resumen_confirmacion_pdf,
     resolver_correlation_id,
-    seleccionar_solicitudes_por_filtro,
     sugerir_completo_minutos,
     sumar_pendientes_minutos,
     validar_tipo_para_sustitucion,
-    confirmar_solicitudes_lote_con_manejador,
     confirmar_sin_pdf_con_manejador,
     ejecutar_confirmar_sin_pdf_action,
 )
-from app.application.use_cases.confirmacion_pdf.orquestacion_confirmacion_pdf import (
-    confirmar_lote_y_generar_pdf as confirmar_lote_y_generar_pdf_orquestado,
-    generar_pdf_confirmadas as generar_pdf_confirmadas_orquestado,
-)
 from app.application.use_cases.solicitudes.orquestacion_confirmacion import (
     confirmar_sin_pdf as confirmar_sin_pdf_orquestado,
-    confirmar_solicitudes_lote as confirmar_solicitudes_lote_orquestado,
-    resolver_o_crear_solicitud as resolver_o_crear_solicitud_orquestado,
     run_confirmar_sin_pdf_action as run_confirmar_sin_pdf_action_orquestado,
 )
 from app.application.use_cases.solicitudes.orquestacion_exportaciones import (
@@ -154,9 +130,14 @@ class SolicitudUseCases:
         self._config_repo = config_repo
         self._generador_pdf = generador_pdf
         self._fs = fs
-        self._servicio_preflight_pdf = ServicioPreflightPdf(
+        self._coordinador_confirmacion_pdf = CoordinadorConfirmacionPdf(
+            repo=self._repo,
+            persona_repo=self._persona_repo,
             fs=self._fs,
+            config_repo=self._config_repo,
             generador_pdf=self._generador_pdf,
+            agregar_solicitud=self.agregar_solicitud,
+            logger=logger,
         )
 
     def listar_por_persona(self, persona_id: int) -> Iterable[SolicitudDTO]:
@@ -644,17 +625,8 @@ class SolicitudUseCases:
         )
 
     def sugerir_nombre_pdf(self, solicitudes: Iterable[SolicitudDTO]) -> str:
-        solicitudes_list = list(solicitudes)
-        if not solicitudes_list:
-            return NOMBRE_PDF_POR_DEFECTO
-        persona = obtener_persona_o_error(
-            self._persona_repo.get_by_id(solicitudes_list[0].persona_id)
-        )
-        fechas = [solicitud.fecha_pedida for solicitud in solicitudes_list]
         try:
-            return self._servicio_preflight_pdf.construir_nombre_pdf(
-                EntradaNombrePdf(nombre_persona=persona.nombre, fechas=tuple(fechas))
-            )
+            return self._coordinador_confirmacion_pdf.sugerir_nombre_pdf(solicitudes)
         except ValueError as exc:
             raise BusinessRuleError(str(exc)) from exc
 
@@ -665,27 +637,10 @@ class SolicitudUseCases:
         overwrite: bool = False,
         auto_rename: bool = True,
     ) -> ResolucionDestinoPdf:
-        if hasattr(self._fs, "resolver_colision_archivo"):
-            resolver_colision = resolver_ruta_sin_colision
-        else:
-
-            def resolver_colision(ruta: Path) -> Path:
-                return resolver_colision_pdf(ruta, self._fs)
-
-        ruta_destino, colision_detectada, ruta_original, ruta_alternativa = (
-            resolver_destino_pdf_helper(
-                destino,
-                overwrite=overwrite,
-                auto_rename=auto_rename,
-                resolver_ruta_colision=resolver_colision,
-            )
-        )
-
-        return ResolucionDestinoPdf(
-            ruta_destino=ruta_destino,
-            colision_detectada=colision_detectada,
-            ruta_original=ruta_original,
-            ruta_alternativa=ruta_alternativa if colision_detectada else None,
+        return self._coordinador_confirmacion_pdf.resolver_destino_pdf(
+            destino=destino,
+            overwrite=overwrite,
+            auto_rename=auto_rename,
         )
 
     def confirmar_lote_y_generar_pdf(
@@ -696,61 +651,9 @@ class SolicitudUseCases:
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:
         if is_read_only_enabled():
             raise BusinessRuleError("Modo solo lectura activado")
-        if not correlation_id:
-            correlation_id = str(uuid.uuid4())
-        return confirmar_lote_y_generar_pdf_orquestado(
-            solicitudes=solicitudes,
+        return self._coordinador_confirmacion_pdf.confirmar_lote_y_generar_pdf(
+            solicitudes,
             destino=destino,
-            resolver_destino_pdf=self.resolver_destino_pdf,
-            fs=self._fs,
-            generador_pdf=self._generador_pdf,
-            validar_solicitud=validar_solicitud_dto_declarativo,
-            confirmar_solicitudes_lote=self._confirmar_solicitudes_lote,
-            generar_pdf_confirmadas=self._generar_pdf_confirmadas,
-            logger=logger,
-            correlation_id=correlation_id,
-        )
-
-    def _confirmar_solicitudes_lote(
-        self, solicitudes: list[SolicitudDTO], *, correlation_id: str | None
-    ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]:
-        return confirmar_solicitudes_lote_orquestado(
-            solicitudes=solicitudes,
-            resolver_o_crear=self._resolver_o_crear_solicitud,
-            confirmar_lote_con_manejador=confirmar_solicitudes_lote_con_manejador,
-            generar_incident_id=_generar_incident_id,
-            logger=logger,
-            correlation_id=correlation_id,
-        )
-
-    def _resolver_o_crear_solicitud(
-        self, solicitud: SolicitudDTO, *, correlation_id: str | None
-    ) -> SolicitudDTO:
-        return resolver_o_crear_solicitud_orquestado(
-            solicitud,
-            correlation_id=correlation_id,
-            get_by_id=self._repo.get_by_id,
-            solicitud_to_dto=_solicitud_to_dto,
-            agregar_solicitud=self.agregar_solicitud,
-        )
-
-    def _generar_pdf_confirmadas(
-        self, creadas: list[SolicitudDTO], destino: Path, *, correlation_id: str | None
-    ) -> tuple[Path | None, list[SolicitudDTO]]:
-        """Genera y persiste PDF de solicitudes confirmadas."""
-        return generar_pdf_confirmadas_orquestado(
-            creadas=creadas,
-            destino=destino,
-            config_repo=self._config_repo,
-            persona_repo=self._persona_repo,
-            generador_pdf=self._generador_pdf,
-            repo=self._repo,
-            pdf_intro_text=_pdf_intro_text,
-            hash_file=_hash_file,
-            generar_incident_id=_generar_incident_id,
-            planificador_pdf=plan_pdf_confirmadas,
-            runner_pdf=run_pdf_confirmadas_plan,
-            logger=logger,
             correlation_id=correlation_id,
         )
 
@@ -803,22 +706,12 @@ class SolicitudUseCases:
         destino: Path,
         correlation_id: str | None = None,
     ) -> tuple[Path | None, list[int], str]:
-        seleccionadas, modo = seleccionar_solicitudes_por_filtro(
-            pendientes, filtro_delegada
-        )
-        if not seleccionadas:
-            return None, [], f"Sin pendientes para confirmar ({modo})."
-
-        creadas, _pendientes, errores, ruta = self.confirmar_lote_y_generar_pdf(
-            seleccionadas,
-            destino,
+        return self._coordinador_confirmacion_pdf.confirmar_y_generar_pdf_por_filtro(
+            filtro_delegada=filtro_delegada,
+            pendientes=pendientes,
+            destino=destino,
             correlation_id=correlation_id,
         )
-        if ruta is None:
-            return None, [], "No se generó el PDF."
-        ids_confirmadas = [sol.id for sol in creadas if sol.id is not None]
-        resumen = resumen_confirmacion_pdf(creadas, errores, modo)
-        return ruta, ids_confirmadas, resumen
 
     def generar_pdf_historico(
         self,
