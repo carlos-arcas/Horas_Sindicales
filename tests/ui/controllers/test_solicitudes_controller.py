@@ -131,10 +131,8 @@ def test_on_add_pendiente_validation_fail() -> None:
 def test_confirmar_lote_success_generar_pdf() -> None:
     solicitud = replace(_solicitud_base(), id=5)
     window = SimpleNamespace(
-        _solicitud_use_cases=SimpleNamespace(
-            coordinador_confirmacion_pdf=SimpleNamespace(
-                confirmar_y_generar_pdf_por_filtro=Mock(return_value=(Path("/tmp/out.pdf"), [5], "ok"))
-            )
+        _coordinador_confirmacion_pdf=SimpleNamespace(
+            confirmar_y_generar_pdf_por_filtro=Mock(return_value=(Path("/tmp/out.pdf"), [5], "ok"))
         )
     )
     controller = SolicitudesController(window)
@@ -157,10 +155,8 @@ def test_confirmar_lote_success_generar_pdf() -> None:
 def test_confirmar_lote_business_rule_error_colision_ruta() -> None:
     solicitud = replace(_solicitud_base(), id=8)
     window = SimpleNamespace(
-        _solicitud_use_cases=SimpleNamespace(
-            coordinador_confirmacion_pdf=SimpleNamespace(
-                confirmar_y_generar_pdf_por_filtro=Mock(side_effect=BusinessRuleError("Colisión de ruta PDF"))
-            )
+        _coordinador_confirmacion_pdf=SimpleNamespace(
+            confirmar_y_generar_pdf_por_filtro=Mock(side_effect=BusinessRuleError("Colisión de ruta PDF"))
         )
     )
     controller = SolicitudesController(window)

@@ -39,7 +39,7 @@ def test_solicitud_use_cases_reduce_wrappers_confirmacion_pdf_legacy() -> None:
     assert "coordinador_confirmacion_pdf" in metodos_publicos
 
 
-def test_consumidores_ui_confirmacion_pdf_delegan_en_coordinador_contexto() -> None:
+def test_consumidores_ui_confirmacion_pdf_evitan_service_locator_solicitud_use_cases() -> None:
     rutas = [
         RUTA_CONTROLLER_SOLICITUDES,
         RUTA_ADAPTADOR_CONFIRMACION_QT,
@@ -48,7 +48,8 @@ def test_consumidores_ui_confirmacion_pdf_delegan_en_coordinador_contexto() -> N
     ]
     contenido = "\n".join(ruta.read_text(encoding="utf-8") for ruta in rutas)
 
-    assert "_solicitud_use_cases.coordinador_confirmacion_pdf" in contenido
+    assert "_solicitud_use_cases.coordinador_confirmacion_pdf" not in contenido
+    assert "_coordinador_confirmacion_pdf" in contenido
     assert "_solicitud_use_cases.sugerir_nombre_pdf(" not in contenido
     assert "_solicitud_use_cases.resolver_destino_pdf(" not in contenido
     assert "_solicitud_use_cases.confirmar_y_generar_pdf_por_filtro(" not in contenido

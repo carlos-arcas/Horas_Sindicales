@@ -288,7 +288,7 @@ def on_generar_pdf_historico(window: Any) -> None:
         )
         return
     try:
-        default_name = window._solicitud_use_cases.coordinador_confirmacion_pdf.sugerir_nombre_pdf(selected)
+        default_name = window._coordinador_confirmacion_pdf.sugerir_nombre_pdf(selected)
     except (ValidacionError, BusinessRuleError) as exc:
         window.toast.warning(str(exc), title=copy_text("ui.historico.validacion_titulo"))
         return
