@@ -6,8 +6,8 @@ from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
     EntradaNombrePdf,
     ServicioPreflightPdf,
 )
-from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
-    CoordinadorConfirmacionPdf,
+from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
+    ServicioDestinoPdfConfirmacion,
 )
 
 
@@ -90,21 +90,19 @@ def test_sugerir_ruta_alternativa_propone_siguiente_disponible(tmp_path: Path) -
     assert sugerida == str((tmp_path / "solicitud(3).pdf").resolve(strict=False))
 
 
-def test_use_case_resuelve_colision_con_renombrado_automatico(tmp_path: Path) -> None:
+def test_servicio_destino_resuelve_colision_con_renombrado_automatico(tmp_path: Path) -> None:
     destino = tmp_path / "colision.pdf"
     existentes = {
         str(destino.resolve(strict=False)),
         str((tmp_path / "colision (1).pdf").resolve(strict=False)),
     }
-    coordinador = CoordinadorConfirmacionPdf(
-        repo=object(),
+    servicio = ServicioDestinoPdfConfirmacion(
         persona_repo=object(),
         generador_pdf=FakeGeneradorPdf(),
         fs=FakeSistemaArchivos(existentes),
-        crear_pendiente=lambda solicitud, correlation_id=None: solicitud,
     )
 
-    resolucion = coordinador.resolver_destino_pdf(
+    resolucion = servicio.resolver_destino_pdf(
         destino, overwrite=False, auto_rename=True
     )
 

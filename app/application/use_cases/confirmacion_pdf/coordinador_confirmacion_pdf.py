@@ -25,24 +25,16 @@ from app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas import 
     pdf_intro_text,
 )
 from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
-    EntradaNombrePdf,
-    ServicioPreflightPdf,
+    ServicioDestinoPdfConfirmacion,
 )
 from app.application.use_cases.solicitudes.auxiliares_caso_uso import (
-    NOMBRE_PDF_POR_DEFECTO,
-    ResolucionDestinoPdf,
     confirmar_solicitudes_lote_con_manejador,
-    resolver_destino_pdf as resolver_destino_pdf_helper,
     resumen_confirmacion_pdf,
     seleccionar_solicitudes_por_filtro,
 )
 from app.application.use_cases.confirmacion_pdf.orquestacion_compat_solicitudes import (
     confirmar_solicitudes_lote as confirmar_solicitudes_lote_orquestado,
     resolver_o_crear_solicitud as resolver_o_crear_solicitud_orquestado,
-)
-from app.application.use_cases.solicitudes.pdf_destino_policy import (
-    resolver_colision_pdf,
-    resolver_ruta_sin_colision,
 )
 from app.application.use_cases.solicitudes.validaciones import (
     validar_solicitud_dto_declarativo,
@@ -65,51 +57,10 @@ class CoordinadorConfirmacionPdf:
 
     def __post_init__(self) -> None:
         self._logger = self.logger or logging.getLogger(__name__)
-        self._servicio_preflight_pdf = ServicioPreflightPdf(
+        self._servicio_destino_pdf = ServicioDestinoPdfConfirmacion(
+            persona_repo=self.persona_repo,
             fs=self.fs,
             generador_pdf=self.generador_pdf,
-        )
-
-    def sugerir_nombre_pdf(self, solicitudes: Iterable[SolicitudDTO]) -> str:
-        solicitudes_list = list(solicitudes)
-        if not solicitudes_list:
-            return NOMBRE_PDF_POR_DEFECTO
-        persona = self.persona_repo.get_by_id(solicitudes_list[0].persona_id)
-        if persona is None:
-            raise ValueError("Persona no encontrada.")
-        fechas = [solicitud.fecha_pedida for solicitud in solicitudes_list]
-        return self._servicio_preflight_pdf.construir_nombre_pdf(
-            EntradaNombrePdf(nombre_persona=persona.nombre, fechas=tuple(fechas))
-        )
-
-    def resolver_destino_pdf(
-        self,
-        destino: Path,
-        *,
-        overwrite: bool = False,
-        auto_rename: bool = True,
-    ) -> ResolucionDestinoPdf:
-        if hasattr(self.fs, "resolver_colision_archivo"):
-            resolver_colision = resolver_ruta_sin_colision
-        else:
-
-            def resolver_colision(ruta: Path) -> Path:
-                return resolver_colision_pdf(ruta, self.fs)
-
-        ruta_destino, colision_detectada, ruta_original, ruta_alternativa = (
-            resolver_destino_pdf_helper(
-                destino,
-                overwrite=overwrite,
-                auto_rename=auto_rename,
-                resolver_ruta_colision=resolver_colision,
-            )
-        )
-
-        return ResolucionDestinoPdf(
-            ruta_destino=ruta_destino,
-            colision_detectada=colision_detectada,
-            ruta_original=ruta_original,
-            ruta_alternativa=ruta_alternativa if colision_detectada else None,
         )
 
     def confirmar_lote_y_generar_pdf(
@@ -123,7 +74,7 @@ class CoordinadorConfirmacionPdf:
         return confirmar_lote_y_generar_pdf_orquestado(
             solicitudes=solicitudes,
             destino=destino,
-            resolver_destino_pdf=self.resolver_destino_pdf,
+            resolver_destino_pdf=self._servicio_destino_pdf.resolver_destino_pdf,
             fs=self.fs,
             generador_pdf=self.generador_pdf,
             validar_solicitud=validar_solicitud_dto_declarativo,

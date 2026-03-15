@@ -7,9 +7,9 @@ import pytest
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
-from app.application.use_cases.confirmacion_pdf import coordinador_confirmacion_pdf as coordinador_module
-from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
-    CoordinadorConfirmacionPdf,
+from app.application.use_cases.confirmacion_pdf import servicio_preflight_pdf as destino_pdf_module
+from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
+    ServicioDestinoPdfConfirmacion,
 )
 from app.application.use_cases.solicitudes.validaciones import validar_solicitud_dto_declarativo
 from app.domain.models import Persona
@@ -140,15 +140,15 @@ def test_confirmar_lote_resuelve_destino_pdf_una_sola_vez(connection, tmp_path: 
 
     with (
         patch.object(
-            CoordinadorConfirmacionPdf,
+            ServicioDestinoPdfConfirmacion,
             "resolver_destino_pdf",
             autospec=True,
-            wraps=CoordinadorConfirmacionPdf.resolver_destino_pdf,
+            wraps=ServicioDestinoPdfConfirmacion.resolver_destino_pdf,
         ) as spy_use_case,
         patch.object(
-            coordinador_module,
+            destino_pdf_module,
             "resolver_ruta_sin_colision",
-            wraps=coordinador_module.resolver_ruta_sin_colision,
+            wraps=destino_pdf_module.resolver_ruta_sin_colision,
         ) as spy_policy,
     ):
         _, _, errores, ruta_pdf = use_case.confirmar_lote_y_generar_pdf([_solicitud(persona_id)], destino)

@@ -27,6 +27,9 @@ from app.application.use_cases.confirmacion_pdf.caso_uso import (
 from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
     CoordinadorConfirmacionPdf,
 )
+from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
+    ServicioDestinoPdfConfirmacion,
+)
 from app.application.use_cases.confirmacion_pdf.generar_pdf_confirmadas_caso_uso import (
     GenerarPdfSolicitudesConfirmadasCasoUso,
 )
@@ -86,6 +89,7 @@ class AppContainer:
     validacion_preventiva_lock_use_case: ValidacionPreventivaLockUseCase
     confirmar_pendientes_pdf_caso_uso: ConfirmarPendientesPdfCasoUso
     coordinador_confirmacion_pdf: CoordinadorConfirmacionPdf
+    servicio_destino_pdf_confirmacion: ServicioDestinoPdfConfirmacion
     crear_pendiente_caso_uso: CrearPendienteCasoUso
     repositorio_preferencias: IRepositorioPreferencias
     cargar_datos_demo_caso_uso: CargarDatosDemoCasoUso
@@ -161,6 +165,12 @@ def build_container(
         crear_pendiente=crear_pendiente_para_confirmacion_pdf,
         logger=LOGGER,
     )
+    servicio_destino_pdf_confirmacion = ServicioDestinoPdfConfirmacion(
+        persona_repo=persona_repo,
+        fs=SistemaArchivosLocal(),
+        generador_pdf=generador_pdf,
+    )
+
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)
 
     config_store = LocalConfigStore()
@@ -220,6 +230,7 @@ def build_container(
         validacion_preventiva_lock_use_case=validacion_preventiva_lock_use_case,
         confirmar_pendientes_pdf_caso_uso=confirmar_pendientes_pdf_caso_uso,
         coordinador_confirmacion_pdf=coordinador_confirmacion_pdf,
+        servicio_destino_pdf_confirmacion=servicio_destino_pdf_confirmacion,
         crear_pendiente_caso_uso=crear_pendiente_caso_uso,
         repositorio_preferencias=repositorio_preferencias,
         cargar_datos_demo_caso_uso=cargar_datos_demo_caso_uso,

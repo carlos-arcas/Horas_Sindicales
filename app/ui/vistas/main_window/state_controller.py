@@ -34,6 +34,9 @@ from app.application.use_cases.confirmacion_pdf.caso_uso import (
 from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
     CoordinadorConfirmacionPdf,
 )
+from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
+    ServicioDestinoPdfConfirmacion,
+)
 from app.application.use_cases.conflict_resolution_policy import (
     ConflictResolutionPolicy,
 )
@@ -160,6 +163,7 @@ class MainWindow(
         | None = None,
         confirmar_pendientes_pdf_caso_uso: ConfirmarPendientesPdfCasoUso | None = None,
         coordinador_confirmacion_pdf: CoordinadorConfirmacionPdf | None = None,
+        servicio_destino_pdf_confirmacion: ServicioDestinoPdfConfirmacion | None = None,
         crear_pendiente_caso_uso: CrearPendienteCasoUso | None = None,
         guardar_preferencia_inicio_maximizado: GuardarPreferenciaInicioMaximizado
         | None = None,
@@ -182,6 +186,7 @@ class MainWindow(
         )
         self._confirmar_pendientes_pdf_caso_uso = confirmar_pendientes_pdf_caso_uso
         self._coordinador_confirmacion_pdf = coordinador_confirmacion_pdf
+        self._servicio_destino_pdf_confirmacion = servicio_destino_pdf_confirmacion
         self._crear_pendiente_caso_uso = crear_pendiente_caso_uso
         self._alert_snooze: dict[str, str] = {}
         self._guardar_preferencia_inicio_maximizado = (

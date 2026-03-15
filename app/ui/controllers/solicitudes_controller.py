@@ -394,7 +394,7 @@ class SolicitudesController:
         overwrite: bool = False,
         auto_rename: bool = True,
     ) -> Path:
-        resolucion = self.window._coordinador_confirmacion_pdf.resolver_destino_pdf(
+        resolucion = self.window._servicio_destino_pdf_confirmacion.resolver_destino_pdf(
             Path(pdf_path),
             overwrite=overwrite,
             auto_rename=auto_rename,
@@ -402,7 +402,7 @@ class SolicitudesController:
         return resolucion.ruta_destino
 
     def obtener_resolucion_destino_pdf(self, pdf_path: str):
-        return self.window._coordinador_confirmacion_pdf.resolver_destino_pdf(
+        return self.window._servicio_destino_pdf_confirmacion.resolver_destino_pdf(
             Path(pdf_path),
             overwrite=False,
             auto_rename=False,
