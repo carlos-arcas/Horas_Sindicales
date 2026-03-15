@@ -7,6 +7,7 @@ from app.application.use_cases import SolicitudUseCases
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError
 from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
+from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 
 
 def _crear_persona(persona_repo: RepositorioPersonasSQLite, *, horas_mes: int = 600, horas_ano: int = 7200) -> int:
@@ -58,7 +59,7 @@ def test_calcular_minutos_solicitud_ok(connection) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal())
 
     minutos = use_case.calcular_minutos_solicitud(_dto_valido(persona_id))
 
@@ -68,7 +69,7 @@ def test_calcular_minutos_solicitud_ok(connection) -> None:
 def test_calcular_minutos_solicitud_error_persona_inexistente(connection) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal())
 
     with pytest.raises(BusinessRuleError, match="Persona no encontrada"):
         use_case.calcular_minutos_solicitud(_dto_valido(99999))
@@ -78,7 +79,7 @@ def test_calcular_minutos_solicitud_error_horas_negativas(connection) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal())
 
     with pytest.raises(BusinessRuleError, match="horas"):
         use_case.calcular_minutos_solicitud(_dto_valido(persona_id, horas=-1.0))
@@ -88,7 +89,7 @@ def test_calcular_saldos_por_periodo_sin_solicitudes(connection) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo, horas_mes=300, horas_ano=4000)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal())
 
     saldos = use_case.calcular_saldos_por_periodo(persona_id, PeriodoFiltro.mensual(2025, 1))
 
@@ -102,7 +103,7 @@ def test_calcular_saldos_por_periodo_con_solicitudes(connection) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo, horas_mes=300, horas_ano=4000)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal())
 
     creada, _ = use_case.agregar_solicitud(_dto_valido(persona_id))
     assert creada.id is not None
@@ -118,7 +119,7 @@ def test_calcular_saldos_por_periodo_propaga_error_de_repo(connection, monkeypat
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo)
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal())
 
     def _falla_repo(*_args, **_kwargs):
         raise RuntimeError("fallo de consulta")

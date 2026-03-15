@@ -27,6 +27,17 @@ def test_application_no_declara_clases_path_file_system() -> None:
         assert "PathFileSystem" not in clases, str(archivo)
 
 
+def test_application_no_declara_fallback_fs_no_configurado() -> None:
+    for archivo in _iter_archivos_python(RUTA_APPLICATION):
+        arbol = ast.parse(archivo.read_text(encoding="utf-8"))
+        clases = [
+            nodo.name
+            for nodo in ast.walk(arbol)
+            if isinstance(nodo, ast.ClassDef)
+        ]
+        assert "_SistemaArchivosNoConfigurado" not in clases, str(archivo)
+
+
 def test_confirmacion_pdf_application_no_importa_fs_concreto() -> None:
     for archivo in _iter_archivos_python(RUTA_CONFIRMACION_PDF):
         arbol = ast.parse(archivo.read_text(encoding="utf-8"))

@@ -137,36 +137,6 @@ from app.application.use_cases.solicitudes.validacion_service import (
 
 logger = logging.getLogger(__name__)
 
-class _SistemaArchivosNoConfigurado(SistemaArchivosPuerto):
-    def _error(self) -> RuntimeError:
-        return RuntimeError("SistemaArchivosPuerto no configurado")
-
-    def existe_ruta(self, ruta: Path) -> bool:
-        raise self._error()
-
-    def existe(self, ruta: Path) -> bool:
-        raise self._error()
-
-    def leer_texto(self, ruta: Path) -> str:
-        raise self._error()
-
-    def leer_bytes(self, ruta: Path) -> bytes:
-        raise self._error()
-
-    def escribir_texto(self, ruta: Path, contenido: str) -> None:
-        raise self._error()
-
-    def escribir_bytes(self, ruta: Path, contenido: bytes) -> None:
-        raise self._error()
-
-    def mkdir(self, ruta: Path, *, parents: bool = True, exist_ok: bool = True) -> None:
-        raise self._error()
-
-    def listar(self, base: Path) -> list[Path]:
-        raise self._error()
-
-
-
 class SolicitudUseCases:
     """Casos de uso para solicitudes."""
 
@@ -174,15 +144,16 @@ class SolicitudUseCases:
         self,
         repo: SolicitudRepository,
         persona_repo: PersonaRepository,
+        *,
+        fs: SistemaArchivosPuerto,
         config_repo: GrupoConfigRepository | None = None,
         generador_pdf: GeneradorPdfPuerto | None = None,
-        fs: SistemaArchivosPuerto | None = None,
     ) -> None:
         self._repo = repo
         self._persona_repo = persona_repo
         self._config_repo = config_repo
         self._generador_pdf = generador_pdf
-        self._fs = fs or _SistemaArchivosNoConfigurado()
+        self._fs = fs
         self._servicio_preflight_pdf = ServicioPreflightPdf(
             fs=self._fs,
             generador_pdf=self._generador_pdf,

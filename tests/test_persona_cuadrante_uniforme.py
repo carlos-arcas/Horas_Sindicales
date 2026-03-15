@@ -8,6 +8,7 @@ from app.application.use_cases import PersonaUseCases, SolicitudUseCases
 from app.infrastructure.migrations import run_migrations
 from app.domain.services import BusinessRuleError
 from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
+from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 
 
 def _build_persona() -> PersonaDTO:
@@ -158,7 +159,7 @@ class PersonaCuadranteUniformeTests(unittest.TestCase):
         )
 
         solicitudes_repo = SolicitudRepositorySQLite(self.connection)
-        solicitudes_uc = SolicitudUseCases(solicitudes_repo, self.repo)
+        solicitudes_uc = SolicitudUseCases(solicitudes_repo, self.repo, fs=SistemaArchivosLocal())
 
         with self.assertRaises(BusinessRuleError):
             solicitudes_uc.agregar_solicitud(
