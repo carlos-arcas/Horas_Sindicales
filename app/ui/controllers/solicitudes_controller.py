@@ -394,7 +394,7 @@ class SolicitudesController:
         overwrite: bool = False,
         auto_rename: bool = True,
     ) -> Path:
-        resolucion = self.window._solicitud_use_cases.resolver_destino_pdf(
+        resolucion = self.window._solicitud_use_cases.coordinador_confirmacion_pdf.resolver_destino_pdf(
             Path(pdf_path),
             overwrite=overwrite,
             auto_rename=auto_rename,
@@ -402,7 +402,7 @@ class SolicitudesController:
         return resolucion.ruta_destino
 
     def obtener_resolucion_destino_pdf(self, pdf_path: str):
-        return self.window._solicitud_use_cases.resolver_destino_pdf(
+        return self.window._solicitud_use_cases.coordinador_confirmacion_pdf.resolver_destino_pdf(
             Path(pdf_path),
             overwrite=False,
             auto_rename=False,
@@ -420,7 +420,7 @@ class SolicitudesController:
         if generar_pdf:
             if not pdf_path:
                 raise ValueError(self._copy("ui.solicitudes.pdf_path_obligatorio"))
-            ruta, confirmadas_ids, resumen = self.window._solicitud_use_cases.confirmar_y_generar_pdf_por_filtro(
+            ruta, confirmadas_ids, resumen = self.window._solicitud_use_cases.coordinador_confirmacion_pdf.confirmar_y_generar_pdf_por_filtro(
                 filtro_delegada=filtro_delegada,
                 pendientes=pendientes_actuales,
                 destino=Path(pdf_path),

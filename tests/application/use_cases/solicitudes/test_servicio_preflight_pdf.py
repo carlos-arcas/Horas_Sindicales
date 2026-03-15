@@ -101,7 +101,7 @@ def test_use_case_resuelve_colision_con_renombrado_automatico(tmp_path: Path) ->
         fs=FakeSistemaArchivos(existentes),
     )
 
-    resolucion = use_case.resolver_destino_pdf(
+    resolucion = use_case.coordinador_confirmacion_pdf.resolver_destino_pdf(
         destino, overwrite=False, auto_rename=True
     )
 
