@@ -181,10 +181,7 @@ class MainWindow(
             validacion_preventiva_lock_use_case or ValidacionPreventivaLockUseCase()
         )
         self._confirmar_pendientes_pdf_caso_uso = confirmar_pendientes_pdf_caso_uso
-        self._coordinador_confirmacion_pdf = (
-            coordinador_confirmacion_pdf
-            or solicitud_use_cases.coordinador_confirmacion_pdf
-        )
+        self._coordinador_confirmacion_pdf = coordinador_confirmacion_pdf
         self._crear_pendiente_caso_uso = crear_pendiente_caso_uso
         self._alert_snooze: dict[str, str] = {}
         self._guardar_preferencia_inicio_maximizado = (

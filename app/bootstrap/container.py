@@ -139,7 +139,15 @@ def build_container(
     crear_pendiente_caso_uso = CrearPendienteCasoUso(
         repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases)
     )
-    coordinador_confirmacion_pdf = solicitud_use_cases.coordinador_confirmacion_pdf
+    coordinador_confirmacion_pdf = CoordinadorConfirmacionPdf(
+        repo=solicitud_repo,
+        persona_repo=persona_repo,
+        fs=SistemaArchivosLocal(),
+        config_repo=grupo_repo,
+        generador_pdf=generador_pdf,
+        agregar_solicitud=solicitud_use_cases.agregar_solicitud,
+        logger=LOGGER,
+    )
     grupo_use_cases = GrupoConfigUseCases(grupo_repo)
 
     config_store = LocalConfigStore()

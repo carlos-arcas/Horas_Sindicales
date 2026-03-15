@@ -9,6 +9,8 @@ RUTA_CONTROLLER_SOLICITUDES = Path("app/ui/controllers/solicitudes_controller.py
 RUTA_ADAPTADOR_CONFIRMACION_QT = Path("app/ui/vistas/confirmacion_adaptador_qt.py")
 RUTA_HISTORICO_ACTIONS = Path("app/ui/vistas/historico_actions.py")
 RUTA_ACCIONES_MIXIN = Path("app/ui/vistas/main_window/acciones_mixin.py")
+RUTA_BOOTSTRAP_CONTAINER = Path("app/bootstrap/container.py")
+RUTA_STATE_CONTROLLER = Path("app/ui/vistas/main_window/state_controller.py")
 
 
 def _metodos_publicos(path_archivo: Path, *, clase: str) -> set[str]:
@@ -53,3 +55,17 @@ def test_consumidores_ui_confirmacion_pdf_evitan_service_locator_solicitud_use_c
     assert "_solicitud_use_cases.sugerir_nombre_pdf(" not in contenido
     assert "_solicitud_use_cases.resolver_destino_pdf(" not in contenido
     assert "_solicitud_use_cases.confirmar_y_generar_pdf_por_filtro(" not in contenido
+
+
+def test_bootstrap_inyecta_coordinador_confirmacion_pdf_directo() -> None:
+    contenido = RUTA_BOOTSTRAP_CONTAINER.read_text(encoding="utf-8")
+
+    assert "coordinador_confirmacion_pdf = solicitud_use_cases.coordinador_confirmacion_pdf" not in contenido
+    assert "coordinador_confirmacion_pdf = CoordinadorConfirmacionPdf(" in contenido
+
+
+def test_main_window_exige_coordinador_confirmacion_pdf_explicito() -> None:
+    contenido = RUTA_STATE_CONTROLLER.read_text(encoding="utf-8")
+
+    assert "or solicitud_use_cases.coordinador_confirmacion_pdf" not in contenido
+    assert "self._coordinador_confirmacion_pdf = coordinador_confirmacion_pdf" in contenido
