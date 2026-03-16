@@ -24,7 +24,7 @@ from app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas import 
     hash_file,
     pdf_intro_text,
 )
-from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
+from app.application.use_cases.confirmacion_pdf.servicio_destino_pdf_confirmacion import (
     ServicioDestinoPdfConfirmacion,
 )
 from app.application.use_cases.solicitudes.auxiliares_caso_uso import (

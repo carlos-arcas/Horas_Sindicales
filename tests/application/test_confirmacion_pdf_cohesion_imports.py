@@ -52,5 +52,5 @@ def test_coordinador_confirmacion_pdf_delega_destino_en_servicio_dedicado() -> N
     assert "app.application.use_cases.confirmacion_pdf.orquestacion_confirmacion_pdf" in imports
     assert "app.application.use_cases.confirmacion_pdf.pdf_confirmadas_builder" in imports
     assert "app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner" in imports
-    assert "app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf" in imports
+    assert "app.application.use_cases.confirmacion_pdf.servicio_destino_pdf_confirmacion" in imports
     assert "app.application.use_cases.solicitudes.pdf_destino_policy" not in imports
