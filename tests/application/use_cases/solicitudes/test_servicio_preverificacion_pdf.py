@@ -8,10 +8,6 @@ from app.application.use_cases.solicitudes.servicio_preverificacion_pdf import (
     EntradaNombrePdf,
     ServicioPreverificacionPdf,
 )
-from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
-    ServicioDestinoPdfConfirmacion,
-)
-
 
 class FakeSistemaArchivos:
     def __init__(self, existentes: set[str] | None = None) -> None:
@@ -98,22 +94,3 @@ def test_construir_nombre_pdf_falla_sin_generador() -> None:
 
     with pytest.raises(ValueError, match="No hay generador PDF configurado"):
         servicio.construir_nombre_pdf(EntradaNombrePdf(nombre_persona="Ana", rango=("2025-01-01",)))
-
-
-def test_servicio_destino_colision_pdf_resuelve_ruta_alternativa_sin_io_real(tmp_path: Path) -> None:
-    destino = tmp_path / "colision.pdf"
-    existentes = {
-        str(destino.resolve(strict=False)),
-        str((tmp_path / "colision (1).pdf").resolve(strict=False)),
-    }
-
-    servicio = ServicioDestinoPdfConfirmacion(
-        persona_repo=object(),
-        generador_pdf=FakeGeneradorPdf(),
-        fs=FakeSistemaArchivos(existentes),
-    )
-
-    resolucion = servicio.resolver_destino_pdf(destino, overwrite=False, auto_rename=True)
-
-    assert resolucion.colision_detectada is True
-    assert str(resolucion.ruta_destino).endswith("colision (2).pdf")

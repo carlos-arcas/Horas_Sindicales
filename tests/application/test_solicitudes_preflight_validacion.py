@@ -7,8 +7,8 @@ import pytest
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
-from app.application.use_cases.confirmacion_pdf import servicio_preflight_pdf as destino_pdf_module
-from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
+from app.application.use_cases.confirmacion_pdf import servicio_destino_pdf_confirmacion as destino_pdf_module
+from app.application.use_cases.confirmacion_pdf.servicio_destino_pdf_confirmacion import (
     ServicioDestinoPdfConfirmacion,
 )
 from app.application.use_cases.solicitudes.validaciones import validar_solicitud_dto_declarativo

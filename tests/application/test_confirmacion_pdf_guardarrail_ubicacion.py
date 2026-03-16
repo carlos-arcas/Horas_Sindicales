@@ -6,6 +6,13 @@ from pathlib import Path
 
 RUTA_SOLICITUDES = Path("app/application/use_cases/solicitudes")
 RUTA_ORQUESTACION_SOLICITUDES = RUTA_SOLICITUDES / "orquestacion_confirmacion.py"
+RUTA_SERVICIO_PREFLIGHT = Path(
+    "app/application/use_cases/confirmacion_pdf/servicio_preflight_pdf.py"
+)
+RUTA_SERVICIO_DESTINO = Path(
+    "app/application/use_cases/confirmacion_pdf/servicio_destino_pdf_confirmacion.py"
+)
+RUTA_TESTS_SOLICITUDES = Path("tests/application/use_cases/solicitudes")
 WRAPPERS_PDF_CONFIRMADAS_PROHIBIDOS = {
     "confirmacion_pdf_service.py",
     "pdf_confirmadas_builder.py",
@@ -34,3 +41,23 @@ def test_orquestacion_confirmacion_no_reexporta_flujo_pdf() -> None:
         if isinstance(nodo, ast.ImportFrom) and nodo.module
     }
     assert "app.application.use_cases.confirmacion_pdf.orquestacion_confirmacion_pdf" not in imports_confirmacion_pdf
+
+
+def test_servicios_confirmacion_pdf_tienen_modulos_dedicados() -> None:
+    modulo_preflight = RUTA_SERVICIO_PREFLIGHT.read_text(encoding="utf-8")
+    modulo_destino = RUTA_SERVICIO_DESTINO.read_text(encoding="utf-8")
+
+    assert "class ServicioPreflightPdf" in modulo_preflight
+    assert "class ServicioDestinoPdfConfirmacion" not in modulo_preflight
+
+    assert "class ServicioDestinoPdfConfirmacion" in modulo_destino
+    assert "class ServicioPreflightPdf" not in modulo_destino
+
+
+def test_tests_confirmacion_pdf_no_quedan_en_namespace_solicitudes() -> None:
+    for ruta_test in RUTA_TESTS_SOLICITUDES.glob("test_*.py"):
+        contenido = ruta_test.read_text(encoding="utf-8")
+        assert "use_cases.confirmacion_pdf" not in contenido, (
+            "Mover tests de confirmacion_pdf fuera de solicitudes: "
+            f"{ruta_test}"
+        )

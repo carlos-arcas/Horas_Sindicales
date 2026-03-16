@@ -27,7 +27,7 @@ from app.application.use_cases.confirmacion_pdf.caso_uso import (
 from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
     CoordinadorConfirmacionPdf,
 )
-from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
+from app.application.use_cases.confirmacion_pdf.servicio_destino_pdf_confirmacion import (
     ServicioDestinoPdfConfirmacion,
 )
 from app.application.use_cases.confirmacion_pdf.generar_pdf_confirmadas_caso_uso import (
