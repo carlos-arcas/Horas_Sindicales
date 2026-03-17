@@ -14,7 +14,7 @@ ARCHIVOS_MUTANTES_READ_ONLY = {
 
 ARCHIVOS_PERMITIDOS_IS_READ_ONLY = {
     "app/configuracion/settings.py",
-    "app/application/use_cases/politica_modo_solo_lectura.py",
+    "app/bootstrap/container.py",
 }
 
 
@@ -69,4 +69,24 @@ def test_guardarrail_casos_uso_mutantes_invocan_politica_comun() -> None:
     assert not faltantes, (
         "Cada owner mutante debe aplicar verificar_modo_solo_lectura() en su capa:\n"
         + "\n".join(faltantes)
+    )
+
+
+def test_guardarrail_politica_no_importa_settings_global() -> None:
+    relativo = "app/application/use_cases/politica_modo_solo_lectura.py"
+    archivo = PROJECT_ROOT / relativo
+    tree = ast.parse(archivo.read_text(encoding="utf-8"), filename=relativo)
+
+    violaciones: list[str] = []
+    for nodo in ast.walk(tree):
+        if isinstance(nodo, ast.ImportFrom) and nodo.module == "app.configuracion.settings":
+            nombres = {alias.name for alias in nodo.names}
+            if "is_read_only_enabled" in nombres:
+                violaciones.append(
+                    f"{relativo}: import directo de app.configuracion.settings.is_read_only_enabled"
+                )
+
+    assert not violaciones, (
+        "La política de aplicación debe estar desacoplada de settings globales:\n"
+        + "\n".join(violaciones)
     )

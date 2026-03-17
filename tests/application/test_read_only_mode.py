@@ -3,17 +3,27 @@ from __future__ import annotations
 import pytest
 
 from app.application.dto import PersonaDTO
-from app.configuracion.settings import is_read_only_enabled
 from app.domain.services import BusinessRuleError
 from app.application.use_cases.politica_modo_solo_lectura import (
     MENSAJE_MODO_SOLO_LECTURA,
+    configurar_proveedor_modo_solo_lectura,
+    restablecer_proveedor_modo_solo_lectura,
     verificar_modo_solo_lectura,
 )
 
 
-def test_settings_read_only_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("READ_ONLY", "1")
-    assert is_read_only_enabled() is True
+@pytest.fixture(autouse=True)
+def _restablecer_proveedor_read_only() -> None:
+    restablecer_proveedor_modo_solo_lectura()
+    yield
+    restablecer_proveedor_modo_solo_lectura()
+
+
+def test_politica_read_only_acepta_proveedor_inyectable() -> None:
+    configurar_proveedor_modo_solo_lectura(lambda: True)
+
+    with pytest.raises(BusinessRuleError, match=MENSAJE_MODO_SOLO_LECTURA):
+        verificar_modo_solo_lectura()
 
 
 def test_politica_read_only_bloquea_con_mensaje_canonico(
