@@ -33,6 +33,9 @@ from app.application.use_cases.confirmacion_pdf.servicio_destino_pdf_confirmacio
 from app.application.use_cases.confirmacion_pdf.generar_pdf_confirmadas_caso_uso import (
     GenerarPdfSolicitudesConfirmadasCasoUso,
 )
+from app.application.use_cases.politica_modo_solo_lectura import (
+    configurar_proveedor_modo_solo_lectura,
+)
 from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import (
     CrearPendienteCasoUso,
     SolicitudCrearPendientePeticion,
@@ -70,6 +73,7 @@ from app.infrastructure.sheets_gateway_gspread import SheetsGatewayGspread
 from app.infrastructure.sheets_repository import SheetsRepository
 from app.infrastructure.sqlite_lock_error_classifier import SQLiteLockErrorClassifier
 from app.infrastructure.sync_sheets_adapter import SyncSheetsAdapter
+from app.configuracion.settings import is_read_only_enabled
 from aplicacion.puertos.proveedor_i18n import ProveedorI18N
 from aplicacion.puertos.repositorio_preferencias import IRepositorioPreferencias
 
@@ -105,6 +109,8 @@ def build_container(
     *,
     preferencias_headless: bool = True,
 ) -> AppContainer:
+    configurar_proveedor_modo_solo_lectura(is_read_only_enabled)
+
     connection = connection_factory()
     run_migrations(connection)
     seed_if_empty(connection)
