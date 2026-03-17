@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from app.configuracion.settings import is_read_only_enabled
@@ -36,16 +34,7 @@ def test_confirmar_sin_pdf_bloqueado_en_read_only(
         solicitud_use_cases.confirmar_sin_pdf([solicitud_dto])
 
 
-def test_confirmar_lote_con_pdf_bloqueado_en_read_only(
-    monkeypatch: pytest.MonkeyPatch,
+def test_solicitud_use_cases_no_expone_confirmar_lote_con_pdf_legacy(
     solicitud_use_cases,
-    solicitud_dto,
-    tmp_path: Path,
 ) -> None:
-    monkeypatch.setenv("READ_ONLY", "1")
-
-    with pytest.raises(BusinessRuleError, match="Modo solo lectura activado"):
-        solicitud_use_cases.confirmar_lote_y_generar_pdf(
-            [solicitud_dto],
-            tmp_path / "confirmadas.pdf",
-        )
+    assert not hasattr(solicitud_use_cases, "confirmar_lote_y_generar_pdf")

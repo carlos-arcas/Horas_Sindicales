@@ -3,6 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.application.dto import SolicitudDTO
+from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
+    CoordinadorConfirmacionPdf,
+)
 from app.application.use_cases import SolicitudUseCases
 from app.domain.models import Persona
 from app.infrastructure.repos_sqlite import (
@@ -46,6 +49,24 @@ class FakeGeneradorPdf:
         self.llamadas_historico.append((solicitudes_list, persona, destino, personas_por_id))
         destino.write_bytes(b"%PDF-1.4 fake")
         return destino
+
+
+def _crear_coordinador(
+    use_case: SolicitudUseCases,
+    solicitud_repo: SolicitudRepositorySQLite,
+    persona_repo: RepositorioPersonasSQLite,
+    fake_pdf: FakeGeneradorPdf,
+) -> CoordinadorConfirmacionPdf:
+    return CoordinadorConfirmacionPdf(
+        repo=solicitud_repo,
+        persona_repo=persona_repo,
+        fs=SistemaArchivosLocal(),
+        generador_pdf=fake_pdf,
+        crear_pendiente=lambda solicitud, correlation_id=None: use_case.agregar_solicitud(
+            solicitud,
+            correlation_id=correlation_id,
+        )[0],
+    )
 
 
 def test_confirmar_lote_llama_puerto_pdf_con_datos_esperados(
@@ -96,7 +117,9 @@ def test_confirmar_lote_llama_puerto_pdf_con_datos_esperados(
         notas="Nota",
     )
 
-    creadas, pendientes, errores, pdf_path = use_case.confirmar_lote_y_generar_pdf(
+    coordinador = _crear_coordinador(use_case, solicitud_repo, persona_repo, fake_pdf)
+
+    creadas, pendientes, errores, pdf_path = coordinador.confirmar_lote_y_generar_pdf(
         [solicitud],
         tmp_path / "solicitud.pdf",
     )
@@ -164,7 +187,9 @@ def test_confirmar_lote_colision_pdf_renombra_destino_sin_error(
 
     (tmp_path / "solicitud.pdf").write_bytes(b"existing")
 
-    _, _, errores, ruta_pdf = use_case.confirmar_lote_y_generar_pdf(
+    coordinador = _crear_coordinador(use_case, solicitud_repo, persona_repo, fake_pdf)
+
+    _, _, errores, ruta_pdf = coordinador.confirmar_lote_y_generar_pdf(
         [solicitud],
         tmp_path / "solicitud.pdf",
     )
