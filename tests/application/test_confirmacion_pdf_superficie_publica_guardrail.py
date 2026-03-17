@@ -37,8 +37,8 @@ def test_solicitud_use_cases_reduce_wrappers_confirmacion_pdf_legacy() -> None:
     assert "resolver_destino_pdf" not in metodos_publicos
     assert "confirmar_y_generar_pdf_por_filtro" not in metodos_publicos
 
-    assert "confirmar_lote_y_generar_pdf" in metodos_publicos
-    assert "confirmar_y_generar_pdf" in metodos_publicos
+    assert "confirmar_lote_y_generar_pdf" not in metodos_publicos
+    assert "confirmar_y_generar_pdf" not in metodos_publicos
     assert "coordinador_confirmacion_pdf" not in metodos_publicos
 
 

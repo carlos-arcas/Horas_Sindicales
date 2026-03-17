@@ -28,6 +28,11 @@ WRAPPERS_PDF_CONFIRMADAS_PROHIBIDOS = {
     "servicio_preflight_pdf.py",
 }
 
+METODOS_LEGACY_CONFIRMACION_PDF = {
+    "confirmar_lote_y_generar_pdf",
+    "confirmar_y_generar_pdf",
+}
+
 
 RUTA_WRAPPER_DESTINO_LEGACY = RUTA_SOLICITUDES / "pdf_destino_policy.py"
 MODULO_WRAPPER_DESTINO_LEGACY = "app.application.use_cases.solicitudes.pdf_destino_policy"
@@ -108,4 +113,14 @@ def test_confirmacion_pdf_no_importa_helpers_destino_desde_solicitudes() -> None
             prohibidos = HELPERS_DESTINO_PROHIBIDOS.intersection(nombres)
             assert not prohibidos, (
                 f"{ruta_modulo} importa helpers legacy de destino/preflight: {sorted(prohibidos)}"
+            )
+
+
+def test_app_no_consumidores_internos_wrappers_legacy_solicitud_use_cases() -> None:
+    for ruta_modulo in Path("app").rglob("*.py"):
+        contenido = ruta_modulo.read_text(encoding="utf-8")
+        for metodo in METODOS_LEGACY_CONFIRMACION_PDF:
+            assert f"solicitud_use_cases.{metodo}(" not in contenido, (
+                "No se permiten consumidores internos del wrapper legacy "
+                f"SolicitudUseCases.{metodo}: {ruta_modulo}"
             )

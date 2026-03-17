@@ -632,20 +632,6 @@ class SolicitudUseCases:
         creada, _ = self.agregar_solicitud(solicitud, correlation_id=correlation_id)
         return creada
 
-    def confirmar_lote_y_generar_pdf(
-        self,
-        solicitudes: Iterable[SolicitudDTO],
-        destino: Path,
-        correlation_id: str | None = None,
-    ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:
-        if is_read_only_enabled():
-            raise BusinessRuleError("Modo solo lectura activado")
-        return self._coordinador_confirmacion_pdf.confirmar_lote_y_generar_pdf(
-            solicitudes,
-            destino=destino,
-            correlation_id=correlation_id,
-        )
-
     def confirmar_sin_pdf(
         self,
         solicitudes: Iterable[SolicitudDTO],
@@ -675,16 +661,6 @@ class SolicitudUseCases:
             marcar_generada=lambda solicitud_id: self._repo.mark_generated(
                 solicitud_id, True
             ),
-        )
-
-    def confirmar_y_generar_pdf(
-        self,
-        solicitudes: Iterable[SolicitudDTO],
-        destino: Path,
-        correlation_id: str | None = None,
-    ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str], Path | None]:
-        return self.confirmar_lote_y_generar_pdf(
-            solicitudes, destino, correlation_id=correlation_id
         )
 
     def generar_pdf_historico(
