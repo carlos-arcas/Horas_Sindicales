@@ -5,6 +5,8 @@ import logging
 
 from app.core.observability import generate_correlation_id, log_event
 from app.application.dto import SolicitudDTO
+from app.configuracion.settings import is_read_only_enabled
+from app.domain.services import BusinessRuleError
 from app.application.use_cases.confirmacion_pdf.modelos import (
     SolicitudConfirmarPdfPeticion,
     SolicitudConfirmarPdfResultado,
@@ -33,6 +35,8 @@ class ConfirmarPendientesPdfCasoUso:
     def execute(
         self, request: SolicitudConfirmarPdfPeticion
     ) -> SolicitudConfirmarPdfResultado:
+        if is_read_only_enabled():
+            raise BusinessRuleError("Modo solo lectura activado")
         correlation_id = request.correlation_id or generate_correlation_id()
         errores_preflight = self._validar_preflight(request)
         if errores_preflight:

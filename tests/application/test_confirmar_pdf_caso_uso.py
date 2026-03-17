@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from app.application.dto import SolicitudDTO
+from app.domain.services import BusinessRuleError
 from app.application.use_cases.confirmacion_pdf.caso_uso import (
     ConfirmarPendientesPdfCasoUso,
 )
@@ -14,10 +17,12 @@ from app.application.use_cases.confirmacion_pdf.modelos import (
 class FakeRepositorio:
     def __init__(self, pendientes: list[SolicitudDTO]) -> None:
         self._pendientes = pendientes
+        self.listar_pendientes_calls = 0
         self.confirmar_sin_pdf_calls = 0
         self.force_insert_error = False
 
     def listar_pendientes(self) -> list[SolicitudDTO]:
+        self.listar_pendientes_calls += 1
         return list(self._pendientes)
 
     def confirmar_sin_pdf(
@@ -211,3 +216,27 @@ def test_caso_uso_orquesta_confirmar_antes_que_pdf() -> None:
     assert resultado.estado == "OK_CON_PDF"
     assert resultado.confirmadas_ids == [1]
     assert resultado.pdf_generado == Path("/tmp/sin_generador.pdf")
+
+
+def test_confirmar_con_pdf_bloqueado_en_read_only_sin_side_effects(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("READ_ONLY", "1")
+    repo = FakeRepositorio([_solicitud(1)])
+    generador_pdf = FakeGeneradorPdf()
+    fs = FakeFs()
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, fs)
+
+    with pytest.raises(BusinessRuleError, match="Modo solo lectura activado"):
+        caso_uso.execute(
+            SolicitudConfirmarPdfPeticion(
+                pendientes_ids=[1],
+                generar_pdf=True,
+                destino_pdf=Path("/tmp/read_only.pdf"),
+            )
+        )
+
+    assert repo.listar_pendientes_calls == 0
+    assert repo.confirmar_sin_pdf_calls == 0
+    assert generador_pdf.calls == 0
+    assert fs.mkdir_calls == 0
