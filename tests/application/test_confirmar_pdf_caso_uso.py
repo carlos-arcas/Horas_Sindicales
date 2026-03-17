@@ -6,6 +6,7 @@ import pytest
 
 from app.application.dto import SolicitudDTO
 from app.domain.services import BusinessRuleError
+from app.application.use_cases.politica_modo_solo_lectura import MENSAJE_MODO_SOLO_LECTURA
 from app.application.use_cases.confirmacion_pdf.caso_uso import (
     ConfirmarPendientesPdfCasoUso,
 )
@@ -227,7 +228,7 @@ def test_confirmar_con_pdf_bloqueado_en_read_only_sin_side_effects(
     fs = FakeFs()
     caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, fs)
 
-    with pytest.raises(BusinessRuleError, match="Modo solo lectura activado"):
+    with pytest.raises(BusinessRuleError, match=MENSAJE_MODO_SOLO_LECTURA):
         caso_uso.execute(
             SolicitudConfirmarPdfPeticion(
                 pendientes_ids=[1],

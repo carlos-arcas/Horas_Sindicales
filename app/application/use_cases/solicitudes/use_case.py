@@ -20,7 +20,6 @@ from app.application.ports.pdf_puerto import GeneradorPdfPuerto
 from app.core.errors import InfraError, PersistenceError
 from app.core.metrics import metrics_registry
 from app.core.observability import log_event
-from app.configuracion.settings import is_read_only_enabled
 from app.domain.models import ConflictoSolicitud, Persona, Solicitud
 from app.domain.ports import (
     GrupoConfigRepository,
@@ -60,6 +59,9 @@ from app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas import 
 )
 from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
     CoordinadorConfirmacionPdf,
+)
+from app.application.use_cases.politica_modo_solo_lectura import (
+    verificar_modo_solo_lectura,
 )
 from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import (
     plan_confirmar_sin_pdf,
@@ -525,8 +527,7 @@ class SolicitudUseCases:
         correlation_id: str | None = None,
         contexto: ContextoOperacion | None = None,
     ) -> SaldosDTO:
-        if is_read_only_enabled():
-            raise BusinessRuleError("Modo solo lectura activado")
+        verificar_modo_solo_lectura()
         correlation_id = resolver_correlation_id(correlation_id, contexto)
         if correlation_id:
             log_event(
@@ -637,8 +638,7 @@ class SolicitudUseCases:
         solicitudes: Iterable[SolicitudDTO],
         correlation_id: str | None = None,
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]:
-        if is_read_only_enabled():
-            raise BusinessRuleError("Modo solo lectura activado")
+        verificar_modo_solo_lectura()
         return confirmar_sin_pdf_orquestado(
             solicitudes=solicitudes,
             planner=plan_confirmar_sin_pdf,
