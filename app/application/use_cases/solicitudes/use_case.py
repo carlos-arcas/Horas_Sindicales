@@ -114,6 +114,7 @@ from app.application.use_cases.solicitudes.validacion_service import (
 
 logger = logging.getLogger(__name__)
 
+
 class SolicitudUseCases:
     """Casos de uso para solicitudes."""
 
@@ -298,6 +299,7 @@ class SolicitudUseCases:
         Se devuelve saldo en la misma operación para que el cliente trabaje con
         una vista consistente después de validar duplicados y conflictos del día.
         """
+        verificar_modo_solo_lectura()
         correlation_id = resolver_correlation_id(correlation_id, contexto)
         correlation_id = correlation_id_or_new(correlation_id, str(uuid.uuid4()))
         self._log_inicio_agregar_solicitud(dto, correlation_id)
@@ -565,6 +567,7 @@ class SolicitudUseCases:
         nueva_solicitud: SolicitudDTO,
         correlation_id: str | None = None,
     ) -> tuple[SolicitudDTO, SaldosDTO]:
+        verificar_modo_solo_lectura()
         validar_tipo_para_sustitucion(
             es_completa=nueva_solicitud.completo, requiere_completa=True
         )
@@ -582,6 +585,7 @@ class SolicitudUseCases:
         nueva_solicitud: SolicitudDTO,
         correlation_id: str | None = None,
     ) -> tuple[SolicitudDTO, SaldosDTO]:
+        verificar_modo_solo_lectura()
         validar_tipo_para_sustitucion(
             es_completa=nueva_solicitud.completo, requiere_completa=False
         )

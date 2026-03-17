@@ -6,11 +6,15 @@ from typing import Iterable
 
 from app.application.base_cuadrantes_service import BaseCuadrantesService
 from app.application.dto import PersonaDTO
+from app.application.use_cases.politica_modo_solo_lectura import (
+    verificar_modo_solo_lectura,
+)
 from app.domain.models import Persona
 from app.domain.ports import PersonaRepository
 from app.domain.services import BusinessRuleError, validar_persona
 
 logger = logging.getLogger(__name__)
+
 
 def _persona_to_dto(persona: Persona) -> PersonaDTO:
     return PersonaDTO(
@@ -66,8 +70,6 @@ def _dto_to_persona(dto: PersonaDTO) -> Persona:
     )
 
 
-
-
 def _normalizar_cuadrante_persona(dto: PersonaDTO) -> PersonaDTO:
     dto_normalizado = dto
     if dto_normalizado.cuadrante_uniforme:
@@ -92,13 +94,19 @@ def _normalizar_cuadrante_persona(dto: PersonaDTO) -> PersonaDTO:
         )
     return dto_normalizado
 
+
 class PersonaUseCases:
     """Orquesta operaciones de ciclo de vida de delegadas.
 
     Centraliza normalización y validaciones para que la UI y los adaptadores no
     repliquen reglas que afectan saldos y conflictos posteriores.
     """
-    def __init__(self, repo: PersonaRepository, base_cuadrantes_service: BaseCuadrantesService | None = None) -> None:
+
+    def __init__(
+        self,
+        repo: PersonaRepository,
+        base_cuadrantes_service: BaseCuadrantesService | None = None,
+    ) -> None:
         self._repo = repo
         self._base_cuadrantes_service = base_cuadrantes_service
 
@@ -118,6 +126,7 @@ class PersonaUseCases:
         La normalización previa evita persistir estados mixtos (uniforme vs.
         personalizado) que producirían cálculos diarios contradictorios.
         """
+        verificar_modo_solo_lectura()
         logger.info("Creando persona %s", dto.nombre)
         dto_normalizado = _normalizar_cuadrante_persona(dto)
         persona = _dto_to_persona(dto_normalizado)
@@ -131,6 +140,7 @@ class PersonaUseCases:
         return _persona_to_dto(creada)
 
     def editar_persona(self, dto: PersonaDTO) -> PersonaDTO:
+        verificar_modo_solo_lectura()
         if dto.id is None:
             raise BusinessRuleError("La persona debe tener id para editar.")
         uuid_antes = self._repo.get_or_create_uuid(dto.id)
@@ -158,6 +168,7 @@ class PersonaUseCases:
         return _persona_to_dto(actualizada)
 
     def desactivar_persona(self, persona_id: int) -> PersonaDTO:
+        verificar_modo_solo_lectura()
         persona = self._repo.get_by_id(persona_id)
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
@@ -176,6 +187,7 @@ class PersonaUseCases:
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
         return _persona_to_dto(persona)
+
 
 class PersonaFactory:
     @staticmethod
