@@ -13,6 +13,14 @@ RUTA_SERVICIO_DESTINO = Path(
     "app/application/use_cases/confirmacion_pdf/servicio_destino_pdf_confirmacion.py"
 )
 RUTA_TESTS_SOLICITUDES = Path("tests/application/use_cases/solicitudes")
+HELPERS_DESTINO_PROHIBIDOS = {
+    "NOMBRE_PDF_POR_DEFECTO",
+    "ResolucionDestinoPdf",
+    "resolver_destino_pdf",
+    "resolver_colision_pdf",
+    "resolver_ruta_sin_colision",
+}
+
 WRAPPERS_PDF_CONFIRMADAS_PROHIBIDOS = {
     "confirmacion_pdf_service.py",
     "pdf_confirmadas_builder.py",
@@ -61,3 +69,20 @@ def test_tests_confirmacion_pdf_no_quedan_en_namespace_solicitudes() -> None:
             "Mover tests de confirmacion_pdf fuera de solicitudes: "
             f"{ruta_test}"
         )
+
+
+def test_confirmacion_pdf_no_importa_helpers_destino_desde_solicitudes() -> None:
+    for ruta_modulo in Path("app/application/use_cases/confirmacion_pdf").glob("*.py"):
+        arbol = ast.parse(ruta_modulo.read_text(encoding="utf-8"))
+        for nodo in ast.walk(arbol):
+            if not isinstance(nodo, ast.ImportFrom) or not nodo.module:
+                continue
+            if nodo.module == "app.application.use_cases.solicitudes.pdf_destino_policy":
+                raise AssertionError(f"{ruta_modulo} importa pdf_destino_policy legacy")
+            if nodo.module != "app.application.use_cases.solicitudes.auxiliares_caso_uso":
+                continue
+            nombres = {alias.name for alias in nodo.names}
+            prohibidos = HELPERS_DESTINO_PROHIBIDOS.intersection(nombres)
+            assert not prohibidos, (
+                f"{ruta_modulo} importa helpers legacy de destino/preflight: {sorted(prohibidos)}"
+            )
