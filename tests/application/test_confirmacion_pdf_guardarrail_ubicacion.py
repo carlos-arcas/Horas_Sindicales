@@ -29,6 +29,29 @@ WRAPPERS_PDF_CONFIRMADAS_PROHIBIDOS = {
 }
 
 
+RUTA_WRAPPER_DESTINO_LEGACY = RUTA_SOLICITUDES / "pdf_destino_policy.py"
+MODULO_WRAPPER_DESTINO_LEGACY = "app.application.use_cases.solicitudes.pdf_destino_policy"
+
+
+def test_wrapper_pdf_destino_legacy_eliminado() -> None:
+    assert not RUTA_WRAPPER_DESTINO_LEGACY.exists()
+
+
+def test_app_no_importa_wrapper_legacy_pdf_destino() -> None:
+    for ruta_modulo in Path("app").rglob("*.py"):
+        arbol = ast.parse(ruta_modulo.read_text(encoding="utf-8"))
+        for nodo in ast.walk(arbol):
+            if isinstance(nodo, ast.ImportFrom) and nodo.module == MODULO_WRAPPER_DESTINO_LEGACY:
+                raise AssertionError(f"{ruta_modulo} importa wrapper legacy de destino PDF")
+            if not isinstance(nodo, ast.Import):
+                continue
+            for alias in nodo.names:
+                if alias.name == MODULO_WRAPPER_DESTINO_LEGACY:
+                    raise AssertionError(
+                        f"{ruta_modulo} importa wrapper legacy de destino PDF"
+                    )
+
+
 def test_solicitudes_no_define_wrappers_confirmacion_pdf_legacy() -> None:
     archivos_py = {ruta.name for ruta in RUTA_SOLICITUDES.glob("*.py")}
     assert WRAPPERS_PDF_CONFIRMADAS_PROHIBIDOS.isdisjoint(archivos_py)
