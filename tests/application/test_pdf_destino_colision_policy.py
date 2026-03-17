@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.application.use_cases.solicitudes.pdf_destino_policy import resolver_ruta_sin_colision
+from app.application.use_cases.confirmacion_pdf.destino_pdf_policy import resolver_ruta_sin_colision
 
 
 def test_policy_pdf_sin_colision_retorna_misma_ruta(tmp_path: Path) -> None:

@@ -7,6 +7,7 @@ from pathlib import Path
 RUTA_CASO_USO = Path("app/application/use_cases/confirmacion_pdf/generar_pdf_confirmadas_caso_uso.py")
 RUTA_SOLICITUDES_USE_CASE = Path("app/application/use_cases/solicitudes/use_case.py")
 RUTA_COORDINADOR = Path("app/application/use_cases/confirmacion_pdf/coordinador_confirmacion_pdf.py")
+RUTA_SERVICIO_DESTINO = Path("app/application/use_cases/confirmacion_pdf/servicio_destino_pdf_confirmacion.py")
 
 
 def _imports_desde_modulo(path_archivo: Path) -> set[str]:
@@ -54,3 +55,11 @@ def test_coordinador_confirmacion_pdf_delega_destino_en_servicio_dedicado() -> N
     assert "app.application.use_cases.confirmacion_pdf.pdf_confirmadas_runner" in imports
     assert "app.application.use_cases.confirmacion_pdf.servicio_destino_pdf_confirmacion" in imports
     assert "app.application.use_cases.solicitudes.pdf_destino_policy" not in imports
+
+
+def test_servicio_destino_confirmacion_no_depende_de_helpers_solicitudes() -> None:
+    imports = _imports_desde_modulo(RUTA_SERVICIO_DESTINO)
+
+    assert "app.application.use_cases.solicitudes.auxiliares_caso_uso" not in imports
+    assert "app.application.use_cases.solicitudes.pdf_destino_policy" not in imports
+    assert "app.application.use_cases.confirmacion_pdf.destino_pdf_policy" in imports

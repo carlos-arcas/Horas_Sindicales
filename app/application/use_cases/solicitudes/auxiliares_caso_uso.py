@@ -7,7 +7,6 @@ requieren estado interno del caso de uso.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
 from pathlib import Path
 import time
 from typing import Any, Protocol, cast
@@ -21,19 +20,6 @@ from app.domain.request_time import compute_request_minutes
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.core.errors import InfraError, PersistenceError
 from app.domain.time_range import normalize_range
-
-
-NOMBRE_PDF_POR_DEFECTO = "A_Coordinadora_Solicitud_Horas_Sindicales.pdf"
-
-
-@dataclass(frozen=True)
-class ResolucionDestinoPdf:
-    ruta_destino: Path
-    colision_detectada: bool
-    ruta_original: Path
-    ruta_alternativa: Path | None
-
-
 
 
 class _ConflictosExportacionPdf(Protocol):
@@ -122,28 +108,6 @@ def detectar_conflictos_pendientes_con_resolutor(
         return normalize_range(completo=dto.completo, desde=dto.desde, hasta=dto.hasta)
 
     return detect_pending_time_conflicts(solicitudes_list, resolve_interval)
-
-
-def resolver_destino_pdf(
-    destino: Path,
-    *,
-    overwrite: bool,
-    auto_rename: bool,
-    resolver_ruta_colision: Callable[[Path], Path],
-) -> tuple[Path, bool, Path, Path | None]:
-    ruta_original = destino.resolve(strict=False)
-    ruta_alternativa = resolver_ruta_colision(ruta_original)
-    colision_detectada = ruta_alternativa != ruta_original
-
-    if overwrite or not colision_detectada:
-        ruta_destino = ruta_original
-    elif auto_rename:
-        ruta_destino = ruta_alternativa
-    else:
-        ruta_destino = ruta_original
-
-    alternativa = ruta_alternativa if colision_detectada else None
-    return ruta_destino, colision_detectada, ruta_original, alternativa
 
 
 def seleccionar_solicitudes_por_filtro(

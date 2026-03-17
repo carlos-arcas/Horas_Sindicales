@@ -10,13 +10,11 @@ from app.application.use_cases.confirmacion_pdf.servicio_preflight_pdf import (
     EntradaNombrePdf,
     ServicioPreflightPdf,
 )
-from app.application.use_cases.solicitudes.auxiliares_caso_uso import (
+from app.application.use_cases.confirmacion_pdf.destino_pdf_policy import (
     NOMBRE_PDF_POR_DEFECTO,
     ResolucionDestinoPdf,
-    resolver_destino_pdf,
-)
-from app.application.use_cases.solicitudes.pdf_destino_policy import (
     resolver_colision_pdf,
+    resolver_destino_pdf,
     resolver_ruta_sin_colision,
 )
 from app.domain.ports import PersonaRepository
