@@ -3,7 +3,11 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+import pytest
+
+pytestmark = pytest.mark.headless_safe
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 STATE_CONTROLLER_PATH = (
     PROJECT_ROOT / "app" / "ui" / "vistas" / "main_window" / "state_controller.py"
 )
@@ -19,6 +23,7 @@ POLITICA_SOLO_LECTURA_PATH = (
     / "politica_solo_lectura.py"
 )
 UI_MAIN_PATH = PROJECT_ROOT / "app" / "entrypoints" / "ui_main.py"
+TESTS_HEADLESS_PATH = PROJECT_ROOT / "tests" / "presentacion_pura" / "main_window"
 
 ARCHIVOS_UI_AUDITADOS = {
     "app/ui/vistas/main_window/state_controller.py",
@@ -76,7 +81,10 @@ def test_ui_main_inyecta_y_expone_accion_menu_demo_para_fuente_unica() -> None:
 def test_inventario_centralizado_de_acciones_mutantes_se_mantiene_estable() -> None:
     contenido = _leer(POLITICA_SOLO_LECTURA_PATH)
     assert "class DescriptorAccionMutante" in contenido
-    assert "ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...]" in contenido
+    assert (
+        "ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...]"
+        in contenido
+    )
     modulo = ast.parse(contenido, filename=str(POLITICA_SOLO_LECTURA_PATH))
     nombres = {
         nodo.id
@@ -98,8 +106,7 @@ def _extraer_nombres_controles_mutantes(modulo: ast.Module) -> list[str]:
             for elemento in nodo.value.elts:
                 if (
                     isinstance(elemento, ast.Call)
-                    and getattr(elemento.func, "id", None)
-                    == "DescriptorAccionMutante"
+                    and getattr(elemento.func, "id", None) == "DescriptorAccionMutante"
                     and elemento.args
                     and isinstance(elemento.args[0], ast.Constant)
                     and isinstance(elemento.args[0].value, str)
@@ -119,7 +126,7 @@ def test_state_helpers_delega_read_only_a_modulo_dedicado() -> None:
     assert "_aplicar_modo_solo_lectura" not in contenido
 
 
-def test_guardarrail_no_hay_checks_manuals_read_only_fuera_modulo_dedicado() -> None:
+def test_guardarrail_no_hay_checks_manuales_read_only_fuera_modulo_dedicado() -> None:
     violaciones: list[str] = []
     for path in PROJECT_ROOT.joinpath("app", "ui").rglob("*.py"):
         relativo = path.relative_to(PROJECT_ROOT).as_posix()
@@ -129,7 +136,10 @@ def test_guardarrail_no_hay_checks_manuals_read_only_fuera_modulo_dedicado() -> 
         }:
             continue
         contenido = _leer(path)
-        if "_proveedor_ui_solo_lectura" in contenido or "tooltip_mutacion_bloqueada" in contenido:
+        if (
+            "_proveedor_ui_solo_lectura" in contenido
+            or "tooltip_mutacion_bloqueada" in contenido
+        ):
             violaciones.append(relativo)
 
     assert not violaciones, (
@@ -145,3 +155,31 @@ def test_guardarrail_repo_wide_ui_read_only_se_mantiene_acotado() -> None:
         "app/ui/vistas/main_window/politica_solo_lectura.py",
         "app/entrypoints/ui_main.py",
     }
+
+
+def test_suite_headless_read_only_no_importa_qt_ni_require_qt() -> None:
+    violaciones: list[str] = []
+    for path in TESTS_HEADLESS_PATH.glob("test_*.py"):
+        relativo = path.relative_to(PROJECT_ROOT).as_posix()
+        if "/tests/ui/" in f"/{relativo}":
+            violaciones.append(f"{relativo}: ubicación UI real no permitida")
+            continue
+        modulo = ast.parse(_leer(path), filename=str(path))
+        for nodo in ast.walk(modulo):
+            if isinstance(nodo, ast.Import):
+                for alias in nodo.names:
+                    if alias.name.startswith("PySide6"):
+                        violaciones.append(f"{relativo}: import directo de {alias.name}")
+            if isinstance(nodo, ast.ImportFrom):
+                if (nodo.module or "").startswith("PySide6"):
+                    violaciones.append(
+                        f"{relativo}: import-from directo de {nodo.module}"
+                    )
+                if nodo.module == "tests.ui.conftest":
+                    for alias in nodo.names:
+                        if alias.name == "require_qt":
+                            violaciones.append(f"{relativo}: require_qt no permitido")
+            if isinstance(nodo, ast.Name) and nodo.id == "require_qt":
+                violaciones.append(f"{relativo}: referencia a require_qt no permitida")
+
+    assert not violaciones, "\n".join(violaciones)
