@@ -34,7 +34,9 @@ class _ObtenerPreferenciaStub:
 
 
 @pytest.mark.ui
-def test_configuracion_muestra_y_guarda_preferencia_inicio_maximizado(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_configuracion_muestra_y_guarda_preferencia_inicio_maximizado(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
 
     from app.ui.vistas.main_window import MainWindow
@@ -43,15 +45,35 @@ def test_configuracion_muestra_y_guarda_preferencia_inicio_maximizado(monkeypatc
     app = QApplication.instance() or QApplication([])
     assert app is not None
 
-    monkeypatch.setattr(main_window_vista.MainWindow, "_load_personas", lambda self, select_id=None: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_reload_pending_views", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_global_context", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_refresh_last_sync_label", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_sync_button_state", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_conflicts_reminder", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_refresh_health_and_alerts", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_sync_source_text", lambda self: "stub")
-    monkeypatch.setattr(main_window_vista.MainWindow, "_sync_scope_text", lambda self: "stub")
+    monkeypatch.setattr(
+        main_window_vista.MainWindow,
+        "_load_personas",
+        lambda self, select_id=None: None,
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_reload_pending_views", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_global_context", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_refresh_last_sync_label", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_sync_button_state", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_conflicts_reminder", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_refresh_health_and_alerts", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_sync_source_text", lambda self: "stub"
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_sync_scope_text", lambda self: "stub"
+    )
 
     guardar = _GuardarPreferenciaSpy()
     obtener = _ObtenerPreferenciaStub(True)
@@ -64,6 +86,7 @@ def test_configuracion_muestra_y_guarda_preferencia_inicio_maximizado(monkeypatc
         conflicts_service=_NoOpService(),
         guardar_preferencia_inicio_maximizado=guardar,
         obtener_preferencia_inicio_maximizado=obtener,
+        proveedor_ui_solo_lectura=lambda: False,
     )
 
     try:

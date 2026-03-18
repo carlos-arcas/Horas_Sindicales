@@ -31,10 +31,13 @@ def test_cambio_idioma_refresca_textos_sync_panel() -> None:
         health_check_use_case=None,
         alert_engine=container.alert_engine,
         servicio_i18n=container.servicio_i18n,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
     window.conflicts_reminder_label.setVisible(True)
-    window.conflicts_reminder_label.setText(texto_interfaz("ui.sync.panel.conflictos_pendientes", cantidad=2))
+    window.conflicts_reminder_label.setText(
+        texto_interfaz("ui.sync.panel.conflictos_pendientes", cantidad=2)
+    )
     base_estado = window.sync_panel_status.text()
     base_run = window.sync_status_label.text()
     base_conflictos = window.conflicts_reminder_label.text()

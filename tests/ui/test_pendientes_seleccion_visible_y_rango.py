@@ -36,7 +36,9 @@ def _connection_factory(db_path: Path):
     return _build
 
 
-def _agregar_pendiente(container, persona_id: int, fecha: str, horas: float = 1.0) -> int:
+def _agregar_pendiente(
+    container, persona_id: int, fecha: str, horas: float = 1.0
+) -> int:
     creada, _ = container.solicitud_use_cases.agregar_solicitud(
         SolicitudDTO(
             id=None,
@@ -76,6 +78,7 @@ def _crear_window(tmp_path: Path):
         confirmar_pendientes_pdf_caso_uso=container.confirmar_pendientes_pdf_caso_uso,
         crear_pendiente_caso_uso=container.crear_pendiente_caso_uso,
         servicio_i18n=container.servicio_i18n,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
     return app, container, window
 
@@ -86,7 +89,9 @@ def _seleccion_rows(window: MainWindow) -> list[int]:
     return sorted(index.row() for index in selection_model.selectedRows())
 
 
-def test_toggle_visible_y_shift_rango_integran_seleccion_real(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_toggle_visible_y_shift_rango_integran_seleccion_real(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     app, container, window = _crear_window(tmp_path)
     try:
         window._reload_pending_views()
@@ -118,24 +123,39 @@ def test_toggle_visible_y_shift_rango_integran_seleccion_real(monkeypatch: pytes
         window._on_pending_select_all_visible_toggled(True)
         app.processEvents()
         assert _seleccion_rows(window) == [0, 2]
-        assert window.pending_select_all_visible_check.checkState() == Qt.CheckState.Checked
+        assert (
+            window.pending_select_all_visible_check.checkState()
+            == Qt.CheckState.Checked
+        )
 
         window._on_pending_select_all_visible_toggled(False)
         app.processEvents()
         assert _seleccion_rows(window) == []
-        assert window.pending_select_all_visible_check.checkState() == Qt.CheckState.Unchecked
+        assert (
+            window.pending_select_all_visible_check.checkState()
+            == Qt.CheckState.Unchecked
+        )
 
         # Shift + click: ancla en fila 0; destino fila 2 marca rango contiguo visible [0,2].
-        monkeypatch.setattr(state_pendientes.QApplication, "keyboardModifiers", lambda: Qt.KeyboardModifier.NoModifier)
+        monkeypatch.setattr(
+            state_pendientes.QApplication,
+            "keyboardModifiers",
+            lambda: Qt.KeyboardModifier.NoModifier,
+        )
         window._on_pending_row_clicked(window.pendientes_model.index(0, 0))
 
         selection_model = window.pendientes_table.selectionModel()
         assert selection_model is not None
         selection_model.select(
             window.pendientes_model.index(2, 0),
-            QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows,
+            QItemSelectionModel.SelectionFlag.Select
+            | QItemSelectionModel.SelectionFlag.Rows,
         )
-        monkeypatch.setattr(state_pendientes.QApplication, "keyboardModifiers", lambda: Qt.KeyboardModifier.ShiftModifier)
+        monkeypatch.setattr(
+            state_pendientes.QApplication,
+            "keyboardModifiers",
+            lambda: Qt.KeyboardModifier.ShiftModifier,
+        )
         window._on_pending_row_clicked(window.pendientes_model.index(2, 0))
         app.processEvents()
         assert _seleccion_rows(window) == [0, 2]
@@ -143,17 +163,22 @@ def test_toggle_visible_y_shift_rango_integran_seleccion_real(monkeypatch: pytes
         # Shift + click desmarca rango al clicar destino ya desmarcado.
         selection_model.select(
             window.pendientes_model.index(2, 0),
-            QItemSelectionModel.SelectionFlag.Deselect | QItemSelectionModel.SelectionFlag.Rows,
+            QItemSelectionModel.SelectionFlag.Deselect
+            | QItemSelectionModel.SelectionFlag.Rows,
         )
         window._on_pending_row_clicked(window.pendientes_model.index(2, 0))
         app.processEvents()
         assert _seleccion_rows(window) == []
-        assert window.pending_select_all_visible_check.checkState() == Qt.CheckState.Unchecked
+        assert (
+            window.pending_select_all_visible_check.checkState()
+            == Qt.CheckState.Unchecked
+        )
 
         # Confirmar usa exactamente selección real.
         selection_model.select(
             window.pendientes_model.index(0, 0),
-            QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows,
+            QItemSelectionModel.SelectionFlag.Select
+            | QItemSelectionModel.SelectionFlag.Rows,
         )
         ids_esperados = window._obtener_ids_seleccionados_pendientes()
         assert len(ids_esperados) == 1
@@ -164,8 +189,14 @@ def test_toggle_visible_y_shift_rango_integran_seleccion_real(monkeypatch: pytes
             capturado["ids"] = [sol.id for sol in selected if sol.id is not None]
             return None
 
-        monkeypatch.setattr(confirmacion_orquestacion, "execute_confirmar_with_pdf", _capturar_confirmar)
-        monkeypatch.setattr(window, "_prompt_confirm_pdf_path", lambda _selected: str(tmp_path / "salida.pdf"))
+        monkeypatch.setattr(
+            confirmacion_orquestacion, "execute_confirmar_with_pdf", _capturar_confirmar
+        )
+        monkeypatch.setattr(
+            window,
+            "_prompt_confirm_pdf_path",
+            lambda _selected: str(tmp_path / "salida.pdf"),
+        )
         window._on_confirmar()
         app.processEvents()
 
@@ -182,7 +213,10 @@ def test_toggle_sin_filas_visibles_se_deshabilita(tmp_path: Path) -> None:
         app.processEvents()
         assert window.pendientes_model.rowCount() == 0
         assert window.pending_select_all_visible_check.isEnabled() is False
-        assert window.pending_select_all_visible_check.checkState() == Qt.CheckState.Unchecked
+        assert (
+            window.pending_select_all_visible_check.checkState()
+            == Qt.CheckState.Unchecked
+        )
     finally:
         window.close()
         app.processEvents()
@@ -210,11 +244,17 @@ def test_toggle_con_una_sola_fila_funciona(tmp_path: Path) -> None:
         app.processEvents()
 
 
-def test_ver_todas_delegadas_no_deja_filas_ocultas_y_preserva_seleccion(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_ver_todas_delegadas_no_deja_filas_ocultas_y_preserva_seleccion(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     app, container, window = _crear_window(tmp_path)
     try:
-        persona_1 = window._persona_use_cases.crear_persona(PersonaDTO(nombre="Delegada Uno"))
-        persona_2 = window._persona_use_cases.crear_persona(PersonaDTO(nombre="Delegada Dos"))
+        persona_1 = window._persona_use_cases.crear_persona(
+            PersonaDTO(nombre="Delegada Uno")
+        )
+        persona_2 = window._persona_use_cases.crear_persona(
+            PersonaDTO(nombre="Delegada Dos")
+        )
         assert persona_1.id is not None and persona_2.id is not None
 
         window._load_personas(select_id=persona_1.id)
@@ -244,15 +284,24 @@ def test_ver_todas_delegadas_no_deja_filas_ocultas_y_preserva_seleccion(monkeypa
         app.processEvents()
         assert _seleccion_rows(window) == [0, 1]
 
-        monkeypatch.setattr(state_pendientes.QApplication, "keyboardModifiers", lambda: Qt.KeyboardModifier.NoModifier)
+        monkeypatch.setattr(
+            state_pendientes.QApplication,
+            "keyboardModifiers",
+            lambda: Qt.KeyboardModifier.NoModifier,
+        )
         window._on_pending_row_clicked(window.pendientes_model.index(0, 0))
         selection_model = window.pendientes_table.selectionModel()
         assert selection_model is not None
         selection_model.select(
             window.pendientes_model.index(1, 0),
-            QItemSelectionModel.SelectionFlag.Deselect | QItemSelectionModel.SelectionFlag.Rows,
+            QItemSelectionModel.SelectionFlag.Deselect
+            | QItemSelectionModel.SelectionFlag.Rows,
         )
-        monkeypatch.setattr(state_pendientes.QApplication, "keyboardModifiers", lambda: Qt.KeyboardModifier.ShiftModifier)
+        monkeypatch.setattr(
+            state_pendientes.QApplication,
+            "keyboardModifiers",
+            lambda: Qt.KeyboardModifier.ShiftModifier,
+        )
         window._on_pending_row_clicked(window.pendientes_model.index(1, 0))
         app.processEvents()
         assert _seleccion_rows(window) == []

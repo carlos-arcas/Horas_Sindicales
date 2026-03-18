@@ -29,6 +29,7 @@ def test_main_window_incluye_shell_sin_cabecera_global() -> None:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
     assert window.sidebar is not None
     assert window.stacked_pages is not None

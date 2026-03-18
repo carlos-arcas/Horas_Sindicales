@@ -31,10 +31,13 @@ def _build_window() -> MainWindow:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
 
-def test_cambiar_delegada_con_formulario_sucio_pide_confirmacion(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cambiar_delegada_con_formulario_sucio_pide_confirmacion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
@@ -62,7 +65,9 @@ def test_cambiar_delegada_con_formulario_sucio_pide_confirmacion(monkeypatch: py
     app.processEvents()
 
 
-def test_cambiar_delegada_con_formulario_sucio_y_confirmacion_afirmativa_aplica_cambio(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cambiar_delegada_con_formulario_sucio_y_confirmacion_afirmativa_aplica_cambio(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
