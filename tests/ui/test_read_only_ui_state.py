@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from importlib import import_module
+
 from app.ui.copy_catalog import copy_text
 
 
@@ -35,14 +36,20 @@ class _WindowStub:
             "agregar_button",
             "insertar_sin_pdf_button",
             "confirmar_button",
+            "eliminar_pendiente_button",
+            "eliminar_huerfana_button",
             "add_persona_button",
             "edit_persona_button",
             "delete_persona_button",
             "edit_grupo_button",
             "editar_pdf_button",
             "opciones_button",
+            "config_sync_button",
+            "sync_button",
+            "confirm_sync_button",
+            "retry_failed_button",
+            "accion_menu_cargar_demo",
             "eliminar_button",
-            "eliminar_pendiente_button",
             "generar_pdf_button",
             "clear_button",
         ):
@@ -66,7 +73,9 @@ class _WindowStub:
         self.status_panel_actualizado += 1
 
 
-def test_update_action_state_deshabilita_acciones_mutantes_en_modo_solo_lectura() -> None:
+def test_update_action_state_deshabilita_acciones_mutantes_en_modo_solo_lectura() -> (
+    None
+):
     modulo = import_module("app.ui.vistas.main_window.state_helpers")
     window = _WindowStub(solo_lectura=True)
 
@@ -90,6 +99,9 @@ def test_update_action_state_restablece_estado_normal_fuera_de_solo_lectura() ->
     assert window.agregar_button.enabled is True
     assert window.insertar_sin_pdf_button.enabled is True
     assert window.confirmar_button.enabled is True
+    assert window.sync_button.enabled is True
+    assert window.config_sync_button.enabled is True
+    assert window.retry_failed_button.enabled is False
     assert window.eliminar_button.enabled is True
     assert window.generar_pdf_button.enabled is True
     assert window.add_persona_button.enabled is True
@@ -102,15 +114,78 @@ def test_inventario_acciones_mutantes_ui_queda_centralizado_en_fuente_unica() ->
 
     assert modulo.ACCIONES_MUTANTES_AUDITADAS_UI == {
         "agregar_button": {"pantalla": "solicitudes", "accion": "agregar_pendiente"},
-        "insertar_sin_pdf_button": {"pantalla": "solicitudes", "accion": "confirmar_sin_pdf"},
+        "insertar_sin_pdf_button": {
+            "pantalla": "solicitudes",
+            "accion": "confirmar_sin_pdf",
+        },
         "confirmar_button": {"pantalla": "solicitudes", "accion": "confirmar_con_pdf"},
-        "eliminar_pendiente_button": {"pantalla": "solicitudes", "accion": "eliminar_solicitud_pendiente"},
+        "eliminar_pendiente_button": {
+            "pantalla": "solicitudes",
+            "accion": "eliminar_solicitud_pendiente",
+        },
+        "eliminar_huerfana_button": {
+            "pantalla": "solicitudes",
+            "accion": "eliminar_solicitud_huerfana",
+        },
         "add_persona_button": {"pantalla": "configuracion", "accion": "crear_persona"},
-        "edit_persona_button": {"pantalla": "configuracion", "accion": "editar_persona"},
-        "delete_persona_button": {"pantalla": "configuracion", "accion": "desactivar_persona"},
-        "edit_grupo_button": {"pantalla": "configuracion", "accion": "actualizar_configuracion_grupo"},
-        "editar_pdf_button": {"pantalla": "configuracion", "accion": "actualizar_configuracion_pdf"},
-        "opciones_button": {"pantalla": "sincronizacion", "accion": "actualizar_configuracion_sync"},
-        "eliminar_button": {"pantalla": "historico", "accion": "eliminar_solicitud_historica"},
-        "generar_pdf_button": {"pantalla": "historico", "accion": "exportar_historico_pdf"},
+        "edit_persona_button": {
+            "pantalla": "configuracion",
+            "accion": "editar_persona",
+        },
+        "delete_persona_button": {
+            "pantalla": "configuracion",
+            "accion": "desactivar_persona",
+        },
+        "edit_grupo_button": {
+            "pantalla": "configuracion",
+            "accion": "actualizar_configuracion_grupo",
+        },
+        "editar_pdf_button": {
+            "pantalla": "configuracion",
+            "accion": "actualizar_configuracion_pdf",
+        },
+        "opciones_button": {
+            "pantalla": "sincronizacion",
+            "accion": "actualizar_configuracion_sync",
+        },
+        "config_sync_button": {
+            "pantalla": "sincronizacion",
+            "accion": "sincronizar_desde_configuracion",
+        },
+        "sync_button": {"pantalla": "sincronizacion", "accion": "sincronizar_ahora"},
+        "confirm_sync_button": {
+            "pantalla": "sincronizacion",
+            "accion": "confirmar_sincronizacion",
+        },
+        "retry_failed_button": {
+            "pantalla": "sincronizacion",
+            "accion": "reintentar_sincronizacion_fallida",
+        },
+        "accion_menu_cargar_demo": {
+            "pantalla": "menu_ayuda",
+            "accion": "cargar_datos_demo",
+        },
+        "eliminar_button": {
+            "pantalla": "historico",
+            "accion": "eliminar_solicitud_historica",
+        },
+        "generar_pdf_button": {
+            "pantalla": "historico",
+            "accion": "exportar_historico_pdf",
+        },
     }
+
+
+def test_update_action_state_falla_si_falta_proveedor_ui_solo_lectura() -> None:
+    modulo = import_module("app.ui.vistas.main_window.state_helpers")
+    window = _WindowStub(solo_lectura=False)
+    delattr(window, "_proveedor_ui_solo_lectura")
+
+    try:
+        modulo.update_action_state(window)
+    except TypeError as exc:
+        assert "_proveedor_ui_solo_lectura" in str(exc)
+    else:  # pragma: no cover - guardarraíl explícito
+        raise AssertionError(
+            "Se esperaba TypeError cuando falta el proveedor UI de solo lectura"
+        )

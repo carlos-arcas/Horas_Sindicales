@@ -32,6 +32,7 @@ def test_main_window_clear_form_resets_ui_without_exceptions() -> None:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
     window.notas_input.setPlainText("nota temporal")

@@ -29,6 +29,7 @@ def test_main_window_build_ui_smoke_no_exception() -> None:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
     window._build_ui()

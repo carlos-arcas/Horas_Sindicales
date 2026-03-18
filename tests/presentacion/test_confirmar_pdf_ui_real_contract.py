@@ -67,11 +67,17 @@ def _seleccionar_filas(window, rows: list[int]) -> list[int]:
 
     for row in rows:
         index = model.index(row, 0)
-        selection_model.select(index, QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows)
+        selection_model.select(
+            index,
+            QItemSelectionModel.SelectionFlag.Select
+            | QItemSelectionModel.SelectionFlag.Rows,
+        )
     return window._obtener_ids_seleccionados_pendientes()
 
 
-def test_confirmar_pdf_ui_real_contract(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_confirmar_pdf_ui_real_contract(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     app = QApplication.instance() or QApplication([])
     db_path = tmp_path / "runtime_ui_real.sqlite3"
     pdf_dir = tmp_path / "salida_pdf"
@@ -93,6 +99,7 @@ def test_confirmar_pdf_ui_real_contract(monkeypatch: pytest.MonkeyPatch, tmp_pat
         confirmar_pendientes_pdf_caso_uso=container.confirmar_pendientes_pdf_caso_uso,
         crear_pendiente_caso_uso=container.crear_pendiente_caso_uso,
         servicio_i18n=container.servicio_i18n,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
     save_calls: list[str] = []
@@ -135,7 +142,10 @@ def test_confirmar_pdf_ui_real_contract(monkeypatch: pytest.MonkeyPatch, tmp_pat
         assert len(save_calls) == 0
         assert len(open_calls) == 0
         assert len(window._pending_solicitudes) == pendientes_inicial
-        assert len(list(container.solicitud_use_cases.listar_historico())) == historico_inicial
+        assert (
+            len(list(container.solicitud_use_cases.listar_historico()))
+            == historico_inicial
+        )
 
         # ESCENARIO 2: selección válida con toggle desactivado.
         selected_ids_s2 = _seleccionar_filas(window, [0, 1])
@@ -165,7 +175,9 @@ def test_confirmar_pdf_ui_real_contract(monkeypatch: pytest.MonkeyPatch, tmp_pat
         pdf_path_s3 = Path(save_calls[-1])
         assert pdf_path_s3.exists()
         assert pdf_path_s3.read_bytes()[:4] == b"%PDF"
-        assert len(list(container.solicitud_use_cases.listar_historico())) >= historico_s2 + len(selected_ids_s3)
+        assert len(
+            list(container.solicitud_use_cases.listar_historico())
+        ) >= historico_s2 + len(selected_ids_s3)
         assert open_calls == [str(pdf_path_s3)]
 
         evidencia = {
@@ -178,7 +190,9 @@ def test_confirmar_pdf_ui_real_contract(monkeypatch: pytest.MonkeyPatch, tmp_pat
             "tamano_pdf_escenario_2": pdf_path_s2.stat().st_size,
             "tamano_pdf_escenario_3": pdf_path_s3.stat().st_size,
             "filas_pendientes_restantes": len(window._pending_solicitudes),
-            "filas_historico": len(list(container.solicitud_use_cases.listar_historico())),
+            "filas_historico": len(
+                list(container.solicitud_use_cases.listar_historico())
+            ),
         }
         (tmp_path / "evidencia_confirmar_pdf_ui_real.json").write_text(
             json.dumps(evidencia, ensure_ascii=False, indent=2, sort_keys=True),
