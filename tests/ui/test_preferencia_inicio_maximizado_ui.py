@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.application.modo_solo_lectura import crear_estado_modo_solo_lectura
 from tests.ui.conftest import require_qt
 
 QApplication = require_qt()
@@ -86,7 +87,7 @@ def test_configuracion_muestra_y_guarda_preferencia_inicio_maximizado(
         conflicts_service=_NoOpService(),
         guardar_preferencia_inicio_maximizado=guardar,
         obtener_preferencia_inicio_maximizado=obtener,
-        proveedor_ui_solo_lectura=lambda: False,
+        estado_modo_solo_lectura=crear_estado_modo_solo_lectura(lambda: False),
     )
 
     try:

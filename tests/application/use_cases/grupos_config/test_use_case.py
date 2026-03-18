@@ -4,6 +4,7 @@ import pytest
 
 from app.application.dto import GrupoConfigDTO
 from app.application.use_cases.politica_modo_solo_lectura import (
+    crear_estado_modo_solo_lectura,
     MENSAJE_MODO_SOLO_LECTURA,
     crear_politica_modo_solo_lectura,
 )
@@ -41,7 +42,7 @@ def _dto_base() -> GrupoConfigDTO:
 
 def test_get_grupo_config_devuelve_dto() -> None:
     repo = _RepoGrupoFalso(initial=_dto_to_grupo_config(_dto_base()))
-    use_case = GrupoConfigUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    use_case = GrupoConfigUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     resultado = use_case.get_grupo_config()
 
@@ -52,7 +53,7 @@ def test_get_grupo_config_devuelve_dto() -> None:
 def test_get_grupo_config_lanza_error_si_no_existe() -> None:
     use_case = GrupoConfigUseCases(
         _RepoGrupoFalso(initial=None),
-        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)),
     )
 
     with pytest.raises(BusinessRuleError, match="Configuración de grupo no encontrada"):
@@ -61,7 +62,7 @@ def test_get_grupo_config_lanza_error_si_no_existe() -> None:
 
 def test_update_grupo_config_persiste_en_repo() -> None:
     repo = _RepoGrupoFalso(initial=None)
-    use_case = GrupoConfigUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    use_case = GrupoConfigUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     actualizado = use_case.update_grupo_config(_dto_base())
 
@@ -86,7 +87,7 @@ def test_update_grupo_config_bloqueado_en_read_only_sin_side_effects() -> None:
         raise AssertionError("No debe persistir configuración en modo solo lectura")
 
     repo.upsert = _no_upsert
-    use_case = GrupoConfigUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: True))
+    use_case = GrupoConfigUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: True)))
 
     with pytest.raises(BusinessRuleError, match=MENSAJE_MODO_SOLO_LECTURA):
         use_case.update_grupo_config(_dto_base())

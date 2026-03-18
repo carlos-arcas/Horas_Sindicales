@@ -4,6 +4,7 @@ from importlib import import_module
 
 import pytest
 
+from app.application.modo_solo_lectura import crear_estado_modo_solo_lectura
 from app.ui.copy_catalog import copy_text
 from app.ui.vistas.main_window.politica_solo_lectura import (
     ACCIONES_MUTANTES_AUDITADAS_UI,
@@ -40,7 +41,7 @@ class _WindowStub:
         self._sync_in_progress = False
         self._pending_otras_delegadas = []
         self._historico_ids_seleccionados = {7}
-        self._proveedor_ui_solo_lectura = lambda: solo_lectura
+        self._estado_modo_solo_lectura = crear_estado_modo_solo_lectura(lambda: solo_lectura)
 
         for nombre in (
             "agregar_button",
@@ -190,10 +191,10 @@ def test_inventario_acciones_mutantes_ui_queda_centralizado_en_fuente_unica() ->
     }
 
 
-def test_update_action_state_falla_si_falta_proveedor_ui_solo_lectura() -> None:
+def test_update_action_state_falla_si_falta_estado_modo_solo_lectura() -> None:
     modulo = import_module("app.ui.vistas.main_window.state_helpers")
     window = _WindowStub(solo_lectura=False)
-    delattr(window, "_proveedor_ui_solo_lectura")
+    delattr(window, "_estado_modo_solo_lectura")
 
-    with pytest.raises(TypeError, match="_proveedor_ui_solo_lectura"):
+    with pytest.raises(TypeError, match="_estado_modo_solo_lectura"):
         modulo.update_action_state(window)

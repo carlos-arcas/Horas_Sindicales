@@ -33,7 +33,7 @@ def test_main_window_layout_structure_sidebar_and_pages() -> None:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
-        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
+        estado_modo_solo_lectura=container.estado_modo_solo_lectura,
     )
 
     assert isinstance(window.stacked_pages, QStackedWidget)

@@ -4,6 +4,8 @@ from collections.abc import Callable
 
 import pytest
 
+from app.application.modo_solo_lectura import crear_estado_modo_solo_lectura
+
 qt_widgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
 qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
 QApplication = getattr(qt_widgets, "QApplication", None)
@@ -75,8 +77,8 @@ def build_window(monkeypatch: pytest.MonkeyPatch, **deps):
         "conflicts_service": deps.get("conflicts_service", NoOpService()),
         "health_check_use_case": deps.get("health_check_use_case"),
         "alert_engine": deps.get("alert_engine"),
-        "proveedor_ui_solo_lectura": deps.get(
-            "proveedor_ui_solo_lectura", lambda: False
+        "estado_modo_solo_lectura": deps.get(
+            "estado_modo_solo_lectura", crear_estado_modo_solo_lectura(lambda: False)
         ),
     }
     return main_window_vista.MainWindow(**resolved_deps)

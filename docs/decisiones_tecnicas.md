@@ -186,3 +186,9 @@
   Persistía deuda de cohesión en `state_helpers`: además de orquestar el estado general de botones, también era owner del inventario mutante auditado, del tooltip preventivo y del disable read-only. Ese acoplamiento hacía crecer un helper mochila y mantenía la auditoría muy dependiente de strings dispersos.  
   Se extrae la política de presentación a `app/ui/vistas/main_window/politica_solo_lectura.py`, con un inventario inmutable basado en `DescriptorAccionMutante` y APIs acotadas (`aplicar_politica_solo_lectura`, `exportar_inventario_acciones_mutantes`). `state_helpers` queda sólo como orquestador de estado y delega la política read-only al nuevo módulo.  
   Resultado: una sola fuente de verdad UI para controles mutantes/tooltip/disable, menor acoplamiento estructural en `state_helpers` y guardarraíles que impiden reintroducir checks manuales o redefinir el inventario fuera del módulo dedicado.
+
+
+- **2026-03-18 — EstadoModoSoloLectura compartido como única fuente read-only entre aplicación y UI — Vigente**  
+  Persistía una duplicidad conceptual: backend modelaba el read-only con `PoliticaModoSoloLectura`, mientras la UI recibía `Callable[[], bool]` cruda mediante `proveedor_ui_solo_lectura`. Aunque funcional, el contrato público divergía entre capas y dejaba abierta la puerta a wiring débil y a deriva futura.  
+  Se introduce `EstadoModoSoloLectura` en `app/application/modo_solo_lectura.py` como abstracción mínima compartida. El bootstrap compone una sola instancia desde `settings`, la política de aplicación consulta `estado.esta_activo()` y `MainWindow`/`politica_solo_lectura` consumen el mismo objeto explícito. Se elimina el `Callable[[], bool]` como API pública principal de read-only y se añaden guardarraíles para impedir su reintroducción en backend/UI.  
+  Resultado: una sola fuente de verdad tipada, sin globals nuevos, sin acoplamiento a Qt y manteniendo intacta la semántica preventiva ya validada.

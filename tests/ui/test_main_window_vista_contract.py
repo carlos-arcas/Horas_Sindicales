@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from app.application.modo_solo_lectura import crear_estado_modo_solo_lectura
 
 class _NoOpService:
     def __getattr__(self, _name: str):
@@ -79,7 +80,7 @@ def test_main_window_contract_public_attributes(
         conflicts_service=_NoOpService(),
         health_check_use_case=None,
         alert_engine=None,
-        proveedor_ui_solo_lectura=lambda: False,
+        estado_modo_solo_lectura=crear_estado_modo_solo_lectura(lambda: False),
     )
     expected_attrs = [
         "main_tabs",
@@ -141,7 +142,7 @@ def test_main_window_falla_temprano_si_no_se_inyecta_proveedor_ui_read_only(
     )
 
     with pytest.raises(
-        TypeError, match="proveedor_ui_solo_lectura es obligatorio en MainWindow"
+        TypeError, match="estado_modo_solo_lectura es obligatorio en MainWindow"
     ):
         MainWindow(
             persona_use_cases=_NoOpService(),

@@ -6,14 +6,14 @@ from unittest.mock import Mock
 
 from app.application.dtos.contexto_operacion import ContextoOperacion
 from app.application.use_cases.solicitudes.use_case import SolicitudUseCases
-from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
+from app.application.use_cases.politica_modo_solo_lectura import crear_estado_modo_solo_lectura, crear_politica_modo_solo_lectura
 
 
 def test_eliminar_solicitud_loguea_correlation_id_del_contexto(caplog) -> None:
     repo = Mock()
     repo.get_by_id.return_value = SimpleNamespace(fecha_pedida="2024-01-01", persona_id=7)
 
-    use_case = SolicitudUseCases(repo=repo, persona_repo=Mock(), fs=Mock(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    use_case = SolicitudUseCases(repo=repo, persona_repo=Mock(), fs=Mock(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
     fake_saldos = object()
     use_case.calcular_saldos = Mock(return_value=fake_saldos)  # type: ignore[method-assign]
 

@@ -38,7 +38,7 @@ def test_event_filter_handles_qkeyevent_keypress_without_crash() -> None:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
-        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
+        estado_modo_solo_lectura=container.estado_modo_solo_lectura,
     )
 
     event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key_Return, Qt.NoModifier)
@@ -65,7 +65,7 @@ def test_event_filter_if_qkeyevent_symbol_missing_no_nameerror(
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
-        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
+        estado_modo_solo_lectura=container.estado_modo_solo_lectura,
     )
 
     monkeypatch.setattr(main_window_vista, "QKeyEvent", None, raising=False)
@@ -92,7 +92,7 @@ def test_event_filter_ignores_keyrelease_without_nameerror() -> None:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
-        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
+        estado_modo_solo_lectura=container.estado_modo_solo_lectura,
     )
 
     event = QKeyEvent(QEvent.Type.KeyRelease, Qt.Key_Return, Qt.NoModifier)

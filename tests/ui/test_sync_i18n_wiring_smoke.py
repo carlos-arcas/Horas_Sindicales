@@ -31,7 +31,7 @@ def test_cambio_idioma_refresca_textos_sync_panel() -> None:
         health_check_use_case=None,
         alert_engine=container.alert_engine,
         servicio_i18n=container.servicio_i18n,
-        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
+        estado_modo_solo_lectura=container.estado_modo_solo_lectura,
     )
 
     window.conflicts_reminder_label.setVisible(True)

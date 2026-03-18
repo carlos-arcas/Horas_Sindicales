@@ -3,7 +3,6 @@ from __future__ import annotations
 # ruff: noqa: F401
 
 import logging
-from collections.abc import Callable
 from pathlib import Path
 
 from app.ui.qt_compat import (
@@ -71,6 +70,7 @@ from aplicacion.casos_de_uso.preferencia_inicio_maximizado import (
     ObtenerPreferenciaInicioMaximizado,
 )
 from aplicacion.puertos.proveedor_i18n import ProveedorI18N
+from app.application.modo_solo_lectura import EstadoModoSoloLectura
 
 from .capacidades_opcionales import (
     CAPACIDAD_MODAL_SALDOS_DETALLE,
@@ -171,7 +171,7 @@ class MainWindow(
         obtener_preferencia_inicio_maximizado: ObtenerPreferenciaInicioMaximizado
         | None = None,
         servicio_i18n: ProveedorI18N | None = None,
-        proveedor_ui_solo_lectura: Callable[[], bool] | None = None,
+        estado_modo_solo_lectura: EstadoModoSoloLectura | None = None,
     ) -> None:
         super().__init__()
         assert_hilo_ui_o_log("ui.mainwindow.init", logger)
@@ -199,11 +199,11 @@ class MainWindow(
         )
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._servicio_i18n = servicio_i18n
-        if proveedor_ui_solo_lectura is None:
-            raise TypeError(copy_text("ui.read_only.error_proveedor_obligatorio"))
-        if not callable(proveedor_ui_solo_lectura):
-            raise TypeError(copy_text("ui.read_only.error_proveedor_invalido"))
-        self._proveedor_ui_solo_lectura = proveedor_ui_solo_lectura
+        if estado_modo_solo_lectura is None:
+            raise TypeError(copy_text("ui.read_only.error_estado_obligatorio"))
+        if not isinstance(estado_modo_solo_lectura, EstadoModoSoloLectura):
+            raise TypeError(copy_text("ui.read_only.error_estado_invalido"))
+        self._estado_modo_solo_lectura = estado_modo_solo_lectura
         if servicio_i18n is not None:
             try:
                 i18n_actual = self._i18n

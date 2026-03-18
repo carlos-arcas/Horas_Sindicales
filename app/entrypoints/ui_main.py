@@ -823,7 +823,7 @@ def run_ui(container=None) -> int:
             guardar_preferencia_inicio_maximizado=deps_arranque.guardar_preferencia_inicio_maximizado,
             obtener_preferencia_inicio_maximizado=deps_arranque.obtener_preferencia_inicio_maximizado,
             servicio_i18n=resolved_container.servicio_i18n,
-            proveedor_ui_solo_lectura=resolved_container.proveedor_ui_solo_lectura,
+            estado_modo_solo_lectura=resolved_container.estado_modo_solo_lectura,
         )
 
     controlador = CoordinadorArranquePrincipal(

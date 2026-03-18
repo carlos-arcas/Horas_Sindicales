@@ -197,7 +197,7 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         confirmar_pendientes_pdf_caso_uso=container.confirmar_pendientes_pdf_caso_uso,
         crear_pendiente_caso_uso=container.crear_pendiente_caso_uso,
         servicio_i18n=container.servicio_i18n,
-        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
+        estado_modo_solo_lectura=container.estado_modo_solo_lectura,
     )
 
     save_calls: list[str] = []

@@ -6,7 +6,7 @@ import pytest
 
 from app.application.dto import PersonaDTO
 from app.application.use_cases.personas.use_case import PersonaUseCases
-from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
+from app.application.use_cases.politica_modo_solo_lectura import crear_estado_modo_solo_lectura, crear_politica_modo_solo_lectura
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError
 
@@ -111,7 +111,7 @@ def _dto_base() -> PersonaDTO:
 
 def test_crear_persona_normaliza_cuadrante_uniforme_y_sin_finde() -> None:
     repo = _RepoPersonasMemoria([_persona(1)])
-    caso_uso = PersonaUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    caso_uso = PersonaUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     creada = caso_uso.crear_persona(_dto_base())
 
@@ -124,7 +124,7 @@ def test_crear_persona_normaliza_cuadrante_uniforme_y_sin_finde() -> None:
 def test_crear_persona_con_base_cuadrantes_refresca_desde_repo() -> None:
     repo = _RepoPersonasMemoria([_persona(1)])
     base_spy = _BaseCuadrantesSpy()
-    caso_uso = PersonaUseCases(repo, base_cuadrantes_service=base_spy, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    caso_uso = PersonaUseCases(repo, base_cuadrantes_service=base_spy, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     creada = caso_uso.crear_persona(_dto_base())
 
@@ -132,7 +132,7 @@ def test_crear_persona_con_base_cuadrantes_refresca_desde_repo() -> None:
 
 
 def test_editar_persona_requiere_id() -> None:
-    caso_uso = PersonaUseCases(_RepoPersonasMemoria([_persona(1)]), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    caso_uso = PersonaUseCases(_RepoPersonasMemoria([_persona(1)]), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     with pytest.raises(BusinessRuleError, match="debe tener id"):
         caso_uso.editar_persona(_dto_base())
@@ -140,7 +140,7 @@ def test_editar_persona_requiere_id() -> None:
 
 def test_desactivar_persona_valida_existencia_y_ultima_activa() -> None:
     repo = _RepoPersonasMemoria([_persona(1, activa=True)])
-    caso_uso = PersonaUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    caso_uso = PersonaUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     with pytest.raises(BusinessRuleError, match="Persona no encontrada"):
         caso_uso.desactivar_persona(99)
@@ -150,7 +150,7 @@ def test_desactivar_persona_valida_existencia_y_ultima_activa() -> None:
 
 def test_desactivar_persona_inactiva_devuelve_sin_modificar() -> None:
     repo = _RepoPersonasMemoria([_persona(1, activa=False), _persona(2, activa=True)])
-    caso_uso = PersonaUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    caso_uso = PersonaUseCases(repo, politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     dto = caso_uso.desactivar_persona(1)
 
@@ -159,7 +159,7 @@ def test_desactivar_persona_inactiva_devuelve_sin_modificar() -> None:
 
 
 def test_obtener_persona_lanza_error_si_no_existe() -> None:
-    caso_uso = PersonaUseCases(_RepoPersonasMemoria([_persona(1)]), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    caso_uso = PersonaUseCases(_RepoPersonasMemoria([_persona(1)]), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     with pytest.raises(BusinessRuleError, match="Persona no encontrada"):
         caso_uso.obtener_persona(8)

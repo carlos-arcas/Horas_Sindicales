@@ -537,7 +537,7 @@
     "ui.historico.detalle_solicitud_titulo": "Detalle de solicitud",
     "ui.error_details.qdialog_close_missing": "QDialogButtonBox.Close debe existir para mantener foco principal",
     "ui.read_only.tooltip_mutacion_bloqueada": "Acción no disponible: la aplicación está en modo solo lectura.",
-    "ui.read_only.error_proveedor_obligatorio": "proveedor_ui_solo_lectura es obligatorio en MainWindow",
-    "ui.read_only.error_proveedor_invalido": "proveedor_ui_solo_lectura debe ser callable",
-    "ui.read_only.error_proveedor_no_inyectado": "_proveedor_ui_solo_lectura debe estar inyectado en la UI"
+    "ui.read_only.error_estado_obligatorio": "estado_modo_solo_lectura es obligatorio en MainWindow",
+    "ui.read_only.error_estado_invalido": "estado_modo_solo_lectura debe ser EstadoModoSoloLectura",
+    "ui.read_only.error_estado_no_inyectado": "_estado_modo_solo_lectura debe estar inyectado en la UI"
 }

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
-from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
+from app.application.use_cases.politica_modo_solo_lectura import crear_estado_modo_solo_lectura, crear_politica_modo_solo_lectura
 from app.application.use_cases.confirmacion_pdf.caso_uso import (
     ConfirmarPendientesPdfCasoUso,
 )
@@ -45,7 +45,7 @@ def test_flujo_solicitud_pdf_historico_contrato_prioridad_1(tmp_path: Path) -> N
         fs_local = SistemaArchivosLocal()
         generador_pdf = GeneradorPdfReportlab()
 
-        politica_modo_solo_lectura = crear_politica_modo_solo_lectura(lambda: False)
+        politica_modo_solo_lectura = crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False))
         solicitud_use_cases = SolicitudUseCases(
             solicitud_repo,
             persona_repo,

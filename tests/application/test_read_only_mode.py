@@ -5,6 +5,7 @@ import pytest
 from app.application.dto import PersonaDTO
 from app.application.use_cases import politica_modo_solo_lectura as modulo_politica
 from app.application.use_cases.politica_modo_solo_lectura import (
+    crear_estado_modo_solo_lectura,
     MENSAJE_MODO_SOLO_LECTURA,
     crear_politica_modo_solo_lectura,
 )
@@ -12,7 +13,7 @@ from app.domain.services import BusinessRuleError
 
 
 def _politica(activo: bool):
-    return crear_politica_modo_solo_lectura(lambda: activo)
+    return crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: activo))
 
 
 def test_politica_explicita_bloquea_con_provider_activo() -> None:

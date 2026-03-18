@@ -4,7 +4,7 @@ import pytest
 
 from app.application.dto import PeriodoFiltro, SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
-from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
+from app.application.use_cases.politica_modo_solo_lectura import crear_estado_modo_solo_lectura, crear_politica_modo_solo_lectura
 from app.domain.models import Persona
 from app.domain.services import BusinessRuleError
 from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
@@ -60,7 +60,7 @@ def test_calcular_minutos_solicitud_ok(connection) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     minutos = use_case.calcular_minutos_solicitud(_dto_valido(persona_id))
 
@@ -70,7 +70,7 @@ def test_calcular_minutos_solicitud_ok(connection) -> None:
 def test_calcular_minutos_solicitud_error_persona_inexistente(connection) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     with pytest.raises(BusinessRuleError, match="Persona no encontrada"):
         use_case.calcular_minutos_solicitud(_dto_valido(99999))
@@ -80,7 +80,7 @@ def test_calcular_minutos_solicitud_error_horas_negativas(connection) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     with pytest.raises(BusinessRuleError, match="horas"):
         use_case.calcular_minutos_solicitud(_dto_valido(persona_id, horas=-1.0))
@@ -90,7 +90,7 @@ def test_calcular_saldos_por_periodo_sin_solicitudes(connection) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo, horas_mes=300, horas_ano=4000)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     saldos = use_case.calcular_saldos_por_periodo(persona_id, PeriodoFiltro.mensual(2025, 1))
 
@@ -104,7 +104,7 @@ def test_calcular_saldos_por_periodo_con_solicitudes(connection) -> None:
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo, horas_mes=300, horas_ano=4000)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     creada, _ = use_case.agregar_solicitud(_dto_valido(persona_id))
     assert creada.id is not None
@@ -120,7 +120,7 @@ def test_calcular_saldos_por_periodo_propaga_error_de_repo(connection, monkeypat
     persona_repo = RepositorioPersonasSQLite(connection)
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     def _falla_repo(*_args, **_kwargs):
         raise RuntimeError("fallo de consulta")

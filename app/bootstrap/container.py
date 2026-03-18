@@ -33,6 +33,7 @@ from app.application.use_cases.confirmacion_pdf.servicio_destino_pdf_confirmacio
 from app.application.use_cases.confirmacion_pdf.generar_pdf_confirmadas_caso_uso import (
     GenerarPdfSolicitudesConfirmadasCasoUso,
 )
+from app.application.modo_solo_lectura import EstadoModoSoloLectura, crear_estado_modo_solo_lectura
 from app.application.use_cases.politica_modo_solo_lectura import (
     crear_politica_modo_solo_lectura,
 )
@@ -99,7 +100,7 @@ class AppContainer:
     cargar_datos_demo_caso_uso: CargarDatosDemoCasoUso
     exportar_compartir_periodo_caso_uso: ExportarCompartirPeriodoCasoUso
     servicio_i18n: ProveedorI18N
-    proveedor_ui_solo_lectura: Callable[[], bool]
+    estado_modo_solo_lectura: EstadoModoSoloLectura
 
 
 ConnectionFactory = Callable[[], object]
@@ -110,7 +111,8 @@ def build_container(
     *,
     preferencias_headless: bool = True,
 ) -> AppContainer:
-    politica_modo_solo_lectura = crear_politica_modo_solo_lectura(is_read_only_enabled)
+    estado_modo_solo_lectura = crear_estado_modo_solo_lectura(is_read_only_enabled)
+    politica_modo_solo_lectura = crear_politica_modo_solo_lectura(estado_modo_solo_lectura)
 
     connection = connection_factory()
     run_migrations(connection)
@@ -257,7 +259,7 @@ def build_container(
         cargar_datos_demo_caso_uso=cargar_datos_demo_caso_uso,
         exportar_compartir_periodo_caso_uso=exportar_compartir_periodo_caso_uso,
         servicio_i18n=servicio_i18n,
-        proveedor_ui_solo_lectura=is_read_only_enabled,
+        estado_modo_solo_lectura=estado_modo_solo_lectura,
     )
 
 

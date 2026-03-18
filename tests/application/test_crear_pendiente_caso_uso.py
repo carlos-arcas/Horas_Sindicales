@@ -5,6 +5,7 @@ import pytest
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases.politica_modo_solo_lectura import (
+    crear_estado_modo_solo_lectura,
     MENSAJE_MODO_SOLO_LECTURA,
     crear_politica_modo_solo_lectura,
 )
@@ -50,7 +51,7 @@ def test_crear_pendiente_devuelve_snapshot_y_pendientes_ids() -> None:
     repo = RepositorioFake()
     caso_uso = CrearPendienteCasoUso(
         repositorio=repo,
-        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)),
     )
 
     resultado = caso_uso.execute(SolicitudCrearPendientePeticion(solicitud=_solicitud(), correlation_id="corr-test"))
@@ -72,7 +73,7 @@ def test_crear_pendiente_bloqueado_en_read_only_sin_side_effects() -> None:
     repo.crear_pendiente = _no_crear
     caso_uso = CrearPendienteCasoUso(
         repositorio=repo,
-        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: True),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: True)),
     )
 
     with pytest.raises(BusinessRuleError, match=MENSAJE_MODO_SOLO_LECTURA):

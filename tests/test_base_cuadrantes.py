@@ -6,7 +6,7 @@ import unittest
 from app.application.base_cuadrantes_service import BaseCuadrantesService
 from app.application.dto import PersonaDTO
 from app.application.use_cases import PersonaUseCases
-from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
+from app.application.use_cases.politica_modo_solo_lectura import crear_estado_modo_solo_lectura, crear_politica_modo_solo_lectura
 from app.domain.base_cuadrantes import DEFAULT_BASE_DIAS, DEFAULT_BASE_MAN_MIN, DEFAULT_BASE_TAR_MIN
 from app.infrastructure.migrations import run_migrations
 from app.infrastructure.repos_sqlite import CuadranteRepositorySQLite, RepositorioPersonasSQLite
@@ -47,7 +47,7 @@ class BaseCuadrantesServiceTests(unittest.TestCase):
         self.base_service = BaseCuadrantesService(self.persona_repo, self.cuadrante_repo)
         self.use_cases = PersonaUseCases(
             self.persona_repo,
-            politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+            politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)),
             base_cuadrantes_service=self.base_service,
         )
 
