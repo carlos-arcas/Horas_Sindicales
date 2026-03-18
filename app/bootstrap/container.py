@@ -124,8 +124,8 @@ def build_container(
     base_cuadrantes_service.ensure_for_all_personas()
     persona_use_cases = PersonaUseCases(
         persona_repo,
-        base_cuadrantes_service,
         politica_modo_solo_lectura=politica_modo_solo_lectura,
+        base_cuadrantes_service=base_cuadrantes_service,
     )
     generador_pdf = GeneradorPdfReportlab()
     solicitud_use_cases = SolicitudUseCases(

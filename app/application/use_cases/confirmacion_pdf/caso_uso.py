@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import logging
 
 from app.core.observability import generate_correlation_id, log_event
 from app.application.dto import SolicitudDTO
 from app.application.use_cases.politica_modo_solo_lectura import (
     PoliticaModoSoloLectura,
-    crear_politica_modo_solo_lectura,
 )
 from app.application.use_cases.confirmacion_pdf.modelos import (
     SolicitudConfirmarPdfPeticion,
@@ -28,9 +27,7 @@ class ConfirmarPendientesPdfCasoUso:
     repositorio: RepositorioSolicitudes
     generador_pdf: GeneradorPdfConfirmadasPuerto
     sistema_archivos: SistemaArchivosPuerto
-    politica_modo_solo_lectura: PoliticaModoSoloLectura = field(
-        default_factory=crear_politica_modo_solo_lectura
-    )
+    politica_modo_solo_lectura: PoliticaModoSoloLectura
 
     def __call__(
         self, request: SolicitudConfirmarPdfPeticion

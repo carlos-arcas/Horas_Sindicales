@@ -62,7 +62,6 @@ from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf imp
 )
 from app.application.use_cases.politica_modo_solo_lectura import (
     PoliticaModoSoloLectura,
-    crear_politica_modo_solo_lectura,
 )
 from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import (
     plan_confirmar_sin_pdf,
@@ -127,14 +126,14 @@ class SolicitudUseCases:
         fs: SistemaArchivosPuerto,
         config_repo: GrupoConfigRepository | None = None,
         generador_pdf: GeneradorPdfPuerto | None = None,
-        politica_modo_solo_lectura: PoliticaModoSoloLectura | None = None,
+        politica_modo_solo_lectura: PoliticaModoSoloLectura,
     ) -> None:
         self._repo = repo
         self._persona_repo = persona_repo
         self._config_repo = config_repo
         self._generador_pdf = generador_pdf
         self._fs = fs
-        self._politica_modo_solo_lectura = politica_modo_solo_lectura or crear_politica_modo_solo_lectura()
+        self._politica_modo_solo_lectura = politica_modo_solo_lectura
         self._coordinador_confirmacion_pdf = CoordinadorConfirmacionPdf(
             repo=self._repo,
             persona_repo=self._persona_repo,
