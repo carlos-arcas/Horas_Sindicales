@@ -7,6 +7,7 @@ import pytest
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
+from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
 from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
     CoordinadorConfirmacionPdf,
 )
@@ -132,7 +133,7 @@ def test_confirmar_lote_preflight_colision_se_resuelve_con_ruta_alternativa(conn
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
     generador_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=generador_pdf, fs=SistemaArchivosLocal())
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=generador_pdf, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
 
     destino = tmp_path / "duplicado.pdf"
     destino.write_bytes(b"contenido previo")
@@ -158,6 +159,7 @@ def test_confirmar_lote_resuelve_destino_pdf_una_sola_vez(connection, tmp_path: 
         persona_repo,
         generador_pdf=generador_pdf,
         fs=SistemaArchivosLocal(),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
     )
 
     destino = tmp_path / "duplicado.pdf"
@@ -192,7 +194,7 @@ def test_confirmar_lote_no_lanza_error_por_colision_de_ruta(connection, tmp_path
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
     generador_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=generador_pdf, fs=SistemaArchivosLocal())
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=generador_pdf, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
 
     destino = tmp_path / "colision.pdf"
     destino.write_bytes(b"contenido previo")
@@ -212,7 +214,7 @@ def test_confirmar_lote_preflight_colision_si_existen_base_y_1_devuelve_2(connec
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
     generador_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=generador_pdf, fs=SistemaArchivosLocal())
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=generador_pdf, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
 
     (tmp_path / "duplicado.pdf").write_bytes(b"base")
     (tmp_path / "duplicado (1).pdf").write_bytes(b"alternativa 1")
@@ -249,7 +251,7 @@ def test_confirmar_lote_error_pdf_incluye_incident_id(connection, tmp_path: Path
     solicitud_repo = SolicitudRepositorySQLite(connection)
     persona_id = _crear_persona(persona_repo)
     generador_pdf = FakeGeneradorPdfFalla()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=generador_pdf, fs=SistemaArchivosLocal())
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=generador_pdf, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
 
     with pytest.raises(BusinessRuleError, match=r"ID de incidente: INC-"):
         coordinador = _crear_coordinador(use_case, solicitud_repo, persona_repo, generador_pdf)

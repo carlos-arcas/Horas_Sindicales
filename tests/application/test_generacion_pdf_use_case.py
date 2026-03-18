@@ -3,10 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.application.dto import SolicitudDTO
+from app.application.use_cases import SolicitudUseCases
 from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf import (
     CoordinadorConfirmacionPdf,
 )
-from app.application.use_cases import SolicitudUseCases
+from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
 from app.domain.models import Persona
 from app.infrastructure.repos_sqlite import (
     RepositorioPersonasSQLite,
@@ -101,7 +102,7 @@ def test_confirmar_lote_llama_puerto_pdf_con_datos_esperados(
     )
 
     fake_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal())
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
     solicitud = SolicitudDTO(
         id=None,
         persona_id=int(persona.id or 0),
@@ -169,7 +170,7 @@ def test_confirmar_lote_colision_pdf_renombra_destino_sin_error(
     )
 
     fake_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal())
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
     solicitud = SolicitudDTO(
         id=None,
         persona_id=int(persona.id or 0),
@@ -251,7 +252,7 @@ def test_generar_pdf_historico_resuelve_personas_por_fila(connection, tmp_path: 
         )
     )
     fake_pdf = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal())
+    use_case = SolicitudUseCases(solicitud_repo, persona_repo, generador_pdf=fake_pdf, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
     solicitudes = [
         SolicitudDTO(
             id=1, persona_id=int(dora.id or 0), fecha_solicitud="2025-02-01", fecha_pedida="2025-02-01",

@@ -8,7 +8,6 @@ from app.application.base_cuadrantes_service import BaseCuadrantesService
 from app.application.dto import PersonaDTO
 from app.application.use_cases.politica_modo_solo_lectura import (
     PoliticaModoSoloLectura,
-    crear_politica_modo_solo_lectura,
 )
 from app.domain.models import Persona
 from app.domain.ports import PersonaRepository
@@ -106,12 +105,13 @@ class PersonaUseCases:
     def __init__(
         self,
         repo: PersonaRepository,
+        *,
+        politica_modo_solo_lectura: PoliticaModoSoloLectura,
         base_cuadrantes_service: BaseCuadrantesService | None = None,
-        politica_modo_solo_lectura: PoliticaModoSoloLectura | None = None,
     ) -> None:
         self._repo = repo
         self._base_cuadrantes_service = base_cuadrantes_service
-        self._politica_modo_solo_lectura = politica_modo_solo_lectura or crear_politica_modo_solo_lectura()
+        self._politica_modo_solo_lectura = politica_modo_solo_lectura
 
     def listar(self) -> Iterable[PersonaDTO]:
         return self.listar_personas()

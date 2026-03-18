@@ -88,7 +88,7 @@ def _solicitud(solicitud_id: int) -> SolicitudDTO:
 def test_caso_correcto_contrato_tipado_ok_con_pdf() -> None:
     repo = FakeRepositorio([_solicitud(1), _solicitud(2)])
     generador_pdf = FakeGeneradorPdf()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs())
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
 
     result = caso_uso.execute(
         SolicitudConfirmarPdfPeticion(
@@ -111,7 +111,7 @@ def test_caso_error_insercion_no_genera_pdf_ni_sync() -> None:
     repo = FakeRepositorio([_solicitud(1)])
     repo.force_insert_error = True
     generador_pdf = FakeGeneradorPdf()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs())
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
 
     result = caso_uso.execute(
         SolicitudConfirmarPdfPeticion(
@@ -133,7 +133,7 @@ def test_caso_error_pdf_no_habilita_sync() -> None:
     repo = FakeRepositorio([_solicitud(1)])
     generador_pdf = FakeGeneradorPdf()
     generador_pdf.force_error = True
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs())
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
 
     result = caso_uso.execute(
         SolicitudConfirmarPdfPeticion(
@@ -152,7 +152,7 @@ def test_caso_error_pdf_no_habilita_sync() -> None:
 def test_caso_sin_confirmadas_no_genera_pdf_ni_sync() -> None:
     repo = FakeRepositorio([_solicitud(1)])
     generador_pdf = FakeGeneradorPdf()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs())
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
 
     result = caso_uso.execute(
         SolicitudConfirmarPdfPeticion(
@@ -192,7 +192,7 @@ def test_preflight_no_toca_disco() -> None:
 def test_caso_uso_es_invocable_como_callable() -> None:
     repo = FakeRepositorio([_solicitud(1)])
     generador_pdf = FakeGeneradorPdf()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs())
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
 
     resultado = caso_uso(
         SolicitudConfirmarPdfPeticion(
@@ -210,7 +210,7 @@ def test_caso_uso_es_invocable_como_callable() -> None:
 def test_caso_uso_orquesta_confirmar_antes_que_pdf() -> None:
     repo = FakeRepositorio([_solicitud(1)])
     generador_pdf = FakeGeneradorPdf()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs())
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
 
     resultado = caso_uso.execute(
         SolicitudConfirmarPdfPeticion(

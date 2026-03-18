@@ -6,6 +6,7 @@ import pytest
 
 from app.application.dto import PersonaDTO
 from app.application.use_cases import PersonaUseCases
+from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
 from app.domain.services import BusinessRuleError
 from app.infrastructure.migrations import run_migrations
 from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite
@@ -15,7 +16,10 @@ def _build_use_cases() -> PersonaUseCases:
     connection = sqlite3.connect(":memory:")
     connection.row_factory = sqlite3.Row
     run_migrations(connection)
-    return PersonaUseCases(RepositorioPersonasSQLite(connection))
+    return PersonaUseCases(
+        RepositorioPersonasSQLite(connection),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+    )
 
 
 def _persona(nombre: str) -> PersonaDTO:

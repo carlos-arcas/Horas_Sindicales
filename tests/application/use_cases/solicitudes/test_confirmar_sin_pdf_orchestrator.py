@@ -11,6 +11,7 @@ from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import (
     ConfirmarSinPdfPayload,
 )
 from app.application.use_cases.solicitudes.use_case import SolicitudUseCases
+from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
 from app.core.errors import InfraError, PersistenceError
 from app.domain.services import BusinessRuleError, ValidacionError
 
@@ -47,7 +48,12 @@ def _build_action(solicitud: SolicitudDTO) -> ConfirmarSinPdfAction:
 
 
 def _use_case() -> SolicitudUseCases:
-    return SolicitudUseCases(repo=Mock(), persona_repo=Mock(), fs=Mock())
+    return SolicitudUseCases(
+        repo=Mock(),
+        persona_repo=Mock(),
+        fs=Mock(),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+    )
 
 
 def test_confirmar_sin_pdf_invoca_planner(monkeypatch: pytest.MonkeyPatch) -> None:
