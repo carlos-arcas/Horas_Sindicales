@@ -9,7 +9,10 @@ qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
 QApplication = getattr(qt_widgets, "QApplication", None)
 QTabWidget = getattr(qt_widgets, "QTabWidget", None)
 if not hasattr(qt_widgets, "QCheckBox"):
-    pytest.skip("PySide6 incompleto en entorno actual para tests UI de MainWindow", allow_module_level=True)
+    pytest.skip(
+        "PySide6 incompleto en entorno actual para tests UI de MainWindow",
+        allow_module_level=True,
+    )
 
 from app.ui.vistas import main_window_vista
 
@@ -26,7 +29,9 @@ class FakeSyncService(NoOpService):
 
 def build_app():
     if QApplication is None or not hasattr(QApplication, "instance"):
-        pytest.fail("PySide6 real requerido en tests/ui: QApplication.instance no disponible (stub detectado)")
+        pytest.fail(
+            "PySide6 real requerido en tests/ui: QApplication.instance no disponible (stub detectado)"
+        )
     return QApplication.instance() or QApplication([])
 
 
@@ -41,7 +46,9 @@ def _noop_method(method_name: str) -> Callable[..., object]:
 def _patch_hook_if_exists(monkeypatch: pytest.MonkeyPatch, method_name: str) -> None:
     method = getattr(main_window_vista.MainWindow, method_name, None)
     if callable(method):
-        monkeypatch.setattr(main_window_vista.MainWindow, method_name, _noop_method(method_name))
+        monkeypatch.setattr(
+            main_window_vista.MainWindow, method_name, _noop_method(method_name)
+        )
 
 
 def build_window(monkeypatch: pytest.MonkeyPatch, **deps):
@@ -68,6 +75,9 @@ def build_window(monkeypatch: pytest.MonkeyPatch, **deps):
         "conflicts_service": deps.get("conflicts_service", NoOpService()),
         "health_check_use_case": deps.get("health_check_use_case"),
         "alert_engine": deps.get("alert_engine"),
+        "proveedor_ui_solo_lectura": deps.get(
+            "proveedor_ui_solo_lectura", lambda: False
+        ),
     }
     return main_window_vista.MainWindow(**resolved_deps)
 

@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from app.ui.copy_catalog import copy_text
-from app.ui.vistas.personas_presenter import resolve_active_delegada_id as _resolver_delegada_activa
+from app.ui.vistas.personas_presenter import (
+    resolve_active_delegada_id as _resolver_delegada_activa,
+)
 
 from .estado_acciones import (
     EntradaEstadoAccionesMainWindow,
@@ -12,21 +14,65 @@ from .estado_acciones import (
 
 ACCIONES_MUTANTES_AUDITADAS_UI: dict[str, dict[str, str]] = {
     "agregar_button": {"pantalla": "solicitudes", "accion": "agregar_pendiente"},
-    "insertar_sin_pdf_button": {"pantalla": "solicitudes", "accion": "confirmar_sin_pdf"},
+    "insertar_sin_pdf_button": {
+        "pantalla": "solicitudes",
+        "accion": "confirmar_sin_pdf",
+    },
     "confirmar_button": {"pantalla": "solicitudes", "accion": "confirmar_con_pdf"},
-    "eliminar_pendiente_button": {"pantalla": "solicitudes", "accion": "eliminar_solicitud_pendiente"},
+    "eliminar_pendiente_button": {
+        "pantalla": "solicitudes",
+        "accion": "eliminar_solicitud_pendiente",
+    },
+    "eliminar_huerfana_button": {
+        "pantalla": "solicitudes",
+        "accion": "eliminar_solicitud_huerfana",
+    },
     "add_persona_button": {"pantalla": "configuracion", "accion": "crear_persona"},
     "edit_persona_button": {"pantalla": "configuracion", "accion": "editar_persona"},
-    "delete_persona_button": {"pantalla": "configuracion", "accion": "desactivar_persona"},
-    "edit_grupo_button": {"pantalla": "configuracion", "accion": "actualizar_configuracion_grupo"},
-    "editar_pdf_button": {"pantalla": "configuracion", "accion": "actualizar_configuracion_pdf"},
-    "opciones_button": {"pantalla": "sincronizacion", "accion": "actualizar_configuracion_sync"},
-    "eliminar_button": {"pantalla": "historico", "accion": "eliminar_solicitud_historica"},
+    "delete_persona_button": {
+        "pantalla": "configuracion",
+        "accion": "desactivar_persona",
+    },
+    "edit_grupo_button": {
+        "pantalla": "configuracion",
+        "accion": "actualizar_configuracion_grupo",
+    },
+    "editar_pdf_button": {
+        "pantalla": "configuracion",
+        "accion": "actualizar_configuracion_pdf",
+    },
+    "opciones_button": {
+        "pantalla": "sincronizacion",
+        "accion": "actualizar_configuracion_sync",
+    },
+    "config_sync_button": {
+        "pantalla": "sincronizacion",
+        "accion": "sincronizar_desde_configuracion",
+    },
+    "sync_button": {"pantalla": "sincronizacion", "accion": "sincronizar_ahora"},
+    "confirm_sync_button": {
+        "pantalla": "sincronizacion",
+        "accion": "confirmar_sincronizacion",
+    },
+    "retry_failed_button": {
+        "pantalla": "sincronizacion",
+        "accion": "reintentar_sincronizacion_fallida",
+    },
+    "accion_menu_cargar_demo": {
+        "pantalla": "menu_ayuda",
+        "accion": "cargar_datos_demo",
+    },
+    "eliminar_button": {
+        "pantalla": "historico",
+        "accion": "eliminar_solicitud_historica",
+    },
     "generar_pdf_button": {"pantalla": "historico", "accion": "exportar_historico_pdf"},
 }
 
 
-def resolve_active_delegada_id(window: Any, preferred_id: object | None = None) -> int | None:
+def resolve_active_delegada_id(
+    window: Any, preferred_id: object | None = None
+) -> int | None:
     """Resuelve la delegada activa desde una ventana o desde una lista de ids."""
     if isinstance(window, list):
         return _resolver_delegada_activa(window, preferred_id)
@@ -34,10 +80,18 @@ def resolve_active_delegada_id(window: Any, preferred_id: object | None = None) 
     combo = getattr(window, "persona_combo", None)
     delegada_ids: list[int] = []
     if combo is not None and hasattr(combo, "count") and hasattr(combo, "itemData"):
-        delegada_ids = [combo.itemData(index) for index in range(combo.count()) if combo.itemData(index) is not None]
+        delegada_ids = [
+            combo.itemData(index)
+            for index in range(combo.count())
+            if combo.itemData(index) is not None
+        ]
     if not delegada_ids:
         return None
-    preferred = preferred_id if preferred_id is not None else getattr(window, "_last_persona_id", None)
+    preferred = (
+        preferred_id
+        if preferred_id is not None
+        else getattr(window, "_last_persona_id", None)
+    )
     return _resolver_delegada_activa(delegada_ids, preferred)
 
 
@@ -82,7 +136,9 @@ def update_action_state(window: Any) -> None:
             sync_en_progreso=bool(window._sync_in_progress),
             cantidad_seleccion_pendientes=len(window._selected_pending_solicitudes()),
             cantidad_seleccion_historico=len(window._selected_historico_solicitudes()),
-            cantidad_ids_historico_seleccionados=len(window._historico_ids_seleccionados),
+            cantidad_ids_historico_seleccionados=len(
+                window._historico_ids_seleccionados
+            ),
             cantidad_pendientes_otras_delegadas=len(window._pending_otras_delegadas),
         )
     )
@@ -123,7 +179,9 @@ def _aplicar_habilitacion_controles(window: Any, estado: Any) -> None:
 
 def _aplicar_modo_solo_lectura(window: Any) -> None:
     proveedor = getattr(window, "_proveedor_ui_solo_lectura", None)
-    if not callable(proveedor) or not proveedor():
+    if not callable(proveedor):
+        raise TypeError(copy_text("ui.read_only.error_proveedor_no_inyectado"))
+    if not proveedor():
         return
     tooltip = copy_text("ui.read_only.tooltip_mutacion_bloqueada")
     for control_name in ACCIONES_MUTANTES_AUDITADAS_UI:
@@ -136,7 +194,9 @@ def _aplicar_modo_solo_lectura(window: Any) -> None:
             control.setToolTip(tooltip)
 
 
-def _actualizar_textos_historico(window: Any, total_historico_seleccionado: int) -> None:
+def _actualizar_textos_historico(
+    window: Any, total_historico_seleccionado: int
+) -> None:
     _actualizar_texto_boton_historico(
         window,
         "eliminar_button",

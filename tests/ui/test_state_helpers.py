@@ -23,16 +23,23 @@ class _WindowStub:
         self._sync_in_progress = False
         self._pending_otras_delegadas = [object()]
         self._historico_ids_seleccionados = {99}
+        self._proveedor_ui_solo_lectura = lambda: False
 
         self.agregar_button = _ControlStub()
         self.insertar_sin_pdf_button = _ControlStub()
         self.confirmar_button = _ControlStub()
+        self.eliminar_huerfana_button = _ControlStub()
         self.add_persona_button = _ControlStub()
         self.edit_persona_button = _ControlStub()
         self.delete_persona_button = _ControlStub()
         self.edit_grupo_button = _ControlStub()
         self.editar_pdf_button = _ControlStub()
         self.opciones_button = _ControlStub()
+        self.config_sync_button = _ControlStub()
+        self.sync_button = _ControlStub()
+        self.confirm_sync_button = _ControlStub()
+        self.retry_failed_button = _ControlStub()
+        self.accion_menu_cargar_demo = _ControlStub()
         self.eliminar_button = _ControlStub()
         self.eliminar_pendiente_button = _ControlStub()
         self.generar_pdf_button = _ControlStub()
@@ -85,9 +92,13 @@ def test_update_action_state_aplica_fuente_unica_de_estado_en_widgets() -> None:
     assert window.insertar_sin_pdf_button.enabled is True
     assert window.confirmar_button.enabled is True
     assert window.eliminar_button.enabled is True
-    assert window.eliminar_button.text == copy_text("ui.historico.eliminar_boton").format(n=1)
+    assert window.eliminar_button.text == copy_text(
+        "ui.historico.eliminar_boton"
+    ).format(n=1)
     assert window.generar_pdf_button.enabled is True
-    assert window.generar_pdf_button.text == copy_text("ui.historico.exportar_pdf_boton").format(n=1)
+    assert window.generar_pdf_button.text == copy_text(
+        "ui.historico.exportar_pdf_boton"
+    ).format(n=1)
     assert window.opciones_button.enabled is True
     assert window.clear_button.enabled is True
     assert window.status_panel_actualizado == 1
@@ -100,5 +111,7 @@ def test_update_action_state_tolera_boton_historico_sin_set_text() -> None:
 
     module.update_action_state(window)
 
-    assert window.eliminar_button.text == copy_text("ui.historico.eliminar_boton").format(n=1)
+    assert window.eliminar_button.text == copy_text(
+        "ui.historico.eliminar_boton"
+    ).format(n=1)
     assert window.status_panel_actualizado == 1

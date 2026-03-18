@@ -38,19 +38,41 @@ def test_ui_smoke_startup_without_real_infra(monkeypatch: pytest.MonkeyPatch) ->
 
     q_app = QApplication.instance() or QApplication([])
 
-    monkeypatch.setattr(main_window_vista.MainWindow, "_load_personas", lambda self, select_id=None: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_reload_pending_views", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_global_context", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_refresh_last_sync_label", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_sync_button_state", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_conflicts_reminder", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_refresh_health_and_alerts", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_sync_source_text", lambda self: "stub")
-    monkeypatch.setattr(main_window_vista.MainWindow, "_sync_scope_text", lambda self: "stub")
+    monkeypatch.setattr(
+        main_window_vista.MainWindow,
+        "_load_personas",
+        lambda self, select_id=None: None,
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_reload_pending_views", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_global_context", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_refresh_last_sync_label", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_sync_button_state", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_conflicts_reminder", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_refresh_health_and_alerts", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_sync_source_text", lambda self: "stub"
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_sync_scope_text", lambda self: "stub"
+    )
 
     assert q_app is not None
 
-    with _fail_with_full_traceback("MainWindow explotó durante inicialización/show/processEvents"):
+    with _fail_with_full_traceback(
+        "MainWindow explotó durante inicialización/show/processEvents"
+    ):
         window = MainWindow(
             persona_use_cases=_NoOpService(),
             solicitud_use_cases=_NoOpService(),
@@ -60,6 +82,7 @@ def test_ui_smoke_startup_without_real_infra(monkeypatch: pytest.MonkeyPatch) ->
             conflicts_service=_NoOpService(),
             health_check_use_case=None,
             alert_engine=None,
+            proveedor_ui_solo_lectura=lambda: False,
         )
 
         try:

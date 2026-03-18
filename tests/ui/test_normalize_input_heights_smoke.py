@@ -22,15 +22,35 @@ class _FakeSyncService(_NoOpService):
 
 
 def _build_window(monkeypatch: pytest.MonkeyPatch) -> MainWindow:
-    monkeypatch.setattr(main_window_vista.MainWindow, "_load_personas", lambda self, select_id=None: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_reload_pending_views", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_global_context", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_refresh_last_sync_label", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_sync_button_state", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_conflicts_reminder", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_refresh_health_and_alerts", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_sync_source_text", lambda self: "stub")
-    monkeypatch.setattr(main_window_vista.MainWindow, "_sync_scope_text", lambda self: "stub")
+    monkeypatch.setattr(
+        main_window_vista.MainWindow,
+        "_load_personas",
+        lambda self, select_id=None: None,
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_reload_pending_views", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_global_context", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_refresh_last_sync_label", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_sync_button_state", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_conflicts_reminder", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_refresh_health_and_alerts", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_sync_source_text", lambda self: "stub"
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_sync_scope_text", lambda self: "stub"
+    )
     return MainWindow(
         persona_use_cases=_NoOpService(),
         solicitud_use_cases=_NoOpService(),
@@ -40,13 +60,16 @@ def _build_window(monkeypatch: pytest.MonkeyPatch) -> MainWindow:
         conflicts_service=_NoOpService(),
         health_check_use_case=None,
         alert_engine=None,
+        proveedor_ui_solo_lectura=lambda: False,
     )
 
 
 @pytest.mark.ui
 @pytest.mark.smoke
 @pytest.mark.usefixtures("monkeypatch")
-def test_normalize_input_heights_smoke_no_lanza(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_normalize_input_heights_smoke_no_lanza(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window(monkeypatch)
 

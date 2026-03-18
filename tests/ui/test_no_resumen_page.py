@@ -32,12 +32,19 @@ def test_navegacion_no_expone_resumen() -> None:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
-    sidebar_buttons = [button.text().strip().lower() for button in window.sidebar.findChildren(QPushButton)]
+    sidebar_buttons = [
+        button.text().strip().lower()
+        for button in window.sidebar.findChildren(QPushButton)
+    ]
     assert all(texto != "resumen" for texto in sidebar_buttons)
     assert all("resumen" not in texto for texto in sidebar_buttons)
-    assert all("resumen" not in button.objectName().strip().lower() for button in window.sidebar.findChildren(QPushButton))
+    assert all(
+        "resumen" not in button.objectName().strip().lower()
+        for button in window.sidebar.findChildren(QPushButton)
+    )
 
     window.close()
     app.processEvents()

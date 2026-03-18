@@ -73,9 +73,15 @@ def _seleccionar_filas_reales(window, rows: list[int]) -> list[int]:
 
     for row in rows:
         index = model.index(row, 0)
-        selection_model.select(index, QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows)
+        selection_model.select(
+            index,
+            QItemSelectionModel.SelectionFlag.Select
+            | QItemSelectionModel.SelectionFlag.Rows,
+        )
 
-    return [sid for sid in window._obtener_ids_seleccionados_pendientes() if sid is not None]
+    return [
+        sid for sid in window._obtener_ids_seleccionados_pendientes() if sid is not None
+    ]
 
 
 def _resolver_directorio_evidencia(tmp_path: Path) -> Path:
@@ -131,10 +137,14 @@ class _WatchdogEscenario:
             "stacktrace": traceback.format_stack(frame),
         }
         _guardar_evidencia(self._tmp_path, "watchdog_timeout", evidencia)
-        raise TimeoutError(f"Watchdog UI smoke agotado en escenario={self._escenario} paso={self._ultimo_paso}")
+        raise TimeoutError(
+            f"Watchdog UI smoke agotado en escenario={self._escenario} paso={self._ultimo_paso}"
+        )
 
 
-def _guardar_evidencia(tmp_path: Path, escenario: str, payload: dict[str, object]) -> None:
+def _guardar_evidencia(
+    tmp_path: Path, escenario: str, payload: dict[str, object]
+) -> None:
     evidencia_dir = _resolver_directorio_evidencia(tmp_path)
     (evidencia_dir / f"evidencia_{escenario}.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True),
@@ -143,7 +153,11 @@ def _guardar_evidencia(tmp_path: Path, escenario: str, payload: dict[str, object
 
 
 def _eventos_confirmar(caplog: pytest.LogCaptureFixture) -> list[str]:
-    return [record.getMessage() for record in caplog.records if record.getMessage().startswith("UI_CONFIRMAR_PDF_")]
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("UI_CONFIRMAR_PDF_")
+    ]
 
 
 def _contar_eventos(eventos: list[str], evento: str) -> int:
@@ -183,6 +197,7 @@ def test_confirmar_pdf_mainwindow_smoke_real(
         confirmar_pendientes_pdf_caso_uso=container.confirmar_pendientes_pdf_caso_uso,
         crear_pendiente_caso_uso=container.crear_pendiente_caso_uso,
         servicio_i18n=container.servicio_i18n,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
     save_calls: list[str] = []
@@ -262,7 +277,9 @@ def test_confirmar_pdf_mainwindow_smoke_real(
     )
 
     for puente in puentes_obligatorios:
-        assert callable(getattr(window, puente, None)), f"Falta bridge runtime obligatorio: {puente}"
+        assert callable(getattr(window, puente, None)), (
+            f"Falta bridge runtime obligatorio: {puente}"
+        )
 
     # Contrato estable: al iniciar sin configuración de sync, el estado debe
     # marcarse como CONFIG_INCOMPLETE y el CTA no debe quedar oculto de forma
@@ -276,13 +293,27 @@ def test_confirmar_pdf_mainwindow_smoke_real(
     original_finalize = window._finalize_confirmar_with_pdf
     original_closure = window._show_confirmation_closure
     original_undo = window._undo_confirmation
-    monkeypatch.setattr(window, "_execute_confirmar_with_pdf", MethodType(_wrap_execute, window))
-    monkeypatch.setattr(window, "_finalize_confirmar_with_pdf", MethodType(_wrap_finalize, window))
-    monkeypatch.setattr(window, "_show_confirmation_closure", MethodType(_wrap_closure, window))
-    monkeypatch.setattr(window, "_show_pdf_actions_dialog", MethodType(_stub_show_pdf_actions_dialog, window))
-    monkeypatch.setattr(window, "_ask_push_after_pdf", MethodType(_stub_ask_push_after_pdf, window))
+    monkeypatch.setattr(
+        window, "_execute_confirmar_with_pdf", MethodType(_wrap_execute, window)
+    )
+    monkeypatch.setattr(
+        window, "_finalize_confirmar_with_pdf", MethodType(_wrap_finalize, window)
+    )
+    monkeypatch.setattr(
+        window, "_show_confirmation_closure", MethodType(_wrap_closure, window)
+    )
+    monkeypatch.setattr(
+        window,
+        "_show_pdf_actions_dialog",
+        MethodType(_stub_show_pdf_actions_dialog, window),
+    )
+    monkeypatch.setattr(
+        window, "_ask_push_after_pdf", MethodType(_stub_ask_push_after_pdf, window)
+    )
     monkeypatch.setattr(window, "_undo_confirmation", MethodType(_wrap_undo, window))
-    monkeypatch.setattr(window.notifications, "show_confirmation_closure", _stub_renderer_final)
+    monkeypatch.setattr(
+        window.notifications, "show_confirmation_closure", _stub_renderer_final
+    )
 
     watchdog = _WatchdogEscenario(app, tmp_path)
     watchdog.activar()
@@ -347,15 +378,18 @@ def test_confirmar_pdf_mainwindow_smoke_real(
                     "_ask_push_after_pdf": called_ask_push_after_pdf,
                     "_undo_confirmation": len(undo_calls),
                 },
-                "hitos": {evento: _contar_eventos(eventos_s1, evento) for evento in (
-                    "UI_CONFIRMAR_PDF_START",
-                    "UI_CONFIRMAR_PDF_SELECTED_ROWS",
-                    "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
-                    "UI_CONFIRMAR_PDF_EXECUTE_OK",
-                    "UI_CONFIRMAR_PDF_EXECUTE_ERROR",
-                    "UI_CONFIRMAR_PDF_OPEN_OK",
-                    "UI_CONFIRMAR_PDF_RETURN_EARLY",
-                )},
+                "hitos": {
+                    evento: _contar_eventos(eventos_s1, evento)
+                    for evento in (
+                        "UI_CONFIRMAR_PDF_START",
+                        "UI_CONFIRMAR_PDF_SELECTED_ROWS",
+                        "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
+                        "UI_CONFIRMAR_PDF_EXECUTE_OK",
+                        "UI_CONFIRMAR_PDF_EXECUTE_ERROR",
+                        "UI_CONFIRMAR_PDF_OPEN_OK",
+                        "UI_CONFIRMAR_PDF_RETURN_EARLY",
+                    )
+                },
             },
         )
 
@@ -424,15 +458,18 @@ def test_confirmar_pdf_mainwindow_smoke_real(
                     "_ask_push_after_pdf": called_ask_push_after_pdf,
                     "_undo_confirmation": len(undo_calls),
                 },
-                "hitos": {evento: _contar_eventos(eventos_s2, evento) for evento in (
-                    "UI_CONFIRMAR_PDF_START",
-                    "UI_CONFIRMAR_PDF_SELECTED_ROWS",
-                    "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
-                    "UI_CONFIRMAR_PDF_EXECUTE_OK",
-                    "UI_CONFIRMAR_PDF_EXECUTE_ERROR",
-                    "UI_CONFIRMAR_PDF_OPEN_OK",
-                    "UI_CONFIRMAR_PDF_RETURN_EARLY",
-                )},
+                "hitos": {
+                    evento: _contar_eventos(eventos_s2, evento)
+                    for evento in (
+                        "UI_CONFIRMAR_PDF_START",
+                        "UI_CONFIRMAR_PDF_SELECTED_ROWS",
+                        "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
+                        "UI_CONFIRMAR_PDF_EXECUTE_OK",
+                        "UI_CONFIRMAR_PDF_EXECUTE_ERROR",
+                        "UI_CONFIRMAR_PDF_OPEN_OK",
+                        "UI_CONFIRMAR_PDF_RETURN_EARLY",
+                    )
+                },
             },
         )
 
@@ -501,15 +538,18 @@ def test_confirmar_pdf_mainwindow_smoke_real(
                     "_ask_push_after_pdf": called_ask_push_after_pdf,
                     "_undo_confirmation": len(undo_calls),
                 },
-                "hitos": {evento: _contar_eventos(eventos_s3, evento) for evento in (
-                    "UI_CONFIRMAR_PDF_START",
-                    "UI_CONFIRMAR_PDF_SELECTED_ROWS",
-                    "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
-                    "UI_CONFIRMAR_PDF_EXECUTE_OK",
-                    "UI_CONFIRMAR_PDF_EXECUTE_ERROR",
-                    "UI_CONFIRMAR_PDF_OPEN_OK",
-                    "UI_CONFIRMAR_PDF_RETURN_EARLY",
-                )},
+                "hitos": {
+                    evento: _contar_eventos(eventos_s3, evento)
+                    for evento in (
+                        "UI_CONFIRMAR_PDF_START",
+                        "UI_CONFIRMAR_PDF_SELECTED_ROWS",
+                        "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
+                        "UI_CONFIRMAR_PDF_EXECUTE_OK",
+                        "UI_CONFIRMAR_PDF_EXECUTE_ERROR",
+                        "UI_CONFIRMAR_PDF_OPEN_OK",
+                        "UI_CONFIRMAR_PDF_RETURN_EARLY",
+                    )
+                },
             },
         )
 
