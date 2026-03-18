@@ -6,7 +6,10 @@ import pytest
 
 from app.application.dto import SolicitudDTO
 from app.domain.services import BusinessRuleError
-from app.application.use_cases.politica_modo_solo_lectura import MENSAJE_MODO_SOLO_LECTURA
+from app.application.use_cases.politica_modo_solo_lectura import (
+    MENSAJE_MODO_SOLO_LECTURA,
+    crear_politica_modo_solo_lectura,
+)
 from app.application.use_cases.confirmacion_pdf.caso_uso import (
     ConfirmarPendientesPdfCasoUso,
 )
@@ -168,7 +171,12 @@ def test_preflight_no_toca_disco() -> None:
     repo = FakeRepositorio([_solicitud(1)])
     generador_pdf = FakeGeneradorPdf()
     fs = FakeFs()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, fs)
+    caso_uso = ConfirmarPendientesPdfCasoUso(
+        repo,
+        generador_pdf,
+        fs,
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+    )
 
     caso_uso.execute(
         SolicitudConfirmarPdfPeticion(
@@ -219,14 +227,16 @@ def test_caso_uso_orquesta_confirmar_antes_que_pdf() -> None:
     assert resultado.pdf_generado == Path("/tmp/sin_generador.pdf")
 
 
-def test_confirmar_con_pdf_bloqueado_en_read_only_sin_side_effects(
-    monkeypatch,
-) -> None:
-    monkeypatch.setenv("READ_ONLY", "1")
+def test_confirmar_con_pdf_bloqueado_en_read_only_sin_side_effects() -> None:
     repo = FakeRepositorio([_solicitud(1)])
     generador_pdf = FakeGeneradorPdf()
     fs = FakeFs()
-    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, fs)
+    caso_uso = ConfirmarPendientesPdfCasoUso(
+        repo,
+        generador_pdf,
+        fs,
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: True),
+    )
 
     with pytest.raises(BusinessRuleError, match=MENSAJE_MODO_SOLO_LECTURA):
         caso_uso.execute(

@@ -61,7 +61,8 @@ from app.application.use_cases.confirmacion_pdf.coordinador_confirmacion_pdf imp
     CoordinadorConfirmacionPdf,
 )
 from app.application.use_cases.politica_modo_solo_lectura import (
-    verificar_modo_solo_lectura,
+    PoliticaModoSoloLectura,
+    crear_politica_modo_solo_lectura,
 )
 from app.application.use_cases.solicitudes.confirmar_sin_pdf_planner import (
     plan_confirmar_sin_pdf,
@@ -126,12 +127,14 @@ class SolicitudUseCases:
         fs: SistemaArchivosPuerto,
         config_repo: GrupoConfigRepository | None = None,
         generador_pdf: GeneradorPdfPuerto | None = None,
+        politica_modo_solo_lectura: PoliticaModoSoloLectura | None = None,
     ) -> None:
         self._repo = repo
         self._persona_repo = persona_repo
         self._config_repo = config_repo
         self._generador_pdf = generador_pdf
         self._fs = fs
+        self._politica_modo_solo_lectura = politica_modo_solo_lectura or crear_politica_modo_solo_lectura()
         self._coordinador_confirmacion_pdf = CoordinadorConfirmacionPdf(
             repo=self._repo,
             persona_repo=self._persona_repo,
@@ -299,7 +302,7 @@ class SolicitudUseCases:
         Se devuelve saldo en la misma operación para que el cliente trabaje con
         una vista consistente después de validar duplicados y conflictos del día.
         """
-        verificar_modo_solo_lectura()
+        self._politica_modo_solo_lectura.verificar()
         correlation_id = resolver_correlation_id(correlation_id, contexto)
         correlation_id = correlation_id_or_new(correlation_id, str(uuid.uuid4()))
         self._log_inicio_agregar_solicitud(dto, correlation_id)
@@ -529,7 +532,7 @@ class SolicitudUseCases:
         correlation_id: str | None = None,
         contexto: ContextoOperacion | None = None,
     ) -> SaldosDTO:
-        verificar_modo_solo_lectura()
+        self._politica_modo_solo_lectura.verificar()
         correlation_id = resolver_correlation_id(correlation_id, contexto)
         if correlation_id:
             log_event(
@@ -567,7 +570,7 @@ class SolicitudUseCases:
         nueva_solicitud: SolicitudDTO,
         correlation_id: str | None = None,
     ) -> tuple[SolicitudDTO, SaldosDTO]:
-        verificar_modo_solo_lectura()
+        self._politica_modo_solo_lectura.verificar()
         validar_tipo_para_sustitucion(
             es_completa=nueva_solicitud.completo, requiere_completa=True
         )
@@ -585,7 +588,7 @@ class SolicitudUseCases:
         nueva_solicitud: SolicitudDTO,
         correlation_id: str | None = None,
     ) -> tuple[SolicitudDTO, SaldosDTO]:
-        verificar_modo_solo_lectura()
+        self._politica_modo_solo_lectura.verificar()
         validar_tipo_para_sustitucion(
             es_completa=nueva_solicitud.completo, requiere_completa=False
         )
@@ -642,7 +645,7 @@ class SolicitudUseCases:
         solicitudes: Iterable[SolicitudDTO],
         correlation_id: str | None = None,
     ) -> tuple[list[SolicitudDTO], list[SolicitudDTO], list[str]]:
-        verificar_modo_solo_lectura()
+        self._politica_modo_solo_lectura.verificar()
         return confirmar_sin_pdf_orquestado(
             solicitudes=solicitudes,
             planner=plan_confirmar_sin_pdf,

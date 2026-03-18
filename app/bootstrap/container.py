@@ -34,7 +34,7 @@ from app.application.use_cases.confirmacion_pdf.generar_pdf_confirmadas_caso_uso
     GenerarPdfSolicitudesConfirmadasCasoUso,
 )
 from app.application.use_cases.politica_modo_solo_lectura import (
-    configurar_proveedor_modo_solo_lectura,
+    crear_politica_modo_solo_lectura,
 )
 from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import (
     CrearPendienteCasoUso,
@@ -109,7 +109,7 @@ def build_container(
     *,
     preferencias_headless: bool = True,
 ) -> AppContainer:
-    configurar_proveedor_modo_solo_lectura(is_read_only_enabled)
+    politica_modo_solo_lectura = crear_politica_modo_solo_lectura(is_read_only_enabled)
 
     connection = connection_factory()
     run_migrations(connection)
@@ -122,7 +122,11 @@ def build_container(
 
     base_cuadrantes_service = BaseCuadrantesService(persona_repo, cuadrante_repo)
     base_cuadrantes_service.ensure_for_all_personas()
-    persona_use_cases = PersonaUseCases(persona_repo, base_cuadrantes_service)
+    persona_use_cases = PersonaUseCases(
+        persona_repo,
+        base_cuadrantes_service,
+        politica_modo_solo_lectura=politica_modo_solo_lectura,
+    )
     generador_pdf = GeneradorPdfReportlab()
     solicitud_use_cases = SolicitudUseCases(
         solicitud_repo,
@@ -130,6 +134,7 @@ def build_container(
         fs=SistemaArchivosLocal(),
         config_repo=grupo_repo,
         generador_pdf=generador_pdf,
+        politica_modo_solo_lectura=politica_modo_solo_lectura,
     )
     generador_pdf_confirmadas_caso_uso = GenerarPdfSolicitudesConfirmadasCasoUso(
         repo=solicitud_repo,
@@ -146,6 +151,7 @@ def build_container(
             generador_pdf_confirmadas_caso_uso
         ),
         sistema_archivos=SistemaArchivosLocal(),
+        politica_modo_solo_lectura=politica_modo_solo_lectura,
     )
     crear_pendiente_caso_uso = CrearPendienteCasoUso(
         repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases)

@@ -7,7 +7,8 @@ from typing import Iterable
 from app.application.base_cuadrantes_service import BaseCuadrantesService
 from app.application.dto import PersonaDTO
 from app.application.use_cases.politica_modo_solo_lectura import (
-    verificar_modo_solo_lectura,
+    PoliticaModoSoloLectura,
+    crear_politica_modo_solo_lectura,
 )
 from app.domain.models import Persona
 from app.domain.ports import PersonaRepository
@@ -106,9 +107,11 @@ class PersonaUseCases:
         self,
         repo: PersonaRepository,
         base_cuadrantes_service: BaseCuadrantesService | None = None,
+        politica_modo_solo_lectura: PoliticaModoSoloLectura | None = None,
     ) -> None:
         self._repo = repo
         self._base_cuadrantes_service = base_cuadrantes_service
+        self._politica_modo_solo_lectura = politica_modo_solo_lectura or crear_politica_modo_solo_lectura()
 
     def listar(self) -> Iterable[PersonaDTO]:
         return self.listar_personas()
@@ -126,7 +129,7 @@ class PersonaUseCases:
         La normalización previa evita persistir estados mixtos (uniforme vs.
         personalizado) que producirían cálculos diarios contradictorios.
         """
-        verificar_modo_solo_lectura()
+        self._politica_modo_solo_lectura.verificar()
         logger.info("Creando persona %s", dto.nombre)
         dto_normalizado = _normalizar_cuadrante_persona(dto)
         persona = _dto_to_persona(dto_normalizado)
@@ -140,7 +143,7 @@ class PersonaUseCases:
         return _persona_to_dto(creada)
 
     def editar_persona(self, dto: PersonaDTO) -> PersonaDTO:
-        verificar_modo_solo_lectura()
+        self._politica_modo_solo_lectura.verificar()
         if dto.id is None:
             raise BusinessRuleError("La persona debe tener id para editar.")
         uuid_antes = self._repo.get_or_create_uuid(dto.id)
@@ -168,7 +171,7 @@ class PersonaUseCases:
         return _persona_to_dto(actualizada)
 
     def desactivar_persona(self, persona_id: int) -> PersonaDTO:
-        verificar_modo_solo_lectura()
+        self._politica_modo_solo_lectura.verificar()
         persona = self._repo.get_by_id(persona_id)
         if persona is None:
             raise BusinessRuleError("Persona no encontrada.")
