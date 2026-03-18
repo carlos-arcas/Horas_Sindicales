@@ -6,6 +6,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 USE_CASES_ROOT = PROJECT_ROOT / "app" / "application" / "use_cases"
 POLITICA_PATH = PROJECT_ROOT / "app" / "application" / "use_cases" / "politica_modo_solo_lectura.py"
+ESTADO_COMPARTIDO_PATH = PROJECT_ROOT / "app" / "application" / "modo_solo_lectura.py"
 
 ARCHIVOS_MUTANTES_READ_ONLY = {
     "app/application/use_cases/cargar_datos_demo_caso_uso.py",
@@ -123,3 +124,19 @@ def test_guardarrail_politica_no_define_estado_global_mutable() -> None:
         "La política read-only no debe reintroducir estado global mutable ni helpers globales heredados:\n"
         + "\n".join(sorted(encontrados))
     )
+
+
+def test_guardarrail_estado_compartido_define_unica_abstraccion_read_only() -> None:
+    relativo = "app/application/modo_solo_lectura.py"
+    tree = ast.parse(ESTADO_COMPARTIDO_PATH.read_text(encoding="utf-8"), filename=relativo)
+    clases = {nodo.name for nodo in tree.body if isinstance(nodo, ast.ClassDef)}
+
+    assert "EstadoModoSoloLectura" in clases
+
+
+def test_guardarrail_politica_depende_del_estado_compartido_y_no_de_callables_crudas() -> None:
+    relativo = "app/application/use_cases/politica_modo_solo_lectura.py"
+    contenido = POLITICA_PATH.read_text(encoding="utf-8")
+
+    assert "EstadoModoSoloLectura" in contenido
+    assert "Callable[[" not in contenido

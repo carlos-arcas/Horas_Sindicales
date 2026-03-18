@@ -5,6 +5,7 @@ from pathlib import Path
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases.politica_modo_solo_lectura import (
+    crear_estado_modo_solo_lectura,
     MENSAJE_MODO_SOLO_LECTURA,
     crear_politica_modo_solo_lectura,
 )
@@ -67,7 +68,7 @@ def test_crear_plan_es_puro_sin_io() -> None:
         fs=fs,
         reloj=RelojFijo(),
         exportador_pdf=PdfFake(),
-        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)),
     )
 
     plan = caso.crear_plan(
@@ -87,7 +88,7 @@ def test_ejecutar_con_fakes_genera_auditoria(tmp_path: Path) -> None:
         fs=fs,
         reloj=RelojFijo(),
         exportador_pdf=PdfFake(),
-        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)),
     )
     plan = caso.crear_plan(
         EntradaExportacionPeriodo(
@@ -114,7 +115,7 @@ def test_exportacion_bloqueada_en_read_only_sin_side_effects(tmp_path: Path) -> 
         fs=fs,
         reloj=RelojFijo(),
         exportador_pdf=PdfFake(),
-        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: True),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: True)),
     )
     plan = caso.crear_plan(
         EntradaExportacionPeriodo(

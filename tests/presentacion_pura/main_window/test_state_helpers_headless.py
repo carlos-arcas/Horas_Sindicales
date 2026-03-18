@@ -4,6 +4,7 @@ from importlib import import_module
 
 import pytest
 
+from app.application.modo_solo_lectura import crear_estado_modo_solo_lectura
 from app.ui.copy_catalog import copy_text
 
 pytestmark = pytest.mark.headless_safe
@@ -30,7 +31,7 @@ class _WindowStub:
         self._sync_in_progress = False
         self._pending_otras_delegadas = [object()]
         self._historico_ids_seleccionados = {99}
-        self._proveedor_ui_solo_lectura = lambda: False
+        self._estado_modo_solo_lectura = crear_estado_modo_solo_lectura(lambda: False)
 
         self.agregar_button = _ControlStub()
         self.insertar_sin_pdf_button = _ControlStub()

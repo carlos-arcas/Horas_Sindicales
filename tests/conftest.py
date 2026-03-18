@@ -151,7 +151,7 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases import PersonaUseCases, SolicitudUseCases
-from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
+from app.application.use_cases.politica_modo_solo_lectura import crear_estado_modo_solo_lectura, crear_politica_modo_solo_lectura
 from app.domain.models import Persona
 from app.infrastructure.migrations import run_migrations
 from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
@@ -179,7 +179,7 @@ def solicitud_repo(connection: sqlite3.Connection) -> SolicitudRepositorySQLite:
 
 @pytest.fixture
 def politica_modo_solo_lectura() -> object:
-    return crear_politica_modo_solo_lectura(lambda: False)
+    return crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False))
 
 
 @pytest.fixture

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from app.application.ports.datos_demo_puerto import ResultadoCargaDemoPuerto
 from app.application.use_cases.politica_modo_solo_lectura import (
+    crear_estado_modo_solo_lectura,
     MENSAJE_MODO_SOLO_LECTURA,
     crear_politica_modo_solo_lectura,
 )
@@ -30,7 +31,7 @@ def test_cargar_demo_en_modo_separado_devuelve_ok() -> None:
     )
     use_case = CargarDatosDemoCasoUso(
         puerto,
-        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)),
     )
 
     resultado = use_case.ejecutar(modo="SEPARADO")
@@ -46,7 +47,7 @@ def test_cargar_demo_bloqueado_en_read_only_sin_side_effects() -> None:
     )
     use_case = CargarDatosDemoCasoUso(
         puerto,
-        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: True),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: True)),
     )
 
     try:

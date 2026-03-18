@@ -5,7 +5,7 @@ import unittest
 
 from app.application.dto import PeriodoFiltro, SolicitudDTO
 from app.application.use_cases import SolicitudUseCases
-from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
+from app.application.use_cases.politica_modo_solo_lectura import crear_estado_modo_solo_lectura, crear_politica_modo_solo_lectura
 from app.domain.models import Persona
 from app.infrastructure.migrations import run_migrations
 from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
@@ -19,7 +19,7 @@ class SolicitudesHistoricoRulesTests(unittest.TestCase):
         run_migrations(self.connection)
         self.persona_repo = RepositorioPersonasSQLite(self.connection)
         self.solicitud_repo = SolicitudRepositorySQLite(self.connection)
-        self.use_cases = SolicitudUseCases(self.solicitud_repo, self.persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+        self.use_cases = SolicitudUseCases(self.solicitud_repo, self.persona_repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
         persona = self.persona_repo.create(
             Persona(
                 id=None,

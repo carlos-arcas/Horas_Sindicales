@@ -7,7 +7,7 @@ import pytest
 
 from app.application.dto import PeriodoFiltro
 from app.application.use_cases import SolicitudUseCases
-from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
+from app.application.use_cases.politica_modo_solo_lectura import crear_estado_modo_solo_lectura, crear_politica_modo_solo_lectura
 from app.application.use_cases.confirmacion_pdf.servicio_pdf_confirmadas import hash_file
 from app.core import metrics as metrics_module
 from app.core.metrics import MetricsRegistry
@@ -106,7 +106,7 @@ def test_exportacion_pdf_historico_e2e_genera_pdf_vacio_y_metricas(tmp_path: Pat
     persona = _persona()
     repo = FakeSolicitudRepoHistorico()
     generador = FakeGeneradorPdf()
-    use_case = SolicitudUseCases(repo=repo, persona_repo=FakePersonaRepo(persona), generador_pdf=generador, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+    use_case = SolicitudUseCases(repo=repo, persona_repo=FakePersonaRepo(persona), generador_pdf=generador, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
     before = isolated_metrics.snapshot()
     pdf_path = use_case.exportar_historico_pdf(

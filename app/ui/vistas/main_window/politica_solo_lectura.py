@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from app.application.modo_solo_lectura import EstadoModoSoloLectura
 from app.ui.copy_catalog import copy_text
 
 
@@ -69,14 +70,14 @@ NOMBRES_CONTROLES_MUTANTES_UI: tuple[str, ...] = tuple(
 )
 
 TOOLTIP_MUTACION_BLOQUEADA = "ui.read_only.tooltip_mutacion_bloqueada"
-ERROR_PROVEEDOR_NO_INYECTADO = "ui.read_only.error_proveedor_no_inyectado"
+ERROR_ESTADO_NO_INYECTADO = "ui.read_only.error_estado_no_inyectado"
 
 
 def aplicar_politica_solo_lectura(window: Any) -> None:
-    proveedor = getattr(window, "_proveedor_ui_solo_lectura", None)
-    if not callable(proveedor):
-        raise TypeError(copy_text(ERROR_PROVEEDOR_NO_INYECTADO))
-    if not proveedor():
+    estado = getattr(window, "_estado_modo_solo_lectura", None)
+    if not isinstance(estado, EstadoModoSoloLectura):
+        raise TypeError(copy_text(ERROR_ESTADO_NO_INYECTADO))
+    if not estado.esta_activo():
         return
     tooltip = copy_text(TOOLTIP_MUTACION_BLOQUEADA)
     for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI:

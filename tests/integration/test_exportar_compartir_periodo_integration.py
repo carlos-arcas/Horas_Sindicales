@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases.exportar_compartir_periodo import EntradaExportacionPeriodo, ExportarCompartirPeriodoCasoUso
-from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
+from app.application.use_cases.politica_modo_solo_lectura import crear_estado_modo_solo_lectura, crear_politica_modo_solo_lectura
 from app.domain.models import Persona
 from app.infrastructure.sistema_archivos.local import SistemaArchivosLocal
 
@@ -32,7 +32,7 @@ def test_integration_genera_md_y_json(tmp_path) -> None:
         fs=SistemaArchivosLocal(),
         reloj=RelojFijo(),
         exportador_pdf=PdfFake(),
-        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)),
     )
     plan = caso.crear_plan(
         EntradaExportacionPeriodo(date(2025, 1, 1), date(2025, 1, 31), filtro_delegada=1, destino=tmp_path, dry_run=False),

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from app.application.modo_solo_lectura import crear_estado_modo_solo_lectura
 from tests.ui.conftest import require_qt
 
 QApplication = require_qt()
@@ -69,7 +70,7 @@ def test_event_filter_accepts_qkeyevent_without_nameerror(
         conflicts_service=_NoOpService(),
         health_check_use_case=None,
         alert_engine=None,
-        proveedor_ui_solo_lectura=lambda: False,
+        estado_modo_solo_lectura=crear_estado_modo_solo_lectura(lambda: False),
     )
 
     try:

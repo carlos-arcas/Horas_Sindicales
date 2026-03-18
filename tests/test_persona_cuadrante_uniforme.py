@@ -5,7 +5,7 @@ import unittest
 
 from app.application.dto import PersonaDTO, SolicitudDTO
 from app.application.use_cases import PersonaUseCases, SolicitudUseCases
-from app.application.use_cases.politica_modo_solo_lectura import crear_politica_modo_solo_lectura
+from app.application.use_cases.politica_modo_solo_lectura import crear_estado_modo_solo_lectura, crear_politica_modo_solo_lectura
 from app.infrastructure.migrations import run_migrations
 from app.domain.services import BusinessRuleError
 from app.infrastructure.repos_sqlite import RepositorioPersonasSQLite, SolicitudRepositorySQLite
@@ -47,7 +47,7 @@ class PersonaCuadranteUniformeTests(unittest.TestCase):
         self.repo = RepositorioPersonasSQLite(self.connection)
         self.use_cases = PersonaUseCases(
             self.repo,
-            politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+            politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)),
         )
 
     def tearDown(self) -> None:
@@ -163,7 +163,7 @@ class PersonaCuadranteUniformeTests(unittest.TestCase):
         )
 
         solicitudes_repo = SolicitudRepositorySQLite(self.connection)
-        solicitudes_uc = SolicitudUseCases(solicitudes_repo, self.repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
+        solicitudes_uc = SolicitudUseCases(solicitudes_repo, self.repo, fs=SistemaArchivosLocal(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
 
         with self.assertRaises(BusinessRuleError):
             solicitudes_uc.agregar_solicitud(

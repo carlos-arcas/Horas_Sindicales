@@ -58,11 +58,11 @@ def _leer(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_mainwindow_exige_proveedor_ui_solo_lectura_sin_fallbacks_implicitos() -> None:
+def test_mainwindow_exige_estado_modo_solo_lectura_sin_fallbacks_implicitos() -> None:
     contenido = _leer(STATE_CONTROLLER_PATH)
 
-    assert "ui.read_only.error_proveedor_obligatorio" in contenido
-    assert "_resolver_proveedor_ui_solo_lectura_desde_dependencias" not in contenido
+    assert "ui.read_only.error_estado_obligatorio" in contenido
+    assert "_resolver_estado_modo_solo_lectura_desde_dependencias" not in contenido
     assert "lambda: False" not in contenido
     assert "_politica_modo_solo_lectura" not in contenido
 
@@ -71,7 +71,7 @@ def test_ui_main_inyecta_y_expone_accion_menu_demo_para_fuente_unica() -> None:
     contenido = _leer(UI_MAIN_PATH)
 
     assert (
-        "proveedor_ui_solo_lectura=resolved_container.proveedor_ui_solo_lectura"
+        "estado_modo_solo_lectura=resolved_container.estado_modo_solo_lectura"
         in contenido
     )
     assert "main_window.accion_menu_cargar_demo = accion_cargar_demo" in contenido
@@ -137,7 +137,7 @@ def test_guardarrail_no_hay_checks_manuales_read_only_fuera_modulo_dedicado() ->
             continue
         contenido = _leer(path)
         if (
-            "_proveedor_ui_solo_lectura" in contenido
+            "_estado_modo_solo_lectura" in contenido
             or "tooltip_mutacion_bloqueada" in contenido
         ):
             violaciones.append(relativo)
@@ -146,6 +146,16 @@ def test_guardarrail_no_hay_checks_manuales_read_only_fuera_modulo_dedicado() ->
         "La política UI read-only debe vivir centralizada en politica_solo_lectura.py.\n"
         + "\n".join(violaciones)
     )
+
+
+def test_ui_read_only_consumen_misma_abstraccion_compartida() -> None:
+    controlador = _leer(STATE_CONTROLLER_PATH)
+    politica = _leer(POLITICA_SOLO_LECTURA_PATH)
+
+    assert "EstadoModoSoloLectura" in controlador
+    assert "EstadoModoSoloLectura" in politica
+    assert "Callable[[" not in controlador
+    assert "Callable[[" not in politica
 
 
 def test_guardarrail_repo_wide_ui_read_only_se_mantiene_acotado() -> None:
