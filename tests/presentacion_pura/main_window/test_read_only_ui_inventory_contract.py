@@ -43,7 +43,7 @@ def test_inventario_no_tiene_duplicados_ni_descriptores_incompletos() -> None:
 
 def test_acciones_criticas_siguen_inventariadas() -> None:
     nombres = {
-        descriptor.nombre_control for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
+        descriptor.object_name for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
     }
     faltantes = ACCIONES_CRITICAS - nombres
     assert not faltantes
@@ -58,7 +58,6 @@ def test_descriptor_action_queda_restringido_a_menu_demo() -> None:
     assert descriptores_action == [
         DescriptorAccionMutante(
             "accion_menu_cargar_demo",
-            "accion_menu_cargar_demo",
             "action",
             "menu_ayuda",
             "cargar_datos_demo",
@@ -66,11 +65,9 @@ def test_descriptor_action_queda_restringido_a_menu_demo() -> None:
     ]
 
 
-def test_todos_los_descriptores_mutantes_exigen_object_name_estable() -> None:
-    assert all(
-        descriptor.nombre_control == descriptor.object_name
-        for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
-    )
+def test_descriptor_runtime_no_reintroduce_doble_identidad() -> None:
+    assert "nombre_control" not in DescriptorAccionMutante.__dataclass_fields__
+    assert "object_name" in DescriptorAccionMutante.__dataclass_fields__
 
 
 def test_guardarrail_no_hay_inventarios_read_only_duplicados_en_otros_modulos() -> None:

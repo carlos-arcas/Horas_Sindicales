@@ -33,12 +33,12 @@ def test_controles_mutantes_auditados_tienen_object_name_y_resuelven_ui_real(
         pump_events()
         for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI:
             control = resolver_control_mutante(window, descriptor)
-            assert control is not None, descriptor.nombre_control
+            assert control is not None, descriptor.object_name
             assert control.objectName() == descriptor.object_name, (
-                descriptor.nombre_control
+                descriptor.object_name
             )
             assert (
-                getattr(window, descriptor.nombre_control).objectName()
+                getattr(window, descriptor.object_name).objectName()
                 == descriptor.object_name
             )
             if descriptor.tipo_control == "action":
@@ -65,8 +65,8 @@ def test_read_only_ui_real_deshabilita_mismos_controles_por_object_name(
         pump_events()
         for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI:
             control = resolver_control_mutante(window, descriptor)
-            assert control is not None, descriptor.nombre_control
-            assert not control.isEnabled(), descriptor.nombre_control
+            assert control is not None, descriptor.object_name
+            assert not control.isEnabled(), descriptor.object_name
     finally:
         close_window(window)
         app.processEvents()
