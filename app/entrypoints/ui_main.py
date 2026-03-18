@@ -676,6 +676,7 @@ def _instalar_menu_ayuda(
     menu_ayuda = main_window.menuBar().addMenu(i18n.t("menu_ayuda"))
     accion_reiniciar = menu_ayuda.addAction(i18n.t("menu_reiniciar_asistente"))
     accion_cargar_demo = menu_ayuda.addAction(i18n.t("menu_cargar_demo"))
+    accion_cargar_demo.setObjectName("accion_menu_cargar_demo")
     main_window.accion_menu_reiniciar_asistente = accion_reiniciar
     main_window.accion_menu_cargar_demo = accion_cargar_demo
 
