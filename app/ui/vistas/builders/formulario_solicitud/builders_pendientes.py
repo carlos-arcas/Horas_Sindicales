@@ -26,41 +26,67 @@ if TYPE_CHECKING:
 
 
 def construir_tarjeta_pendientes(window: "MainWindow") -> TarjetaSeccion:
-    pendientes_card, pendientes_layout = window._create_card(copy_text("ui.solicitudes.pendientes_confirmar"))
+    pendientes_card, pendientes_layout = window._create_card(
+        copy_text("ui.solicitudes.pendientes_confirmar")
+    )
     window._pendientes_group = pendientes_card
     _construir_herramientas_pendientes(window, pendientes_layout)
     _construir_detalles_pendientes(window, pendientes_layout)
     return TarjetaSeccion(card=pendientes_card, layout=pendientes_layout)
 
 
-def adjuntar_tarjetas_y_tabs(window: "MainWindow", tarjeta_solicitud: TarjetaSeccion, tarjeta_pendientes: TarjetaSeccion) -> None:
+def adjuntar_tarjetas_y_tabs(
+    window: "MainWindow",
+    tarjeta_solicitud: TarjetaSeccion,
+    tarjeta_pendientes: TarjetaSeccion,
+) -> None:
     window._solicitudes_form_layout.addWidget(tarjeta_solicitud.card)
     window._solicitudes_list_layout.addWidget(tarjeta_pendientes.card, 1)
     window.solicitudes_splitter.addWidget(window._solicitudes_form_panel)
     window.solicitudes_splitter.addWidget(window._solicitudes_list_panel)
     window.solicitudes_splitter.setStretchFactor(0, 1)
     window.solicitudes_splitter.setStretchFactor(1, 3)
-    window.main_tabs.addTab(window._operativa_tab, copy_text("solicitudes.section_title"))
+    window.main_tabs.addTab(
+        window._operativa_tab, copy_text("solicitudes.section_title")
+    )
 
 
-def _construir_herramientas_pendientes(window: "MainWindow", pendientes_layout: QVBoxLayout) -> None:
+def _construir_herramientas_pendientes(
+    window: "MainWindow", pendientes_layout: QVBoxLayout
+) -> None:
     pending_tools = QHBoxLayout()
     pending_tools.setSpacing(8)
-    window.ver_todas_pendientes_button = QCheckBox(copy_text("ui.solicitudes.ver_todas"))
+    window.ver_todas_pendientes_button = QCheckBox(
+        copy_text("ui.solicitudes.ver_todas")
+    )
     window.ver_todas_pendientes_button.setCursor(Qt.CursorShape.PointingHandCursor)
-    conectar_accion(window, window.ver_todas_pendientes_button.toggled, "_on_toggle_ver_todas_pendientes")
+    conectar_accion(
+        window,
+        window.ver_todas_pendientes_button.toggled,
+        "_on_toggle_ver_todas_pendientes",
+    )
     pending_tools.addWidget(window.ver_todas_pendientes_button)
 
-    window.pending_select_all_visible_check = QCheckBox(copy_text("ui.solicitudes.select_visible"))
+    window.pending_select_all_visible_check = QCheckBox(
+        copy_text("ui.solicitudes.select_visible")
+    )
     window.pending_select_all_visible_check.setTristate(True)
     window.pending_select_all_visible_check.setCursor(Qt.CursorShape.PointingHandCursor)
-    conectar_accion(window, window.pending_select_all_visible_check.toggled, "_on_pending_select_all_visible_toggled")
+    conectar_accion(
+        window,
+        window.pending_select_all_visible_check.toggled,
+        "_on_pending_select_all_visible_toggled",
+    )
     pending_tools.addWidget(window.pending_select_all_visible_check)
 
-    window.revisar_ocultas_button = QPushButton(copy_text("ui.solicitudes.revisar_ocultas"))
+    window.revisar_ocultas_button = QPushButton(
+        copy_text("ui.solicitudes.revisar_ocultas")
+    )
     window.revisar_ocultas_button.setProperty("variant", "ghost")
     window.revisar_ocultas_button.setVisible(False)
-    conectar_accion(window, window.revisar_ocultas_button.clicked, "_on_review_hidden_pendientes")
+    conectar_accion(
+        window, window.revisar_ocultas_button.clicked, "_on_review_hidden_pendientes"
+    )
     pending_tools.addWidget(window.revisar_ocultas_button)
 
     window.pending_filter_warning = QLabel("")
@@ -71,7 +97,9 @@ def _construir_herramientas_pendientes(window: "MainWindow", pendientes_layout: 
     pendientes_layout.addLayout(pending_tools)
 
 
-def _construir_detalles_pendientes(window: "MainWindow", pendientes_layout: QVBoxLayout) -> None:
+def _construir_detalles_pendientes(
+    window: "MainWindow", pendientes_layout: QVBoxLayout
+) -> None:
     window.pending_details_content = QWidget()
     pending_details_layout = QVBoxLayout(window.pending_details_content)
     pending_details_layout.setContentsMargins(0, 0, 0, 0)
@@ -94,7 +122,11 @@ def _construir_tablas_pendientes(window: "MainWindow", layout: QVBoxLayout) -> N
     window.pendientes_table.setMinimumHeight(220)
     window._configure_solicitudes_table(window.pendientes_table)
     if window.pendientes_table.selectionModel() is not None:
-        conectar_accion(window, window.pendientes_table.selectionModel().selectionChanged, "_on_pending_selection_changed")
+        conectar_accion(
+            window,
+            window.pendientes_table.selectionModel().selectionChanged,
+            "_on_pending_selection_changed",
+        )
     conectar_accion(window, window.pendientes_table.clicked, "_on_pending_row_clicked")
     layout.addWidget(window.pendientes_table, 1)
 
@@ -135,21 +167,36 @@ def _crear_acciones_izquierda(window: "MainWindow") -> QHBoxLayout:
     left_actions = QHBoxLayout()
     left_actions.setSpacing(8)
 
-    window.eliminar_pendiente_button = QPushButton(copy_text("solicitudes.button_pending_delete"))
+    window.eliminar_pendiente_button = QPushButton(
+        copy_text("solicitudes.button_pending_delete")
+    )
+    window.eliminar_pendiente_button.setObjectName("eliminar_pendiente_button")
     window.eliminar_pendiente_button.setProperty("variant", "primary")
     window.eliminar_pendiente_button.setProperty("intent", "destructive")
-    conectar_accion(window, window.eliminar_pendiente_button.clicked, "_on_remove_pendiente")
+    conectar_accion(
+        window, window.eliminar_pendiente_button.clicked, "_on_remove_pendiente"
+    )
     left_actions.addWidget(window.eliminar_pendiente_button)
 
-    window.eliminar_huerfana_button = QPushButton(copy_text("ui.solicitudes.eliminar_huerfana"))
+    window.eliminar_huerfana_button = QPushButton(
+        copy_text("ui.solicitudes.eliminar_huerfana")
+    )
+    window.eliminar_huerfana_button.setObjectName("eliminar_huerfana_button")
     window.eliminar_huerfana_button.setProperty("variant", "ghost")
-    conectar_accion(window, window.eliminar_huerfana_button.clicked, "_on_remove_huerfana")
+    conectar_accion(
+        window, window.eliminar_huerfana_button.clicked, "_on_remove_huerfana"
+    )
     window.eliminar_huerfana_button.setVisible(False)
     left_actions.addWidget(window.eliminar_huerfana_button)
 
-    window.insertar_sin_pdf_button = QPushButton(copy_text("solicitudes.button_confirm_without_pdf"))
+    window.insertar_sin_pdf_button = QPushButton(
+        copy_text("solicitudes.button_confirm_without_pdf")
+    )
+    window.insertar_sin_pdf_button.setObjectName("insertar_sin_pdf_button")
     window.insertar_sin_pdf_button.setProperty("variant", "success")
-    conectar_accion(window, window.insertar_sin_pdf_button.clicked, "_on_insertar_sin_pdf")
+    conectar_accion(
+        window, window.insertar_sin_pdf_button.clicked, "_on_insertar_sin_pdf"
+    )
     left_actions.addWidget(window.insertar_sin_pdf_button)
     return left_actions
 
@@ -165,7 +212,10 @@ def _crear_acciones_derecha(window: "MainWindow") -> QHBoxLayout:
     window.abrir_pdf_check.setChecked(True)
     right_actions.addWidget(window.abrir_pdf_check)
 
-    window.confirmar_button = QPushButton(copy_text("solicitudes.button_confirm_with_pdf"))
+    window.confirmar_button = QPushButton(
+        copy_text("solicitudes.button_confirm_with_pdf")
+    )
+    window.confirmar_button.setObjectName("confirmar_button")
     window.confirmar_button.setProperty("variant", "success")
     conectar_accion(window, window.confirmar_button.clicked, "_on_confirmar")
     right_actions.addWidget(window.confirmar_button)

@@ -33,7 +33,7 @@ ACCIONES_CRITICAS = {
 }
 
 
-def test_contrato_inventario_apunta_a_controles_reales_de_codigo() -> None:
+def test_contrato_inventario_apunta_a_identidades_estables_en_fuente() -> None:
     assert validar_contrato_inventario_con_fuentes() == []
 
 
@@ -58,11 +58,19 @@ def test_descriptor_action_queda_restringido_a_menu_demo() -> None:
     assert descriptores_action == [
         DescriptorAccionMutante(
             "accion_menu_cargar_demo",
+            "accion_menu_cargar_demo",
             "action",
             "menu_ayuda",
             "cargar_datos_demo",
         )
     ]
+
+
+def test_todos_los_descriptores_mutantes_exigen_object_name_estable() -> None:
+    assert all(
+        descriptor.nombre_control == descriptor.object_name
+        for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
+    )
 
 
 def test_guardarrail_no_hay_inventarios_read_only_duplicados_en_otros_modulos() -> None:

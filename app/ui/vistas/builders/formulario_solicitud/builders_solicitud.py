@@ -54,7 +54,9 @@ def _construir_banner_errores(window: "MainWindow", layout: QVBoxLayout) -> None
     pending_errors_layout.addWidget(window.pending_errors_summary)
     window.goto_existing_button = QPushButton(copy_text("ui.solicitudes.ir_existente"))
     window.goto_existing_button.setProperty("variant", "ghost")
-    conectar_accion(window, window.goto_existing_button.clicked, "_on_go_to_existing_duplicate")
+    conectar_accion(
+        window, window.goto_existing_button.clicked, "_on_go_to_existing_duplicate"
+    )
     window.goto_existing_button.setVisible(False)
     pending_errors_layout.addWidget(window.goto_existing_button)
     window.pending_errors_frame.setVisible(False)
@@ -64,14 +66,18 @@ def _construir_banner_errores(window: "MainWindow", layout: QVBoxLayout) -> None
     layout.addWidget(datos_basicos_label)
 
 
-def _construir_datos_basicos(window: "MainWindow", solicitud_layout: QVBoxLayout) -> None:
+def _construir_datos_basicos(
+    window: "MainWindow", solicitud_layout: QVBoxLayout
+) -> None:
     _construir_fila_persona(window, solicitud_layout)
     _construir_fila_solicitud(window, solicitud_layout)
     _construir_fila_notas(window, solicitud_layout)
     _construir_fila_tips(window, solicitud_layout)
 
 
-def _construir_fila_persona(window: "MainWindow", solicitud_layout: QVBoxLayout) -> None:
+def _construir_fila_persona(
+    window: "MainWindow", solicitud_layout: QVBoxLayout
+) -> None:
     persona_row = QHBoxLayout()
     persona_row.setSpacing(10)
     persona_label = QLabel(copy_text("solicitudes.label_delegada"))
@@ -81,7 +87,9 @@ def _construir_fila_persona(window: "MainWindow", solicitud_layout: QVBoxLayout)
     solicitud_layout.addLayout(persona_row)
 
 
-def _construir_fila_solicitud(window: "MainWindow", solicitud_layout: QVBoxLayout) -> None:
+def _construir_fila_solicitud(
+    window: "MainWindow", solicitud_layout: QVBoxLayout
+) -> None:
     solicitud_row = QHBoxLayout()
     solicitud_row.setSpacing(10)
     solicitud_row.addWidget(QLabel(copy_text("solicitudes.label_fecha")))
@@ -95,23 +103,31 @@ def _construir_fila_solicitud(window: "MainWindow", solicitud_layout: QVBoxLayou
     solicitud_layout.addLayout(solicitud_row)
 
 
-def _construir_controles_tramo(window: "MainWindow", solicitud_row: QHBoxLayout) -> None:
+def _construir_controles_tramo(
+    window: "MainWindow", solicitud_row: QHBoxLayout
+) -> None:
     window.desde_input = QTimeEdit(QTime(9, 0))
     window.desde_input.setDisplayFormat(copy_text("ui.solicitudes.formato_hora"))
-    window.desde_container = crear_contenedor_hora("solicitudes.label_desde", window.desde_input)
+    window.desde_container = crear_contenedor_hora(
+        "solicitudes.label_desde", window.desde_input
+    )
     solicitud_row.addWidget(window.desde_container)
     window.desde_placeholder = crear_placeholder_hora()
     solicitud_row.addWidget(window.desde_placeholder)
 
     window.hasta_input = QTimeEdit(QTime(17, 0))
     window.hasta_input.setDisplayFormat(copy_text("ui.solicitudes.formato_hora"))
-    window.hasta_container = crear_contenedor_hora("solicitudes.label_hasta", window.hasta_input)
+    window.hasta_container = crear_contenedor_hora(
+        "solicitudes.label_hasta", window.hasta_input
+    )
     solicitud_row.addWidget(window.hasta_container)
     window.hasta_placeholder = crear_placeholder_hora()
     solicitud_row.addWidget(window.hasta_placeholder)
 
 
-def _construir_controles_accion(window: "MainWindow", solicitud_row: QHBoxLayout) -> None:
+def _construir_controles_accion(
+    window: "MainWindow", solicitud_row: QHBoxLayout
+) -> None:
     window.completo_check = QCheckBox(copy_text("ui.solicitudes.completo"))
     solicitud_row.addWidget(window.completo_check)
 
@@ -131,6 +147,7 @@ def _construir_controles_accion(window: "MainWindow", solicitud_row: QHBoxLayout
     solicitud_row.addWidget(window.cuadrante_warning_label)
 
     window.agregar_button = QPushButton(copy_text("solicitudes.button_add_pending"))
+    window.agregar_button.setObjectName("agregar_button")
     window.agregar_button.setProperty("variant", "secondary")
     conectar_accion(window, window.agregar_button.clicked, "_on_add_pendiente")
     solicitud_row.addWidget(window.agregar_button)
@@ -174,7 +191,9 @@ def _construir_fila_tips(window: "MainWindow", solicitud_layout: QVBoxLayout) ->
     solicitud_layout.addLayout(tips_row)
 
 
-def _construir_estado_formulario(window: "MainWindow", solicitud_layout: QVBoxLayout) -> None:
+def _construir_estado_formulario(
+    window: "MainWindow", solicitud_layout: QVBoxLayout
+) -> None:
     status_row = QHBoxLayout()
     status_row.setSpacing(8)
     window.solicitudes_status_title = QLabel(copy_text("ui.solicitudes.estado"))
@@ -197,7 +216,9 @@ def _construir_estado_formulario(window: "MainWindow", solicitud_layout: QVBoxLa
     _agregar_etiquetas_error(window, solicitud_layout)
 
 
-def _agregar_etiquetas_error(window: "MainWindow", solicitud_layout: QVBoxLayout) -> None:
+def _agregar_etiquetas_error(
+    window: "MainWindow", solicitud_layout: QVBoxLayout
+) -> None:
     for atributo in (
         "solicitud_inline_error",
         "delegada_field_error",
