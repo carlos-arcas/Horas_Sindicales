@@ -535,5 +535,6 @@
   "ui.confirmacion.generar_actualizar_vista": "Generar/Actualizar vista",
   "ui.confirmacion.vista_previa_lista": "Vista previa lista: {nombre}",
   "ui.historico.detalle_solicitud_titulo": "Detalle de solicitud",
-  "ui.error_details.qdialog_close_missing": "QDialogButtonBox.Close debe existir para mantener foco principal"
+  "ui.error_details.qdialog_close_missing": "QDialogButtonBox.Close debe existir para mantener foco principal",
+  "ui.read_only.tooltip_mutacion_bloqueada": "Acción no disponible: la aplicación está en modo solo lectura."
 }
