@@ -170,6 +170,7 @@ class MainWindow(
         obtener_preferencia_inicio_maximizado: ObtenerPreferenciaInicioMaximizado
         | None = None,
         servicio_i18n: ProveedorI18N | None = None,
+        proveedor_ui_solo_lectura=None,
     ) -> None:
         super().__init__()
         assert_hilo_ui_o_log("ui.mainwindow.init", logger)
@@ -197,6 +198,11 @@ class MainWindow(
         )
         self._settings = QSettings("HorasSindicales", "HorasSindicales")
         self._servicio_i18n = servicio_i18n
+        self._proveedor_ui_solo_lectura = (
+            proveedor_ui_solo_lectura
+            or self._resolver_proveedor_ui_solo_lectura_desde_dependencias()
+            or (lambda: False)
+        )
         if servicio_i18n is not None:
             try:
                 i18n_actual = self._i18n
@@ -307,6 +313,14 @@ class MainWindow(
         self._update_conflicts_reminder()
         self._refresh_health_and_alerts()
         self._post_init_ui()
+
+
+    def _resolver_proveedor_ui_solo_lectura_desde_dependencias(self):
+        politica = getattr(self._solicitud_use_cases, "_politica_modo_solo_lectura", None)
+        proveedor = getattr(politica, "proveedor_activo", None)
+        if callable(proveedor):
+            return proveedor
+        return None
 
     def tiene_capacidad_opcional(self, nombre_capacidad: str) -> bool:
         return capacidad_disponible(self, nombre_capacidad)

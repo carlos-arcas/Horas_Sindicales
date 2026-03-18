@@ -10,6 +10,21 @@ from .estado_acciones import (
     resolver_estado_acciones_main_window,
 )
 
+ACCIONES_MUTANTES_AUDITADAS_UI: dict[str, dict[str, str]] = {
+    "agregar_button": {"pantalla": "solicitudes", "accion": "agregar_pendiente"},
+    "insertar_sin_pdf_button": {"pantalla": "solicitudes", "accion": "confirmar_sin_pdf"},
+    "confirmar_button": {"pantalla": "solicitudes", "accion": "confirmar_con_pdf"},
+    "eliminar_pendiente_button": {"pantalla": "solicitudes", "accion": "eliminar_solicitud_pendiente"},
+    "add_persona_button": {"pantalla": "configuracion", "accion": "crear_persona"},
+    "edit_persona_button": {"pantalla": "configuracion", "accion": "editar_persona"},
+    "delete_persona_button": {"pantalla": "configuracion", "accion": "desactivar_persona"},
+    "edit_grupo_button": {"pantalla": "configuracion", "accion": "actualizar_configuracion_grupo"},
+    "editar_pdf_button": {"pantalla": "configuracion", "accion": "actualizar_configuracion_pdf"},
+    "opciones_button": {"pantalla": "sincronizacion", "accion": "actualizar_configuracion_sync"},
+    "eliminar_button": {"pantalla": "historico", "accion": "eliminar_solicitud_historica"},
+    "generar_pdf_button": {"pantalla": "historico", "accion": "exportar_historico_pdf"},
+}
+
 
 def resolve_active_delegada_id(window: Any, preferred_id: object | None = None) -> int | None:
     """Resuelve la delegada activa desde una ventana o desde una lista de ids."""
@@ -73,6 +88,7 @@ def update_action_state(window: Any) -> None:
     )
 
     _aplicar_habilitacion_controles(window, estado)
+    _aplicar_modo_solo_lectura(window)
     _actualizar_textos_historico(window, estado.total_historico_seleccionado)
 
     refresh_status_panel = getattr(window, "_update_solicitudes_status_panel", None)
@@ -85,10 +101,12 @@ def _aplicar_habilitacion_controles(window: Any, estado: Any) -> None:
         "agregar_button": estado.agregar_habilitado,
         "insertar_sin_pdf_button": estado.insertar_sin_pdf_habilitado,
         "confirmar_button": estado.confirmar_habilitado,
+        "add_persona_button": True,
         "edit_persona_button": estado.editar_persona_habilitado,
         "delete_persona_button": estado.eliminar_persona_habilitado,
         "edit_grupo_button": estado.editar_grupo_habilitado,
         "editar_pdf_button": estado.editar_pdf_habilitado,
+        "opciones_button": True,
         "eliminar_button": estado.eliminar_historico_habilitado,
         "eliminar_pendiente_button": estado.eliminar_pendiente_habilitado,
         "generar_pdf_button": estado.generar_pdf_habilitado,
@@ -101,6 +119,21 @@ def _aplicar_habilitacion_controles(window: Any, estado: Any) -> None:
         setter = getattr(control, "setEnabled", None)
         if callable(setter):
             setter(habilitado)
+
+
+def _aplicar_modo_solo_lectura(window: Any) -> None:
+    proveedor = getattr(window, "_proveedor_ui_solo_lectura", None)
+    if not callable(proveedor) or not proveedor():
+        return
+    tooltip = copy_text("ui.read_only.tooltip_mutacion_bloqueada")
+    for control_name in ACCIONES_MUTANTES_AUDITADAS_UI:
+        control = getattr(window, control_name, None)
+        if control is None:
+            continue
+        if hasattr(control, "setEnabled"):
+            control.setEnabled(False)
+        if hasattr(control, "setToolTip"):
+            control.setToolTip(tooltip)
 
 
 def _actualizar_textos_historico(window: Any, total_historico_seleccionado: int) -> None:
@@ -120,11 +153,13 @@ def _actualizar_textos_historico(window: Any, total_historico_seleccionado: int)
 
 def _actualizar_texto_boton_historico(
     window: Any,
-    boton_attr: str,
+    control_name: str,
     copy_key: str,
     total_historico_seleccionado: int,
 ) -> None:
-    boton = getattr(window, boton_attr, None)
-    if boton is None or not hasattr(boton, "setText"):
+    control = getattr(window, control_name, None)
+    if control is None:
         return
-    boton.setText(copy_text(copy_key).format(n=total_historico_seleccionado))
+    setter = getattr(control, "setText", None)
+    if callable(setter):
+        setter(copy_text(copy_key).format(n=total_historico_seleccionado))

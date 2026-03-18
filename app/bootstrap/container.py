@@ -99,6 +99,7 @@ class AppContainer:
     cargar_datos_demo_caso_uso: CargarDatosDemoCasoUso
     exportar_compartir_periodo_caso_uso: ExportarCompartirPeriodoCasoUso
     servicio_i18n: ProveedorI18N
+    proveedor_ui_solo_lectura: Callable[[], bool]
 
 
 ConnectionFactory = Callable[[], object]
@@ -256,6 +257,7 @@ def build_container(
         cargar_datos_demo_caso_uso=cargar_datos_demo_caso_uso,
         exportar_compartir_periodo_caso_uso=exportar_compartir_periodo_caso_uso,
         servicio_i18n=servicio_i18n,
+        proveedor_ui_solo_lectura=is_read_only_enabled,
     )
 
 

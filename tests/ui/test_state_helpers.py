@@ -27,10 +27,12 @@ class _WindowStub:
         self.agregar_button = _ControlStub()
         self.insertar_sin_pdf_button = _ControlStub()
         self.confirmar_button = _ControlStub()
+        self.add_persona_button = _ControlStub()
         self.edit_persona_button = _ControlStub()
         self.delete_persona_button = _ControlStub()
         self.edit_grupo_button = _ControlStub()
         self.editar_pdf_button = _ControlStub()
+        self.opciones_button = _ControlStub()
         self.eliminar_button = _ControlStub()
         self.eliminar_pendiente_button = _ControlStub()
         self.generar_pdf_button = _ControlStub()
@@ -86,6 +88,7 @@ def test_update_action_state_aplica_fuente_unica_de_estado_en_widgets() -> None:
     assert window.eliminar_button.text == copy_text("ui.historico.eliminar_boton").format(n=1)
     assert window.generar_pdf_button.enabled is True
     assert window.generar_pdf_button.text == copy_text("ui.historico.exportar_pdf_boton").format(n=1)
+    assert window.opciones_button.enabled is True
     assert window.clear_button.enabled is True
     assert window.status_panel_actualizado == 1
 
