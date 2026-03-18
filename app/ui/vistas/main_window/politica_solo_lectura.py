@@ -11,7 +11,6 @@ TipoControlMutante = Literal["widget", "action"]
 
 @dataclass(frozen=True, slots=True)
 class DescriptorAccionMutante:
-    nombre_control: str
     object_name: str
     tipo_control: TipoControlMutante
     pantalla: str
@@ -21,13 +20,11 @@ class DescriptorAccionMutante:
 ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...] = (
     DescriptorAccionMutante(
         "agregar_button",
-        "agregar_button",
         "widget",
         "solicitudes",
         "agregar_pendiente",
     ),
     DescriptorAccionMutante(
-        "insertar_sin_pdf_button",
         "insertar_sin_pdf_button",
         "widget",
         "solicitudes",
@@ -35,13 +32,11 @@ ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...] = (
     ),
     DescriptorAccionMutante(
         "confirmar_button",
-        "confirmar_button",
         "widget",
         "solicitudes",
         "confirmar_con_pdf",
     ),
     DescriptorAccionMutante(
-        "eliminar_pendiente_button",
         "eliminar_pendiente_button",
         "widget",
         "solicitudes",
@@ -49,13 +44,11 @@ ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...] = (
     ),
     DescriptorAccionMutante(
         "eliminar_huerfana_button",
-        "eliminar_huerfana_button",
         "widget",
         "solicitudes",
         "eliminar_solicitud_huerfana",
     ),
     DescriptorAccionMutante(
-        "add_persona_button",
         "add_persona_button",
         "widget",
         "configuracion",
@@ -63,13 +56,11 @@ ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...] = (
     ),
     DescriptorAccionMutante(
         "edit_persona_button",
-        "edit_persona_button",
         "widget",
         "configuracion",
         "editar_persona",
     ),
     DescriptorAccionMutante(
-        "delete_persona_button",
         "delete_persona_button",
         "widget",
         "configuracion",
@@ -77,13 +68,11 @@ ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...] = (
     ),
     DescriptorAccionMutante(
         "edit_grupo_button",
-        "edit_grupo_button",
         "widget",
         "configuracion",
         "actualizar_configuracion_grupo",
     ),
     DescriptorAccionMutante(
-        "editar_pdf_button",
         "editar_pdf_button",
         "widget",
         "configuracion",
@@ -91,13 +80,11 @@ ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...] = (
     ),
     DescriptorAccionMutante(
         "opciones_button",
-        "opciones_button",
         "widget",
         "sincronizacion",
         "actualizar_configuracion_sync",
     ),
     DescriptorAccionMutante(
-        "config_sync_button",
         "config_sync_button",
         "widget",
         "sincronizacion",
@@ -105,13 +92,11 @@ ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...] = (
     ),
     DescriptorAccionMutante(
         "sync_button",
-        "sync_button",
         "widget",
         "sincronizacion",
         "sincronizar_ahora",
     ),
     DescriptorAccionMutante(
-        "confirm_sync_button",
         "confirm_sync_button",
         "widget",
         "sincronizacion",
@@ -119,13 +104,11 @@ ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...] = (
     ),
     DescriptorAccionMutante(
         "retry_failed_button",
-        "retry_failed_button",
         "widget",
         "sincronizacion",
         "reintentar_sincronizacion_fallida",
     ),
     DescriptorAccionMutante(
-        "accion_menu_cargar_demo",
         "accion_menu_cargar_demo",
         "action",
         "menu_ayuda",
@@ -133,13 +116,11 @@ ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...] = (
     ),
     DescriptorAccionMutante(
         "eliminar_button",
-        "eliminar_button",
         "widget",
         "historico",
         "eliminar_solicitud_historica",
     ),
     DescriptorAccionMutante(
-        "generar_pdf_button",
         "generar_pdf_button",
         "widget",
         "historico",
@@ -148,7 +129,7 @@ ACCIONES_MUTANTES_AUDITADAS_UI: tuple[DescriptorAccionMutante, ...] = (
 )
 
 NOMBRES_CONTROLES_MUTANTES_UI: tuple[str, ...] = tuple(
-    descriptor.nombre_control for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
+    descriptor.object_name for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
 )
 
 TOOLTIP_MUTACION_BLOQUEADA = "ui.read_only.tooltip_mutacion_bloqueada"
@@ -175,10 +156,17 @@ def aplicar_politica_solo_lectura(window: Any) -> None:
 def resolver_control_mutante(
     window: Any, descriptor: DescriptorAccionMutante
 ) -> Any | None:
-    control = getattr(window, descriptor.nombre_control, None)
-    if _coincide_object_name(control, descriptor.object_name):
+    control = _buscar_control_por_object_name(window, descriptor.object_name)
+    if control is not None:
         return control
-    return _buscar_control_por_object_name(window, descriptor.object_name)
+    return _obtener_control_por_atributo_compatible(window, descriptor.object_name)
+
+
+def _obtener_control_por_atributo_compatible(window: Any, object_name: str) -> Any | None:
+    control = getattr(window, object_name, None)
+    if _coincide_object_name(control, object_name):
+        return control
+    return None
 
 
 def _coincide_object_name(control: Any | None, object_name: str) -> bool:
@@ -206,8 +194,7 @@ def _buscar_control_por_object_name(window: Any, object_name: str) -> Any | None
 
 def exportar_inventario_acciones_mutantes() -> dict[str, dict[str, str]]:
     return {
-        descriptor.nombre_control: {
-            "object_name": descriptor.object_name,
+        descriptor.object_name: {
             "tipo_control": descriptor.tipo_control,
             "pantalla": descriptor.pantalla,
             "accion": descriptor.accion,

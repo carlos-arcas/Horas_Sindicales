@@ -153,18 +153,16 @@ def test_inventario_acciones_mutantes_ui_queda_centralizado_y_tipado() -> None:
         for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
     )
     assert NOMBRES_CONTROLES_MUTANTES_UI == tuple(
-        descriptor.nombre_control for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
+        descriptor.object_name for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
     )
     assert validar_inventario_runtime_mutante() == []
     assert validar_contrato_inventario_con_fuentes() == []
     assert exportar_inventario_acciones_mutantes()["agregar_button"] == {
-        "object_name": "agregar_button",
         "tipo_control": "widget",
         "pantalla": "solicitudes",
         "accion": "agregar_pendiente",
     }
     assert exportar_contrato_inventario_mutante()["agregar_button"] == {
-        "object_name": "agregar_button",
         "tipo_control": "widget",
         "ruta_origen": "app/ui/vistas/builders/formulario_solicitud/builders_solicitud.py",
     }
@@ -172,7 +170,6 @@ def test_inventario_acciones_mutantes_ui_queda_centralizado_y_tipado() -> None:
 
 def test_resolver_control_mutante_prioriza_object_name_sobre_atributo() -> None:
     descriptor = DescriptorAccionMutante(
-        "agregar_button",
         "agregar_button",
         "widget",
         "solicitudes",
