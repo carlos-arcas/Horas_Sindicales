@@ -32,6 +32,7 @@ def _build_window() -> MainWindow:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
 
@@ -52,7 +53,9 @@ def test_tabs_exist() -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
-    tab_names = [window.main_tabs.tabText(index) for index in range(window.main_tabs.count())]
+    tab_names = [
+        window.main_tabs.tabText(index) for index in range(window.main_tabs.count())
+    ]
     assert "Operativa" in tab_names
     assert "Histórico" in tab_names
     assert "Configuración" in tab_names

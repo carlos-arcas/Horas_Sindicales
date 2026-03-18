@@ -144,7 +144,9 @@ class _CoordinadorArranqueConCierreDeterminista:
             return []
         return construir_info_top_level_widgets(widgets)
 
-    def _activar_y_visibilizar_ventana(self, window, *, iniciar_maximizada: bool = False) -> None:
+    def _activar_y_visibilizar_ventana(
+        self, window, *, iniciar_maximizada: bool = False
+    ) -> None:
         if not _es_objeto_qt_valido(window):
             return
         from PySide6.QtCore import Qt
@@ -170,19 +172,31 @@ class _CoordinadorArranqueConCierreDeterminista:
         safe_call(window, "raise_")
         safe_call(window, "activateWindow")
 
-    def _resolver_ventana_por_info(self, info_candidato: dict[str, object]) -> object | None:
+    def _resolver_ventana_por_info(
+        self, info_candidato: dict[str, object]
+    ) -> object | None:
         clase = str(info_candidato.get("clase") or info_candidato.get("cls") or "")
-        object_name = str(info_candidato.get("object_name") or info_candidato.get("objectName") or "")
-        window_title = str(info_candidato.get("window_title") or info_candidato.get("title") or "")
+        object_name = str(
+            info_candidato.get("object_name") or info_candidato.get("objectName") or ""
+        )
+        window_title = str(
+            info_candidato.get("window_title") or info_candidato.get("title") or ""
+        )
         candidatos = [self.main_window, self.wizard, self._fallback_window, self.splash]
         for widget in candidatos:
             if not _es_objeto_qt_valido(widget):
                 continue
             if widget.__class__.__name__ != clase:
                 continue
-            if object_name and getattr(widget, "objectName", lambda: "")() != object_name:
+            if (
+                object_name
+                and getattr(widget, "objectName", lambda: "")() != object_name
+            ):
                 continue
-            if window_title and getattr(widget, "windowTitle", lambda: "")() != window_title:
+            if (
+                window_title
+                and getattr(widget, "windowTitle", lambda: "")() != window_title
+            ):
                 continue
             return widget
         return None
@@ -211,7 +225,6 @@ class _CoordinadorArranqueConCierreDeterminista:
         self._marcar_boot_stage("primary_window_activated")
         self.restaurar_quit_on_last_window_closed()
         return ventana
-
 
     def _establecer_referencias_fuertes(self, ventana) -> None:
         if not _es_objeto_qt_valido(ventana):
@@ -283,8 +296,13 @@ class _CoordinadorArranqueConCierreDeterminista:
                     "window_title": getattr(watched, "windowTitle", lambda: "")(),
                     "object_name": getattr(watched, "objectName", lambda: "")(),
                 }
-                if event.type() in {QEvent.Type.Close, QEvent.Type.Hide} and (time.monotonic() - inicio) <= umbral_segundos:
-                    payload["stacktrace_python"] = "".join(traceback.format_stack(limit=8))
+                if (
+                    event.type() in {QEvent.Type.Close, QEvent.Type.Hide}
+                    and (time.monotonic() - inicio) <= umbral_segundos
+                ):
+                    payload["stacktrace_python"] = "".join(
+                        traceback.format_stack(limit=8)
+                    )
                 LOGGER.warning("startup_window_event_debug", extra={"extra": payload})
                 return False
 
@@ -293,12 +311,20 @@ class _CoordinadorArranqueConCierreDeterminista:
             if _es_objeto_qt_valido(widget):
                 widget.installEventFilter(self._filtro_eventos_ventana)
 
-    def _finalizar_arranque_pipeline(self, startup_payload: ResultadoArranqueCore) -> bool:
+    def _finalizar_arranque_pipeline(
+        self, startup_payload: ResultadoArranqueCore
+    ) -> bool:
         if self._boot_timeout_disparado:
             self._marcar_boot_stage("finalize_guard_abort")
             LOGGER.warning(
                 "UI_STARTUP_FINISHED_AFTER_TIMEOUT",
-                extra={"extra": {"evento": "finished", "etapa": self.ultima_etapa, "decision": "fallback"}},
+                extra={
+                    "extra": {
+                        "evento": "finished",
+                        "etapa": self.ultima_etapa,
+                        "decision": "fallback",
+                    }
+                },
             )
             self._mostrar_fallback_arranque()
             return False
@@ -351,7 +377,9 @@ class _CoordinadorArranqueConCierreDeterminista:
                 self._cerrar_splash_con_ventana(ventana)
                 self._marcar_boot_stage("finalize_after_splash_finish")
                 self._dump_top_level_widgets("after_show_pipeline")
-                if not hay_ventana_visible_no_splash(self._obtener_info_top_level_widgets()):
+                if not hay_ventana_visible_no_splash(
+                    self._obtener_info_top_level_widgets()
+                ):
                     self._marcar_boot_stage("no_visible_window_after_finalize")
                     raise RuntimeError("UI_STARTUP_NO_VISIBLE_MAIN_WINDOW")
                 self._boot_finalizado = True
@@ -368,7 +396,9 @@ class _CoordinadorArranqueConCierreDeterminista:
                 estado_pipeline["ok"] = False
             finally:
                 self._dump_top_level_widgets("final_check")
-                if estado_pipeline["ok"] and not hay_ventana_visible_no_splash(self._obtener_info_top_level_widgets()):
+                if estado_pipeline["ok"] and not hay_ventana_visible_no_splash(
+                    self._obtener_info_top_level_widgets()
+                ):
                     self._marcar_boot_stage("no_visible_window_after_finalize")
                     LOGGER.error(
                         "UI_STARTUP_NO_VISIBLE_MAIN_WINDOW",
@@ -646,6 +676,8 @@ def _instalar_menu_ayuda(
     menu_ayuda = main_window.menuBar().addMenu(i18n.t("menu_ayuda"))
     accion_reiniciar = menu_ayuda.addAction(i18n.t("menu_reiniciar_asistente"))
     accion_cargar_demo = menu_ayuda.addAction(i18n.t("menu_cargar_demo"))
+    main_window.accion_menu_reiniciar_asistente = accion_reiniciar
+    main_window.accion_menu_cargar_demo = accion_cargar_demo
 
     def _reiniciar_asistente() -> None:
         respuesta = QMessageBox.question(
@@ -705,8 +737,9 @@ def _instalar_menu_ayuda(
 
     accion_reiniciar.triggered.connect(_reiniciar_asistente)
     accion_cargar_demo.triggered.connect(_cargar_demo)
-
-
+    update_actions = getattr(main_window, "_update_action_state", None)
+    if callable(update_actions):
+        update_actions()
 
 
 def conectar_senales_arranque_a_receptor(trabajador, receptor, qt_namespace) -> None:
@@ -726,7 +759,11 @@ def run_ui(container=None) -> int:
     from app.ui.estilos.apply_theme import aplicar_tema
     from app.ui.main_window import MainWindow
     from app.ui.splash_window import SplashWindow
-    from app.ui.qt_hilos import assert_hilo_ui_o_log, asegurar_en_hilo_ui, ejecutar_en_hilo_ui
+    from app.ui.qt_hilos import (
+        assert_hilo_ui_o_log,
+        asegurar_en_hilo_ui,
+        ejecutar_en_hilo_ui,
+    )
     from app.ui.theme import build_stylesheet
     from presentacion.i18n import I18nManager
     from presentacion.orquestador_arranque import OrquestadorArranqueUI
@@ -830,7 +867,9 @@ def run_ui(container=None) -> int:
     startup_worker.progreso.connect(
         controlador.on_progreso, Qt.ConnectionType.QueuedConnection
     )
-    conectar_senales_arranque_a_receptor(startup_worker, receptor_arranque_ui, Qt.ConnectionType)
+    conectar_senales_arranque_a_receptor(
+        startup_worker, receptor_arranque_ui, Qt.ConnectionType
+    )
 
     conexiones_arranque = (
         (watchdog_timer.timeout, controlador.on_timeout),

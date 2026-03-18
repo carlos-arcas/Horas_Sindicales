@@ -29,6 +29,7 @@ def _build_window() -> MainWindow:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
 
@@ -36,8 +37,14 @@ def test_main_window_handlers_do_not_raise(monkeypatch: pytest.MonkeyPatch) -> N
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
-    monkeypatch.setattr(QMessageBox, "question", lambda *args, **kwargs: QMessageBox.StandardButton.No)
-    monkeypatch.setattr(QMessageBox, "information", lambda *args, **kwargs: QMessageBox.StandardButton.Ok)
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *args, **kwargs: QMessageBox.StandardButton.No
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "information",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Ok,
+    )
 
     window._on_sync_with_confirmation()
     window._on_export_historico_pdf()

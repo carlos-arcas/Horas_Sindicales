@@ -29,7 +29,9 @@ def _require_qt_in_test() -> object:
 
 
 @pytest.mark.ui
-def test_main_window_contract_public_attributes(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_window_contract_public_attributes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     QApplication = _require_qt_in_test()
 
     from app.ui.vistas.main_window import MainWindow
@@ -38,15 +40,35 @@ def test_main_window_contract_public_attributes(monkeypatch: pytest.MonkeyPatch)
     app = QApplication.instance() or QApplication([])
     assert app is not None
 
-    monkeypatch.setattr(main_window_vista.MainWindow, "_load_personas", lambda self, select_id=None: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_reload_pending_views", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_global_context", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_refresh_last_sync_label", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_sync_button_state", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_update_conflicts_reminder", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_refresh_health_and_alerts", lambda self: None)
-    monkeypatch.setattr(main_window_vista.MainWindow, "_sync_source_text", lambda self: "stub")
-    monkeypatch.setattr(main_window_vista.MainWindow, "_sync_scope_text", lambda self: "stub")
+    monkeypatch.setattr(
+        main_window_vista.MainWindow,
+        "_load_personas",
+        lambda self, select_id=None: None,
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_reload_pending_views", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_global_context", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_refresh_last_sync_label", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_sync_button_state", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_conflicts_reminder", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_refresh_health_and_alerts", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_sync_source_text", lambda self: "stub"
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_sync_scope_text", lambda self: "stub"
+    )
 
     window = MainWindow(
         persona_use_cases=_NoOpService(),
@@ -57,6 +79,7 @@ def test_main_window_contract_public_attributes(monkeypatch: pytest.MonkeyPatch)
         conflicts_service=_NoOpService(),
         health_check_use_case=None,
         alert_engine=None,
+        proveedor_ui_solo_lectura=lambda: False,
     )
     expected_attrs = [
         "main_tabs",
@@ -69,8 +92,67 @@ def test_main_window_contract_public_attributes(monkeypatch: pytest.MonkeyPatch)
         "status_label",
     ]
     for attr in expected_attrs:
-        assert hasattr(window, attr), f"MainWindow no expone atributo público esperado: {attr}"
+        assert hasattr(window, attr), (
+            f"MainWindow no expone atributo público esperado: {attr}"
+        )
     window.close()
+
+
+@pytest.mark.ui
+def test_main_window_falla_temprano_si_no_se_inyecta_proveedor_ui_read_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    QApplication = _require_qt_in_test()
+
+    from app.ui.vistas.main_window import MainWindow
+    from app.ui.vistas import main_window_vista
+
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+
+    monkeypatch.setattr(
+        main_window_vista.MainWindow,
+        "_load_personas",
+        lambda self, select_id=None: None,
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_reload_pending_views", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_global_context", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_refresh_last_sync_label", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_sync_button_state", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_update_conflicts_reminder", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_refresh_health_and_alerts", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_sync_source_text", lambda self: "stub"
+    )
+    monkeypatch.setattr(
+        main_window_vista.MainWindow, "_sync_scope_text", lambda self: "stub"
+    )
+
+    with pytest.raises(
+        TypeError, match="proveedor_ui_solo_lectura es obligatorio en MainWindow"
+    ):
+        MainWindow(
+            persona_use_cases=_NoOpService(),
+            solicitud_use_cases=_NoOpService(),
+            grupo_use_cases=_NoOpService(),
+            sheets_service=_NoOpService(),
+            sync_sheets_use_case=_FakeSyncService(),
+            conflicts_service=_NoOpService(),
+            health_check_use_case=None,
+            alert_engine=None,
+        )
 
 
 def test_main_window_vista_imports_without_cycles() -> None:
@@ -83,5 +165,9 @@ def test_main_window_vista_imports_without_cycles() -> None:
 
 
 def test_main_window_vista_loc_guardrail() -> None:
-    loc = len(Path("app/ui/vistas/main_window_vista.py").read_text(encoding="utf-8").splitlines())
+    loc = len(
+        Path("app/ui/vistas/main_window_vista.py")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    )
     assert loc <= 450, f"Guardrail excedido: {loc} LOC"

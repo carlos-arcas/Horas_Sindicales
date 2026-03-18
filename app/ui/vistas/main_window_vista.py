@@ -6,6 +6,7 @@ from __future__ import annotations
 # self.pending_details_button.setCheckable(False)
 # self.pending_details_content.setVisible(True)
 
+from app.application.dto import PersonaDTO, SolicitudDTO
 from app.ui.qt_compat import QMainWindow, QTimer
 from app.ui.vistas.init_refresh import run_init_refresh
 from app.ui.vistas.main_window.layout_builder import (
@@ -95,9 +96,149 @@ class MainWindow(_MainWindowBase):
     def _on_main_tab_changed(self, index: int) -> None:
         if index != TAB_HISTORICO:
             return
-        if not (self.historico_desde_date.date().isValid() and self.historico_hasta_date.date().isValid()):
+        if not (
+            self.historico_desde_date.date().isValid()
+            and self.historico_hasta_date.date().isValid()
+        ):
             self._apply_historico_last_30_days()
         self._refresh_historico(force=False)
+
+    def _apply_sync_report(self, report: object) -> None:
+        return super()._apply_sync_report(report)
+
+    def _show_sync_details_dialog(self) -> object:
+        return super()._show_sync_details_dialog()
+
+    def _on_sync_finished(self, report: object) -> None:
+        return super()._on_sync_finished(report)
+
+    def _on_sync_failed(self, reason: object) -> None:
+        return super()._on_sync_failed(reason)
+
+    def _on_sync(self) -> None:
+        return super()._on_sync()
+
+    def _on_simulate_sync(self) -> None:
+        return super()._on_simulate_sync()
+
+    def _on_confirm_sync(self) -> None:
+        return super()._on_confirm_sync()
+
+    def _apply_historico_text_filter(self) -> None:
+        return super()._apply_historico_text_filter()
+
+    def _historico_period_filter_state(self) -> tuple[str | None, str | None]:
+        return super()._historico_period_filter_state()
+
+    def _update_historico_empty_state(self) -> None:
+        return super()._update_historico_empty_state()
+
+    def _on_historico_escape(self) -> None:
+        return super()._on_historico_escape()
+
+    def _selected_historico(self) -> list[SolicitudDTO]:
+        return super()._selected_historico()
+
+    def _selected_historico_solicitudes(self) -> list[SolicitudDTO]:
+        return super()._selected_historico_solicitudes()
+
+    def _on_historico_select_all_visible_toggled(self, checked: object) -> None:
+        return super()._on_historico_select_all_visible_toggled(checked)
+
+    def _sync_historico_select_all_visible_state(self) -> None:
+        return super()._sync_historico_select_all_visible_state()
+
+    def _notify_historico_filter_if_hidden(
+        self, solicitudes_insertadas: list[SolicitudDTO]
+    ) -> None:
+        return super()._notify_historico_filter_if_hidden(solicitudes_insertadas)
+
+    def _on_export_historico_pdf(self) -> None:
+        return super()._on_export_historico_pdf()
+
+    def _on_eliminar(self) -> None:
+        return super()._on_eliminar()
+
+    def _selected_pending_row_indexes(self) -> list[int]:
+        return super()._selected_pending_row_indexes()
+
+    def _selected_pending_for_editing(self) -> SolicitudDTO | None:
+        return super()._selected_pending_for_editing()
+
+    def _find_pending_row_by_id(self, solicitud_id: int | None) -> int | None:
+        return super()._find_pending_row_by_id(solicitud_id)
+
+    def _focus_pending_row(self, row: int) -> None:
+        return super()._focus_pending_row(row)
+
+    def _focus_pending_by_id(self, solicitud_id: int | None) -> bool:
+        return super()._focus_pending_by_id(solicitud_id)
+
+    def _on_review_hidden_pendientes(self) -> None:
+        return super()._on_review_hidden_pendientes()
+
+    def _on_remove_huerfana(self) -> None:
+        return super()._on_remove_huerfana()
+
+    def _clear_pendientes(self) -> None:
+        return super()._clear_pendientes()
+
+    def _update_pending_totals(self) -> None:
+        return super()._update_pending_totals()
+
+    def _refresh_pending_conflicts(self) -> None:
+        return super()._refresh_pending_conflicts()
+
+    def _refresh_pending_ui_state(self) -> None:
+        return super()._refresh_pending_ui_state()
+
+    def _is_form_dirty(self) -> bool:
+        return super()._is_form_dirty()
+
+    def _confirmar_cambio_delegada(self, nueva_persona: PersonaDTO) -> bool:
+        return super()._confirmar_cambio_delegada(nueva_persona)
+
+    def _save_current_draft(self) -> None:
+        return super()._save_current_draft()
+
+    def _restore_draft_for_persona(self, persona_id: int) -> None:
+        return super()._restore_draft_for_persona(persona_id)
+
+    def _current_persona(self) -> PersonaDTO | None:
+        return super()._current_persona()
+
+    def _on_persona_changed(self) -> None:
+        return super()._on_persona_changed()
+
+    def _on_add_persona(self) -> None:
+        return super()._on_add_persona()
+
+    def _on_edit_persona(self) -> None:
+        return super()._on_edit_persona()
+
+    def _on_delete_persona(self) -> None:
+        return super()._on_delete_persona()
+
+    def _sync_config_persona_actions(self) -> None:
+        return super()._sync_config_persona_actions()
+
+    def _selected_config_persona(self) -> PersonaDTO | None:
+        return super()._selected_config_persona()
+
+    def _restaurar_contexto_guardado(self) -> None:
+        return super()._restaurar_contexto_guardado()
+
+    def _on_help_toggle_changed(self, checked: object) -> None:
+        return super()._on_help_toggle_changed(checked)
+
+    def _on_desde_changed(self, qtime: object) -> None:
+        return super()._on_desde_changed(qtime)
+
+    def _on_hasta_changed(self, qtime: object) -> None:
+        return super()._on_hasta_changed(qtime)
+
+    def _on_completo_changed(self, checked: object = False) -> None:
+        return super()._on_completo_changed(checked)
 
     def _refresh_historico(self, *, force: bool = False) -> None:
         # Mantiene la fuente de verdad del histórico en el controller.

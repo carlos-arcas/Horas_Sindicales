@@ -32,6 +32,7 @@ def test_notas_input_usa_altura_compacta_sin_romper_layout() -> None:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
     notas_input = getattr(window, "notas_input", None)

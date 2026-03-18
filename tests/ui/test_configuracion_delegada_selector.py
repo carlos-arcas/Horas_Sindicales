@@ -20,8 +20,6 @@ def _in_memory_connection() -> sqlite3.Connection:
     return connection
 
 
-
-
 def _persona(nombre: str) -> PersonaDTO:
     return PersonaDTO(
         id=None,
@@ -58,6 +56,7 @@ def _build_window() -> MainWindow:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
 

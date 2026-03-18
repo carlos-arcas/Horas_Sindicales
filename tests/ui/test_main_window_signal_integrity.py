@@ -26,14 +26,24 @@ def _in_memory_connection() -> sqlite3.Connection:
 
 
 def _connected_window_handlers() -> set[str]:
-    source = Path("app/ui/vistas/builders/main_window_builders.py").read_text(encoding="utf-8")
-    connect_targets = set(re.findall(r"connect\(window\.([A-Za-z_][A-Za-z0-9_]*)\)", source))
-    action_targets = set(re.findall(r"addAction\([^\n]+window\.([A-Za-z_][A-Za-z0-9_]*)\)", source))
+    source = Path("app/ui/vistas/builders/main_window_builders.py").read_text(
+        encoding="utf-8"
+    )
+    connect_targets = set(
+        re.findall(r"connect\(window\.([A-Za-z_][A-Za-z0-9_]*)\)", source)
+    )
+    action_targets = set(
+        re.findall(r"addAction\([^\n]+window\.([A-Za-z_][A-Za-z0-9_]*)\)", source)
+    )
     return connect_targets | action_targets
 
 
 def test_builder_connect_targets_exist_in_main_window() -> None:
-    missing = [name for name in sorted(_connected_window_handlers()) if not hasattr(MainWindow, name)]
+    missing = [
+        name
+        for name in sorted(_connected_window_handlers())
+        if not hasattr(MainWindow, name)
+    ]
     assert missing == []
 
 
@@ -50,6 +60,7 @@ def test_main_window_build_has_required_handler_attributes() -> None:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
     for handler_name in EXPECTED_HANDLERS:

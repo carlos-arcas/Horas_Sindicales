@@ -32,6 +32,7 @@ def _build_window() -> MainWindow:
         container.conflicts_service,
         health_check_use_case=None,
         alert_engine=container.alert_engine,
+        proveedor_ui_solo_lectura=container.proveedor_ui_solo_lectura,
     )
 
 
@@ -45,7 +46,9 @@ def test_main_window_smoke_instantiation_no_crash() -> None:
     app.processEvents()
 
 
-def test_boton_sincronizar_en_pagina_sync_no_crash(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_boton_sincronizar_en_pagina_sync_no_crash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = QApplication.instance() or QApplication([])
     window = _build_window()
 
@@ -63,7 +66,6 @@ def test_boton_sincronizar_en_pagina_sync_no_crash(monkeypatch: pytest.MonkeyPat
 
     window.close()
     app.processEvents()
-
 
 
 def test_boton_exportar_historico_en_tab_existente() -> None:
