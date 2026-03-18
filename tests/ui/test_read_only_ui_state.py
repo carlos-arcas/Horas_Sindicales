@@ -3,6 +3,12 @@ from __future__ import annotations
 from importlib import import_module
 
 from app.ui.copy_catalog import copy_text
+from app.ui.vistas.main_window.politica_solo_lectura import (
+    ACCIONES_MUTANTES_AUDITADAS_UI,
+    DescriptorAccionMutante,
+    NOMBRES_CONTROLES_MUTANTES_UI,
+    exportar_inventario_acciones_mutantes,
+)
 
 
 class _ControlStub:
@@ -82,7 +88,7 @@ def test_update_action_state_deshabilita_acciones_mutantes_en_modo_solo_lectura(
     modulo.update_action_state(window)
 
     tooltip = copy_text("ui.read_only.tooltip_mutacion_bloqueada")
-    for nombre in modulo.ACCIONES_MUTANTES_AUDITADAS_UI:
+    for nombre in NOMBRES_CONTROLES_MUTANTES_UI:
         control = getattr(window, nombre)
         assert control.enabled is False, nombre
         assert control.tooltip == tooltip, nombre
@@ -110,9 +116,15 @@ def test_update_action_state_restablece_estado_normal_fuera_de_solo_lectura() ->
 
 
 def test_inventario_acciones_mutantes_ui_queda_centralizado_en_fuente_unica() -> None:
-    modulo = import_module("app.ui.vistas.main_window.state_helpers")
-
-    assert modulo.ACCIONES_MUTANTES_AUDITADAS_UI == {
+    assert ACCIONES_MUTANTES_AUDITADAS_UI
+    assert all(
+        isinstance(descriptor, DescriptorAccionMutante)
+        for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
+    )
+    assert NOMBRES_CONTROLES_MUTANTES_UI == tuple(
+        descriptor.nombre_control for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
+    )
+    assert exportar_inventario_acciones_mutantes() == {
         "agregar_button": {"pantalla": "solicitudes", "accion": "agregar_pendiente"},
         "insertar_sin_pdf_button": {
             "pantalla": "solicitudes",

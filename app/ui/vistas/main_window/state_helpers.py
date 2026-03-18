@@ -11,63 +11,7 @@ from .estado_acciones import (
     EntradaEstadoAccionesMainWindow,
     resolver_estado_acciones_main_window,
 )
-
-ACCIONES_MUTANTES_AUDITADAS_UI: dict[str, dict[str, str]] = {
-    "agregar_button": {"pantalla": "solicitudes", "accion": "agregar_pendiente"},
-    "insertar_sin_pdf_button": {
-        "pantalla": "solicitudes",
-        "accion": "confirmar_sin_pdf",
-    },
-    "confirmar_button": {"pantalla": "solicitudes", "accion": "confirmar_con_pdf"},
-    "eliminar_pendiente_button": {
-        "pantalla": "solicitudes",
-        "accion": "eliminar_solicitud_pendiente",
-    },
-    "eliminar_huerfana_button": {
-        "pantalla": "solicitudes",
-        "accion": "eliminar_solicitud_huerfana",
-    },
-    "add_persona_button": {"pantalla": "configuracion", "accion": "crear_persona"},
-    "edit_persona_button": {"pantalla": "configuracion", "accion": "editar_persona"},
-    "delete_persona_button": {
-        "pantalla": "configuracion",
-        "accion": "desactivar_persona",
-    },
-    "edit_grupo_button": {
-        "pantalla": "configuracion",
-        "accion": "actualizar_configuracion_grupo",
-    },
-    "editar_pdf_button": {
-        "pantalla": "configuracion",
-        "accion": "actualizar_configuracion_pdf",
-    },
-    "opciones_button": {
-        "pantalla": "sincronizacion",
-        "accion": "actualizar_configuracion_sync",
-    },
-    "config_sync_button": {
-        "pantalla": "sincronizacion",
-        "accion": "sincronizar_desde_configuracion",
-    },
-    "sync_button": {"pantalla": "sincronizacion", "accion": "sincronizar_ahora"},
-    "confirm_sync_button": {
-        "pantalla": "sincronizacion",
-        "accion": "confirmar_sincronizacion",
-    },
-    "retry_failed_button": {
-        "pantalla": "sincronizacion",
-        "accion": "reintentar_sincronizacion_fallida",
-    },
-    "accion_menu_cargar_demo": {
-        "pantalla": "menu_ayuda",
-        "accion": "cargar_datos_demo",
-    },
-    "eliminar_button": {
-        "pantalla": "historico",
-        "accion": "eliminar_solicitud_historica",
-    },
-    "generar_pdf_button": {"pantalla": "historico", "accion": "exportar_historico_pdf"},
-}
+from .politica_solo_lectura import aplicar_politica_solo_lectura
 
 
 def resolve_active_delegada_id(
@@ -144,7 +88,7 @@ def update_action_state(window: Any) -> None:
     )
 
     _aplicar_habilitacion_controles(window, estado)
-    _aplicar_modo_solo_lectura(window)
+    aplicar_politica_solo_lectura(window)
     _actualizar_textos_historico(window, estado.total_historico_seleccionado)
 
     refresh_status_panel = getattr(window, "_update_solicitudes_status_panel", None)
@@ -175,25 +119,6 @@ def _aplicar_habilitacion_controles(window: Any, estado: Any) -> None:
         setter = getattr(control, "setEnabled", None)
         if callable(setter):
             setter(habilitado)
-
-
-def _aplicar_modo_solo_lectura(window: Any) -> None:
-    proveedor = getattr(window, "_proveedor_ui_solo_lectura", None)
-    if not callable(proveedor):
-        raise TypeError(copy_text("ui.read_only.error_proveedor_no_inyectado"))
-    if not proveedor():
-        return
-    tooltip = copy_text("ui.read_only.tooltip_mutacion_bloqueada")
-    for control_name in ACCIONES_MUTANTES_AUDITADAS_UI:
-        control = getattr(window, control_name, None)
-        if control is None:
-            continue
-        if hasattr(control, "setEnabled"):
-            control.setEnabled(False)
-        if hasattr(control, "setToolTip"):
-            control.setToolTip(tooltip)
-
-
 def _actualizar_textos_historico(
     window: Any, total_historico_seleccionado: int
 ) -> None:
