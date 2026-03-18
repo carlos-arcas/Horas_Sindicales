@@ -1,11 +1,18 @@
 from __future__ import annotations
 from dataclasses import replace
 
+import pytest
+
 from app.application.dto import SolicitudDTO
+from app.application.use_cases.politica_modo_solo_lectura import (
+    MENSAJE_MODO_SOLO_LECTURA,
+    crear_politica_modo_solo_lectura,
+)
 from app.application.use_cases.solicitudes.crear_pendiente_caso_uso import (
     CrearPendienteCasoUso,
     SolicitudCrearPendientePeticion,
 )
+from app.domain.services import BusinessRuleError
 
 
 class RepositorioFake:
@@ -41,7 +48,10 @@ def _solicitud() -> SolicitudDTO:
 
 def test_crear_pendiente_devuelve_snapshot_y_pendientes_ids() -> None:
     repo = RepositorioFake()
-    caso_uso = CrearPendienteCasoUso(repositorio=repo)
+    caso_uso = CrearPendienteCasoUso(
+        repositorio=repo,
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+    )
 
     resultado = caso_uso.execute(SolicitudCrearPendientePeticion(solicitud=_solicitud(), correlation_id="corr-test"))
 
@@ -51,3 +61,19 @@ def test_crear_pendiente_devuelve_snapshot_y_pendientes_ids() -> None:
     assert resultado.solicitud_creada.id == 101
     assert resultado.pendientes_ids == [101]
     assert resultado.requiere_refresh is True
+
+
+def test_crear_pendiente_bloqueado_en_read_only_sin_side_effects() -> None:
+    repo = RepositorioFake()
+
+    def _no_crear(*args, **kwargs):
+        raise AssertionError("No debe crear pendientes en modo solo lectura")
+
+    repo.crear_pendiente = _no_crear
+    caso_uso = CrearPendienteCasoUso(
+        repositorio=repo,
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: True),
+    )
+
+    with pytest.raises(BusinessRuleError, match=MENSAJE_MODO_SOLO_LECTURA):
+        caso_uso.execute(SolicitudCrearPendientePeticion(solicitud=_solicitud(), correlation_id="corr-ro"))

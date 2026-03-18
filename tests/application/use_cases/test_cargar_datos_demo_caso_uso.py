@@ -3,7 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.application.ports.datos_demo_puerto import ResultadoCargaDemoPuerto
+from app.application.use_cases.politica_modo_solo_lectura import (
+    MENSAJE_MODO_SOLO_LECTURA,
+    crear_politica_modo_solo_lectura,
+)
 from app.application.use_cases.cargar_datos_demo_caso_uso import CargarDatosDemoCasoUso
+from app.domain.services import BusinessRuleError
 from app.infrastructure.cargador_datos_demo_sqlite import CargadorDatosDemoSQLite
 from app.infrastructure.db import get_connection
 from app.infrastructure.proveedor_dataset_demo import ProveedorDatasetDemo
@@ -23,13 +28,35 @@ def test_cargar_demo_en_modo_separado_devuelve_ok() -> None:
     puerto = _PuertoDemoFake(
         ResultadoCargaDemoPuerto(ok=True, mensaje_usuario="Demo cargada", acciones_sugeridas=("IR_SOLICITUDES",))
     )
-    use_case = CargarDatosDemoCasoUso(puerto)
+    use_case = CargarDatosDemoCasoUso(
+        puerto,
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+    )
 
     resultado = use_case.ejecutar(modo="SEPARADO")
 
     assert resultado.ok is True
     assert resultado.mensaje_usuario == "Demo cargada"
     assert puerto.modos == ["SEPARADO"]
+
+
+def test_cargar_demo_bloqueado_en_read_only_sin_side_effects() -> None:
+    puerto = _PuertoDemoFake(
+        ResultadoCargaDemoPuerto(ok=True, mensaje_usuario="Demo cargada", acciones_sugeridas=("IR_SOLICITUDES",))
+    )
+    use_case = CargarDatosDemoCasoUso(
+        puerto,
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: True),
+    )
+
+    try:
+        use_case.ejecutar(modo="SEPARADO")
+    except BusinessRuleError as exc:
+        assert str(exc) == MENSAJE_MODO_SOLO_LECTURA
+    else:
+        raise AssertionError("Debe bloquear la carga demo en modo solo lectura")
+
+    assert puerto.modos == []
 
 
 def test_cargador_demo_idempotente_recrea_dataset(tmp_path: Path) -> None:

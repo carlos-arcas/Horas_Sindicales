@@ -134,7 +134,10 @@ def test_regresion_crear_pendiente_retorna_ids_para_refresco_tabla(
     persona_id = _crear_persona(persona_repo)
     solicitudes_uc = SolicitudUseCases(solicitud_repo, persona_repo, fs=SistemaArchivosFake(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False))
     adapter = RepositorioSolicitudesDesdeCasosUso(solicitudes_uc)
-    caso = CrearPendienteCasoUso(repositorio=adapter)
+    caso = CrearPendienteCasoUso(
+        repositorio=adapter,
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+    )
 
     resultado = caso.execute(
         SolicitudCrearPendientePeticion(

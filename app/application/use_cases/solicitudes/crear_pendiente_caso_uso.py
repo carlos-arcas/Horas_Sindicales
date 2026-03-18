@@ -5,6 +5,7 @@ import logging
 from typing import Protocol
 
 from app.application.dto import SolicitudDTO
+from app.application.use_cases.politica_modo_solo_lectura import PoliticaModoSoloLectura
 from app.core.observability import generate_correlation_id, log_event
 
 
@@ -35,6 +36,7 @@ class SolicitudCrearPendienteResultado:
 @dataclass
 class CrearPendienteCasoUso:
     repositorio: RepositorioSolicitudesCrearPendiente
+    politica_modo_solo_lectura: PoliticaModoSoloLectura
 
     def execute(self, request: SolicitudCrearPendientePeticion) -> SolicitudCrearPendienteResultado:
         correlation_id = request.correlation_id or generate_correlation_id()
@@ -47,6 +49,7 @@ class CrearPendienteCasoUso:
             },
             correlation_id,
         )
+        self.politica_modo_solo_lectura.verificar()
         try:
             creada = self.repositorio.crear_pendiente(request.solicitud, correlation_id=correlation_id)
             pendientes = self.repositorio.listar_pendientes()
@@ -74,4 +77,3 @@ class CrearPendienteCasoUso:
             solicitud_creada=creada,
             pendientes_ids=pendientes_ids,
         )
-

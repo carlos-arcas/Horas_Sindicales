@@ -4,11 +4,16 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 from app.application.dto import SolicitudDTO
+from app.application.use_cases.politica_modo_solo_lectura import (
+    MENSAJE_MODO_SOLO_LECTURA,
+    crear_politica_modo_solo_lectura,
+)
 from app.application.use_cases.exportar_compartir_periodo import (
     EntradaExportacionPeriodo,
     ExportarCompartirPeriodoCasoUso,
 )
 from app.domain.models import Persona
+from app.domain.services import BusinessRuleError
 
 
 class FsFake:
@@ -58,7 +63,12 @@ def _solicitud() -> SolicitudDTO:
 
 def test_crear_plan_es_puro_sin_io() -> None:
     fs = FsFake()
-    caso = ExportarCompartirPeriodoCasoUso(fs=fs, reloj=RelojFijo(), exportador_pdf=PdfFake())
+    caso = ExportarCompartirPeriodoCasoUso(
+        fs=fs,
+        reloj=RelojFijo(),
+        exportador_pdf=PdfFake(),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+    )
 
     plan = caso.crear_plan(
         EntradaExportacionPeriodo(fecha_desde=date(2025, 1, 1), fecha_hasta=date(2025, 1, 31), filtro_delegada=1),
@@ -73,7 +83,12 @@ def test_crear_plan_es_puro_sin_io() -> None:
 
 def test_ejecutar_con_fakes_genera_auditoria(tmp_path: Path) -> None:
     fs = FsFake()
-    caso = ExportarCompartirPeriodoCasoUso(fs=fs, reloj=RelojFijo(), exportador_pdf=PdfFake())
+    caso = ExportarCompartirPeriodoCasoUso(
+        fs=fs,
+        reloj=RelojFijo(),
+        exportador_pdf=PdfFake(),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: False),
+    )
     plan = caso.crear_plan(
         EntradaExportacionPeriodo(
             fecha_desde=date(2025, 1, 1),
@@ -91,3 +106,34 @@ def test_ejecutar_con_fakes_genera_auditoria(tmp_path: Path) -> None:
     assert resultado.estado == "PASS"
     assert any(ruta.endswith("exportacion_auditoria.md") for ruta in resultado.artefactos_generados)
     assert any("reporte_reproducible.json" in ruta for ruta in fs.writes)
+
+
+def test_exportacion_bloqueada_en_read_only_sin_side_effects(tmp_path: Path) -> None:
+    fs = FsFake()
+    caso = ExportarCompartirPeriodoCasoUso(
+        fs=fs,
+        reloj=RelojFijo(),
+        exportador_pdf=PdfFake(),
+        politica_modo_solo_lectura=crear_politica_modo_solo_lectura(lambda: True),
+    )
+    plan = caso.crear_plan(
+        EntradaExportacionPeriodo(
+            fecha_desde=date(2025, 1, 1),
+            fecha_hasta=date(2025, 1, 31),
+            filtro_delegada=1,
+            destino=tmp_path,
+            dry_run=False,
+        ),
+        [_solicitud()],
+        _persona(),
+    )
+
+    try:
+        caso.ejecutar(plan, [_solicitud()], _persona())
+    except BusinessRuleError as exc:
+        assert str(exc) == MENSAJE_MODO_SOLO_LECTURA
+    else:
+        raise AssertionError("Debe bloquear la exportación persistente en modo solo lectura")
+
+    assert fs.mkdirs == []
+    assert fs.writes == {}

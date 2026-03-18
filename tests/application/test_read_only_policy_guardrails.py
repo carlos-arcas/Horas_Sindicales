@@ -8,7 +8,11 @@ USE_CASES_ROOT = PROJECT_ROOT / "app" / "application" / "use_cases"
 POLITICA_PATH = PROJECT_ROOT / "app" / "application" / "use_cases" / "politica_modo_solo_lectura.py"
 
 ARCHIVOS_MUTANTES_READ_ONLY = {
+    "app/application/use_cases/cargar_datos_demo_caso_uso.py",
+    "app/application/use_cases/exportar_compartir_periodo.py",
+    "app/application/use_cases/grupos_config/use_case.py",
     "app/application/use_cases/solicitudes/use_case.py",
+    "app/application/use_cases/solicitudes/crear_pendiente_caso_uso.py",
     "app/application/use_cases/personas/use_case.py",
     "app/application/use_cases/confirmacion_pdf/caso_uso.py",
 }

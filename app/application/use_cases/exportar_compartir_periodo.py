@@ -14,6 +14,7 @@ from app.application.operaciones.exportacion_pdf_historico_operacion import (
 )
 from app.application.ports.pdf_puerto import GeneradorPdfPuerto
 from app.application.ports.sistema_archivos_puerto import SistemaArchivosPuerto
+from app.application.use_cases.politica_modo_solo_lectura import PoliticaModoSoloLectura
 from app.core.observability import log_event
 from app.domain.models import Persona
 
@@ -73,10 +74,12 @@ class ExportarCompartirPeriodoCasoUso:
         fs: SistemaArchivosPuerto,
         reloj: RelojPuerto,
         exportador_pdf: GeneradorPdfPuerto,
+        politica_modo_solo_lectura: PoliticaModoSoloLectura,
     ) -> None:
         self._fs = fs
         self._reloj = reloj
         self._exportador_pdf = exportador_pdf
+        self._politica_modo_solo_lectura = politica_modo_solo_lectura
 
     def crear_plan(
         self,
@@ -120,6 +123,7 @@ class ExportarCompartirPeriodoCasoUso:
                 checks=[{"check": "precondiciones", "estado": "FAIL"}],
             )
         carpeta = Path(plan.carpeta_destino)
+        self._politica_modo_solo_lectura.verificar()
         self._fs.mkdir(carpeta, parents=True, exist_ok=True)
         pdf_destino = Path(plan.rutas_previstas[0])
         op_pdf = ExportacionPdfHistoricoOperacion(fs=self._fs, generador_pdf=self._exportador_pdf)

@@ -154,7 +154,8 @@ def build_container(
         politica_modo_solo_lectura=politica_modo_solo_lectura,
     )
     crear_pendiente_caso_uso = CrearPendienteCasoUso(
-        repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases)
+        repositorio=RepositorioSolicitudesDesdeCasosUso(solicitud_use_cases),
+        politica_modo_solo_lectura=politica_modo_solo_lectura,
     )
 
     def crear_pendiente_para_confirmacion_pdf(solicitud, *, correlation_id=None):
@@ -183,7 +184,10 @@ def build_container(
         generador_pdf=generador_pdf,
     )
 
-    grupo_use_cases = GrupoConfigUseCases(grupo_repo)
+    grupo_use_cases = GrupoConfigUseCases(
+        grupo_repo,
+        politica_modo_solo_lectura=politica_modo_solo_lectura,
+    )
 
     config_store = LocalConfigStore()
     sheets_client = SheetsClient()
@@ -218,11 +222,15 @@ def build_container(
 
     proveedor_dataset_demo = ProveedorDatasetDemo()
     cargador_demo = CargadorDatosDemoSQLite(proveedor_dataset_demo, _default_db_path())
-    cargar_datos_demo_caso_uso = CargarDatosDemoCasoUso(cargador_demo)
+    cargar_datos_demo_caso_uso = CargarDatosDemoCasoUso(
+        cargador_demo,
+        politica_modo_solo_lectura=politica_modo_solo_lectura,
+    )
     exportar_compartir_periodo_caso_uso = ExportarCompartirPeriodoCasoUso(
         fs=SistemaArchivosLocal(),
         reloj=RelojSistema(),
         exportador_pdf=generador_pdf,
+        politica_modo_solo_lectura=politica_modo_solo_lectura,
     )
     cargador_i18n = CargadorI18nDesdeArchivos(Path("configuracion") / "i18n")
     servicio_i18n = ServicioI18nEstable(

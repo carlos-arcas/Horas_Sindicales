@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass
 
 from app.application.ports.datos_demo_puerto import CargadorDatosDemoPuerto, ResultadoCargaDemoPuerto
+from app.application.use_cases.politica_modo_solo_lectura import PoliticaModoSoloLectura
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,14 @@ class CargarDatosDemoResultado:
 
 
 class CargarDatosDemoCasoUso:
-    def __init__(self, cargador: CargadorDatosDemoPuerto) -> None:
+    def __init__(
+        self,
+        cargador: CargadorDatosDemoPuerto,
+        *,
+        politica_modo_solo_lectura: PoliticaModoSoloLectura,
+    ) -> None:
         self._cargador = cargador
+        self._politica_modo_solo_lectura = politica_modo_solo_lectura
 
     def crear_plan(self, modo: str = "BACKUP") -> tuple[str, ...]:
         if modo.upper() == "BACKUP":
@@ -33,6 +40,7 @@ class CargarDatosDemoCasoUso:
 
     def ejecutar(self, modo: str = "BACKUP") -> CargarDatosDemoResultado:
         plan = self.crear_plan(modo)
+        self._politica_modo_solo_lectura.verificar()
         logger.info(
             "carga_demo_iniciada",
             extra={"extra": {"modo": modo, "plan": plan}},
