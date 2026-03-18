@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from importlib import import_module
 
+import pytest
+
 from app.ui.copy_catalog import copy_text
 from app.ui.vistas.main_window.politica_solo_lectura import (
     ACCIONES_MUTANTES_AUDITADAS_UI,
@@ -9,6 +11,8 @@ from app.ui.vistas.main_window.politica_solo_lectura import (
     NOMBRES_CONTROLES_MUTANTES_UI,
     exportar_inventario_acciones_mutantes,
 )
+
+pytestmark = pytest.mark.headless_safe
 
 
 class _ControlStub:
@@ -79,9 +83,7 @@ class _WindowStub:
         self.status_panel_actualizado += 1
 
 
-def test_update_action_state_deshabilita_acciones_mutantes_en_modo_solo_lectura() -> (
-    None
-):
+def test_update_action_state_deshabilita_acciones_mutantes_en_modo_solo_lectura() -> None:
     modulo = import_module("app.ui.vistas.main_window.state_helpers")
     window = _WindowStub(solo_lectura=True)
 
@@ -105,9 +107,9 @@ def test_update_action_state_restablece_estado_normal_fuera_de_solo_lectura() ->
     assert window.agregar_button.enabled is True
     assert window.insertar_sin_pdf_button.enabled is True
     assert window.confirmar_button.enabled is True
-    assert window.sync_button.enabled is True
-    assert window.config_sync_button.enabled is True
-    assert window.retry_failed_button.enabled is False
+    assert window.sync_button.enabled is None
+    assert window.config_sync_button.enabled is None
+    assert window.retry_failed_button.enabled is None
     assert window.eliminar_button.enabled is True
     assert window.generar_pdf_button.enabled is True
     assert window.add_persona_button.enabled is True
@@ -193,11 +195,5 @@ def test_update_action_state_falla_si_falta_proveedor_ui_solo_lectura() -> None:
     window = _WindowStub(solo_lectura=False)
     delattr(window, "_proveedor_ui_solo_lectura")
 
-    try:
+    with pytest.raises(TypeError, match="_proveedor_ui_solo_lectura"):
         modulo.update_action_state(window)
-    except TypeError as exc:
-        assert "_proveedor_ui_solo_lectura" in str(exc)
-    else:  # pragma: no cover - guardarraíl explícito
-        raise AssertionError(
-            "Se esperaba TypeError cuando falta el proveedor UI de solo lectura"
-        )

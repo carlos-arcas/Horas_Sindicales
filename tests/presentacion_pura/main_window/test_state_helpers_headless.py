@@ -1,5 +1,12 @@
-from app.ui.copy_catalog import copy_text
+from __future__ import annotations
+
 from importlib import import_module
+
+import pytest
+
+from app.ui.copy_catalog import copy_text
+
+pytestmark = pytest.mark.headless_safe
 
 
 class _ControlStub:
@@ -92,13 +99,9 @@ def test_update_action_state_aplica_fuente_unica_de_estado_en_widgets() -> None:
     assert window.insertar_sin_pdf_button.enabled is True
     assert window.confirmar_button.enabled is True
     assert window.eliminar_button.enabled is True
-    assert window.eliminar_button.text == copy_text(
-        "ui.historico.eliminar_boton"
-    ).format(n=1)
+    assert window.eliminar_button.text == copy_text("ui.historico.eliminar_boton").format(n=1)
     assert window.generar_pdf_button.enabled is True
-    assert window.generar_pdf_button.text == copy_text(
-        "ui.historico.exportar_pdf_boton"
-    ).format(n=1)
+    assert window.generar_pdf_button.text == copy_text("ui.historico.exportar_pdf_boton").format(n=1)
     assert window.opciones_button.enabled is True
     assert window.clear_button.enabled is True
     assert window.status_panel_actualizado == 1
@@ -111,7 +114,5 @@ def test_update_action_state_tolera_boton_historico_sin_set_text() -> None:
 
     module.update_action_state(window)
 
-    assert window.eliminar_button.text == copy_text(
-        "ui.historico.eliminar_boton"
-    ).format(n=1)
+    assert window.eliminar_button.text == copy_text("ui.historico.eliminar_boton").format(n=1)
     assert window.status_panel_actualizado == 1
