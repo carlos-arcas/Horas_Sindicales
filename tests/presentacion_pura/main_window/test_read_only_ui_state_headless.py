@@ -11,6 +11,8 @@ from app.ui.vistas.main_window.politica_solo_lectura import (
     DescriptorAccionMutante,
     NOMBRES_CONTROLES_MUTANTES_UI,
     exportar_inventario_acciones_mutantes,
+    validar_contrato_inventario_con_fuentes,
+    validar_inventario_acciones_mutantes,
 )
 
 pytestmark = pytest.mark.headless_safe
@@ -41,7 +43,9 @@ class _WindowStub:
         self._sync_in_progress = False
         self._pending_otras_delegadas = []
         self._historico_ids_seleccionados = {7}
-        self._estado_modo_solo_lectura = crear_estado_modo_solo_lectura(lambda: solo_lectura)
+        self._estado_modo_solo_lectura = crear_estado_modo_solo_lectura(
+            lambda: solo_lectura
+        )
 
         for nombre in (
             "agregar_button",
@@ -118,7 +122,7 @@ def test_update_action_state_restablece_estado_normal_fuera_de_solo_lectura() ->
     assert window.agregar_button.tooltip == ""
 
 
-def test_inventario_acciones_mutantes_ui_queda_centralizado_en_fuente_unica() -> None:
+def test_inventario_acciones_mutantes_ui_queda_centralizado_y_tipado() -> None:
     assert ACCIONES_MUTANTES_AUDITADAS_UI
     assert all(
         isinstance(descriptor, DescriptorAccionMutante)
@@ -127,66 +131,116 @@ def test_inventario_acciones_mutantes_ui_queda_centralizado_en_fuente_unica() ->
     assert NOMBRES_CONTROLES_MUTANTES_UI == tuple(
         descriptor.nombre_control for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
     )
+    assert validar_inventario_acciones_mutantes() == []
+    assert validar_contrato_inventario_con_fuentes() == []
     assert exportar_inventario_acciones_mutantes() == {
-        "agregar_button": {"pantalla": "solicitudes", "accion": "agregar_pendiente"},
+        "agregar_button": {
+            "tipo_control": "widget",
+            "pantalla": "solicitudes",
+            "accion": "agregar_pendiente",
+            "ruta_origen": "app/ui/vistas/builders/formulario_solicitud/builders_solicitud.py",
+        },
         "insertar_sin_pdf_button": {
+            "tipo_control": "widget",
             "pantalla": "solicitudes",
             "accion": "confirmar_sin_pdf",
+            "ruta_origen": "app/ui/vistas/builders/formulario_solicitud/builders_pendientes.py",
         },
-        "confirmar_button": {"pantalla": "solicitudes", "accion": "confirmar_con_pdf"},
+        "confirmar_button": {
+            "tipo_control": "widget",
+            "pantalla": "solicitudes",
+            "accion": "confirmar_con_pdf",
+            "ruta_origen": "app/ui/vistas/builders/formulario_solicitud/builders_pendientes.py",
+        },
         "eliminar_pendiente_button": {
+            "tipo_control": "widget",
             "pantalla": "solicitudes",
             "accion": "eliminar_solicitud_pendiente",
+            "ruta_origen": "app/ui/vistas/builders/formulario_solicitud/builders_pendientes.py",
         },
         "eliminar_huerfana_button": {
+            "tipo_control": "widget",
             "pantalla": "solicitudes",
             "accion": "eliminar_solicitud_huerfana",
+            "ruta_origen": "app/ui/vistas/builders/formulario_solicitud/builders_pendientes.py",
         },
-        "add_persona_button": {"pantalla": "configuracion", "accion": "crear_persona"},
+        "add_persona_button": {
+            "tipo_control": "widget",
+            "pantalla": "configuracion",
+            "accion": "crear_persona",
+            "ruta_origen": "app/ui/vistas/builders/sync_panel/builders_secciones.py",
+        },
         "edit_persona_button": {
+            "tipo_control": "widget",
             "pantalla": "configuracion",
             "accion": "editar_persona",
+            "ruta_origen": "app/ui/vistas/builders/sync_panel/builders_secciones.py",
         },
         "delete_persona_button": {
+            "tipo_control": "widget",
             "pantalla": "configuracion",
             "accion": "desactivar_persona",
+            "ruta_origen": "app/ui/vistas/builders/sync_panel/builders_secciones.py",
         },
         "edit_grupo_button": {
+            "tipo_control": "widget",
             "pantalla": "configuracion",
             "accion": "actualizar_configuracion_grupo",
+            "ruta_origen": "app/ui/vistas/builders/sync_panel/builders_secciones.py",
         },
         "editar_pdf_button": {
+            "tipo_control": "widget",
             "pantalla": "configuracion",
             "accion": "actualizar_configuracion_pdf",
+            "ruta_origen": "app/ui/vistas/builders/sync_panel/builders_secciones.py",
         },
         "opciones_button": {
+            "tipo_control": "widget",
             "pantalla": "sincronizacion",
             "accion": "actualizar_configuracion_sync",
+            "ruta_origen": "app/ui/vistas/builders/sync_panel/builders_secciones.py",
         },
         "config_sync_button": {
+            "tipo_control": "widget",
             "pantalla": "sincronizacion",
             "accion": "sincronizar_desde_configuracion",
+            "ruta_origen": "app/ui/vistas/builders/sync_panel/builders_secciones.py",
         },
-        "sync_button": {"pantalla": "sincronizacion", "accion": "sincronizar_ahora"},
+        "sync_button": {
+            "tipo_control": "widget",
+            "pantalla": "sincronizacion",
+            "accion": "sincronizar_ahora",
+            "ruta_origen": "app/ui/vistas/builders/sync_panel/builders_secciones.py",
+        },
         "confirm_sync_button": {
+            "tipo_control": "widget",
             "pantalla": "sincronizacion",
             "accion": "confirmar_sincronizacion",
+            "ruta_origen": "app/ui/vistas/builders/sync_panel/builders_secciones.py",
         },
         "retry_failed_button": {
+            "tipo_control": "widget",
             "pantalla": "sincronizacion",
             "accion": "reintentar_sincronizacion_fallida",
+            "ruta_origen": "app/ui/vistas/builders/sync_panel/builders_secciones.py",
         },
         "accion_menu_cargar_demo": {
+            "tipo_control": "action",
             "pantalla": "menu_ayuda",
             "accion": "cargar_datos_demo",
+            "ruta_origen": "app/entrypoints/ui_main.py",
         },
         "eliminar_button": {
+            "tipo_control": "widget",
             "pantalla": "historico",
             "accion": "eliminar_solicitud_historica",
+            "ruta_origen": "app/ui/vistas/builders/builders_tablas.py",
         },
         "generar_pdf_button": {
+            "tipo_control": "widget",
             "pantalla": "historico",
             "accion": "exportar_historico_pdf",
+            "ruta_origen": "app/ui/vistas/builders/builders_tablas.py",
         },
     }
 
