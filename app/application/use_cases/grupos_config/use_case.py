@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.application.dto import GrupoConfigDTO
+from app.application.use_cases.politica_modo_solo_lectura import PoliticaModoSoloLectura
 from app.domain.models import GrupoConfig
 from app.domain.ports import GrupoConfigRepository
 from app.domain.services import BusinessRuleError
@@ -27,8 +28,14 @@ def _dto_to_grupo_config(dto: GrupoConfigDTO) -> GrupoConfig:
     )
 
 class GrupoConfigUseCases:
-    def __init__(self, repo: GrupoConfigRepository) -> None:
+    def __init__(
+        self,
+        repo: GrupoConfigRepository,
+        *,
+        politica_modo_solo_lectura: PoliticaModoSoloLectura,
+    ) -> None:
         self._repo = repo
+        self._politica_modo_solo_lectura = politica_modo_solo_lectura
 
     def get_grupo_config(self) -> GrupoConfigDTO:
         config = self._repo.get()
@@ -37,6 +44,7 @@ class GrupoConfigUseCases:
         return _grupo_config_to_dto(config)
 
     def update_grupo_config(self, dto: GrupoConfigDTO) -> GrupoConfigDTO:
+        self._politica_modo_solo_lectura.verificar()
         config = _dto_to_grupo_config(dto)
         updated = self._repo.upsert(config)
         return _grupo_config_to_dto(updated)
