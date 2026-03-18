@@ -41,7 +41,9 @@ def create_tablas(window: "MainWindow") -> None:
     historico_help.setProperty("role", "secondary")
     historico_tab_layout.addWidget(historico_help)
 
-    historico_card, historico_layout = window._create_card(copy_text("ui.historico.tab"))
+    historico_card, historico_layout = window._create_card(
+        copy_text("ui.historico.tab")
+    )
 
     window.historico_empty_state = QWidget()
     empty_layout = QVBoxLayout(window.historico_empty_state)
@@ -56,7 +58,9 @@ def create_tablas(window: "MainWindow") -> None:
     empty_layout.addWidget(empty_text)
     window.historico_empty_button = QPushButton(copy_text("ui.historico.crear_primera"))
     window.historico_empty_button.setProperty("variant", "primary")
-    window.historico_empty_button.clicked.connect(lambda: window.main_tabs.setCurrentIndex(0))
+    window.historico_empty_button.clicked.connect(
+        lambda: window.main_tabs.setCurrentIndex(0)
+    )
     empty_layout.addWidget(window.historico_empty_button, alignment=Qt.AlignLeft)
     historico_layout.addWidget(window.historico_empty_state)
 
@@ -91,7 +95,9 @@ def create_tablas(window: "MainWindow") -> None:
     filtros_row_1.addWidget(QLabel(copy_text("solicitudes.label_delegada")))
 
     window.historico_delegada_combo = QComboBox()
-    window.historico_delegada_combo.addItem(copy_text("ui.historico.delegada_todas"), None)
+    window.historico_delegada_combo.addItem(
+        copy_text("ui.historico.delegada_todas"), None
+    )
     window.historico_delegada_combo.setCurrentIndex(0)
     filtros_row_1.addWidget(window.historico_delegada_combo)
     filtros_row_1.addStretch(1)
@@ -100,14 +106,18 @@ def create_tablas(window: "MainWindow") -> None:
     filtros_row_2 = QHBoxLayout()
     filtros_row_2.setSpacing(12)
 
-    window.historico_periodo_anual_radio = QRadioButton(copy_text("ui.historico.periodo_anual"))
+    window.historico_periodo_anual_radio = QRadioButton(
+        copy_text("ui.historico.periodo_anual")
+    )
     window.historico_periodo_anual_spin = QSpinBox()
     window.historico_periodo_anual_spin.setRange(2000, 2100)
     window.historico_periodo_anual_spin.setValue(QDate.currentDate().year())
     filtros_row_2.addWidget(window.historico_periodo_anual_radio)
     filtros_row_2.addWidget(window.historico_periodo_anual_spin)
 
-    window.historico_periodo_mes_radio = QRadioButton(copy_text("ui.historico.periodo_mes"))
+    window.historico_periodo_mes_radio = QRadioButton(
+        copy_text("ui.historico.periodo_mes")
+    )
     window.historico_periodo_mes_ano_spin = QSpinBox()
     window.historico_periodo_mes_ano_spin.setRange(2000, 2100)
     window.historico_periodo_mes_ano_spin.setValue(QDate.currentDate().year())
@@ -119,19 +129,25 @@ def create_tablas(window: "MainWindow") -> None:
     filtros_row_2.addWidget(window.historico_periodo_mes_ano_spin)
     filtros_row_2.addWidget(window.historico_periodo_mes_combo)
 
-    window.historico_periodo_rango_radio = QRadioButton(copy_text("ui.historico.periodo_rango"))
+    window.historico_periodo_rango_radio = QRadioButton(
+        copy_text("ui.historico.periodo_rango")
+    )
     window.historico_periodo_anual_radio.setChecked(True)
     filtros_row_2.addWidget(window.historico_periodo_rango_radio)
 
     window.historico_desde_date = QDateEdit()
     window.historico_desde_date.setCalendarPopup(True)
-    window.historico_desde_date.setDisplayFormat(copy_text("ui.historico.formato_fecha"))
+    window.historico_desde_date.setDisplayFormat(
+        copy_text("ui.historico.formato_fecha")
+    )
     filtros_row_2.addWidget(QLabel(copy_text("solicitudes.label_desde")))
     filtros_row_2.addWidget(window.historico_desde_date)
 
     window.historico_hasta_date = QDateEdit()
     window.historico_hasta_date.setCalendarPopup(True)
-    window.historico_hasta_date.setDisplayFormat(copy_text("ui.historico.formato_fecha"))
+    window.historico_hasta_date.setDisplayFormat(
+        copy_text("ui.historico.formato_fecha")
+    )
     filtros_row_2.addWidget(QLabel(copy_text("solicitudes.label_hasta")))
     filtros_row_2.addWidget(window.historico_hasta_date)
     window._apply_historico_default_range()
@@ -178,6 +194,7 @@ def create_tablas(window: "MainWindow") -> None:
     historico_actions.setSpacing(10)
     window.historico_actions_layout = historico_actions
     window.eliminar_button = QPushButton(copy_text("ui.historico.eliminar_cero"))
+    window.eliminar_button.setObjectName("eliminar_button")
     window.eliminar_button.setProperty("variant", "primary")
     window.eliminar_button.setProperty("intent", "destructive")
     conectar_signal(
@@ -189,6 +206,7 @@ def create_tablas(window: "MainWindow") -> None:
     historico_actions.addWidget(window.eliminar_button)
 
     window.generar_pdf_button = QPushButton(copy_text("ui.historico.exportar_pdf_cero"))
+    window.generar_pdf_button.setObjectName("generar_pdf_button")
     window.generar_pdf_button.setProperty("variant", "secondary")
     conectar_signal(
         window,
@@ -198,7 +216,9 @@ def create_tablas(window: "MainWindow") -> None:
     )
     historico_actions.addWidget(window.generar_pdf_button)
 
-    window.historico_select_all_visible_check = QCheckBox(copy_text("ui.historico.select_visible"))
+    window.historico_select_all_visible_check = QCheckBox(
+        copy_text("ui.historico.select_visible")
+    )
     conectar_signal(
         window,
         window.historico_select_all_visible_check.toggled,
@@ -211,7 +231,9 @@ def create_tablas(window: "MainWindow") -> None:
 
     window.historico_sync_button = QPushButton(copy_text("ui.historico.sync"))
     window.historico_sync_button.setProperty("variant", "success")
-    window.historico_sync_button.setIcon(window.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
+    window.historico_sync_button.setIcon(
+        window.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload)
+    )
     conectar_signal(
         window,
         window.historico_sync_button.clicked,

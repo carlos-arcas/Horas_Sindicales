@@ -5,7 +5,9 @@ from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QLabel, QPushButton
 
 from app.ui.copy_catalog import copy_text
-from app.ui.vistas.builders.sync_panel.bindings_senales import conectar_evento_sync_panel
+from app.ui.vistas.builders.sync_panel.bindings_senales import (
+    conectar_evento_sync_panel,
+)
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow
@@ -17,10 +19,13 @@ def crear_boton_accion(
     variante: str,
     nombre_handler: str,
     *,
+    object_name: str | None = None,
     habilitado: bool = True,
 ) -> QPushButton:
     boton = QPushButton(copy_text(clave_i18n))
     boton.setProperty("variant", variante)
+    if object_name:
+        boton.setObjectName(object_name)
     boton.setEnabled(habilitado)
     conectar_evento_sync_panel(window, boton.clicked, nombre_handler)
     return boton

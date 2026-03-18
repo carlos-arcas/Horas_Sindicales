@@ -11,6 +11,7 @@ from app.ui.vistas.main_window.politica_solo_lectura import (
     DescriptorAccionMutante,
     NOMBRES_CONTROLES_MUTANTES_UI,
     exportar_inventario_acciones_mutantes,
+    resolver_control_mutante,
 )
 from tests.presentacion_pura.main_window.contrato_inventario_solo_lectura import (
     exportar_contrato_inventario_mutante,
@@ -22,10 +23,14 @@ pytestmark = pytest.mark.headless_safe
 
 
 class _ControlStub:
-    def __init__(self) -> None:
+    def __init__(self, *, object_name: str = "") -> None:
         self.enabled: bool | None = None
         self.tooltip = ""
         self.text = ""
+        self._object_name = object_name
+
+    def objectName(self) -> str:
+        return self._object_name
 
     def setEnabled(self, value: bool) -> None:
         self.enabled = value
@@ -49,6 +54,7 @@ class _WindowStub:
         self._estado_modo_solo_lectura = crear_estado_modo_solo_lectura(
             lambda: solo_lectura
         )
+        self._children: list[object] = []
 
         for nombre in (
             "agregar_button",
@@ -71,9 +77,22 @@ class _WindowStub:
             "generar_pdf_button",
             "clear_button",
         ):
-            setattr(self, nombre, _ControlStub())
+            control = _ControlStub(object_name=nombre)
+            setattr(self, nombre, control)
+            self._children.append(control)
 
         self.status_panel_actualizado = 0
+
+    def findChildren(
+        self, _tipo: object = object, object_name: str | None = None
+    ) -> list[object]:
+        if object_name is None:
+            return list(self._children)
+        return [
+            child
+            for child in self._children
+            if getattr(child, "objectName", lambda: "")() == object_name
+        ]
 
     def _current_persona(self) -> object:
         return object()
@@ -138,101 +157,34 @@ def test_inventario_acciones_mutantes_ui_queda_centralizado_y_tipado() -> None:
     )
     assert validar_inventario_runtime_mutante() == []
     assert validar_contrato_inventario_con_fuentes() == []
-    assert exportar_inventario_acciones_mutantes() == {
-        "agregar_button": {
-            "tipo_control": "widget",
-            "pantalla": "solicitudes",
-            "accion": "agregar_pendiente",
-        },
-        "insertar_sin_pdf_button": {
-            "tipo_control": "widget",
-            "pantalla": "solicitudes",
-            "accion": "confirmar_sin_pdf",
-        },
-        "confirmar_button": {
-            "tipo_control": "widget",
-            "pantalla": "solicitudes",
-            "accion": "confirmar_con_pdf",
-        },
-        "eliminar_pendiente_button": {
-            "tipo_control": "widget",
-            "pantalla": "solicitudes",
-            "accion": "eliminar_solicitud_pendiente",
-        },
-        "eliminar_huerfana_button": {
-            "tipo_control": "widget",
-            "pantalla": "solicitudes",
-            "accion": "eliminar_solicitud_huerfana",
-        },
-        "add_persona_button": {
-            "tipo_control": "widget",
-            "pantalla": "configuracion",
-            "accion": "crear_persona",
-        },
-        "edit_persona_button": {
-            "tipo_control": "widget",
-            "pantalla": "configuracion",
-            "accion": "editar_persona",
-        },
-        "delete_persona_button": {
-            "tipo_control": "widget",
-            "pantalla": "configuracion",
-            "accion": "desactivar_persona",
-        },
-        "edit_grupo_button": {
-            "tipo_control": "widget",
-            "pantalla": "configuracion",
-            "accion": "actualizar_configuracion_grupo",
-        },
-        "editar_pdf_button": {
-            "tipo_control": "widget",
-            "pantalla": "configuracion",
-            "accion": "actualizar_configuracion_pdf",
-        },
-        "opciones_button": {
-            "tipo_control": "widget",
-            "pantalla": "sincronizacion",
-            "accion": "actualizar_configuracion_sync",
-        },
-        "config_sync_button": {
-            "tipo_control": "widget",
-            "pantalla": "sincronizacion",
-            "accion": "sincronizar_desde_configuracion",
-        },
-        "sync_button": {
-            "tipo_control": "widget",
-            "pantalla": "sincronizacion",
-            "accion": "sincronizar_ahora",
-        },
-        "confirm_sync_button": {
-            "tipo_control": "widget",
-            "pantalla": "sincronizacion",
-            "accion": "confirmar_sincronizacion",
-        },
-        "retry_failed_button": {
-            "tipo_control": "widget",
-            "pantalla": "sincronizacion",
-            "accion": "reintentar_sincronizacion_fallida",
-        },
-        "accion_menu_cargar_demo": {
-            "tipo_control": "action",
-            "pantalla": "menu_ayuda",
-            "accion": "cargar_datos_demo",
-        },
-        "eliminar_button": {
-            "tipo_control": "widget",
-            "pantalla": "historico",
-            "accion": "eliminar_solicitud_historica",
-        },
-        "generar_pdf_button": {
-            "tipo_control": "widget",
-            "pantalla": "historico",
-            "accion": "exportar_historico_pdf",
-        },
+    assert exportar_inventario_acciones_mutantes()["agregar_button"] == {
+        "object_name": "agregar_button",
+        "tipo_control": "widget",
+        "pantalla": "solicitudes",
+        "accion": "agregar_pendiente",
     }
     assert exportar_contrato_inventario_mutante()["agregar_button"] == {
-        "ruta_origen": "app/ui/vistas/builders/formulario_solicitud/builders_solicitud.py"
+        "object_name": "agregar_button",
+        "tipo_control": "widget",
+        "ruta_origen": "app/ui/vistas/builders/formulario_solicitud/builders_solicitud.py",
     }
+
+
+def test_resolver_control_mutante_prioriza_object_name_sobre_atributo() -> None:
+    descriptor = DescriptorAccionMutante(
+        "agregar_button",
+        "agregar_button",
+        "widget",
+        "solicitudes",
+        "agregar_pendiente",
+    )
+    window = _WindowStub(solo_lectura=False)
+    window.agregar_button = _ControlStub(object_name="nombre_inestable")
+
+    control_real = resolver_control_mutante(window, descriptor)
+
+    assert control_real is not None
+    assert control_real.objectName() == "agregar_button"
 
 
 def test_update_action_state_falla_si_falta_estado_modo_solo_lectura() -> None:

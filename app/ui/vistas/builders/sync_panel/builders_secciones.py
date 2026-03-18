@@ -16,9 +16,16 @@ from PySide6.QtWidgets import (
 )
 
 from app.ui.copy_catalog import copy_text
-from app.ui.vistas.builders.sync_panel.bindings_senales import conectar_evento_sync_panel
-from app.ui.vistas.builders.sync_panel.builders_diagnostico import construir_seccion_diagnostico
-from app.ui.vistas.builders.sync_panel.ayudantes_qt import crear_boton_accion, crear_label_secundario
+from app.ui.vistas.builders.sync_panel.bindings_senales import (
+    conectar_evento_sync_panel,
+)
+from app.ui.vistas.builders.sync_panel.builders_diagnostico import (
+    construir_seccion_diagnostico,
+)
+from app.ui.vistas.builders.sync_panel.ayudantes_qt import (
+    crear_boton_accion,
+    crear_label_secundario,
+)
 
 if TYPE_CHECKING:
     from app.ui.vistas.main_window_vista import MainWindow
@@ -33,7 +40,9 @@ def construir_tab_configuracion(window: "MainWindow") -> None:
     window.config_scroll_area = QScrollArea()
     window.config_scroll_area.setWidgetResizable(True)
     window.config_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    window.config_scroll_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    window.config_scroll_area.setSizePolicy(
+        QSizePolicy.Expanding, QSizePolicy.Expanding
+    )
     config_tab_layout.addWidget(window.config_scroll_area, 1)
 
     config_content = QWidget()
@@ -57,7 +66,9 @@ def construir_tab_configuracion(window: "MainWindow") -> None:
     window.main_tabs.addTab(config_tab, copy_text("ui.sync.configuracion"))
 
 
-def _construir_seccion_persona(window: "MainWindow", config_layout: QVBoxLayout) -> None:
+def _construir_seccion_persona(
+    window: "MainWindow", config_layout: QVBoxLayout
+) -> None:
     persona_card, persona_layout = window._create_card(copy_text("ui.config.delegada"))
     persona_actions = QHBoxLayout()
     persona_actions.setSpacing(8)
@@ -65,15 +76,33 @@ def _construir_seccion_persona(window: "MainWindow", config_layout: QVBoxLayout)
     window.config_delegada_combo = QComboBox()
     persona_actions.addWidget(window.config_delegada_combo, 1)
 
-    window.edit_persona_button = crear_boton_accion(window, "ui.config.editar", "success", "_on_edit_persona")
+    window.edit_persona_button = crear_boton_accion(
+        window,
+        "ui.config.editar",
+        "success",
+        "_on_edit_persona",
+        object_name="edit_persona_button",
+    )
     persona_actions.addWidget(window.edit_persona_button)
 
-    window.delete_persona_button = crear_boton_accion(window, "ui.config.eliminar", "primary", "_on_delete_persona")
+    window.delete_persona_button = crear_boton_accion(
+        window,
+        "ui.config.eliminar",
+        "primary",
+        "_on_delete_persona",
+        object_name="delete_persona_button",
+    )
     window.delete_persona_button.setProperty("intent", "destructive")
     persona_actions.addWidget(window.delete_persona_button)
 
     persona_actions.addStretch(1)
-    window.add_persona_button = crear_boton_accion(window, "ui.config.nueva_delegada", "secondary", "_on_add_persona")
+    window.add_persona_button = crear_boton_accion(
+        window,
+        "ui.config.nueva_delegada",
+        "secondary",
+        "_on_add_persona",
+        object_name="add_persona_button",
+    )
     persona_actions.addWidget(window.add_persona_button)
     persona_layout.addLayout(persona_actions)
     config_layout.addWidget(persona_card)
@@ -83,7 +112,13 @@ def _construir_seccion_grupo(window: "MainWindow", config_layout: QVBoxLayout) -
     grupo_card, grupo_layout = window._create_card(copy_text("ui.config.grupo"))
     grupo_actions = QHBoxLayout()
     grupo_actions.setSpacing(8)
-    window.edit_grupo_button = crear_boton_accion(window, "ui.config.configurar_grupo", "secondary", "_on_edit_grupo")
+    window.edit_grupo_button = crear_boton_accion(
+        window,
+        "ui.config.configurar_grupo",
+        "secondary",
+        "_on_edit_grupo",
+        object_name="edit_grupo_button",
+    )
     grupo_actions.addWidget(window.edit_grupo_button)
     grupo_actions.addStretch(1)
     grupo_layout.addLayout(grupo_actions)
@@ -94,16 +129,28 @@ def _construir_seccion_pdf(window: "MainWindow", config_layout: QVBoxLayout) -> 
     pdf_card, pdf_layout = window._create_card(copy_text("ui.config.pdf"))
     pdf_actions = QHBoxLayout()
     pdf_actions.setSpacing(8)
-    window.editar_pdf_button = crear_boton_accion(window, "ui.config.configurar_pdf", "secondary", "_on_edit_pdf")
+    window.editar_pdf_button = crear_boton_accion(
+        window,
+        "ui.config.configurar_pdf",
+        "secondary",
+        "_on_edit_pdf",
+        object_name="editar_pdf_button",
+    )
     pdf_actions.addWidget(window.editar_pdf_button)
     pdf_actions.addStretch(1)
     pdf_layout.addLayout(pdf_actions)
     config_layout.addWidget(pdf_card)
 
 
-def _construir_seccion_preferencias(window: "MainWindow", config_layout: QVBoxLayout) -> None:
-    preferencias_card, preferencias_layout = window._create_card(copy_text("ui.sync.preferencias"))
-    window.preferencia_inicio_maximizado_check = QCheckBox(copy_text("ui.sync.maximizada_por_defecto"))
+def _construir_seccion_preferencias(
+    window: "MainWindow", config_layout: QVBoxLayout
+) -> None:
+    preferencias_card, preferencias_layout = window._create_card(
+        copy_text("ui.sync.preferencias")
+    )
+    window.preferencia_inicio_maximizado_check = QCheckBox(
+        copy_text("ui.sync.maximizada_por_defecto")
+    )
     conectar_evento_sync_panel(
         window,
         window.preferencia_inicio_maximizado_check.toggled,
@@ -113,8 +160,12 @@ def _construir_seccion_preferencias(window: "MainWindow", config_layout: QVBoxLa
     config_layout.addWidget(preferencias_card)
 
 
-def _construir_seccion_credenciales(window: "MainWindow", config_layout: QVBoxLayout) -> None:
-    credenciales_card, credenciales_layout = window._create_card(copy_text("ui.sync.google_sheets"))
+def _construir_seccion_credenciales(
+    window: "MainWindow", config_layout: QVBoxLayout
+) -> None:
+    credenciales_card, credenciales_layout = window._create_card(
+        copy_text("ui.sync.google_sheets")
+    )
     window.sync_source_label = crear_label_secundario("ui.sync.fuente_placeholder")
     credenciales_layout.addWidget(window.sync_source_label)
     window.sync_scope_label = crear_label_secundario("ui.sync.rango_placeholder")
@@ -122,7 +173,13 @@ def _construir_seccion_credenciales(window: "MainWindow", config_layout: QVBoxLa
 
     sync_actions = QHBoxLayout()
     sync_actions.setSpacing(8)
-    window.opciones_button = crear_boton_accion(window, "ui.sync.configurar_conexion", "secondary", "_on_open_opciones")
+    window.opciones_button = crear_boton_accion(
+        window,
+        "ui.sync.configurar_conexion",
+        "secondary",
+        "_on_open_opciones",
+        object_name="opciones_button",
+    )
     sync_actions.addWidget(window.opciones_button)
     window.config_test_connection_button = crear_boton_accion(
         window,
@@ -131,7 +188,13 @@ def _construir_seccion_credenciales(window: "MainWindow", config_layout: QVBoxLa
         "_on_simulate_sync",
     )
     sync_actions.addWidget(window.config_test_connection_button)
-    window.config_sync_button = crear_boton_accion(window, "ui.sync.sincronizar_ahora", "success", "_on_sync")
+    window.config_sync_button = crear_boton_accion(
+        window,
+        "ui.sync.sincronizar_ahora",
+        "success",
+        "_on_sync",
+        object_name="config_sync_button",
+    )
     sync_actions.addWidget(window.config_sync_button)
     sync_actions.addStretch(1)
     credenciales_layout.addLayout(sync_actions)
@@ -154,12 +217,18 @@ def construir_tab_sincronizacion(window: "MainWindow") -> None:
     construir_seccion_diagnostico(window, sync_tab_layout)
 
     sync_tab_layout.addStretch(1)
-    sync_tab_index = window.main_tabs.addTab(sync_tab, copy_text("ui.sync.tab_sincronizacion"))
+    sync_tab_index = window.main_tabs.addTab(
+        sync_tab, copy_text("ui.sync.tab_sincronizacion")
+    )
     window.main_tabs.setTabVisible(sync_tab_index, False)
 
 
-def _construir_seccion_estado(window: "MainWindow", sync_tab_layout: QVBoxLayout) -> None:
-    sync_state_card, sync_state_layout = window._create_card(copy_text("ui.sync.estado"))
+def _construir_seccion_estado(
+    window: "MainWindow", sync_tab_layout: QVBoxLayout
+) -> None:
+    sync_state_card, sync_state_layout = window._create_card(
+        copy_text("ui.sync.estado")
+    )
     window.last_sync_label = crear_label_secundario("ui.sync.ultima_sync_placeholder")
     sync_state_layout.addWidget(window.last_sync_label)
     window.sync_panel_status = crear_label_secundario("ui.sync.estado_pendiente")
@@ -171,7 +240,9 @@ def _construir_seccion_estado(window: "MainWindow", sync_tab_layout: QVBoxLayout
     sync_tab_layout.addWidget(sync_state_card)
 
 
-def _construir_seccion_acciones(window: "MainWindow", sync_tab_layout: QVBoxLayout) -> None:
+def _construir_seccion_acciones(
+    window: "MainWindow", sync_tab_layout: QVBoxLayout
+) -> None:
     sync_card, sync_layout = window._create_card(copy_text("ui.sync.acciones"))
     sync_heading = QLabel(copy_text("ui.sync.google_sheets"))
     sync_heading.setProperty("role", "sectionTitle")
@@ -182,36 +253,57 @@ def _construir_seccion_acciones(window: "MainWindow", sync_tab_layout: QVBoxLayo
     _construir_botones_acciones(window, sync_actions)
     sync_layout.addLayout(sync_actions)
 
-    window.last_sync_metrics_label = crear_label_secundario("ui.sync.metricas_placeholder")
+    window.last_sync_metrics_label = crear_label_secundario(
+        "ui.sync.metricas_placeholder"
+    )
     sync_layout.addWidget(window.last_sync_metrics_label)
     window.sync_trend_label = crear_label_secundario("ui.sync.tendencia_placeholder")
-    window.sync_idempotency_label = crear_label_secundario("ui.sync.idempotencia_placeholder")
-    window.sync_counts_label = crear_label_secundario("ui.sync.resumen_conteos_placeholder")
+    window.sync_idempotency_label = crear_label_secundario(
+        "ui.sync.idempotencia_placeholder"
+    )
+    window.sync_counts_label = crear_label_secundario(
+        "ui.sync.resumen_conteos_placeholder"
+    )
     sync_layout.addWidget(window.sync_counts_label)
 
-    window.go_to_sync_config_button = crear_boton_accion(window, "ui.sync.ir_configuracion", "secondary", "_on_open_opciones")
+    window.go_to_sync_config_button = crear_boton_accion(
+        window, "ui.sync.ir_configuracion", "secondary", "_on_open_opciones"
+    )
     window.go_to_sync_config_button.setVisible(False)
     sync_layout.addWidget(window.go_to_sync_config_button, alignment=Qt.AlignLeft)
 
     _construir_estado_progreso(window, sync_layout)
     window.alert_banner_label = crear_label_secundario("ui.sync.alertas_sin_activas")
     sync_layout.addWidget(window.alert_banner_label)
-    window.conflicts_reminder_label = crear_label_secundario("ui.sync.conflictos_pendientes")
+    window.conflicts_reminder_label = crear_label_secundario(
+        "ui.sync.conflictos_pendientes"
+    )
     window.conflicts_reminder_label.setVisible(False)
     sync_layout.addWidget(window.conflicts_reminder_label)
     sync_tab_layout.addWidget(sync_card)
 
 
-def _construir_botones_acciones(window: "MainWindow", sync_actions: QHBoxLayout) -> None:
-    window.sync_button = crear_boton_accion(window, "ui.sync.sincronizar_ahora", "primary", "_on_sync")
+def _construir_botones_acciones(
+    window: "MainWindow", sync_actions: QHBoxLayout
+) -> None:
+    window.sync_button = crear_boton_accion(
+        window,
+        "ui.sync.sincronizar_ahora",
+        "primary",
+        "_on_sync",
+        object_name="sync_button",
+    )
     sync_actions.addWidget(window.sync_button)
-    window.simulate_sync_button = crear_boton_accion(window, "ui.sync.simular", "secondary", "_on_simulate_sync")
+    window.simulate_sync_button = crear_boton_accion(
+        window, "ui.sync.simular", "secondary", "_on_simulate_sync"
+    )
     sync_actions.addWidget(window.simulate_sync_button)
     window.confirm_sync_button = crear_boton_accion(
         window,
         "ui.sync.sincronizar_ahora",
         "primary",
         "_on_confirm_sync",
+        object_name="confirm_sync_button",
         habilitado=False,
     )
     sync_actions.addWidget(window.confirm_sync_button)
@@ -220,6 +312,7 @@ def _construir_botones_acciones(window: "MainWindow", sync_actions: QHBoxLayout)
         "ui.sync.reintentar_fallidos",
         "secondary",
         "_on_retry_failed",
+        object_name="retry_failed_button",
         habilitado=False,
     )
     sync_actions.addWidget(window.retry_failed_button)
@@ -247,9 +340,12 @@ def _construir_estado_progreso(window: "MainWindow", sync_layout: QVBoxLayout) -
     sync_layout.addLayout(sync_status_row)
 
 
-def _construir_seccion_resumen(window: "MainWindow", sync_tab_layout: QVBoxLayout) -> None:
-    resumen_card, resumen_layout = window._create_card(copy_text("ui.sync.resultado_resumido"))
+def _construir_seccion_resumen(
+    window: "MainWindow", sync_tab_layout: QVBoxLayout
+) -> None:
+    resumen_card, resumen_layout = window._create_card(
+        copy_text("ui.sync.resultado_resumido")
+    )
     resumen_layout.addWidget(window.sync_counts_label)
     resumen_layout.addWidget(window.last_sync_metrics_label)
     sync_tab_layout.addWidget(resumen_card)
-
