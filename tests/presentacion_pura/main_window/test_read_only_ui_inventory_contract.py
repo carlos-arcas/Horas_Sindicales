@@ -7,8 +7,12 @@ import pytest
 from app.ui.vistas.main_window.politica_solo_lectura import (
     ACCIONES_MUTANTES_AUDITADAS_UI,
     DescriptorAccionMutante,
+)
+from tests.presentacion_pura.main_window.contrato_inventario_solo_lectura import (
+    CAMPOS_RUNTIME_DESCRIPTORES,
+    FRAGMENTOS_PROHIBIDOS_EN_RUNTIME,
     validar_contrato_inventario_con_fuentes,
-    validar_inventario_acciones_mutantes,
+    validar_inventario_runtime_mutante,
 )
 
 pytestmark = pytest.mark.headless_safe
@@ -34,18 +38,22 @@ def test_contrato_inventario_apunta_a_controles_reales_de_codigo() -> None:
 
 
 def test_inventario_no_tiene_duplicados_ni_descriptores_incompletos() -> None:
-    assert validar_inventario_acciones_mutantes() == []
+    assert validar_inventario_runtime_mutante() == []
 
 
 def test_acciones_criticas_siguen_inventariadas() -> None:
-    nombres = {descriptor.nombre_control for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI}
+    nombres = {
+        descriptor.nombre_control for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
+    }
     faltantes = ACCIONES_CRITICAS - nombres
     assert not faltantes
 
 
 def test_descriptor_action_queda_restringido_a_menu_demo() -> None:
     descriptores_action = [
-        descriptor for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI if descriptor.tipo_control == "action"
+        descriptor
+        for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI
+        if descriptor.tipo_control == "action"
     ]
     assert descriptores_action == [
         DescriptorAccionMutante(
@@ -53,7 +61,6 @@ def test_descriptor_action_queda_restringido_a_menu_demo() -> None:
             "action",
             "menu_ayuda",
             "cargar_datos_demo",
-            "app/entrypoints/ui_main.py",
         )
     ]
 
@@ -72,14 +79,9 @@ def test_guardarrail_no_hay_inventarios_read_only_duplicados_en_otros_modulos() 
     assert not violaciones
 
 
-def test_guardarrail_politica_declara_campos_explicitos_del_contrato() -> None:
+def test_guardarrail_runtime_queda_limitado_a_campos_de_produccion() -> None:
     contenido = POLITICA_PATH.read_text(encoding="utf-8")
-    for fragmento in (
-        "nombre_control: str",
-        "tipo_control: TipoControlMutante",
-        "pantalla: str",
-        "accion: str",
-        "ruta_origen: str",
-        "validar_contrato_inventario_con_fuentes",
-    ):
-        assert fragmento in contenido
+    for fragmento in CAMPOS_RUNTIME_DESCRIPTORES:
+        assert f"{fragmento}:" in contenido
+    for fragmento in FRAGMENTOS_PROHIBIDOS_EN_RUNTIME:
+        assert fragmento not in contenido
