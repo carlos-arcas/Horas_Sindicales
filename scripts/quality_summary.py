@@ -11,7 +11,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 REPORT_JSON_PATH = ROOT / "logs" / "quality_report.json"
 QUALITY_REPORT_MD_PATH = ROOT / "logs" / "quality_report.md"
-SUMMARY_MD_PATH = ROOT / "_backstage" / "reportes" / "quality_summary.md"
+SUMMARY_MD_PATH = ROOT / "logs" / "quality_summary.md"
 HOTSPOT_LOC_THRESHOLD = 180
 TOP_N = 10
 
@@ -113,7 +113,9 @@ def _python_files() -> list[Path]:
 def _top_loc(files: list[Path], top_n: int) -> list[tuple[str, int]]:
     rows: list[tuple[str, int]] = []
     for path in files:
-        loc = sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+        loc = sum(
+            1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+        )
         rows.append((path.relative_to(ROOT).as_posix(), loc))
     rows.sort(key=lambda item: item[1], reverse=True)
     return rows[:top_n]
@@ -135,14 +137,20 @@ def _top_complexity(files: list[Path], top_n: int) -> tuple[str, list[tuple[str,
         for block in cc_visit(source):
             if block.letter not in {"F", "M"}:
                 continue
-            identifier = f"{relative}:{block.classname}.{block.name}" if block.classname else f"{relative}:{block.name}"
+            identifier = (
+                f"{relative}:{block.classname}.{block.name}"
+                if block.classname
+                else f"{relative}:{block.name}"
+            )
             rows.append((identifier, int(block.complexity)))
 
     rows.sort(key=lambda item: item[1], reverse=True)
     return ("radon disponible", rows[:top_n])
 
 
-def _build_hotspot_recommendations(loc_rows: list[tuple[str, int]], threshold: int = HOTSPOT_LOC_THRESHOLD) -> list[str]:
+def _build_hotspot_recommendations(
+    loc_rows: list[tuple[str, int]], threshold: int = HOTSPOT_LOC_THRESHOLD
+) -> list[str]:
     over_threshold = [item for item in loc_rows if item[1] > threshold]
     candidates = over_threshold[:3] if over_threshold else loc_rows[:3]
     recommendations: list[str] = []
@@ -152,7 +160,9 @@ def _build_hotspot_recommendations(loc_rows: list[tuple[str, int]], threshold: i
         )
 
     while len(recommendations) < 3:
-        recommendations.append("Mantener monitoreo: no hay nuevos archivos por encima del umbral de hotspot LOC.")
+        recommendations.append(
+            "Mantener monitoreo: no hay nuevos archivos por encima del umbral de hotspot LOC."
+        )
 
     return recommendations[:3]
 
@@ -220,9 +230,13 @@ def main() -> int:
         summary = build_summary(results)
         QUALITY_REPORT_MD_PATH.parent.mkdir(parents=True, exist_ok=True)
         existing = (
-            QUALITY_REPORT_MD_PATH.read_text(encoding="utf-8") if QUALITY_REPORT_MD_PATH.exists() else ""
+            QUALITY_REPORT_MD_PATH.read_text(encoding="utf-8")
+            if QUALITY_REPORT_MD_PATH.exists()
+            else ""
         )
-        QUALITY_REPORT_MD_PATH.write_text(_append_or_replace_snapshot(existing, summary), encoding="utf-8")
+        QUALITY_REPORT_MD_PATH.write_text(
+            _append_or_replace_snapshot(existing, summary), encoding="utf-8"
+        )
         SUMMARY_MD_PATH.parent.mkdir(parents=True, exist_ok=True)
         SUMMARY_MD_PATH.write_text(summary, encoding="utf-8")
     except QualitySummaryError as exc:

@@ -1,74 +1,61 @@
 # Guía de contribución
 
-Gracias por contribuir a **Horas Sindicales**. Este documento define el flujo de trabajo y los criterios técnicos mínimos para mantener la calidad del repositorio.
+Este repositorio mantiene una **aplicación desktop en Python + PySide6**.
+Cada cambio debe ayudar a ejecutar la app, mantenerla, probarla o auditarla.
+Si algo no cumple una de esas funciones, no debería entrar al árbol activo.
 
-## Creación de ramas
+## Alcance esperado de un PR
 
-Crea siempre tu trabajo en una rama nueva a partir de `main`:
+- Un problema por PR.
+- Cambios pequeños y verificables.
+- Sin mezclar limpieza, feature y bugfix si no comparten la misma causa.
+- Si tocas comportamiento visible, añade o ajusta tests.
 
-- `feature/<descripcion-corta>` para nuevas funcionalidades.
-- `bugfix/<descripcion-corta>` para corrección de errores.
-- `refactor/<descripcion-corta>` para cambios internos sin modificar comportamiento.
+## Flujo mínimo
 
-Ejemplos:
+1. Crea una rama desde `main`.
+2. Implementa el cambio con naming en español y respetando Clean Architecture.
+3. Ejecuta el gate canónico local: `python -m scripts.gate_pr`.
+4. Si el gate falla, corrige y repite antes de abrir PR.
+5. Documenta solo lo necesario para operar, mantener o auditar el cambio.
 
-```bash
-git checkout main
-git pull
-git checkout -b feature/sync-resumen-ui
-```
+## Reglas obligatorias
 
-## Flujo de Pull Request
+- `dominio/` no depende de UI ni infraestructura.
+- `app/domain` y `app/application` no deben arrastrar PySide6.
+- No introducir texto visible hardcodeado en UI.
+- No dejar archivos `legacy`, `old`, `bak`, `copy`, `tmp` o equivalentes.
+- No subir documentación placeholder ni marketing interno.
+- Mantener logging estructurado si el cambio afecta ejecución, errores o auditoría.
 
-- Abre PRs **pequeños y enfocados**.
-- Un PR debe resolver **un problema concreto**.
-- Evita cambios no relacionados en el mismo PR.
-- Describe claramente el alcance, riesgo y validación realizada.
-
-## Reglas obligatorias para merge
-
-Para que un PR sea aceptable, debe cumplir todo lo siguiente:
-
-- CI en verde.
-- La cobertura no baja respecto al baseline.
-- Ruff sin errores.
-- Test de arquitectura en verde.
-- Si cambia comportamiento funcional, se debe añadir o actualizar test.
-
-## Ejecución local alineada con GitHub Actions
-
-La CI está dividida en 2 jobs:
-
-- `core` (obligatorio): lint + tests no-UI + coverage.
-- `ui` (no bloqueante): tests de UI con `xvfb`.
-
-Comandos locales equivalentes:
+## Comandos oficiales
 
 ```bash
-# core
-ruff check .
-pytest -q -m "not ui" --cov=app --cov-report=term-missing --cov-fail-under=$(python -c "import json;print(json.load(open('.config/quality_gate.json', encoding='utf-8'))['coverage_fail_under'])")
-
-# ui
-xvfb-run -a pytest -q tests/ui
+python -m scripts.gate_rapido
+python -m scripts.gate_pr
 ```
 
-## Convenciones de commits
+Comprobaciones útiles adicionales:
 
-Se recomienda usar mensajes claros y accionables. Opcionalmente, puedes usar formato **Conventional Commits**:
+```bash
+pytest -q -m "not ui"
+pytest -q tests/golden/botones
+python -m scripts.features_sync
+```
 
-- `feat: ...`
-- `fix: ...`
-- `refactor: ...`
-- `test: ...`
-- `docs: ...`
-- `chore: ...`
+## Qué debe explicar el PR
 
-## Regla de alcance del PR
+- problema real que corrige;
+- riesgo técnico;
+- comandos ejecutados;
+- impacto documental;
+- si hubo limpieza de legacy, qué se borró y por qué no rompía nada.
 
-No mezclar **refactor + feature** en el mismo PR.
+## Commits
 
-Si necesitas ambos, divide el trabajo:
+Usa mensajes claros y accionables.
+Ejemplos válidos:
 
-1. PR de refactor (sin cambio de comportamiento).
-2. PR de feature (sobre la base ya refactorizada).
+- `refactor: elimina historicos fuera del flujo activo`
+- `docs: corrige guias de release windows`
+- `test: blinda reingreso de residuos legacy`
