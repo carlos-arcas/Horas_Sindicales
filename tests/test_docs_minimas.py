@@ -5,6 +5,7 @@ from pathlib import Path
 
 DOCS_REQUERIDAS = {
     "README.md": Path("README.md"),
+    "Docs README": Path("docs/README.md"),
     "Arquitectura": Path("docs/arquitectura.md"),
     "Decisiones técnicas": Path("docs/decisiones_tecnicas.md"),
     "Guía de pruebas": Path("docs/guia_pruebas.md"),

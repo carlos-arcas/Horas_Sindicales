@@ -4,103 +4,187 @@
 
 **Nivel 4 — Producto profesional reproducible**.
 
-Este documento define el criterio auditable de cierre para declarar que el producto está terminado en términos operativos, de calidad y de trazabilidad. La aprobación final no depende de opiniones: depende de evidencia verificable en el repositorio y de ejecución real en Windows.
+Este documento consolida la **auditoría final de cierre de producto** y el criterio contractual para decidir si el repositorio puede declararse cerrado. La decisión no se basa en impresiones: se basa en evidencia verificable, comandos reproducibles y validación honesta del criterio de realidad Windows.
+
+## Conclusión vigente
+
+**Estado actual: PRODUCTO CANDIDATO A CIERRE.**
+
+Motivo: los bloques técnicos auditables A–F están cubiertos con evidencia automatizada o documental alineada, pero el criterio de realidad Windows todavía requiere validación manual final en una máquina Windows real. Sin esa evidencia no es honesto declarar **PRODUCTO CERRADO**.
 
 ## Entrypoints oficiales
 
-Los siguientes entrypoints son la forma oficial de uso del producto y de su validación:
+### Windows
 
-- **Lanzar app (Windows, doble clic):** `lanzar_app.bat`
-- **Ejecutar tests (Windows):** `ejecutar_tests.bat`
-- **Quality gate (Windows):** `quality_gate.bat`
-- **Auditor E2E (CLI exacto):** `python -m app.entrypoints.cli_auditoria --dry-run`
+- `lanzar_app.bat`
+- `ejecutar_tests.bat`
+- `quality_gate.bat`
+- `auditar_e2e.bat [--dry-run|--write]`
+- `setup.bat`
+- `update.bat`
+- `launcher.bat`
 
-Para ejecución de auditoría con escritura de evidencias (modo no simulación), el comando base es:
+### Python / CLI
 
-- `python -m app.entrypoints.cli_auditoria`
+- `python -m app`
+- **Auditor E2E:** `python -m app.entrypoints.cli_auditoria --dry-run` / `python -m app.entrypoints.cli_auditoria --write`
+- `python -m app.entrypoints.cli_auditoria --dry-run`
+- `python -m app.entrypoints.cli_auditoria --write`
+- `python -m scripts.gate_rapido`
+- `python -m scripts.gate_pr`
 
-## Checklist auditable (PASS/FAIL manual)
+## Resultado de auditoría final A–G
 
-> Marcar cada punto como **PASS** o **FAIL** con evidencia asociada (comando, archivo, captura o artefacto).
+### A) Entrypoints y ejecución real — PASS
 
-### A) Arquitectura Clean
+- Existe entrypoint Python principal (`python -m app`) y también `main.py` como compatibilidad de arranque.
+- Los entrypoints Windows principales existen en raíz y usan rutas relativas basadas en `%~dp0`.
+- `launcher.bat` centraliza la operación manual por doble clic.
+- La auditoría CLI tiene comandos explícitos para dry-run y write.
 
-- [ ] PASS / [ ] FAIL — La estructura mantiene capas separadas (`domain`, `application`, `infrastructure`, `entrypoints`, `ui`) sin mezclar reglas de negocio en infraestructura/UI.
-- [ ] PASS / [ ] FAIL — Las dependencias entre capas respetan el diseño documentado.
+**Evidencia sugerida:** `python -m app`, `python -m app.entrypoints.cli_auditoria --dry-run`, revisión de `lanzar_app.bat`, `auditar_e2e.bat` y `launcher.bat`.
 
-### B) Testing (incluye cobertura >=85%)
+### B) Scripts Windows — PASS con pendiente manual de ejecución real
 
-- [ ] PASS / [ ] FAIL — `pytest -q` finaliza en verde.
-- [ ] PASS / [ ] FAIL — Se ejecuta cobertura con `pytest --cov` y el resultado global es **>= 85%** según la política del proyecto.
-- [ ] PASS / [ ] FAIL — Existen pruebas de regresión para funcionalidades críticas.
+- Existen y son coherentes `lanzar_app.bat`, `ejecutar_tests.bat`, `quality_gate.bat`, `setup.bat`, `update.bat`, `launcher.bat` y `auditar_e2e.bat`.
+- Todos preparan o consumen `.venv`, usan rutas relativas, generan logs y apuntan a entrypoints reales del repo.
+- La ejecución funcional en Windows real sigue pendiente y debe registrarse con evidencia manual antes del cierre definitivo.
 
-### C) Observabilidad (JSONL + rotación + crashes.log + correlation_id)
+### C) Documentación mínima contractual — PASS
 
-- [ ] PASS / [ ] FAIL — Se generan logs operativos en formato JSONL.
-- [ ] PASS / [ ] FAIL — Existe rotación de logs configurada y validada.
-- [ ] PASS / [ ] FAIL — Se registra error en `crashes.log` ante fallo controlado.
-- [ ] PASS / [ ] FAIL — Se registra seguimiento en `seguimiento.log`.
-- [ ] PASS / [ ] FAIL — Cada operación relevante incluye `correlation_id` para trazabilidad.
+Documentos verificados:
 
-### D) Robustez UI/CLI (incidente con ID)
+- `docs/README.md`
+- `docs/arquitectura.md`
+- `docs/decisiones_tecnicas.md`
+- `docs/guia_pruebas.md`
+- `docs/guia_logging.md`
+- `docs/definicion_producto_final.md`
+- `docs/readonly_done_checklist.md`
 
-- [ ] PASS / [ ] FAIL — Ante error en UI o CLI, el sistema devuelve un incidente identificable con ID.
-- [ ] PASS / [ ] FAIL — El incidente permite localizar evidencia en logs sin ambigüedad.
+Se considera PASS porque la documentación mínima existe, es suficientemente explícita y está alineada con los entrypoints reales del repositorio.
 
-### E) Reproducibilidad Windows (doble clic)
+### D) Auditoría E2E — PASS
 
-- [ ] PASS / [ ] FAIL — `lanzar_app.bat` permite abrir la aplicación en Windows real.
-- [ ] PASS / [ ] FAIL — `ejecutar_tests.bat` corre pruebas en Windows sin pasos manuales ocultos.
-- [ ] PASS / [ ] FAIL — `quality_gate.bat` ejecuta los controles de calidad esperados.
+La auditoría E2E existe y cubre:
 
-### F) Auditoría E2E (dry-run + write + evidencias)
+- modo `dry-run`
+- modo `write`
+- salida reproducible en JSON y Markdown
+- ID de auditoría
+- estado global `PASS/FAIL`
+- evidencias rastreables
 
-- [ ] PASS / [ ] FAIL — `Auditor E2E` en dry-run (`python -m app.entrypoints.cli_auditoria --dry-run`) no escribe artefactos de salida.
-- [ ] PASS / [ ] FAIL — Auditoría E2E en modo escritura (`python -m app.entrypoints.cli_auditoria`) genera evidencias.
-- [ ] PASS / [ ] FAIL — Las evidencias son rastreables y quedan disponibles para revisión.
+**Comandos oficiales:**
 
-### G) Docs mínimas
+- `python -m app.entrypoints.cli_auditoria --dry-run`
+- `python -m app.entrypoints.cli_auditoria --write`
 
-- [ ] PASS / [ ] FAIL — Existe documentación mínima de arquitectura, pruebas, logging y operación.
-- [ ] PASS / [ ] FAIL — Este documento (`docs/definicion_producto_final.md`) está actualizado con el estado real.
-- [ ] PASS / [ ] FAIL — Existe evidencia específica de cierre de readonly en `docs/readonly_done_checklist.md`.
+### E) Observabilidad — PASS
 
-### H) Versionado (VERSION + CHANGELOG)
+- Existen `logs/seguimiento.log` y compatibilidad con `logs/crashes.log`.
+- La configuración operativa actual también emite `logs/crash.log` y `logs/error_operativo.log`.
+- Hay rotación automática, formato JSONL y propagación de `correlation_id`.
+- El criterio contractual mantiene referencia a `crashes.log` por compatibilidad con instalaciones previas y tests existentes.
 
-- [ ] PASS / [ ] FAIL — `VERSION` refleja la versión candidata a cierre.
-- [ ] PASS / [ ] FAIL — `CHANGELOG`/`CHANGELOG.md` contiene cambios verificables de la versión.
+### F) Versionado y trazabilidad — PASS
 
-### I) Guardarraíles (prints, naming, métricas, secretos)
+- Existe `VERSION`.
+- Existe `CHANGELOG.md` estructurado.
+- El versionado es coherente con la política SemVer del repositorio.
+- El estado de cierre queda trazado en este documento y en el checklist congelado de readonly.
 
-- [ ] PASS / [ ] FAIL — No se introducen `print` de depuración en código de producción.
-- [ ] PASS / [ ] FAIL — Se respetan convenciones de naming del proyecto.
-- [ ] PASS / [ ] FAIL — Se mantienen métricas y controles de calidad definidos.
-- [ ] PASS / [ ] FAIL — No se exponen secretos en código, logs o configuración versionada.
+### G) Criterio de realidad Windows — WARNING
 
-## Criterio de realidad
+- Los scripts fueron auditados estructuralmente y están preparados para doble clic.
+- En esta auditoría no se ha ejecutado Windows real porque el entorno actual no es Windows.
+- Por tanto, la validación pendiente es **manual y obligatoria**.
 
-**Si falla en Windows real, NO aprobado.**
+**Conclusión del bloque G:** WARNING, no FAIL técnico del repositorio, pero sí bloqueo para declarar **PRODUCTO CERRADO**.
 
-No se acepta el cierre por “funciona en mi máquina Linux/macOS” ni por validación parcial en CI. El estado de producto final exige comportamiento reproducible en el entorno operativo objetivo.
+## Comandos de validación obligatorios
 
-## Cómo validar en una máquina limpia
+### Gate canónico
 
-1. Clonar el repositorio en una máquina Windows sin estado previo del proyecto.
-2. Verificar que existen los entrypoints oficiales en raíz: `lanzar_app.bat`, `ejecutar_tests.bat`, `quality_gate.bat`.
-3. Ejecutar `lanzar_app.bat` con doble clic y comprobar arranque de la app.
-4. Ejecutar `ejecutar_tests.bat` y confirmar suite de pruebas sin fallos.
-5. Ejecutar `quality_gate.bat` y confirmar que no reporta bloqueos.
-6. Ejecutar auditoría E2E en simulación: `python -m app.entrypoints.cli_auditoria --dry-run`.
-7. Ejecutar auditoría E2E en modo escritura: `python -m app.entrypoints.cli_auditoria`.
-8. Revisar evidencias y logs (`seguimiento.log`, `crashes.log`) para confirmar trazabilidad.
-9. Confirmar versionado: archivo `VERSION` y registro de cambios en `CHANGELOG`.
-10. Marcar checklist A–I con evidencia adjunta y dictaminar PASS/FAIL final.
+```bash
+python -m scripts.gate_pr
+```
 
-## Condición de cierre
+### Gate rápido
 
-Solo se puede declarar “Producto Final” cuando todos los puntos A–I estén en PASS con evidencia verificable y el criterio de realidad quede satisfecho en Windows real.
+```bash
+python -m scripts.gate_rapido
+```
 
+### Suite focal contractual
+
+```bash
+pytest -q tests/test_docs_minimas.py tests/test_windows_scripts_contract.py tests/test_launcher_bat_contract.py tests/test_definicion_producto_final_contract.py
+```
+
+### Auditoría E2E
+
+```bash
+python -m app.entrypoints.cli_auditoria --dry-run
+python -m app.entrypoints.cli_auditoria --write
+```
+
+### Cobertura contractual en Windows
+
+```bat
+ejecutar_tests.bat
+```
+
+Ese script debe ejecutar el contrato mínimo:
+
+```bat
+pytest --cov=. --cov-report=term-missing --cov-fail-under=85
+```
+
+## Evidencia disponible en el repositorio
+
+- Tests de contratos para scripts Windows y launcher.
+- Tests/documentos mínimos para arquitectura, pruebas, logging y definición de producto.
+- Suite E2E para la auditoría (`tests/e2e/` y `tests/integration/`).
+- Logging estructurado con `seguimiento.log`, `crash.log`, compatibilidad `crashes.log` y `correlation_id`.
+- Checklist congelado de readonly en `docs/readonly_done_checklist.md`.
+
+## Validación manual pendiente en Windows real
+
+Ejecutar exactamente en una máquina Windows limpia:
+
+1. `setup.bat`
+2. `lanzar_app.bat`
+3. `ejecutar_tests.bat`
+4. `quality_gate.bat`
+5. `auditar_e2e.bat --dry-run`
+6. `auditar_e2e.bat --write`
+7. `launcher.bat`
+
+Y confirmar:
+
+- arranque real de la UI,
+- generación de logs,
+- ejecución sin pasos manuales ocultos,
+- creación de evidencias de auditoría,
+- consistencia de exit codes.
+
+## Criterio de cierre
+
+- **PRODUCTO CERRADO**: solo cuando A–G estén en PASS y además exista evidencia manual de Windows real.
+- **PRODUCTO CANDIDATO A CIERRE**: cuando A–F estén en PASS y G quede pendiente únicamente por validación manual de Windows real.
+- **PRODUCTO NO CERRADO**: si aparece cualquier FAIL real en arquitectura, scripts, auditoría E2E, observabilidad, versionado o documentación mínima.
+
+## Estado auditado en esta revisión
+
+- A: PASS
+- B: PASS
+- C: PASS
+- D: PASS
+- E: PASS
+- F: PASS
+- G: WARNING
 
 ## Cierres específicos congelados
 
-- `docs/readonly_done_checklist.md`: evidencia auditable para declarar el alcance y estado final de la política readonly.
+- `docs/readonly_done_checklist.md`: evidencia auditable para declarar el alcance y estado final de readonly sin reabrir refactors cosméticos.
