@@ -6,11 +6,13 @@ from pathlib import Path
 from scripts import quality_summary
 
 
-def test_quality_summary_includes_hotspots_sections(monkeypatch, tmp_path: Path) -> None:
+def test_quality_summary_includes_hotspots_sections(
+    monkeypatch, tmp_path: Path
+) -> None:
     logs_dir = tmp_path / "logs"
     report_json = logs_dir / "quality_report.json"
     quality_md = logs_dir / "quality_report.md"
-    summary_md = tmp_path / "_backstage" / "reportes" / "quality_summary.md"
+    summary_md = logs_dir / "quality_summary.md"
 
     payload = {
         "results": {

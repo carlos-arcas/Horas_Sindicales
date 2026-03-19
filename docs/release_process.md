@@ -1,90 +1,71 @@
 # Proceso de release
 
-Este proyecto utiliza **Semantic Versioning (SemVer)** y un flujo reproducible de validación antes de publicar una versión.
+Esta guía resume el flujo real de publicación del repositorio sin inventar pasos ni scripts que ya no existen.
+El producto sigue siendo una **aplicación de escritorio Python + PySide6** y la validación previa a release debe pasar por el gate oficial.
 
-## 1) Cómo decidir el bump de versión
+## 1. Preparar versión
 
-Usar `MAJOR.MINOR.PATCH`:
+Antes de etiquetar una release:
 
-- **MAJOR** (`X.0.0`): cambios incompatibles con versiones anteriores.
-- **MINOR** (`x.Y.0`): nuevas capacidades compatibles hacia atrás.
-- **PATCH** (`x.y.Z`): correcciones compatibles hacia atrás.
+1. Actualiza `VERSION` con formato `MAJOR.MINOR.PATCH`.
+2. Revisa `CHANGELOG.md` y mueve los cambios desde `Unreleased` a la versión nueva.
+3. Verifica que el estado del producto siga alineado con `docs/definicion_producto_final.md`.
 
-Regla práctica:
+## 2. Validación obligatoria
 
-- Si rompes contratos o interfaces: bump **major**.
-- Si agregas funcionalidad sin romper contratos: bump **minor**.
-- Si corriges bugs/refactors internos sin romper contratos: bump **patch**.
+Ejecuta primero el gate completo:
 
-## 2) Actualizar versión y changelog
+```bash
+python -m scripts.gate_pr
+```
 
-1. Editar `app/__init__.py` y actualizar `__version__`.
-2. Mover/organizar entradas de `CHANGELOG.md` desde `[Unreleased]` a `[{nueva_version}]`.
-3. Mantener secciones `Added`, `Changed`, `Fixed` para la nueva versión.
-
-## 3) Ejecutar validación de release
-
-Comando único:
+Después, si quieres una verificación de release con árbol limpio y changelog/versionado consistentes:
 
 ```bash
 make release-check
 ```
 
-Este comando ejecuta `scripts/release/release.py`, que valida:
+Ese comando ejecuta `scripts/release/release.py` y comprueba:
 
-- Árbol de git limpio.
-- `__version__` con formato SemVer.
-- Sección de versión en `CHANGELOG.md`.
-- Calidad mínima: ejecutar `python -m scripts.quality_gate` (lee el umbral desde `.config/quality_gate.json`).
+- árbol git limpio;
+- versión SemVer válida en `app/__init__.py`;
+- entrada correspondiente en `CHANGELOG.md`.
 
-## 4) Crear tag de versión
+## 3. Build Windows reproducible
 
-Cuando `make release-check` pase:
+El build oficial de distribución vive en GitHub Actions:
+
+- workflow: `.github/workflows/release_build_windows.yml`;
+- empaquetado: `packaging/HorasSindicales.spec`;
+- instalador: `installer/HorasSindicales.iss`.
+
+El workflow:
+
+1. instala dependencias;
+2. valida sintaxis e import básico de `app`;
+3. genera el build con PyInstaller;
+4. empaqueta el resultado en un ZIP versionado;
+5. publica ZIP, checksum y logs como artefactos.
+
+## 4. Etiquetado
+
+Cuando el gate y la validación de release pasen:
 
 ```bash
 git tag vX.Y.Z
 git push --tags
 ```
 
-Luego crear el Release en GitHub para `vX.Y.Z` con notas basadas en `CHANGELOG.md`.
+Después crea la release en GitHub usando las notas de `CHANGELOG.md`.
 
-## 5) Verificación de artefactos
+## 5. Evidencia que conviene conservar
 
-Para release Windows, se pueden usar los scripts existentes en `scripts/release/`:
+- salida de `python -m scripts.gate_pr`;
+- artefactos del workflow `Release Build Windows`;
+- checksum SHA256 del ZIP distribuido;
+- versión publicada en `VERSION` y `CHANGELOG.md`.
 
-- `00_check_prereqs.bat`
-- `10_setup_venv.bat`
-- `20_build_dist.bat`
-- `30_build_installer.bat`
-- `99_release_all.bat`
+## 6. Lo que ya no forma parte del flujo activo
 
-Validar que los artefactos generados (dist/instalador) correspondan a la versión etiquetada y se puedan instalar/ejecutar correctamente.
-
-
-## 6) Build reproducible en Windows desde GitHub Actions
-
-Existe un workflow dedicado en `.github/workflows/release_build_windows.yml` que genera un build de Windows con PyInstaller usando `packaging/HorasSindicales.spec`.
-
-Pasos principales del job `build_windows`:
-
-- Instala dependencias (`requirements.txt` y `requirements-dev.txt`).
-- Verifica sintaxis (`compileall`) y ejecuta smoke mínimo (`python -c "import app"`).
-- Ejecuta `pyinstaller packaging/HorasSindicales.spec --noconfirm` y guarda logs en:
-  - `logs/build_stdout.log`
-  - `logs/build_stderr.log`
-- Lee la versión desde `VERSION` y empaqueta `dist/HorasSindicales` en:
-  - `HorasSindicales-v{VERSION}-windows.zip`
-- Publica como artifact el ZIP y los logs.
-
-### Descargar artifact desde Actions
-
-1. Ir a la pestaña **Actions** del repositorio.
-2. Abrir el workflow **Release Build Windows**.
-3. Seleccionar una ejecución completada.
-4. En la sección **Artifacts**, descargar `HorasSindicales-vX.Y.Z-windows`.
-
-### Ejecutar en Windows
-
-1. Descomprimir `HorasSindicales-vX.Y.Z-windows.zip`.
-2. Entrar a la carpeta extraída.
-3. Ejecutar `HorasSindicales.exe`.
+No dependas de scripts históricos de release fuera de los entrypoints actuales del repo.
+Si reaparece documentación que mencione launchers o pipelines ya eliminados, hay que corregirla antes de publicar.
