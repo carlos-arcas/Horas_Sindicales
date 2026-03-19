@@ -102,6 +102,8 @@
     "ui.confirmaciones.no_visible_filtros": "confirmaciones/no_visible_filtros",
     "ui.confirmaciones.export_pdf_ok": "confirmaciones/export_pdf_ok",
     "ui.confirmacion.sin_seleccion": "Selecciona al menos una solicitud pendiente para continuar.",
+    "ui.confirmacion.no_hay_pendientes": "No hay pendientes",
+    "ui.confirmacion.sin_pendientes": "Sin pendientes",
     "ui.confirmacion.pdf_destino_obligatorio": "Selecciona un destino para guardar el PDF antes de confirmar.",
     "ui.confirmacion.guardar_pdf": "Guardar PDF",
     "ui.confirmacion.filtro_pdf": "PDF (*.pdf)",

@@ -42,11 +42,10 @@ def test_estado_acciones_con_contexto_valido_sin_pendientes_ni_seleccion_mantien
     assert estado.eliminar_pendiente_habilitado is False
 
 
-def test_estado_acciones_con_pendientes_y_seleccion_habilita_confirmar_y_acciones_historico() -> None:
+def test_estado_acciones_con_pendientes_visibles_habilita_confirmar_y_acciones_historico() -> None:
     estado = resolver_estado_acciones_main_window(
         _entrada_base(
             hay_pendientes_visibles=True,
-            cantidad_seleccion_pendientes=2,
             cantidad_seleccion_historico=1,
         )
     )
@@ -56,6 +55,19 @@ def test_estado_acciones_con_pendientes_y_seleccion_habilita_confirmar_y_accione
     assert estado.eliminar_historico_habilitado is True
     assert estado.generar_pdf_habilitado is True
     assert estado.total_historico_seleccionado == 1
+
+
+def test_estado_acciones_con_ver_todas_y_pendientes_visibles_permite_confirmar_con_el_conjunto_visible() -> None:
+    estado = resolver_estado_acciones_main_window(
+        _entrada_base(
+            hay_pendientes_visibles=True,
+            ver_todas_delegadas=True,
+        )
+    )
+
+    assert estado.insertar_sin_pdf_habilitado is True
+    assert estado.confirmar_habilitado is True
+    assert estado.puede_confirmar is True
 
 
 def test_estado_acciones_con_pendientes_de_otras_delegadas_no_contradice_confirmacion_visible() -> None:

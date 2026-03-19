@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import sys
 from types import SimpleNamespace
+from types import ModuleType
 from typing import Any
 
 import pytest
@@ -101,3 +103,34 @@ def test_callback_detalles_usa_dialog_factory_inyectada() -> None:
             "incident_id": "inc-1",
         }
     ]
+
+
+def test_dialogo_detalle_error_default_ejecuta_modal_y_no_depende_de_show() -> None:
+    llamadas = {"exec": 0, "show": 0}
+
+    class _DialogoFalso:
+        def __init__(self, **kwargs: Any) -> None:
+            self.kwargs = kwargs
+
+        def exec(self) -> int:
+            llamadas["exec"] += 1
+            return 0
+
+        def show(self) -> None:
+            llamadas["show"] += 1
+
+    modulo_falso = ModuleType("app.ui.dialogos.dialogo_detalle_error")
+    modulo_falso.DialogoDetalleError = _DialogoFalso
+    sys.modules[modulo_falso.__name__] = modulo_falso
+
+    try:
+        slot_seguro._abrir_dialogo_detalle_error_default(
+            titulo="titulo",
+            resumen="resumen",
+            detalle="detalle",
+            incident_id="inc-2",
+        )
+    finally:
+        sys.modules.pop(modulo_falso.__name__, None)
+
+    assert llamadas == {"exec": 1, "show": 0}

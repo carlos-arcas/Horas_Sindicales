@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
+
+from app.ui.copy_catalog import copy_text
 
 ReasonCode = Literal[
     "ui_not_ready",
@@ -15,7 +17,6 @@ ReasonCode = Literal[
     "ready_for_confirm",
     "confirmed",
 ]
-
 
 @dataclass(frozen=True)
 class ConfirmacionEntrada:
@@ -37,10 +38,18 @@ class ConfirmacionEntrada:
     pdf_path: str | None = None
     execute_attempted: bool = False
     execute_succeeded: bool | None = None
-    no_pending_message: str = "No hay pendientes"
-    no_pending_title: str = "Sin pendientes"
-    conflict_message: str = "Hay peticiones con horarios solapados. Elimina/modifica el conflicto para confirmar."
-    conflict_title: str = "Conflictos detectados"
+    no_pending_message: str = field(
+        default_factory=lambda: copy_text("ui.confirmacion.no_hay_pendientes")
+    )
+    no_pending_title: str = field(
+        default_factory=lambda: copy_text("ui.confirmacion.sin_pendientes")
+    )
+    conflict_message: str = field(
+        default_factory=lambda: copy_text("ui.confirmacion.conflictos_detectados_mensaje")
+    )
+    conflict_title: str = field(
+        default_factory=lambda: copy_text("ui.confirmacion.conflictos_detectados_titulo")
+    )
 
 
 @dataclass(frozen=True)
