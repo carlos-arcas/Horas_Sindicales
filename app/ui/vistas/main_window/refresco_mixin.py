@@ -23,7 +23,7 @@ except Exception:  # pragma: no cover
 from app.ui.vistas import historico_actions
 
 from . import acciones_pendientes
-from .main_window_helpers import (
+from ..main_window_helpers import (
     build_estado_pendientes_debug_payload,
     log_estado_pendientes,
 )
