@@ -12,6 +12,7 @@ Este índice concentra la documentación contractual y operativa necesaria para 
 - `docs/guia_logging.md`: canales de logging, formato JSONL y trazabilidad.
 - `docs/definicion_producto_final.md`: criterio de cierre, auditoría final A–G y conclusión vigente.
 - `docs/readonly_done_checklist.md`: evidencia congelada del cierre de readonly.
+- `docs/validacion_windows_real.md`: paquete operativo mínimo para ejecutar y auditar la validación final en Windows real.
 
 ## Entrypoints oficiales
 
@@ -38,10 +39,11 @@ Este índice concentra la documentación contractual y operativa necesaria para 
 Para una auditoría final del producto, revisar en este orden:
 
 1. `docs/definicion_producto_final.md`.
-2. `docs/readonly_done_checklist.md`.
-3. `CHANGELOG.md` y `VERSION`.
-4. `logs/seguimiento.log`, `logs/error_operativo.log`, `logs/crash.log` y compatibilidad `logs/crashes.log`.
-5. Evidencias de auditoría E2E generadas por `app.entrypoints.cli_auditoria`.
+2. `docs/validacion_windows_real.md`.
+3. `docs/readonly_done_checklist.md`.
+4. `CHANGELOG.md` y `VERSION`.
+5. `logs/seguimiento.log`, `logs/error_operativo.log`, `logs/crash.log` y compatibilidad `logs/crashes.log`.
+6. Evidencias de auditoría E2E generadas por `app.entrypoints.cli_auditoria`.
 
 ## Convención de uso
 
