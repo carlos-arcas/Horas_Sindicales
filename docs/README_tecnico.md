@@ -79,4 +79,3 @@ Resumen operativo:
 Referencia extendida:
 
 - [`sincronizacion_google_sheets.md`](sincronizacion_google_sheets.md)
-- [`api_sync_module.md`](api_sync_module.md)

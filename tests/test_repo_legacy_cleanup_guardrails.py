@@ -60,6 +60,7 @@ ENTRYS_CANONICOS = [
     Path("main.py"),
     Path("app/__main__.py"),
     Path("lanzar_app.bat"),
+    Path("launcher.bat"),
     Path("ejecutar_tests.bat"),
     Path("quality_gate.bat"),
     Path("scripts/gate_rapido.py"),
@@ -67,6 +68,16 @@ ENTRYS_CANONICOS = [
 ]
 RUTAS_PROHIBIDAS = [
     Path("_backstage"),
+]
+ARCHIVOS_ELIMINADOS_PROHIBIDOS = [
+    Path("docs/UX_SYNC_GUIDE.md"),
+    Path("docs/api_sync_module.md"),
+    Path("docs/docs_style_guide.md"),
+    Path("docs/i18n_aliases_sin_linea.md"),
+    Path("docs/naming_transicion.md"),
+    Path("docs/quality_gate.md"),
+    Path("docs/coverage_scope.md"),
+    Path("scripts/gate_local.py"),
 ]
 
 
@@ -141,4 +152,16 @@ def test_entrypoints_y_scripts_canonicos_siguen_existiendo() -> None:
     ]
     assert not faltantes, "Faltan entrypoints o scripts canónicos: " + ", ".join(
         faltantes
+    )
+
+
+def test_no_reaparecen_archivos_eliminados_por_limpieza() -> None:
+    reintroducidos = [
+        ruta.as_posix()
+        for ruta in ARCHIVOS_ELIMINADOS_PROHIBIDOS
+        if (ROOT / ruta).exists()
+    ]
+    assert not reintroducidos, (
+        "Se reintrodujeron residuos eliminados en la limpieza de legacy: "
+        + ", ".join(reintroducidos)
     )
