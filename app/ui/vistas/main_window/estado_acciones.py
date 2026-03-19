@@ -48,7 +48,6 @@ def resolver_estado_acciones_main_window(
     puede_confirmar = (
         entrada.hay_pendientes_visibles
         and not entrada.hay_conflictos_pendientes
-        and not entrada.ver_todas_delegadas
         and not entrada.hay_errores_bloqueantes
         and puede_operar
     )
@@ -61,11 +60,7 @@ def resolver_estado_acciones_main_window(
             and puede_operar
         ),
         insertar_sin_pdf_habilitado=entrada.persona_seleccionada and puede_confirmar,
-        confirmar_habilitado=(
-            entrada.persona_seleccionada
-            and puede_confirmar
-            and entrada.cantidad_seleccion_pendientes > 0
-        ),
+        confirmar_habilitado=entrada.persona_seleccionada and puede_confirmar,
         editar_persona_habilitado=entrada.persona_seleccionada,
         eliminar_persona_habilitado=entrada.persona_seleccionada,
         editar_grupo_habilitado=True,

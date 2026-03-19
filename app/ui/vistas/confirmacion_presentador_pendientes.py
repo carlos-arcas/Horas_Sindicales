@@ -62,6 +62,14 @@ def apply_iter_pendientes_actions(actions: tuple[IterAction, ...]) -> list[dict[
     return pendientes
 
 
+def obtener_pendientes_visibles_confirmables(
+    pendientes_visibles: list[SolicitudDTO] | None,
+) -> list[SolicitudDTO]:
+    if not pendientes_visibles:
+        return []
+    return [solicitud for solicitud in pendientes_visibles if solicitud is not None]
+
+
 def calcular_filtro_delegada_para_confirmacion(pending_view_all: bool, persona_id: int | None) -> int | None:
     if pending_view_all:
         return None

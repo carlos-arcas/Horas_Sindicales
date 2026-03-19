@@ -25,6 +25,10 @@ def _abrir_dialogo_detalle_error_default(
         detalle=detalle,
         incident_id=incident_id,
     )
+    ejecutar_modal = getattr(dialogo, "exec", None)
+    if callable(ejecutar_modal):
+        ejecutar_modal()
+        return
     dialogo.show()
 
 

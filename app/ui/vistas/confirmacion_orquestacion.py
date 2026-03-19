@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
 from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfPeticion, SolicitudConfirmarPdfResultado
-from app.application.use_cases.solicitudes.validaciones import validar_seleccion_confirmacion
 from app.bootstrap.logging import log_operational_error
 from app.core.observability import OperationContext, log_event
 from app.ui.copy_catalog import copy_text
@@ -14,7 +13,13 @@ from app.ui.vistas.confirmacion_eventos_auditoria import (
     build_confirmar_pdf_finished_event,
     build_confirmar_pdf_started_event,
 )
-from app.ui.vistas.confirmacion_presenter import ConfirmacionEntrada, plan_confirmacion
+from app.ui.vistas.confirmacion_presentador_pendientes import (
+    obtener_pendientes_visibles_confirmables,
+)
+from app.ui.vistas.confirmacion_presenter import (
+    ConfirmacionEntrada,
+    plan_confirmacion,
+)
 from app.ui.vistas.confirmacion_presentador_pendientes import (
     contar_pendientes_restantes,
     filtrar_pendientes_restantes,
@@ -121,14 +126,23 @@ def on_insertar_sin_pdf(window: Any) -> None:
         logger.info("_on_insertar_sin_pdf early_return motivo=preconfirm_checks")
         return
     persona = window._current_persona()
-    selected = window._selected_pending_solicitudes()
+    selected = obtener_pendientes_visibles_confirmables(window._pending_solicitudes)
     if persona is None:
         logger.info("_on_insertar_sin_pdf early_return motivo=no_persona")
         return
-    warning_message = validar_seleccion_confirmacion(len(selected))
-    if warning_message:
-        window.toast.warning(warning_message, title=copy_text("ui.confirmacion.seleccion_requerida"))
-        logger.info("_on_insertar_sin_pdf early_return motivo=sin_seleccion")
+    if not selected:
+        entrada_vacia = ConfirmacionEntrada(
+            ui_ready=True,
+            selected_ids=tuple(),
+            preconfirm_checks_ok=True,
+            persona_selected=True,
+            has_pending_conflicts=False,
+        )
+        window.toast.warning(
+            entrada_vacia.no_pending_message,
+            title=entrada_vacia.no_pending_title,
+        )
+        logger.info("_on_insertar_sin_pdf early_return motivo=sin_pendientes_visibles")
         return
     if window._pending_conflict_rows:
         logger.info("_on_insertar_sin_pdf early_return motivo=conflictos_pendientes")

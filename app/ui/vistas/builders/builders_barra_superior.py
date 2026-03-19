@@ -6,7 +6,6 @@ from PySide6.QtCore import Qt
 from app.ui.copy_catalog import copy_text
 from PySide6.QtWidgets import (
     QHBoxLayout,
-    QLabel,
     QPushButton,
     QSizePolicy,
     QSplitter,
@@ -25,10 +24,7 @@ def create_barra_superior(window: "MainWindow") -> None:
     operativa_layout.setSpacing(12)
     operativa_header_row = QHBoxLayout()
     operativa_header_row.setSpacing(10)
-    operativa_help = QLabel(copy_text("ui.solicitudes.operativa_help"))
-    operativa_help.setWordWrap(True)
-    operativa_help.setProperty("role", "secondary")
-    operativa_header_row.addWidget(operativa_help, 1)
+    operativa_header_row.addStretch(1)
     window.open_saldos_modal_button = QPushButton(copy_text("ui.solicitudes.saldos"))
     window.open_saldos_modal_button.setProperty("variant", "secondary")
     window.open_saldos_modal_button.setMaximumWidth(110)

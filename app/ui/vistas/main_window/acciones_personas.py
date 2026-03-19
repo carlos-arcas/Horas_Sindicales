@@ -164,11 +164,34 @@ def on_persona_changed(window: MainWindow, *_args) -> None:
         restore_draft_for_persona(window, estado.delegada_destino_id)
 
     window._last_persona_id = estado.delegada_destino_id
+    _sincronizar_contexto_delegada_activa(window, estado.delegada_destino_id)
     window.pendientes_table.clearSelection()
     window.huerfanas_table.clearSelection()
     window._reload_pending_views()
+    window._refresh_historico()
+    window._refresh_saldos()
     window._refrescar_estado_operativa("persona_changed")
     window._update_global_context()
+
+
+def _sincronizar_contexto_delegada_activa(
+    window: MainWindow,
+    persona_id: int | None,
+) -> None:
+    window._settings.setValue(CLAVE_CONTEXTO_DELEGADA_ACTIVA, persona_id)
+    window._settings.setValue(CLAVE_CONTEXTO_DELEGADA_SELECCIONADA_ID, persona_id)
+
+    for combo in (window.config_delegada_combo, window.historico_delegada_combo):
+        if combo is None:
+            continue
+        combo.blockSignals(True)
+        try:
+            for index in range(combo.count()):
+                if combo.itemData(index) == persona_id:
+                    combo.setCurrentIndex(index)
+                    break
+        finally:
+            combo.blockSignals(False)
 
 
 def _crear_dialogo_persona(*args, **kwargs):

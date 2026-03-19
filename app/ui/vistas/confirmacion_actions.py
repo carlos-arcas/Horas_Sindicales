@@ -22,6 +22,9 @@ from app.ui.vistas.confirmacion_orquestacion import (
     run_confirmacion_plan,
 )
 from app.ui.vistas.confirmacion_presentador_pendientes import iterar_pendientes_en_tabla as iterar_pendientes_en_tabla_puro
+from app.ui.vistas.confirmacion_presentador_pendientes import (
+    obtener_pendientes_visibles_confirmables,
+)
 from app.ui.vistas.confirmacion_adaptador_qt import (
     apply_confirm,
     apply_finalize,
@@ -162,8 +165,8 @@ def on_confirmar(window: Any) -> None:
         for pendiente in pendientes_en_tabla:
             logger.debug("DEBUG_PENDIENTE %s", pendiente)
 
-        selected = [sol for sol in window._selected_pending_solicitudes() if sol is not None]
-        selected_ids = window._obtener_ids_seleccionados_pendientes()
+        selected = obtener_pendientes_visibles_confirmables(window._pending_solicitudes)
+        selected_ids = [solicitud.id for solicitud in selected]
         editing = window._selected_pending_for_editing()
         persona = window._current_persona()
         log_extra = _build_confirmar_log_extra(window, pendientes_en_tabla, selected_ids, editing, persona)

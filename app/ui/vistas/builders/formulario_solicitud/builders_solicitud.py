@@ -176,19 +176,18 @@ def _instalar_event_filters(window: "MainWindow") -> None:
 
 
 def _construir_fila_tips(window: "MainWindow", solicitud_layout: QVBoxLayout) -> None:
-    tips_row = QHBoxLayout()
-    tips_row.setSpacing(8)
     window.solicitudes_tip_1 = QLabel(copy_text("solicitudes.tip_enter"))
     window.solicitudes_tip_1.setProperty("role", "secondary")
     window.solicitudes_tip_2 = QLabel(copy_text("solicitudes.tip_minutes"))
     window.solicitudes_tip_2.setProperty("role", "secondary")
     window.solicitudes_tip_3 = QLabel(copy_text("solicitudes.tip_full_day"))
     window.solicitudes_tip_3.setProperty("role", "secondary")
-    tips_row.addWidget(window.solicitudes_tip_1)
-    tips_row.addWidget(window.solicitudes_tip_2)
-    tips_row.addWidget(window.solicitudes_tip_3)
-    tips_row.addStretch(1)
-    solicitud_layout.addLayout(tips_row)
+    for tip in (
+        window.solicitudes_tip_1,
+        window.solicitudes_tip_2,
+        window.solicitudes_tip_3,
+    ):
+        tip.setVisible(False)
 
 
 def _construir_estado_formulario(
@@ -210,8 +209,8 @@ def _construir_estado_formulario(
     solicitud_layout.addLayout(status_row)
 
     window.show_help_toggle = QCheckBox(copy_text("solicitudes.help_toggle"))
-    window.show_help_toggle.setChecked(True)
-    solicitud_layout.addWidget(window.show_help_toggle)
+    window.show_help_toggle.setChecked(False)
+    window.show_help_toggle.setVisible(False)
 
     _agregar_etiquetas_error(window, solicitud_layout)
 
