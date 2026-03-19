@@ -184,6 +184,23 @@ def test_resolver_control_mutante_prioriza_object_name_sobre_atributo() -> None:
     assert control_real.objectName() == "agregar_button"
 
 
+def test_resolver_control_mutante_no_usa_fallback_generico_por_atributo() -> None:
+    descriptor = DescriptorAccionMutante(
+        "agregar_button",
+        "widget",
+        "solicitudes",
+        "agregar_pendiente",
+    )
+    window = _WindowStub(solo_lectura=False)
+    control_por_atributo = window.agregar_button
+    window._children = []
+
+    control_real = resolver_control_mutante(window, descriptor)
+
+    assert control_por_atributo.objectName() == "agregar_button"
+    assert control_real is None
+
+
 def test_update_action_state_falla_si_falta_estado_modo_solo_lectura() -> None:
     modulo = import_module("app.ui.vistas.main_window.state_helpers")
     window = _WindowStub(solo_lectura=False)

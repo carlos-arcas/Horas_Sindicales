@@ -95,6 +95,33 @@ def test_inventario_centralizado_de_acciones_mutantes_se_mantiene_estable() -> N
     assert set(_extraer_nombres_controles_mutantes(modulo)) == ATRIBUTOS_MUTANTES_AUDITADOS
 
 
+def test_resolver_control_mutante_permanece_object_name_driven_sin_fallback_atributo() -> (
+    None
+):
+    contenido = _leer(POLITICA_SOLO_LECTURA_PATH)
+    modulo = ast.parse(contenido, filename=str(POLITICA_SOLO_LECTURA_PATH))
+
+    funciones = {
+        nodo.name: nodo for nodo in modulo.body if isinstance(nodo, ast.FunctionDef)
+    }
+    resolver = funciones.get("resolver_control_mutante")
+    assert resolver is not None
+    llamadas = [
+        nodo.func.id
+        for nodo in ast.walk(resolver)
+        if isinstance(nodo, ast.Call) and isinstance(nodo.func, ast.Name)
+    ]
+
+    assert "_buscar_control_por_object_name" in llamadas
+    assert "_obtener_control_por_atributo_compatible" not in contenido
+    assert not any(
+        isinstance(nodo, ast.Call)
+        and isinstance(nodo.func, ast.Name)
+        and nodo.func.id == "getattr"
+        for nodo in ast.walk(resolver)
+    ), "resolver_control_mutante no debe degradar a getattr(window, ...)"
+
+
 def _extraer_nombres_controles_mutantes(modulo: ast.Module) -> list[str]:
     nombres: list[str] = []
     for nodo in modulo.body:
