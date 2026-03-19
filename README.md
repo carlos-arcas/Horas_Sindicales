@@ -2,14 +2,27 @@
 
 [![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
 
-Aplicación de escritorio (PySide6) para gestionar solicitudes de horas sindicales, generar PDFs y sincronizar datos con Google Sheets.
+Horas Sindicales es una **aplicación de escritorio en Python + PySide6** para registrar solicitudes sindicales, generar PDFs y sincronizar datos con Google Sheets.
 
-## Ejecutar en local (3 comandos)
+## Qué sí es este repositorio
+
+- App desktop con interfaz Qt (`PySide6`).
+- Núcleo de negocio separado por capas (`app/domain`, `app/application`, `app/infrastructure`, `app/ui`).
+- Persistencia local SQLite y adaptadores de integración.
+- Scripts operativos para Windows y gates reproducibles en Python.
+
+## Qué no es este repositorio
+
+- No es una interfaz pensada para navegador.
+- No es un servicio HTTP multiusuario.
+- No usa un stack web heredado como definición del producto.
+- No expone una API HTTP como definición principal del sistema.
+
+## Ejecutar en local
 
 ```bash
 python -m pip install -r requirements-dev.txt
 python -m app
-python -m app.entrypoints.cli_auditoria --help
 ```
 
 ## Ejecutar tests
@@ -20,7 +33,7 @@ pytest -q -m "not ui"
 
 ## Quality Gate
 
-Comandos de ejecución del quality gate unificado:
+Comandos oficiales del gate:
 
 - **Windows**
 
@@ -28,59 +41,64 @@ Comandos de ejecución del quality gate unificado:
   quality_gate.bat
   ```
 
-- **CLI (Python)**
+- **CLI canónico para PR**
 
   ```bash
-  python scripts/quality_gate.py
+  python -m scripts.gate_pr
   ```
 
-Valida automáticamente:
+- **Gate rápido**
 
-- Coverage del core.
-- Presupuesto de complejidad ciclomática (CC targets).
-- Regresión de naming (baseline + nuevos offenders).
-- Secretos en repositorio.
-- Contrato de arquitectura.
-- Contrato de release build.
+  ```bash
+  python -m scripts.gate_rapido
+  ```
 
-Modo degradado (solo cuando falta `pytest-cov`):
+Compatibilidad operativa/documental:
 
 ```bash
+python scripts/quality_gate.py
 python scripts/quality_gate.py --allow-missing-pytest-cov
 ```
 
-> En modo degradado el estado global **siempre será FAIL** (coverage queda en `SKIP`), por lo que no equivale a un PASS de calidad.
+> En `scripts/quality_gate.py` el **estado global** sigue siendo **FAIL** cuando falta cobertura, aunque se use el modo degradado. Ese comando se mantiene por compatibilidad operativa; el gate contractual del repositorio es `python -m scripts.gate_pr`.
 
-## Configuración de sincronización
+## Entrypoints oficiales
 
-Consulta la sección de sincronización en la guía técnica:
+### Windows
+
+- `lanzar_app.bat`
+- `ejecutar_tests.bat`
+- `quality_gate.bat`
+- `auditar_e2e.bat`
+- `launcher.bat`
+- `setup.bat`
+- `update.bat`
+
+### Python / CLI
+
+- `python -m app`
+- `python -m app.entrypoints.cli_auditoria --dry-run`
+- `python -m app.entrypoints.cli_auditoria --write`
+- `python -m scripts.gate_rapido`
+- `python -m scripts.gate_pr`
+
+## Documentación útil
+
+- Índice documental: [`docs/README.md`](docs/README.md)
+- Arquitectura: [`docs/arquitectura.md`](docs/arquitectura.md)
+- Decisiones técnicas: [`docs/decisiones_tecnicas.md`](docs/decisiones_tecnicas.md)
+- Guía de pruebas: [`docs/guia_pruebas.md`](docs/guia_pruebas.md)
+- Guía de logging: [`docs/guia_logging.md`](docs/guia_logging.md)
+- Definición del producto: [`docs/definicion_producto_final.md`](docs/definicion_producto_final.md)
+- Soporte técnico: [`docs/SOPORTE.md`](docs/SOPORTE.md)
+
+## Sincronización con Google Sheets
+
+La configuración y el flujo operativo están documentados en:
 
 - [`docs/README_tecnico.md`](docs/README_tecnico.md#sincronización-con-google-sheets)
+- [`docs/sincronizacion_google_sheets.md`](docs/sincronizacion_google_sheets.md)
 
-## Documentación pública
+## Regla de mantenimiento
 
-- Guía técnica: [`docs/README_tecnico.md`](docs/README_tecnico.md)
-- Decisiones técnicas: [`docs/DECISIONES_TECNICAS.md`](docs/DECISIONES_TECNICAS.md)
-- Soporte y runbook: [`docs/SOPORTE.md`](docs/SOPORTE.md)
-
-## Migración automática de claves i18n estables
-
-Para generar el catálogo estable y el mapa de compatibilidad legacy desde `.config/ui_strings_baseline.json`:
-
-```bash
-python scripts/migrar_ui_strings_baseline.py
-```
-
-El script actualiza:
-- `configuracion/i18n/es.json`
-- `configuracion/i18n/_legacy_map.json`
-
-## Endpoints de reportes y moderación (backoffice)
-
-> Módulo técnico orientado a integración API. Implementa contratos para:
->
-> - `POST /api/reportes/` (crear reporte idempotente).
-> - `GET /api/admin/reportes/` (listado con filtros + paginación).
-> - `POST /api/admin/reportes/<reporte_id>/resolver/` (descartar u ocultar recurso).
->
-> En este repositorio se entrega la base de dominio/aplicación/infraestructura SQLite para soportar estos flujos y su auditoría de seguridad.
+Si un archivo, script o documento no ayuda a ejecutar la app, mantenerla, probarla o auditarla, no debería vivir en la cara activa del repositorio.
