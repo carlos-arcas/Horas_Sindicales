@@ -10,7 +10,7 @@ Este documento consolida la **auditoría final de cierre de producto** y el crit
 
 **Estado actual: PRODUCTO CANDIDATO A CIERRE.**
 
-Motivo: los bloques técnicos auditables A–F están cubiertos con evidencia automatizada o documental alineada, pero el criterio de realidad Windows todavía requiere validación manual final en una máquina Windows real. Sin esa evidencia no es honesto declarar **PRODUCTO CERRADO**.
+Motivo: los bloques técnicos auditables A–F están cubiertos con evidencia automatizada o documental alineada, pero el criterio de realidad Windows todavía requiere validación manual final en una máquina Windows real. Sin esa evidencia no es honesto declarar **PRODUCTO CERRADO**. El paquete operativo para ejecutar esa validación quedó fijado en `docs/validacion_windows_real.md` y `scripts/validar_windows_real.bat`.
 
 ## Entrypoints oficiales
 
@@ -61,6 +61,7 @@ Documentos verificados:
 - `docs/guia_logging.md`
 - `docs/definicion_producto_final.md`
 - `docs/readonly_done_checklist.md`
+- `docs/validacion_windows_real.md`
 
 Se considera PASS porque la documentación mínima existe, es suficientemente explícita y está alineada con los entrypoints reales del repositorio.
 
@@ -101,6 +102,12 @@ La auditoría E2E existe y cubre:
 - Por tanto, la validación pendiente es **manual y obligatoria**.
 
 **Conclusión del bloque G:** WARNING, no FAIL técnico del repositorio, pero sí bloqueo para declarar **PRODUCTO CERRADO**.
+
+## Paquete operativo de validación Windows real
+
+- Guía oficial: `docs/validacion_windows_real.md`
+- Preparación de carpeta de evidencia: `scripts\validar_windows_real.bat`
+- Mientras esa guía no se ejecute en Windows real con evidencia completa, el estado no puede subir de **PRODUCTO CANDIDATO A CIERRE**.
 
 ## Comandos de validación obligatorios
 
@@ -151,15 +158,16 @@ pytest --cov=. --cov-report=term-missing --cov-fail-under=85
 
 ## Validación manual pendiente en Windows real
 
-Ejecutar exactamente en una máquina Windows limpia:
+Ejecutar exactamente en una máquina Windows limpia siguiendo `docs/validacion_windows_real.md`:
 
-1. `setup.bat`
-2. `lanzar_app.bat`
-3. `ejecutar_tests.bat`
-4. `quality_gate.bat`
-5. `auditar_e2e.bat --dry-run`
-6. `auditar_e2e.bat --write`
-7. `launcher.bat`
+1. `scripts\validar_windows_real.bat`
+2. `setup.bat`
+3. `lanzar_app.bat`
+4. `ejecutar_tests.bat`
+5. `quality_gate.bat`
+6. `auditar_e2e.bat --dry-run`
+7. `auditar_e2e.bat --write`
+8. `launcher.bat`
 
 Y confirmar:
 

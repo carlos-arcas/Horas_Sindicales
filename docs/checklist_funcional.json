@@ -19,7 +19,7 @@
       "id": "FUN-001",
       "descripcion": "Se puede lanzar la aplicación por entrypoint Python y por launcher de Windows.",
       "prioridad": "Alta",
-      "estado_global": "Verificada",
+      "estado_global": "Parcial",
       "desglose": {
         "logica": "Verificada",
         "ui": "Verificada",
@@ -41,9 +41,14 @@
           "tipo": "test",
           "ruta": "tests/test_launcher_bat_contract.py",
           "detalle": "Contrato del launcher para entorno Windows."
+        },
+        {
+          "tipo": "doc",
+          "ruta": "docs/validacion_windows_real.md",
+          "detalle": "Define el paquete operativo pendiente para validar la ejecución real en Windows."
         }
       ],
-      "observaciones": "No hay evidencia automática de doble clic en Windows real dentro de este entorno Linux; se deja E2E como Parcial."
+      "observaciones": "Existe evidencia estructural y smoke, pero la ejecución real en Windows sigue pendiente; no debe marcarse como completada hasta registrar la validación manual con evidencia auditable."
     },
     {
       "id": "FUN-002",
