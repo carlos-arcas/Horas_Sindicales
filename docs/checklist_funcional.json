@@ -222,12 +222,12 @@
     },
     {
       "id": "FUN-007",
-      "descripcion": "Se puede gestionar el módulo web de personajes (listar, crear, editar y eliminar) en la vertical Django en transición.",
+      "descripcion": "Se puede gestionar el catálogo local de personajes del proyecto actual desde casos de uso de escritorio.",
       "prioridad": "Media",
       "estado_global": "Parcial",
       "desglose": {
         "logica": "Verificada",
-        "ui": "Parcial",
+        "ui": "No implementada",
         "validaciones_seguridad": "No verificada",
         "e2e": "No verificada"
       },
@@ -235,25 +235,20 @@
         {
           "tipo": "test",
           "ruta": "tests/application/personajes/test_casos_uso_personajes.py",
-          "detalle": "Casos de uso de personajes en aplicación."
+          "detalle": "Casos de uso para crear, editar, eliminar y listar personajes del proyecto actual."
         },
         {
           "tipo": "test",
           "ruta": "tests/domain/personajes/test_servicios_personaje.py",
-          "detalle": "Reglas de dominio del agregado personaje."
-        },
-        {
-          "tipo": "test",
-          "ruta": "tests/web/test_personajes.py",
-          "detalle": "Cobertura de endpoints/vistas web de personajes."
+          "detalle": "Reglas de dominio para nombre y descripción de personaje."
         },
         {
           "tipo": "doc",
           "ruta": "docs/features.json",
-          "detalle": "Feature FTR-005 marcada como WIP en inventario existente."
+          "detalle": "Feature FTR-005 alineada con el módulo local de personajes."
         }
       ],
-      "observaciones": "Se trata de una vertical en transición; no hay evidencia sólida de E2E integral ni de hardening de seguridad completo."
+      "observaciones": "El alcance vigente es local y de escritorio; no existe una UI específica ni una vertical web asociada."
     }
   ]
 }

@@ -42,14 +42,13 @@
   },
   {
     "id": "FTR-005",
-    "nombre": "Vertical slice de personajes (stack Django en transición)",
-    "estado": "WIP",
-    "tipo": "UI",
+    "nombre": "Gestión local de personajes del proyecto actual",
+    "estado": "DONE",
+    "tipo": "LOGICA",
     "tests": [
       "tests/application/personajes/test_casos_uso_personajes.py",
-      "tests/domain/personajes/test_servicios_personaje.py",
-      "tests/web/test_personajes.py"
+      "tests/domain/personajes/test_servicios_personaje.py"
     ],
-    "notas": "Porting incremental con strangler, pendiente integración completa de Django runtime."
+    "notas": "Módulo local sin vertical web: alta, edición, baja y listado de personajes asociados al proyecto actual."
   }
 ]
