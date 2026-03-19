@@ -1,187 +1,130 @@
 # Guía de pruebas
 
-## Objetivo
+## Propósito
 
-Estandarizar la ejecución de pruebas automáticas en local y en CI, con foco en reproducibilidad y cobertura.
+Esta guía fija cómo validar la aplicación desktop **Python + PySide6** sin inventar flujos web ni comandos paralelos. El contrato del repositorio es simple: primero feedback rápido, después gate completo, y siempre con pruebas reproducibles.
 
-## Ejecución en Windows (interfaz recomendada)
+## Comandos canónicos
 
-El repositorio incluye script oficial:
-
-```bat
-ejecutar_tests.bat
-```
-
-Este flujo prepara entorno y ejecuta la suite según la configuración vigente del proyecto.
-
-## Uso rápido: launcher.bat
-
-Para operación manual por doble clic en Windows, usar:
-
-```bat
-launcher.bat
-```
-
-Opciones del menú operativo:
-
-1. **Lanzar app**: delega en `lanzar_app.bat`.
-2. **Ejecutar tests**: delega en `ejecutar_tests.bat`.
-3. **Quality gate**: delega en `quality_gate.bat`.
-4. **Auditor E2E (dry-run)**: ejecuta auditoría sin escritura (`--dry-run`).
-5. **Auditor E2E (write)**: ejecuta auditoría con escritura (`--write`).
-0. **Salir**.
-
-El launcher informa la carpeta de logs (`logs\`) y muestra `PASS`/`FAIL` por opción según el exit code devuelto por cada script.
-
-
-## Scripts en `scripts/` (compatibilidad CI/manual)
-
-También existen wrappers equivalentes para ejecución desde la carpeta `scripts`:
-
-```bat
-scripts\lanzar_app.bat
-scripts\ejecutar_tests.bat
-```
-
-- `scripts\lanzar_app.bat`: crea `.venv` si falta, instala `requirements.txt` y ejecuta `python main.py`.
-- `scripts\ejecutar_tests.bat`: crea `.venv` si falta, instala `requirements.txt` (+ `requirements-dev.txt` si existe) y ejecuta:
-
-```bat
-pytest --cov=. --cov-report=term-missing --cov-fail-under=85
-```
-
-## Ejecución manual equivalente
-
-Desde la raíz del repositorio:
+### Gate rápido
 
 ```bash
-PYTHONPATH=. pytest -q
+python -m scripts.gate_rapido
 ```
 
-## Cobertura
+Úsalo cuando toques lógica core, wiring o documentación contractual y necesites una señal rápida.
 
-Consulta también la política contractual y el roadmap de umbrales en `docs/coverage_policy.md`.
-
-Para medir cobertura explícitamente, usar `pytest` con `--cov`:
+### Gate de PR
 
 ```bash
-PYTHONPATH=. pytest -q --cov=app --cov-report=term-missing
+python -m scripts.gate_pr
 ```
 
-Si se usa quality gate, este comando puede complementarse con los scripts de `Makefile`/pipeline del proyecto.
+Es el único gate contractual para cerrar cambios y el mismo que debe ejecutar CI.
 
-## Markers (incluyendo UI)
+## Suites por objetivo
 
-- Suite completa: `pytest -q`
-- Solo UI: `pytest -m ui`
-- Excluir UI: `pytest -m "not ui"`
-
-Los tests UI pueden requerir entorno gráfico o modo `offscreen` según plataforma.
-
-## Fuente de verdad para `ui_smoke`
-
-El estado contractual del smoke de UI se decide con el job remoto `ui_smoke` en GitHub Actions.
-
-Reglas operativas:
-
-1. Si `ui_smoke` remoto está en **PASS**, no se abren cambios para "arreglar" solo diferencias del entorno local del agente.
-2. Si `ui_smoke` remoto está en **FAIL**, se corrige únicamente el primer rojo remoto real tras bootstrap de entorno.
-3. Fallos locales por faltantes del entorno del agente (por ejemplo, dependencias de sistema de Qt/GL) se clasifican como ruido local salvo evidencia de falla equivalente en runner remoto.
-
-Este criterio evita introducir bypasses o relajaciones de contrato para acomodar un entorno local no representativo.
-
-## Contrato de typecheck en CI
-
-El script `scripts/typecheck.py` es parte del contrato del workflow de CI (job core) y se ejecuta de forma obligatoria.
-
-- Dependencia requerida: `mypy` instalado desde `requirements-dev.txt`.
-- Política: la versión debe estar fijada (`mypy==X.Y.Z`) para evitar deriva entre entornos.
-- Si falta `mypy`, `scripts/typecheck.py` falla con código distinto de cero y mensaje explícito de contrato.
-
-## Recomendaciones de estabilidad
-
-1. Instalar dependencias desde `requirements-dev.txt`.
-2. Ejecutar primero smoke tests y luego suite completa cuando haya cambios amplios.
-3. Mantener consistencia entre comandos locales y los usados por CI.
-
-> **Nota obligatoria del gate de métricas:** `tests/test_quality_gate_metrics.py::test_quality_gate_size_and_complexity` requiere `radon` y esa dependencia se instala mediante `requirements-dev.txt`.
-
-## Pendiente de completar
-
-- Pendiente de completar matriz de tiempos objetivo por tipo de suite (smoke, unit, integración, UI).
-
-## Validación total: quality_gate.bat
-
-Para una validación "Nivel 4" con un único comando en Windows:
-
-```bat
-quality_gate.bat
-```
-
-El script realiza, en orden:
-1. Preparación de `.venv` e instalación de `requirements-dev.txt`.
-2. Auditoría E2E en modo dry-run: `python -m app.entrypoints.cli_auditoria --dry-run`.
-3. Tests con cobertura y umbral mínimo: `pytest --cov=. --cov-report=term-missing --cov-fail-under=85`.
-
-También genera logs en `logs\quality_gate_stdout.log`, `logs\quality_gate_stderr.log` y `logs\quality_gate_debug.log`, e informa al final `QUALITY GATE: PASS` o `QUALITY GATE: FAIL`.
-
-## Snapshot/Golden tests (Auditor E2E)
-
-Los snapshots de reportes del auditor viven en `tests/golden/` y se validan con:
+### Núcleo de negocio
 
 ```bash
-PYTHONPATH=. pytest -q tests/e2e/test_auditoria_e2e_snapshot_md.py tests/e2e/test_auditoria_e2e_snapshot_json.py tests/e2e/test_auditoria_e2e_snapshot_manifest_json.py
+pytest -q tests/domain tests/application
 ```
 
-### Política de actualización de golden
-
-Por defecto, los tests **solo comparan** contra los golden existentes.
-
-Para actualizar snapshots de forma explícita y controlada:
+Cobertura contractual del core:
 
 ```bash
-UPDATE_GOLDEN=1 PYTHONPATH=. pytest -q tests/e2e/test_auditoria_e2e_snapshot_md.py tests/e2e/test_auditoria_e2e_snapshot_json.py tests/e2e/test_auditoria_e2e_snapshot_manifest_json.py
+pytest -q tests/domain tests/application   --cov=app/domain   --cov=app/application   --cov-report=term-missing   --cov-fail-under=85
 ```
 
-Reglas anti-flakiness aplicadas por normalización (`tests/utilidades/normalizar_reportes.py`):
-- IDs dinámicos (UUID/AUD-*) → `<ID>`.
-- Fechas ISO → `<FECHA>`.
-- Rutas absolutas → `<RUTA>`.
-- Orden determinista de listas con `id_check`.
-
-
-## Golden de botones (headless-safe)
-
-Se añadió un "golden gate" para contratos de interacción de botones sin depender de Qt real ni red:
-
-- `tests/golden/botones/test_boton_aniadir_pendiente_golden.py`
-- `tests/golden/botones/test_boton_eliminar_historico_golden.py`
-- `tests/golden/botones/test_boton_sync_golden.py`
-
-Cada test ejecuta un handler/controlador con `FakeMainWindow`/stubs y registra eventos en orden usando `EventRecorder` (`tests/utilidades/event_recorder.py`).
-
-Comprobación (sin modificar snapshots):
+### Suite no UI del repositorio
 
 ```bash
-PYTHONPATH=. pytest -q tests/golden/botones
+pytest -q -m "not ui"
+```
+
+Sirve para comprobar regresiones funcionales sin depender de un backend gráfico real.
+
+### Golden UI
+
+```bash
+pytest -q tests/golden/botones
 ```
 
 Actualización explícita de snapshots:
 
 ```bash
-UPDATE_GOLDEN=1 PYTHONPATH=. pytest -q tests/golden/botones
+UPDATE_GOLDEN=1 pytest -q tests/golden/botones
 ```
 
-Sin `UPDATE_GOLDEN=1`, cualquier cambio de comportamiento rompe el gate.
+### Guardarraíles estructurales
 
-## Pruebas de reportes/moderación
+```bash
+pytest -q   tests/test_repo_legacy_cleanup_guardrails.py   tests/test_architecture_imports.py   tests/test_clean_architecture_imports_guard.py
+```
 
-Ejecuta:
+Estos tests impiden que reaparezcan referencias a stack web ajeno, archivos legacy obvios o roturas de capas.
 
-- `pytest -q tests/domain/test_reportes_contenido.py`
-- `pytest -q tests/application/reportes/test_casos_uso_reportes.py`
-- `pytest -q tests/infrastructure/test_reportes_sqlite.py`
+## Flujo recomendado de validación
 
-Validación completa PR:
+1. Instalar dependencias desde `requirements-dev.txt`.
+2. Ejecutar `python -m scripts.gate_rapido` mientras el cambio está en curso.
+3. Ejecutar pruebas focales de la zona tocada.
+4. Ejecutar `python -m scripts.gate_pr` antes de cerrar.
+5. Si falla, corregir y repetir; no abrir PR con el gate rojo.
 
-- `python -m scripts.gate_pr`
+## Tiempos objetivo orientativos
+
+No son métricas de marketing; sirven para detectar cuando una suite se volvió desproporcionada:
+
+- **Core unitario (`tests/domain`, `tests/application`)**: debería responder en segundos.
+- **Suite `not ui`**: debería seguir siendo apta para uso frecuente durante desarrollo.
+- **Golden UI**: debe ser determinista y mucho más barata que un smoke gráfico real.
+- **Gate PR**: puede tardar más, pero debe seguir siendo ejecutable localmente sin pasos manuales ocultos.
+
+Si alguna franja se degrada de forma sostenida, hay que revisar duplicación, setup innecesario o acoplamiento accidental.
+
+## Validación Windows
+
+### Script contractual de tests
+
+```bat
+ejecutar_tests.bat
+```
+
+Debe dejar cobertura, logs y resumen de ejecución en `logs/`.
+
+### Gate operativo completo en Windows
+
+```bat
+quality_gate.bat
+```
+
+Ese script prepara entorno, ejecuta preflight, smoke contractual y cobertura para operadores Windows.
+
+## Dependencias que no deben faltar
+
+- `pytest`
+- `pytest-cov`
+- `ruff`
+- `radon`
+- `pytest-qt` para suites UI reales
+
+La nota práctica es simple: instala `requirements-dev.txt` y evita entornos a medias.
+
+## Auditoría E2E
+
+Para generar evidencia auditable del producto:
+
+```bash
+python -m app.entrypoints.cli_auditoria --dry-run
+python -m app.entrypoints.cli_auditoria --write
+```
+
+Los artefactos válidos salen en `logs/evidencias/<ID>/`.
+
+## Qué no hacer
+
+- No sustituir `python -m scripts.gate_pr` por scripts ad hoc.
+- No mezclar resultados UI manuales con evidencias automáticas sin dejar rastro.
+- No aceptar suites inestables basadas en sleeps o estado global implícito.
+- No meter lógica de negocio en tests UI cuando puede cubrirse de forma pura en dominio/aplicación.

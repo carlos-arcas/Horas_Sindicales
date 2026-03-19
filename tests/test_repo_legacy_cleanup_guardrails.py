@@ -77,6 +77,9 @@ ARCHIVOS_ELIMINADOS_PROHIBIDOS = [
     Path("docs/naming_transicion.md"),
     Path("docs/quality_gate.md"),
     Path("docs/coverage_scope.md"),
+    Path("docs/auditoria_arranque.md"),
+    Path("docs/auditorias/auditoria_use_cases_gigantes.md"),
+    Path(".gitkeep"),
     Path("scripts/gate_local.py"),
 ]
 
