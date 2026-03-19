@@ -31,9 +31,12 @@ def test_controles_mutantes_auditados_tienen_object_name_y_resuelven_ui_real(
 
     try:
         pump_events()
+        auditoria: list[str] = []
         for descriptor in ACCIONES_MUTANTES_AUDITADAS_UI:
             control = resolver_control_mutante(window, descriptor)
+            encontrados = window.findChildren(object, descriptor.object_name)
             assert control is not None, descriptor.object_name
+            assert len(encontrados) == 1, descriptor.object_name
             assert control.objectName() == descriptor.object_name, (
                 descriptor.object_name
             )
@@ -41,10 +44,14 @@ def test_controles_mutantes_auditados_tienen_object_name_y_resuelven_ui_real(
                 getattr(window, descriptor.object_name).objectName()
                 == descriptor.object_name
             )
+            auditoria.append(
+                f"{descriptor.object_name}:{descriptor.tipo_control}:{type(control).__name__}"
+            )
             if descriptor.tipo_control == "action":
                 assert isinstance(control, QAction)
             else:
                 assert isinstance(control, QWidget)
+        assert len(auditoria) == len(ACCIONES_MUTANTES_AUDITADAS_UI)
     finally:
         close_window(window)
         app.processEvents()

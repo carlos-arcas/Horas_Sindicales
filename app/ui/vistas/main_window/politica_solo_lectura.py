@@ -156,17 +156,7 @@ def aplicar_politica_solo_lectura(window: Any) -> None:
 def resolver_control_mutante(
     window: Any, descriptor: DescriptorAccionMutante
 ) -> Any | None:
-    control = _buscar_control_por_object_name(window, descriptor.object_name)
-    if control is not None:
-        return control
-    return _obtener_control_por_atributo_compatible(window, descriptor.object_name)
-
-
-def _obtener_control_por_atributo_compatible(window: Any, object_name: str) -> Any | None:
-    control = getattr(window, object_name, None)
-    if _coincide_object_name(control, object_name):
-        return control
-    return None
+    return _buscar_control_por_object_name(window, descriptor.object_name)
 
 
 def _coincide_object_name(control: Any | None, object_name: str) -> bool:
