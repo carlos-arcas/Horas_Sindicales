@@ -63,6 +63,7 @@ Para ejecución de auditoría con escritura de evidencias (modo no simulación),
 
 - [ ] PASS / [ ] FAIL — Existe documentación mínima de arquitectura, pruebas, logging y operación.
 - [ ] PASS / [ ] FAIL — Este documento (`docs/definicion_producto_final.md`) está actualizado con el estado real.
+- [ ] PASS / [ ] FAIL — Existe evidencia específica de cierre de readonly en `docs/readonly_done_checklist.md`.
 
 ### H) Versionado (VERSION + CHANGELOG)
 
@@ -98,3 +99,8 @@ No se acepta el cierre por “funciona en mi máquina Linux/macOS” ni por vali
 ## Condición de cierre
 
 Solo se puede declarar “Producto Final” cuando todos los puntos A–I estén en PASS con evidencia verificable y el criterio de realidad quede satisfecho en Windows real.
+
+
+## Cierres específicos congelados
+
+- `docs/readonly_done_checklist.md`: evidencia auditable para declarar el alcance y estado final de la política readonly.
