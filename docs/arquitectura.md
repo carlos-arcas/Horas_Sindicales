@@ -2,77 +2,77 @@
 
 ## Objetivo
 
-Este documento describe la arquitectura vigente a nivel de capas, sus límites de responsabilidad y las reglas de dependencia que se validan en el repositorio.
+Describir la arquitectura vigente del producto y las restricciones que deben mantenerse al limpiar o ampliar el repositorio. El sistema es una **aplicación desktop en Python + PySide6** con núcleo desacoplado de la UI.
 
-## Diagrama de capas (ASCII)
+## Capas activas
 
 ```text
 +---------------------------+
 | UI (app/ui)               |
-| Pantallas, diálogos, Qt   |
+| Ventanas, diálogos, Qt    |
 +-------------+-------------+
               |
               v
 +-------------+-------------+
 | Aplicación (app/application)
-| Casos de uso, orquestación |
+| Casos de uso, DTOs, reglas |
 +-------------+-------------+
               |
               v
 +-------------+-------------+
 | Dominio (app/domain)       |
-| Entidades y reglas negocio |
+| Entidades y políticas puras|
 +-------------+-------------+
               ^
               |
 +-------------+-------------+
-| Infraestructura (app/infrastructure)
-| SQLite, Sheets, adapters   |
+| Infraestructura            |
+| SQLite, FS, Sheets, i18n   |
 +---------------------------+
 ```
 
 Cadena canónica de dependencias:
 
 - `dominio <- aplicacion <- ui`
-- `dominio <- aplicacion <- infraestructura` (la infraestructura implementa puertos consumidos por aplicación).
+- `dominio <- aplicacion <- infraestructura`
 
-## Reglas de dependencia
+## Reglas duras
 
-1. **Dominio** no depende de UI ni de detalles de infraestructura.
-2. **Aplicación** depende del dominio y de puertos/DTOs de aplicación.
-3. **Infraestructura** puede depender de dominio/aplicación para implementar contratos, pero no debe imponer reglas de negocio.
-4. **UI** consume casos de uso y servicios de aplicación; no debe contener reglas de negocio complejas.
-5. **Entrypoints/Bootstrap** realizan wiring e inyección de dependencias concretas.
+1. **Dominio** no depende de UI, infraestructura ni entrypoints.
+2. **Aplicación** orquesta casos de uso y puertos; no mete detalles de framework o persistencia.
+3. **Infraestructura** implementa puertos y adaptadores concretos; no define reglas de negocio.
+4. **UI** coordina interacción y render; no decide reglas de negocio complejas.
+5. **Bootstrap y entrypoints** resuelven wiring, logging y configuración.
 
-## Estado actual y límites
+## Estado del repositorio
 
-- El proyecto sigue una arquitectura por capas pragmática, no una Clean Architecture estricta.
-- Existen integraciones con SQLite y Google Sheets aisladas mayormente en infraestructura.
-- La trazabilidad operativa se centraliza mediante eventos estructurados con `correlation_id`.
-- `app/` continúa siendo la implementación actual (sin renombres masivos en esta etapa).
-- `dominio/`, `aplicacion/`, `infraestructura/` y `presentacion/` funcionan como paquetes puente de compatibilidad que reexportan desde `app/`.
-
-### Estrategia de transición (sin big-bang)
-
-1. Mantener `app/` estable como fuente real mientras se evita romper entrypoints y scripts existentes.
-2. Exponer nuevas rutas de import en español mediante wrappers (`dominio`, `aplicacion`, `infraestructura`, `presentacion`).
-3. Redirigir gradualmente módulos nuevos hacia los paquetes en español, sin mover cientos de archivos de una sola vez.
-4. Una vez estabilizado el repositorio, planificar el movimiento físico definitivo hacia carpetas en español.
+- La fuente real del producto vive en `app/`.
+- Los paquetes `dominio/`, `aplicacion/` e `infraestructura/` se mantienen como puentes de compatibilidad controlados para imports en español.
+- Los gates del repositorio validan límites de capas, contratos de documentación, i18n y tests core.
+- La limpieza del repositorio debe eliminar residuos ajenos al producto desktop, no relajar estas fronteras.
 
 ## Verificación automática relacionada
 
-- `tests/test_architecture_imports.py` valida restricciones de imports por capas.
-- `tests/test_docs_minimas.py` valida presencia y contenido mínimo de esta documentación obligatoria.
+- `tests/test_architecture_imports.py` valida dependencias permitidas entre capas.
+- `tests/test_clean_architecture_imports_guard.py` refuerza el guardarraíl estructural.
+- `scripts/auditar_clean_architecture.py` genera evidencia documental para auditoría.
 
-## Pendientes de completar
+## Criterio práctico para cambios
 
-- Pendiente de completar un diagrama C4 (contexto/contenedores) si se requiere para auditoría externa.
-- Pendiente de completar inventario de dependencias externas por flujo crítico.
+Antes de aceptar un cambio, verificar:
 
-## Flujo de reportes de contenido y moderación admin
+- si el flujo nuevo entra por UI/entrypoint y termina en aplicación/dominio;
+- si los textos visibles siguen en i18n;
+- si el wiring queda en bootstrap/entrypoints;
+- si el adaptador concreto se puede sustituir sin tocar reglas del dominio.
 
-- **Dominio (`app/domain/reportes_contenido.py`)**: entidad inmutable `ReporteContenido`, catálogos estables y validaciones.
-- **Aplicación (`app/application/reportes`)**: casos de uso para crear, listar y resolver reportes.
-- **Infraestructura (`app/infrastructure/reportes_sqlite.py`)**: persistencia SQLite con idempotencia en estado pendiente y auditoría de seguridad.
-- **Auditoría**: al resolver un reporte se registra `tipo_evento=admin_reporte_resuelto`.
-- **Moderación**: acción `ocultar_recurso` opera sobre soft-delete (`deleted=1`) de recursos locales.
+## Integraciones relevantes
+
+- **SQLite** para persistencia local y auditoría.
+- **Google Sheets** para sincronización operativa.
+- **ReportLab** para generación de PDF.
+- **PySide6** como toolkit de escritorio.
+
+## Lo que quedó fuera
+
+El repositorio activo ya no documenta ni conserva verticales web heredadas como parte del producto. Si reaparece código de otro stack, debe justificarse como integración real o eliminarse.

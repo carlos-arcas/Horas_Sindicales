@@ -1,9 +1,14 @@
 # README técnico
 
+## Propósito
+
+Este documento resume el uso técnico mínimo del repositorio activo. El producto es una **aplicación desktop en Python + PySide6**; la documentación y los comandos deben reflejar ese alcance real.
+
 ## Requisitos
 
 - Python 3.11+
 - Dependencias de `requirements.txt` y `requirements-dev.txt`
+- Entorno capaz de ejecutar PySide6 para las pruebas UI reales
 
 ## Instalación
 
@@ -12,33 +17,50 @@ python -m pip install -r requirements.txt
 python -m pip install -r requirements-dev.txt
 ```
 
-## Desarrollo
-
-### Ejecutar aplicación
+## Arranque
 
 ```bash
 python -m app
 ```
 
-### Auditoría por CLI
+## Gates y validación
+
+### Gate canónico de PR
 
 ```bash
-python -m app.entrypoints.cli_auditoria --help
+python -m scripts.gate_pr
 ```
 
-### Calidad y tests
+### Gate rápido
 
 ```bash
-ruff check .
+python -m scripts.gate_rapido
+```
+
+### Compatibilidad operativa
+
+```bash
+python scripts/quality_gate.py
+python scripts/preflight_tests.py
+python scripts/coverage_summary.py
+python scripts/report_quality.py
+```
+
+## Pruebas
+
+```bash
 pytest -q -m "not ui"
+pytest -q tests/golden/botones
 ```
 
-## Comandos útiles
+## Estructura viva
 
-- `python -m scripts.quality_gate`
-- `python scripts/preflight_tests.py`
-- `python scripts/coverage_summary.py`
-- `python scripts/report_quality.py`
+- `app/domain`: reglas de negocio puras.
+- `app/application`: casos de uso y orquestación.
+- `app/infrastructure`: SQLite, filesystem, Google Sheets y adaptadores.
+- `app/ui`: ventanas, diálogos, builders y presenters Qt.
+- `scripts`: gates, auditorías y automatización de soporte.
+- `tests`: contratos, regresiones, golden tests y pruebas de integración.
 
 ## UI
 
@@ -49,9 +71,10 @@ pytest -q -m "not ui"
 
 Resumen operativo:
 
-1. Configura credenciales y parámetros locales.
-2. Verifica precondiciones de red/API.
-3. Ejecuta sincronización desde UI o desde casos de uso de aplicación.
+1. Configurar credenciales y parámetros locales.
+2. Verificar preflight y permisos.
+3. Ejecutar la sincronización desde la UI o desde los casos de uso.
+4. Revisar reportes y logs generados en `logs/`.
 
 Referencia extendida:
 

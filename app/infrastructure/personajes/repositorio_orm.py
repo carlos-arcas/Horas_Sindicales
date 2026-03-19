@@ -7,7 +7,7 @@ from app.domain.personajes import Personaje
 
 
 class RepositorioPersonajeORM:
-    """Adaptador simple para pruebas; permite inyectar persistencia real desde Django."""
+    """Repositorio en memoria para pruebas y wiring local del módulo de personajes."""
 
     def __init__(self) -> None:
         self._items: dict[UUID, Personaje] = {}
