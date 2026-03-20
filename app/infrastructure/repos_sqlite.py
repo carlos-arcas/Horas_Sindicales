@@ -452,7 +452,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         *,
         excluir_solicitud_id: int | None = None,
     ) -> ConflictoSolicitud | None:
-        """Detecta conflicto comparando solo contra solicitudes pendientes activas."""
+        """Detecta conflicto solo contra pendientes activas (generated = 0 y no borradas)."""
         fecha_normalizada = _normalizar_fecha_iso(fecha_pedida)
         desde_normalizado = _normalizar_minutos(desde_min)
         hasta_normalizado = _normalizar_minutos(hasta_min)
