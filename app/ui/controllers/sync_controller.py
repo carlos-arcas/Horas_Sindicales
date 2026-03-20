@@ -17,6 +17,7 @@ from app.ui.controllers.sync_button_state_rules import (
 )
 from app.ui.vistas.compat_i18n import resolver_texto_i18n
 from app.ui.vistas.main_window.state_helpers import resolve_active_delegada_id
+from app.ui.vistas.main_window.politica_solo_lectura import aplicar_politica_solo_lectura
 
 
 try:
@@ -268,6 +269,8 @@ class SyncController:
             _aplicar_decision_boton(
                 w.copy_sync_report_button, decision.copy_sync_report
             )
+
+        aplicar_politica_solo_lectura(w)
 
     def on_open_opciones(self) -> None:
         w = self.window
