@@ -5,9 +5,45 @@ from unittest.mock import Mock
 
 import pytest
 
+from app.application.modo_solo_lectura import crear_estado_modo_solo_lectura
+from app.ui.copy_catalog import copy_text
+from app.ui.vistas.main_window.politica_solo_lectura import aplicar_politica_solo_lectura
+
 from app.domain.sheets_errors import SheetsPermissionError
 from app.ui.controllers import sync_controller as module
 from app.ui.controllers.sync_controller import SyncController, _SyncWorker
+
+
+class _BotonStub:
+    def __init__(self, *, text: str = '', tooltip: str = '') -> None:
+        self.enabled = None
+        self._text = text
+        self._tooltip = tooltip
+        self._object_name = ''
+
+    def setEnabled(self, enabled: bool) -> None:
+        self.enabled = enabled
+
+    def isEnabled(self) -> bool | None:
+        return self.enabled
+
+    def setText(self, text: str) -> None:
+        self._text = text
+
+    def text(self) -> str:
+        return self._text
+
+    def setToolTip(self, tooltip: str) -> None:
+        self._tooltip = tooltip
+
+    def toolTip(self) -> str:
+        return self._tooltip
+
+    def setObjectName(self, object_name: str) -> None:
+        self._object_name = object_name
+
+    def objectName(self) -> str:
+        return self._object_name
 
 
 class _FakeSignal:
@@ -60,6 +96,7 @@ def _build_window() -> SimpleNamespace:
             sync_bidirectional=Mock(return_value={"ok": True}),
             get_service_account_email=Mock(return_value="sync-bot@example.iam.gserviceaccount.com"),
         ),
+        _estado_modo_solo_lectura=crear_estado_modo_solo_lectura(lambda: False),
         _set_sync_in_progress=Mock(),
         _on_sync_finished=Mock(),
         _on_sync_failed=Mock(),
@@ -263,3 +300,96 @@ def test_failed_callback_tardio_no_reescribe_contexto_activo(monkeypatch) -> Non
     window._on_sync_failed.assert_not_called()
     window._set_sync_in_progress.assert_called_once_with(False)
     assert window._pending_sync_plan is None
+
+
+def _build_read_only_window(*, solo_lectura: bool) -> SimpleNamespace:
+    botones = {
+        nombre: _BotonStub(text=nombre, tooltip=f'tooltip:{nombre}')
+        for nombre in (
+            'sync_button',
+            'simulate_sync_button',
+            'confirm_sync_button',
+            'retry_failed_button',
+            'sync_details_button',
+            'copy_sync_report_button',
+            'review_conflicts_button',
+        )
+    }
+    for nombre, boton in botones.items():
+        boton.setObjectName(nombre)
+    window = SimpleNamespace(
+        _sync_in_progress=False,
+        _sync_service=SimpleNamespace(is_configured=Mock(return_value=True)),
+        _conflicts_service=SimpleNamespace(count_conflicts=Mock(return_value=2)),
+        _pending_sync_plan=SimpleNamespace(has_changes=True, conflicts=()),
+        _last_sync_report=SimpleNamespace(errors=1, conflicts=0),
+        _estado_modo_solo_lectura=crear_estado_modo_solo_lectura(lambda: solo_lectura),
+        _update_conflicts_reminder=Mock(),
+        findChildren=lambda _tipo, object_name=None: [
+            boton
+            for boton in botones.values()
+            if object_name is None or boton.objectName() == object_name
+        ],
+        **botones,
+    )
+    return window
+
+
+@pytest.mark.headless_safe
+def test_update_sync_button_state_read_only_tiene_precedencia_final_sobre_botones_mutantes() -> None:
+    window = _build_read_only_window(solo_lectura=True)
+    controller = SyncController(window)
+
+    controller.update_sync_button_state()
+
+    tooltip_bloqueado = copy_text('ui.read_only.tooltip_mutacion_bloqueada')
+    assert window.sync_button.isEnabled() is False
+    assert window.confirm_sync_button.isEnabled() is False
+    assert window.retry_failed_button.isEnabled() is False
+    assert window.sync_button.toolTip() == tooltip_bloqueado
+    assert window.confirm_sync_button.toolTip() == tooltip_bloqueado
+    assert window.retry_failed_button.toolTip() == tooltip_bloqueado
+    assert window.sync_details_button.isEnabled() is True
+    assert window.copy_sync_report_button.isEnabled() is True
+
+
+@pytest.mark.headless_safe
+def test_update_sync_button_state_respeta_bloqueo_read_only_en_secuencia_de_arranque() -> None:
+    window = _build_read_only_window(solo_lectura=True)
+    aplicar_politica_solo_lectura(window)
+    controller = SyncController(window)
+
+    controller.update_sync_button_state()
+
+    assert window.sync_button.isEnabled() is False
+    assert window.confirm_sync_button.isEnabled() is False
+    assert window.retry_failed_button.isEnabled() is False
+
+
+@pytest.mark.headless_safe
+def test_update_sync_button_state_no_regresa_en_modo_normal() -> None:
+    window = _build_read_only_window(solo_lectura=False)
+    controller = SyncController(window)
+
+    controller.update_sync_button_state()
+
+    assert window.sync_button.isEnabled() is True
+    assert window.confirm_sync_button.isEnabled() is True
+    assert window.retry_failed_button.isEnabled() is True
+    assert window.sync_details_button.isEnabled() is True
+    assert window.copy_sync_report_button.isEnabled() is True
+
+
+@pytest.mark.headless_safe
+def test_guardrail_sync_no_puede_dejar_habilitado_inventario_mutante_en_read_only() -> None:
+    window = _build_read_only_window(solo_lectura=True)
+    controller = SyncController(window)
+
+    controller.update_sync_button_state()
+
+    inventario_mutante_sync = (
+        window.sync_button,
+        window.confirm_sync_button,
+        window.retry_failed_button,
+    )
+    assert all(boton.isEnabled() is False for boton in inventario_mutante_sync)
