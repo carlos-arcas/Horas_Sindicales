@@ -19,7 +19,9 @@ class _QtDummyModule(types.ModuleType):
         return type(name, (), {})
 
 
-def _crear_stub_pyside() -> tuple[types.ModuleType, types.ModuleType, types.ModuleType, types.ModuleType]:
+def _crear_stub_pyside() -> tuple[
+    types.ModuleType, types.ModuleType, types.ModuleType, types.ModuleType
+]:
     pyside = types.ModuleType("PySide6")
     qt_widgets = _QtDummyModule("PySide6.QtWidgets")
     qt_core = _QtDummyModule("PySide6.QtCore")
@@ -46,7 +48,9 @@ def estado_utils(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setitem(sys.modules, "PySide6.QtCore", qt_core)
     monkeypatch.setitem(sys.modules, "PySide6.QtGui", qt_gui)
 
-    modulo = importlib.import_module("app.ui.vistas.main_window.utilidades_controlador_estado")
+    modulo = importlib.import_module(
+        "app.ui.vistas.main_window.utilidades_controlador_estado"
+    )
     yield modulo
     importlib.invalidate_caches()
     sys.modules.pop("app.ui.vistas.main_window.utilidades_controlador_estado", None)
@@ -87,7 +91,11 @@ def test_configure_time_placeholders_resuelve_desde_i18n_sin_excepcion(
     estado_utils,
 ) -> None:
     window = _FakeWindow()
-    monkeypatch.setattr(estado_utils.handlers_layout, "configure_time_placeholders", lambda _window: None)
+    monkeypatch.setattr(
+        estado_utils.handlers_layout,
+        "configure_time_placeholders",
+        lambda _window: None,
+    )
 
     estado_utils.configure_time_placeholders(window)
 
@@ -165,7 +173,9 @@ class _ThreadEspia:
         _ThreadEspia.starts += 1
 
 
-def test_warmup_sync_client_lanza_hilo_y_no_bloquea(monkeypatch: pytest.MonkeyPatch, estado_utils) -> None:
+def test_warmup_sync_client_lanza_hilo_y_no_bloquea(
+    monkeypatch: pytest.MonkeyPatch, estado_utils
+) -> None:
     service = _SyncServiceContador()
     window = _SyncWindow(service)
 
@@ -184,7 +194,9 @@ def test_warmup_sync_client_lanza_hilo_y_no_bloquea(monkeypatch: pytest.MonkeyPa
     assert service.calls == 1
 
 
-def test_warmup_sync_client_es_idempotente(monkeypatch: pytest.MonkeyPatch, estado_utils) -> None:
+def test_warmup_sync_client_es_idempotente(
+    monkeypatch: pytest.MonkeyPatch, estado_utils
+) -> None:
     service = _SyncServiceContador()
     window = _SyncWindow(service)
 
@@ -195,6 +207,48 @@ def test_warmup_sync_client_es_idempotente(monkeypatch: pytest.MonkeyPatch, esta
 
     assert _ThreadEspia.creations == 1
     assert _ThreadEspia.starts == 1
+
+
+class _LoggerOperacionalFalso:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+
+class _SyncServiceFallaSiempre:
+    def ensure_connection(self) -> None:
+        raise RuntimeError("boom")
+
+
+def test_warmup_sync_client_loguea_error_operacional_si_falla(
+    monkeypatch: pytest.MonkeyPatch,
+    estado_utils,
+) -> None:
+    logger = _LoggerOperacionalFalso()
+    window = _SyncWindow(_SyncServiceFallaSiempre())
+    registros: list[dict[str, object]] = []
+
+    monkeypatch.setattr(estado_utils.threading, "Thread", _ThreadEspia)
+
+    def _fake_log_operational_error(logger_obj, code, *, exc, extra):
+        registros.append(
+            {"logger": logger_obj, "code": code, "exc": exc, "extra": extra}
+        )
+
+    monkeypatch.setattr(
+        estado_utils, "log_operational_error", _fake_log_operational_error
+    )
+
+    estado_utils.warmup_sync_client(window, logger)
+
+    assert callable(_ThreadEspia.last_target)
+
+    _ThreadEspia.last_target()
+
+    assert len(registros) == 1
+    assert registros[0]["logger"] is logger
+    assert registros[0]["code"] == "SYNC_WARMUP_FAILED"
+    assert isinstance(registros[0]["exc"], RuntimeError)
+    assert registros[0]["extra"] == {"operation": "sync_warmup"}
 
 
 class _SyncServiceSinEnsure:
