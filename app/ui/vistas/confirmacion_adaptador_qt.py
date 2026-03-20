@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 
 def prompt_confirm_pdf_path(window: Any, selected: list[SolicitudDTO]) -> str | None:
-    default_name = window._servicio_destino_pdf_confirmacion.sugerir_nombre_pdf(selected)
+    default_name = window._servicio_destino_pdf_confirmacion.sugerir_nombre_pdf(
+        selected
+    )
     default_path = str(Path.home() / default_name)
     pdf_path, _ = QFileDialog.getSaveFileName(
         window,
@@ -43,9 +45,16 @@ def resolver_colision_destino_pdf(window: Any, pdf_path: str) -> str | None:
     dialog.setText(copy_text("ui.confirmacion.archivo_ya_existe_texto"))
     dialog.setInformativeText(copy_text("ui.confirmacion.archivo_ya_existe_info"))
     rename_button = _add_rename_button(dialog, alternativa)
-    change_folder_button = dialog.addButton(copy_text("ui.confirmacion.cambiar_carpeta"), QMessageBox.ButtonRole.ActionRole)
-    overwrite_button = dialog.addButton(copy_text("ui.confirmacion.sobrescribir"), QMessageBox.ButtonRole.DestructiveRole)
-    cancel_button = dialog.addButton(copy_text("ui.confirmacion.cancelar"), QMessageBox.ButtonRole.RejectRole)
+    change_folder_button = dialog.addButton(
+        copy_text("ui.confirmacion.cambiar_carpeta"), QMessageBox.ButtonRole.ActionRole
+    )
+    overwrite_button = dialog.addButton(
+        copy_text("ui.confirmacion.sobrescribir"),
+        QMessageBox.ButtonRole.DestructiveRole,
+    )
+    cancel_button = dialog.addButton(
+        copy_text("ui.confirmacion.cancelar"), QMessageBox.ButtonRole.RejectRole
+    )
     dialog.exec()
     clicked = dialog.clickedButton()
     if rename_button is not None and clicked is rename_button:
@@ -74,9 +83,15 @@ def show_pdf_actions_dialog(window: Any, generated_path: Path) -> None:
     dialog = QMessageBox(window)
     dialog.setWindowTitle(copy_text("ui.confirmacion.pdf_generado_titulo"))
     dialog.setText(copy_text("ui.confirmacion.ok_pdf_generado"))
-    open_pdf_button = dialog.addButton(copy_text("ui.confirmacion.abrir_pdf"), QMessageBox.ButtonRole.ActionRole)
-    open_folder_button = dialog.addButton(copy_text("ui.confirmacion.abrir_carpeta"), QMessageBox.ButtonRole.ActionRole)
-    close_button = dialog.addButton(copy_text("ui.confirmacion.cerrar"), QMessageBox.ButtonRole.RejectRole)
+    open_pdf_button = dialog.addButton(
+        copy_text("ui.confirmacion.abrir_pdf"), QMessageBox.ButtonRole.ActionRole
+    )
+    open_folder_button = dialog.addButton(
+        copy_text("ui.confirmacion.abrir_carpeta"), QMessageBox.ButtonRole.ActionRole
+    )
+    close_button = dialog.addButton(
+        copy_text("ui.confirmacion.cerrar"), QMessageBox.ButtonRole.RejectRole
+    )
     dialog.exec()
     clicked = dialog.clickedButton()
     if clicked is open_pdf_button:
@@ -91,7 +106,9 @@ def ask_push_after_pdf(window: Any) -> None:
     dialog = QMessageBox(window)
     dialog.setWindowTitle(copy_text("ui.confirmacion.pdf_generado_titulo"))
     dialog.setText(copy_text("ui.confirmacion.sync_despues_pdf_pregunta"))
-    subir_button = dialog.addButton(copy_text("ui.confirmacion.subir_ahora"), QMessageBox.AcceptRole)
+    subir_button = dialog.addButton(
+        copy_text("ui.confirmacion.subir_ahora"), QMessageBox.AcceptRole
+    )
     dialog.addButton(copy_text("ui.confirmacion.mas_tarde"), QMessageBox.RejectRole)
     dialog.exec()
     if dialog.clickedButton() == subir_button:
@@ -100,29 +117,48 @@ def ask_push_after_pdf(window: Any) -> None:
 
 def apply_show_error(window: Any, action: ConfirmAction) -> None:
     if action.message:
-        window.toast.warning(action.message, title=action.title or copy_text("ui.validacion.validacion"))
+        window.toast.warning(
+            action.message, title=action.title or copy_text("ui.validacion.validacion")
+        )
 
 
 def apply_prompt_pdf(window: Any, selected: list[SolicitudDTO]) -> str | None:
     if not selected:
-        window.toast.warning(copy_text("ui.confirmacion.sin_seleccion"), title=copy_text("ui.validacion.validacion"))
+        window.toast.warning(
+            copy_text("ui.confirmacion.sin_seleccion"),
+            title=copy_text("ui.validacion.validacion"),
+        )
         return None
     pdf_path = window._prompt_confirm_pdf_path(selected)
-    logger.info("UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN", extra={"pdf_path": pdf_path, "selected_ids_count": len(selected)})
+    logger.info(
+        "UI_CONFIRMAR_PDF_SAVE_PATH_CHOSEN",
+        extra={"pdf_path": pdf_path, "selected_ids_count": len(selected)},
+    )
     window._last_selected_pdf_path = pdf_path
     if pdf_path is None:
         return None
     if not pdf_path:
-        window.toast.warning(copy_text("ui.confirmacion.pdf_destino_obligatorio"), title=copy_text("ui.validacion.validacion"))
+        window.toast.warning(
+            copy_text("ui.confirmacion.pdf_destino_obligatorio"),
+            title=copy_text("ui.validacion.validacion"),
+        )
     return pdf_path
 
 
-def apply_confirm(window: Any, persona: PersonaDTO | None, selected: list[SolicitudDTO], pdf_path: str | None) -> ResultadoConfirmacionFlujo | None:
+def apply_confirm(
+    window: Any,
+    persona: PersonaDTO | None,
+    selected: list[SolicitudDTO],
+    pdf_path: str | None,
+) -> ResultadoConfirmacionFlujo | None:
     if persona is None or pdf_path is None:
         return None
     try:
         resultado = window._execute_confirmar_with_pdf(persona, selected, pdf_path)
-        logger.info("UI_CONFIRMAR_PDF_EXECUTE_OK", extra={"selected_ids_count": len(selected), "pdf_path": pdf_path})
+        logger.info(
+            "UI_CONFIRMAR_PDF_EXECUTE_OK",
+            extra={"selected_ids_count": len(selected), "pdf_path": pdf_path},
+        )
         return resultado
     except Exception as exc:
         logger.exception("UI_CONFIRMAR_PDF_EXECUTE_ERROR")
@@ -133,11 +169,16 @@ def apply_confirm(window: Any, persona: PersonaDTO | None, selected: list[Solici
             extra={"selected_ids_count": len(selected), "pdf_path": pdf_path},
         )
         window._set_processing_state(False)
-        window._toast_error(copy_text("ui.confirmacion.error_generar_pdf"), title=copy_text("ui.validacion.validacion"))
+        window._toast_error(
+            copy_text("ui.confirmacion.error_generar_pdf"),
+            title=copy_text("ui.validacion.validacion"),
+        )
         return None
 
 
-def apply_finalize(window: Any, persona: PersonaDTO | None, outcome: ResultadoConfirmacionFlujo | None) -> None:
+def apply_finalize(
+    window: Any, persona: PersonaDTO | None, outcome: ResultadoConfirmacionFlujo | None
+) -> None:
     if persona is None or outcome is None:
         logger.info(
             "UI_CONFIRMAR_TOAST_SUCCESS_DESCARTADO",
@@ -145,8 +186,11 @@ def apply_finalize(window: Any, persona: PersonaDTO | None, outcome: ResultadoCo
         )
         return
     resultado = outcome.resultado
-    logger.debug("_on_confirmar paso=resultado_execute pdf_generado=%s", str(resultado.pdf_generado) if resultado.pdf_generado else None)
-    window._finalize_confirmar_with_pdf(
+    logger.debug(
+        "_on_confirmar paso=resultado_execute pdf_generado=%s",
+        str(resultado.pdf_generado) if resultado.pdf_generado else None,
+    )
+    exito_visible = window._finalize_confirmar_with_pdf(
         persona,
         outcome.correlation_id,
         resultado.pdf_generado,
@@ -165,18 +209,6 @@ def apply_finalize(window: Any, persona: PersonaDTO | None, outcome: ResultadoCo
             "sync_permitido": resultado.sync_permitido,
             "estado": resultado.estado,
             "correlation_id": outcome.correlation_id,
+            "exito_visible": exito_visible,
         },
     )
-    if resultado.pdf_generado is None or not resultado.pdf_generado.exists():
-        logger.warning(
-            "UI_CONFIRMAR_TOAST_SUCCESS_DESCARTADO",
-            extra={
-                "motivo": "pdf_no_generado_o_inexistente",
-                "pdf_generado": bool(resultado.pdf_generado),
-                "sync_permitido": resultado.sync_permitido,
-                "estado": resultado.estado,
-                "correlation_id": outcome.correlation_id,
-                "confirmadas_count": resultado.confirmadas,
-                "errores_count": len(resultado.errores),
-            },
-        )

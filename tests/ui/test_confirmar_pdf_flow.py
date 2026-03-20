@@ -10,7 +10,9 @@ from tests.ui.conftest import require_qt
 require_qt()
 
 from app.application.dto import SolicitudDTO
-from app.application.use_cases.confirmacion_pdf.modelos import SolicitudConfirmarPdfResultado
+from app.application.use_cases.confirmacion_pdf.modelos import (
+    SolicitudConfirmarPdfResultado,
+)
 from app.ui.vistas import confirmacion_actions
 from app.ui.vistas.confirmacion_orquestacion import ResultadoConfirmacionFlujo
 
@@ -128,17 +130,24 @@ def test_error_del_use_case_muestra_toast_error_y_rehabilita_ui() -> None:
     window._set_processing_state.assert_called_with(False)
 
 
-
 def _build_window_finalize(eventos: list[str]) -> SimpleNamespace:
     return SimpleNamespace(
         abrir_pdf_check=SimpleNamespace(isChecked=lambda: False),
-        _procesar_resultado_confirmacion=lambda *_args: eventos.append("insertar_historico"),
-        _notify_historico_filter_if_hidden=lambda *_args: eventos.append("notificar_historico"),
-        _sync_service=SimpleNamespace(register_pdf_log=lambda *_args: eventos.append("registrar_pdf_log")),
+        _procesar_resultado_confirmacion=lambda *_args: eventos.append(
+            "insertar_historico"
+        ),
+        _notify_historico_filter_if_hidden=lambda *_args: eventos.append(
+            "notificar_historico"
+        ),
+        _sync_service=SimpleNamespace(
+            register_pdf_log=lambda *_args: eventos.append("registrar_pdf_log")
+        ),
         _toast_success=lambda *_args, **_kwargs: eventos.append("toast_ok"),
         _show_pdf_actions_dialog=lambda *_args: eventos.append("dialogo_pdf"),
         _ask_push_after_pdf=lambda: eventos.append("preguntar_sync"),
-        _show_confirmation_closure=lambda *_args, **_kwargs: eventos.append("cierre_detalle"),
+        _show_confirmation_closure=lambda *_args, **_kwargs: eventos.append(
+            "cierre_detalle"
+        ),
     )
 
 
@@ -158,18 +167,24 @@ def _build_solicitud_confirmada() -> SolicitudDTO:
     )
 
 
-def test_finalize_confirmar_with_pdf_respeta_orden_historico_pdf_y_sync(monkeypatch) -> None:
+def test_finalize_confirmar_with_pdf_respeta_orden_historico_pdf_y_sync(
+    monkeypatch,
+) -> None:
     eventos: list[str] = []
     window = _build_window_finalize(eventos)
     persona = SimpleNamespace(id=1)
-    ruta_pdf = Path('/tmp/salida.pdf')
-    monkeypatch.setattr(confirmacion_actions, 'abrir_archivo_local', lambda *_args: eventos.append('abrir_pdf'))
-    monkeypatch.setattr(Path, 'exists', lambda self: self == ruta_pdf)
+    ruta_pdf = Path("/tmp/salida.pdf")
+    monkeypatch.setattr(
+        confirmacion_actions,
+        "abrir_archivo_local",
+        lambda *_args: eventos.append("abrir_pdf"),
+    )
+    monkeypatch.setattr(Path, "exists", lambda self: self == ruta_pdf)
 
-    confirmacion_actions.finalize_confirmar_with_pdf(
+    exito_visible = confirmacion_actions.finalize_confirmar_with_pdf(
         window,
         persona,
-        'corr-1',
+        "corr-1",
         ruta_pdf,
         [_build_solicitud_confirmada()],
         [7],
@@ -177,17 +192,20 @@ def test_finalize_confirmar_with_pdf_respeta_orden_historico_pdf_y_sync(monkeypa
         [],
     )
 
+    assert exito_visible is True
     assert eventos == [
-        'insertar_historico',
-        'notificar_historico',
-        'registrar_pdf_log',
-        'toast_ok',
-        'dialogo_pdf',
-        'preguntar_sync',
+        "insertar_historico",
+        "notificar_historico",
+        "registrar_pdf_log",
+        "toast_ok",
+        "dialogo_pdf",
+        "preguntar_sync",
     ]
 
 
-def test_finalize_confirmar_with_pdf_si_register_pdf_log_falla_mantiene_exito_y_loguea(caplog, monkeypatch) -> None:
+def test_finalize_confirmar_with_pdf_si_register_pdf_log_falla_mantiene_exito_y_loguea(
+    caplog, monkeypatch
+) -> None:
     eventos: list[str] = []
 
     def _fallar_register_pdf_log(*_args) -> None:
@@ -196,14 +214,14 @@ def test_finalize_confirmar_with_pdf_si_register_pdf_log_falla_mantiene_exito_y_
     window = _build_window_finalize(eventos)
     window._sync_service = SimpleNamespace(register_pdf_log=_fallar_register_pdf_log)
     persona = SimpleNamespace(id=1)
-    ruta_pdf = Path('/tmp/salida.pdf')
-    monkeypatch.setattr(Path, 'exists', lambda self: self == ruta_pdf)
+    ruta_pdf = Path("/tmp/salida.pdf")
+    monkeypatch.setattr(Path, "exists", lambda self: self == ruta_pdf)
 
     with caplog.at_level(logging.ERROR):
-        confirmacion_actions.finalize_confirmar_with_pdf(
+        exito_visible = confirmacion_actions.finalize_confirmar_with_pdf(
             window,
             persona,
-            'corr-1',
+            "corr-1",
             ruta_pdf,
             [_build_solicitud_confirmada()],
             [7],
@@ -211,21 +229,29 @@ def test_finalize_confirmar_with_pdf_si_register_pdf_log_falla_mantiene_exito_y_
             [],
         )
 
+    assert exito_visible is True
     assert eventos == [
-        'insertar_historico',
-        'notificar_historico',
-        'toast_ok',
-        'dialogo_pdf',
-        'preguntar_sync',
+        "insertar_historico",
+        "notificar_historico",
+        "toast_ok",
+        "dialogo_pdf",
+        "preguntar_sync",
     ]
-    assert any(registro.getMessage() == 'ui.confirmacion.register_pdf_log_failed' for registro in caplog.records)
-    registro_error = next(registro for registro in caplog.records if registro.getMessage() == 'ui.confirmacion.register_pdf_log_failed')
+    assert any(
+        registro.getMessage() == "ui.confirmacion.register_pdf_log_failed"
+        for registro in caplog.records
+    )
+    registro_error = next(
+        registro
+        for registro in caplog.records
+        if registro.getMessage() == "ui.confirmacion.register_pdf_log_failed"
+    )
     assert registro_error.levelno == logging.ERROR
     assert registro_error.extra == {
-        'operation': 'confirmar_y_generar_pdf',
-        'persona_id': 1,
-        'fechas_count': 1,
-        'correlation_id': 'corr-1',
+        "operation": "confirmar_y_generar_pdf",
+        "persona_id": 1,
+        "fechas_count": 1,
+        "correlation_id": "corr-1",
     }
 
 
@@ -234,25 +260,109 @@ def test_finalize_confirmar_with_pdf_con_error_no_pide_sync_y_muestra_cierre() -
     window = _build_window_finalize(eventos)
     persona = SimpleNamespace(id=1)
 
-    confirmacion_actions.finalize_confirmar_with_pdf(
+    exito_visible = confirmacion_actions.finalize_confirmar_with_pdf(
         window,
         persona,
-        'corr-1',
+        "corr-1",
         None,
         [_build_solicitud_confirmada()],
         [],
-        ['error_pdf'],
+        ["error_pdf"],
         [],
     )
 
-    assert 'preguntar_sync' not in eventos
-    assert 'cierre_detalle' in eventos
+    assert exito_visible is False
+    assert "preguntar_sync" not in eventos
+    assert "cierre_detalle" in eventos
+
+
+def test_finalize_confirmar_with_pdf_descarta_exito_si_pdf_no_existe(
+    caplog, monkeypatch
+) -> None:
+    eventos: list[str] = []
+    window = _build_window_finalize(eventos)
+    persona = SimpleNamespace(id=1)
+    ruta_pdf = Path("/tmp/inexistente.pdf")
+    monkeypatch.setattr(Path, "exists", lambda self: False)
+
+    with caplog.at_level(logging.WARNING):
+        exito_visible = confirmacion_actions.finalize_confirmar_with_pdf(
+            window,
+            persona,
+            "corr-1",
+            ruta_pdf,
+            [_build_solicitud_confirmada()],
+            [7],
+            [],
+            [],
+        )
+
+    assert exito_visible is False
+    assert eventos == [
+        "insertar_historico",
+        "notificar_historico",
+    ]
+    registro_warning = next(
+        registro
+        for registro in caplog.records
+        if registro.getMessage() == "UI_CONFIRMAR_TOAST_SUCCESS_DESCARTADO"
+    )
+    assert registro_warning.extra == {
+        "motivo": "pdf_inexistente_en_disco",
+        "pdf_path": str(ruta_pdf),
+        "creadas_count": 1,
+        "errores_count": 0,
+        "confirmadas_ids_count": 1,
+        "correlation_id": "corr-1",
+        "persona_id": 1,
+    }
+
+
+def test_apply_finalize_no_loguea_ok_visible_si_pdf_no_existe(
+    monkeypatch, caplog
+) -> None:
+    finalize_calls: list[tuple[object, ...]] = []
+    window = _build_window()
+    persona = SimpleNamespace(id=1)
+    outcome = ResultadoConfirmacionFlujo(
+        correlation_id="corr-1",
+        resultado=SolicitudConfirmarPdfResultado(
+            estado="OK_CON_PDF",
+            confirmadas=1,
+            confirmadas_ids=[7],
+            errores=[],
+            pdf_generado=Path("/tmp/inexistente.pdf"),
+            sync_permitido=True,
+            pendientes_restantes=[],
+        ),
+        creadas=[_build_solicitud_confirmada()],
+        pendientes_restantes=[],
+    )
+
+    def _finalize(*args):
+        finalize_calls.append(args)
+        return False
+
+    window._finalize_confirmar_with_pdf = _finalize
+
+    with caplog.at_level(logging.INFO):
+        from app.ui.vistas import confirmacion_adaptador_qt
+
+        confirmacion_adaptador_qt.apply_finalize(window, persona, outcome)
+
+    assert len(finalize_calls) == 1
+    registro_ok = next(
+        registro
+        for registro in caplog.records
+        if registro.getMessage() == "UI_CONFIRMAR_PDF_OK"
+    )
+    assert registro_ok.extra["exito_visible"] is False
 
 
 def test_build_confirmation_payload_no_expone_accion_sync() -> None:
     window = SimpleNamespace(
-        _personas=[SimpleNamespace(id=1, nombre='Ana')],
-        saldos_card=SimpleNamespace(saldo_periodo_restante_text=lambda: '10:00'),
+        _personas=[SimpleNamespace(id=1, nombre="Ana")],
+        saldos_card=SimpleNamespace(saldo_periodo_restante_text=lambda: "10:00"),
         _focus_historico_search=lambda: None,
         _on_push_now=lambda: None,
         main_tabs=SimpleNamespace(setCurrentIndex=lambda _index: None),
@@ -263,7 +373,7 @@ def test_build_confirmation_payload_no_expone_accion_sync() -> None:
         window,
         [_build_solicitud_confirmada()],
         [],
-        correlation_id='corr-1',
+        correlation_id="corr-1",
     )
 
     assert payload.on_sync_now is None
