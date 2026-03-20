@@ -14,7 +14,7 @@ from app.ui.vistas.confirmacion_eventos_auditoria import (
     build_confirmar_pdf_started_event,
 )
 from app.ui.vistas.confirmacion_presentador_pendientes import (
-    obtener_pendientes_visibles_confirmables,
+    obtener_pendientes_seleccionados_confirmables,
 )
 from app.ui.vistas.confirmacion_presenter import (
     ConfirmacionEntrada,
@@ -126,7 +126,9 @@ def on_insertar_sin_pdf(window: Any) -> None:
         logger.info("_on_insertar_sin_pdf early_return motivo=preconfirm_checks")
         return
     persona = window._current_persona()
-    selected = obtener_pendientes_visibles_confirmables(window._pending_solicitudes)
+    selected = obtener_pendientes_seleccionados_confirmables(
+        window._selected_pending_solicitudes()
+    )
     if persona is None:
         logger.info("_on_insertar_sin_pdf early_return motivo=no_persona")
         return
@@ -142,7 +144,7 @@ def on_insertar_sin_pdf(window: Any) -> None:
             entrada_vacia.no_pending_message,
             title=entrada_vacia.no_pending_title,
         )
-        logger.info("_on_insertar_sin_pdf early_return motivo=sin_pendientes_visibles")
+        logger.info("_on_insertar_sin_pdf early_return motivo=sin_seleccion")
         return
     if window._pending_conflict_rows:
         logger.info("_on_insertar_sin_pdf early_return motivo=conflictos_pendientes")
