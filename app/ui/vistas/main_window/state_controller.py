@@ -352,8 +352,6 @@ class MainWindow(
         return super()._run_preconfirm_checks()
 
     def _on_fecha_changed(self, qdate: QDate) -> None:
-        self._fecha_seleccionada = qdate
-        self._update_solicitud_preview()
         return super()._on_fecha_changed(qdate)
 
     def _on_add_pendiente(self, *args: object, **kwargs: object) -> None:
