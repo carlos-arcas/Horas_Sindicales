@@ -177,6 +177,7 @@ class InicializacionMainWindowMixin:
         button.setChecked(expandido_por_defecto)
 
     def _build_ui(self) -> None:
+        self._verificar_handlers_ui()
         wiring.build_ui(self)
         aplicar_contrato_botones_criticos_runtime(self)
         self._update_conflicts_reminder()

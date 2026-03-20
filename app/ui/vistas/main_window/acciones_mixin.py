@@ -24,6 +24,32 @@ from . import validacion_preventiva
 logger = logging.getLogger(__name__)
 
 
+HANDLERS_UI_CRITICOS = (
+    "_apply_historico_default_range",
+    "_apply_historico_filters",
+    "_bind_preventive_validation_events",
+    "_configure_historico_focus_order",
+    "_configure_operativa_focus_order",
+    "_configure_time_placeholders",
+    "_current_persona",
+    "_focus_historico_search",
+    "_normalize_input_heights",
+    "_on_historico_escape",
+    "_on_historico_filter_changed",
+    "_on_historico_periodo_mode_changed",
+    "_on_open_historico_detalle",
+    "_on_open_saldos_modal",
+    "_refresh_historico",
+    "_refresh_saldos",
+    "_restaurar_contexto_guardado",
+    "_restore_draft_for_persona",
+    "_status_to_label",
+    "_update_action_state",
+    "_update_responsive_columns",
+    "_update_solicitud_preview",
+)
+
+
 class AccionesMainWindowMixin:
     def _execute_confirmar_with_pdf(self, persona, selected, pdf_path: str):
         return execute_confirmar_with_pdf(self, persona, selected, pdf_path)
@@ -282,7 +308,23 @@ class AccionesMainWindowMixin:
         return acciones_sincronizacion.on_sync_with_confirmation(self)
 
     def _verificar_handlers_ui(self) -> None:
-        return None
+        faltantes = [
+            nombre
+            for nombre in HANDLERS_UI_CRITICOS
+            if not callable(getattr(self, nombre, None))
+        ]
+        if not faltantes:
+            return
+
+        detalle = ", ".join(faltantes)
+        logger.error(
+            "UI_MAINWINDOW_HANDLERS_UI_INVALIDOS",
+            extra={"handlers_faltantes": faltantes},
+        )
+        raise RuntimeError(
+            "Contrato UI MainWindow inválido. Handlers críticos ausentes o no callables: "
+            f"{detalle}"
+        )
 
     def _run_preconfirm_checks(self) -> bool:
         return validacion_preventiva._run_preconfirm_checks(self)
