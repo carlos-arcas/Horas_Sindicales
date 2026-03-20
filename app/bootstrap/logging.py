@@ -26,7 +26,9 @@ class JsonLinesFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         event: dict[str, Any] = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "timestamp": datetime.fromtimestamp(
+                record.created, tz=timezone.utc
+            ).isoformat(),
             "level": record.levelname,
             "modulo": record.module,
             "funcion": record.funcName,
@@ -57,20 +59,20 @@ class JsonLinesFormatter(logging.Formatter):
         return get_correlation_id()
 
 
+def _redact_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return redactar_texto(value)
+    if isinstance(value, dict):
+        return {key: _redact_value(inner_value) for key, inner_value in value.items()}
+    if isinstance(value, list):
+        return [_redact_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact_value(item) for item in value)
+    return value
+
 
 def _redact_event_payload(event: dict[str, Any]) -> dict[str, Any]:
-    redacted_event: dict[str, Any] = {}
-    for key, value in event.items():
-        if isinstance(value, str):
-            redacted_event[key] = redactar_texto(value)
-        elif isinstance(value, dict):
-            redacted_event[key] = {
-                inner_key: redactar_texto(inner_value) if isinstance(inner_value, str) else inner_value
-                for inner_key, inner_value in value.items()
-            }
-        else:
-            redacted_event[key] = value
-    return redacted_event
+    return {key: _redact_value(value) for key, value in event.items()}
 
 
 class CrashOnlyFilter(logging.Filter):
@@ -85,6 +87,7 @@ class ExactLevelFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         return record.levelno == self._level
+
 
 def _build_rotating_handler(
     log_path: Path,
@@ -120,9 +123,7 @@ def log_operational_error(
     extra: dict[str, Any] | None = None,
 ) -> None:
     exc_info = exc if exc is not None else False
-    safe_extra = None
-    if extra:
-        safe_extra = {key: redactar_texto(str(value)) if isinstance(value, str) else value for key, value in extra.items()}
+    safe_extra = _redact_value(extra) if extra else None
     payload = {"extra": safe_extra} if safe_extra else None
     logger.error(redactar_texto(message), exc_info=exc_info, extra=payload)
 
@@ -162,7 +163,9 @@ def configure_logging(
     truncar_archivo(log_dir / MAIN_LOG_NAME)
     truncar_archivo(log_dir / CRASH_LOG_NAME)
     truncar_archivo(log_dir / LEGACY_CRASH_LOG_NAME)
-    resolved_max_bytes = max_bytes or _safe_int_env("HORAS_LOG_MAX_BYTES", DEFAULT_LOG_MAX_BYTES)
+    resolved_max_bytes = max_bytes or _safe_int_env(
+        "HORAS_LOG_MAX_BYTES", DEFAULT_LOG_MAX_BYTES
+    )
 
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
@@ -214,7 +217,21 @@ def configure_logging(
     )
 
 
-def write_crash_log(exc_type: type[BaseException], exc: BaseException, tb: Any, log_dir: Path) -> Path:
+def flush_logging_handlers() -> None:
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        flush = getattr(handler, "flush", None)
+        if flush is None:
+            continue
+        try:
+            flush()
+        except Exception:  # noqa: BLE001
+            continue
+
+
+def write_crash_log(
+    exc_type: type[BaseException], exc: BaseException, tb: Any, log_dir: Path
+) -> Path:
     crash_path = log_dir / CRASH_LOG_NAME
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
