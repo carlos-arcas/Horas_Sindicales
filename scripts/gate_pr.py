@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import importlib.util
 import logging
 import os
 import subprocess
@@ -28,6 +27,31 @@ def _run(cmd: list[str], env: dict[str, str] | None = None) -> int:
         "gate_pr_step_end", extra={"cmd": cmd, "returncode": completed.returncode}
     )
     return completed.returncode
+
+
+def _pytest_cov_disponible() -> bool:
+    resultado = subprocess.run(
+        [sys.executable, "-m", "pytest", "--help"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if resultado.returncode != 0:
+        LOGGER.error(
+            "pytest_help_fallo_no_se_puede_validar_cobertura",
+            extra={"returncode": resultado.returncode},
+        )
+        return False
+
+    if "--cov" not in resultado.stdout:
+        LOGGER.error(
+            "pytest_cov_no_activo_en_pytest_help",
+            extra={"detalle": "Instala dependencias dev con requirements-dev.txt"},
+        )
+        return False
+
+    return True
 
 
 def _comando_pytest_core_no_ui(
@@ -83,7 +107,16 @@ def main() -> int:
     )
 
     run_mypy = os.getenv("HS_RUN_MYPY", "0") in {"1", "true", "TRUE"}
-    has_pytest_cov = importlib.util.find_spec("pytest_cov") is not None
+    if not _pytest_cov_disponible():
+        LOGGER.error(
+            "gate_pr_rechazado_sin_cobertura_real",
+            extra={
+                "detalle": (
+                    "Falta pytest-cov o pytest no expone --cov; instala requirements-dev.txt antes del gate"
+                )
+            },
+        )
+        return 1
 
     commands: list[tuple[list[str], dict[str, str] | None]] = [
         ([sys.executable, "-m", "ruff", "check", "."], None),
@@ -109,25 +142,20 @@ def main() -> int:
         _comando_pytest_core_no_ui(["-q", "tests/domain", "tests/application"])
     )
 
-    if has_pytest_cov:
-        commands.append(
-            _comando_pytest_core_no_ui(
-                [
-                    "-q",
-                    "tests/domain",
-                    "tests/application",
-                    "--cov=app/domain",
-                    "--cov=app/application",
-                    "--cov-report=term-missing",
-                    "--cov-fail-under=85",
-                ],
-                habilitar_pytest_cov=True,
-            )
+    commands.append(
+        _comando_pytest_core_no_ui(
+            [
+                "-q",
+                "tests/domain",
+                "tests/application",
+                "--cov=app/domain",
+                "--cov=app/application",
+                "--cov-report=term-missing",
+                "--cov-fail-under=85",
+            ],
+            habilitar_pytest_cov=True,
         )
-    else:
-        LOGGER.warning(
-            "pytest-cov no disponible; se omite paso de cobertura en este entorno"
-        )
+    )
 
     commands.extend(
         [

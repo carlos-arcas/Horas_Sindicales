@@ -32,8 +32,13 @@ def test_main_blinda_subruns_core_no_ui_post_ruff(monkeypatch) -> None:
         return 0
 
     monkeypatch.setattr(gate_pr, "_run", _run_falso)
-    monkeypatch.setattr(gate_pr.importlib.util, "find_spec", lambda _name: object())
-    monkeypatch.setattr(gate_pr.subprocess, "run", lambda *_args, **_kwargs: type("R", (), {"returncode": 0})())
+
+    def _subprocess_run_falso(cmd: list[str], **_kwargs):
+        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"] and "--help" in cmd:
+            return type("R", (), {"returncode": 0, "stdout": "... --cov ..."})()
+        return type("R", (), {"returncode": 0})()
+
+    monkeypatch.setattr(gate_pr.subprocess, "run", _subprocess_run_falso)
 
     exit_code = gate_pr.main()
 
@@ -63,15 +68,21 @@ def test_main_ejecuta_golden_bajo_contrato_core_no_ui(monkeypatch) -> None:
         return 0
 
     monkeypatch.setattr(gate_pr, "_run", _run_falso)
-    monkeypatch.setattr(gate_pr.importlib.util, "find_spec", lambda _name: object())
-    monkeypatch.setattr(gate_pr.subprocess, "run", lambda *_args, **_kwargs: type("R", (), {"returncode": 0})())
+
+    def _subprocess_run_falso(cmd: list[str], **_kwargs):
+        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"] and "--help" in cmd:
+            return type("R", (), {"returncode": 0, "stdout": "... --cov ..."})()
+        return type("R", (), {"returncode": 0})()
+
+    monkeypatch.setattr(gate_pr.subprocess, "run", _subprocess_run_falso)
 
     assert gate_pr.main() == 0
 
     golden = [
         (cmd, env)
         for cmd, env in llamadas
-        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"] and "tests/golden/botones" in cmd
+        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"]
+        and "tests/golden/botones" in cmd
     ]
     assert len(golden) == 1
     comando, entorno = golden[0]
@@ -91,8 +102,13 @@ def test_main_reinyecta_pytest_cov_solo_en_coverage(monkeypatch) -> None:
         return 0
 
     monkeypatch.setattr(gate_pr, "_run", _run_falso)
-    monkeypatch.setattr(gate_pr.importlib.util, "find_spec", lambda _name: object())
-    monkeypatch.setattr(gate_pr.subprocess, "run", lambda *_args, **_kwargs: type("R", (), {"returncode": 0})())
+
+    def _subprocess_run_falso(cmd: list[str], **_kwargs):
+        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"] and "--help" in cmd:
+            return type("R", (), {"returncode": 0, "stdout": "... --cov ..."})()
+        return type("R", (), {"returncode": 0})()
+
+    monkeypatch.setattr(gate_pr.subprocess, "run", _subprocess_run_falso)
 
     assert gate_pr.main() == 0
 
@@ -104,3 +120,25 @@ def test_main_reinyecta_pytest_cov_solo_en_coverage(monkeypatch) -> None:
     assert invocaciones_sin_cov
     for cmd in invocaciones_sin_cov:
         assert "pytest_cov" not in cmd
+
+
+def test_main_falla_si_pytest_no_expone_cobertura(monkeypatch) -> None:
+    llamadas: list[tuple[list[str], dict[str, str] | None]] = []
+
+    def _run_falso(cmd: list[str], env: dict[str, str] | None = None) -> int:
+        llamadas.append((cmd, env))
+        return 0
+
+    monkeypatch.setattr(gate_pr, "_run", _run_falso)
+
+    def _subprocess_run_falso(cmd: list[str], **_kwargs):
+        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"] and "--help" in cmd:
+            return type(
+                "R", (), {"returncode": 0, "stdout": "pytest help sin coverage"}
+            )()
+        return type("R", (), {"returncode": 0})()
+
+    monkeypatch.setattr(gate_pr.subprocess, "run", _subprocess_run_falso)
+
+    assert gate_pr.main() == 1
+    assert llamadas == []
