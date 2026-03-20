@@ -22,7 +22,9 @@ from app.ui.vistas.confirmacion_orquestacion import (
     on_insertar_sin_pdf as on_insertar_sin_pdf_orq,
     run_confirmacion_plan,
 )
-from app.ui.vistas.confirmacion_presentador_pendientes import iterar_pendientes_en_tabla as iterar_pendientes_en_tabla_puro
+from app.ui.vistas.confirmacion_presentador_pendientes import (
+    iterar_pendientes_en_tabla as iterar_pendientes_en_tabla_puro,
+)
 from app.ui.vistas.confirmacion_presentador_pendientes import (
     obtener_pendientes_visibles_confirmables,
 )
@@ -48,6 +50,10 @@ ask_push_after_pdf = ask_push_after_pdf_qt
 show_pdf_actions_dialog = show_pdf_actions_dialog_qt
 
 
+def _pdf_generado_existe(generado: Path | None) -> bool:
+    return generado is not None and generado.exists()
+
+
 def prompt_confirm_pdf_path(window: Any, selected: list[SolicitudDTO]) -> str | None:
     try:
         return prompt_confirm_pdf_path_qt(window, selected)
@@ -69,13 +75,32 @@ def finalize_confirmar_with_pdf(
     confirmadas_ids: list[int],
     errores: list[str],
     pendientes_restantes: list[SolicitudDTO] | None,
-) -> None:
-    logger.debug("_finalize_confirmar_with_pdf paso=ruta_pdf_final ruta=%s", str(generado) if generado else None)
-    window._procesar_resultado_confirmacion(confirmadas_ids, errores, pendientes_restantes)
+) -> bool:
+    logger.debug(
+        "_finalize_confirmar_with_pdf paso=ruta_pdf_final ruta=%s",
+        str(generado) if generado else None,
+    )
+    window._procesar_resultado_confirmacion(
+        confirmadas_ids, errores, pendientes_restantes
+    )
     window._notify_historico_filter_if_hidden(creadas)
 
-    flujo_confirmacion_exitoso = bool(generado and creadas and not errores)
-    if generado and window.abrir_pdf_check.isChecked():
+    pdf_generado_existe = _pdf_generado_existe(generado)
+    flujo_confirmacion_exitoso = bool(pdf_generado_existe and creadas and not errores)
+    if generado and not pdf_generado_existe:
+        logger.warning(
+            "UI_CONFIRMAR_TOAST_SUCCESS_DESCARTADO",
+            extra={
+                "motivo": "pdf_inexistente_en_disco",
+                "pdf_path": str(generado),
+                "creadas_count": len(creadas),
+                "errores_count": len(errores),
+                "confirmadas_ids_count": len(confirmadas_ids),
+                "correlation_id": correlation_id,
+                "persona_id": persona.id if persona.id is not None else None,
+            },
+        )
+    if pdf_generado_existe and window.abrir_pdf_check.isChecked():
         logger.debug("_finalize_confirmar_with_pdf paso=intento_abrir_pdf enabled=True")
         abrir_archivo_local(generado)
         logger.info("UI_CONFIRMAR_PDF_OPEN_OK", extra={"pdf_path": str(generado)})
@@ -89,14 +114,22 @@ def finalize_confirmar_with_pdf(
             pdf_hash=pdf_hash,
             correlation_id=correlation_id,
         )
-        window._toast_success(copy_text("ui.confirmacion.ok_pdf_generado"), title=copy_text("ui.preferencias.confirmacion"))
-        if generado.exists():
-            window._show_pdf_actions_dialog(generado)
+        window._toast_success(
+            copy_text("ui.confirmacion.ok_pdf_generado"),
+            title=copy_text("ui.preferencias.confirmacion"),
+        )
+        window._show_pdf_actions_dialog(generado)
         window._ask_push_after_pdf()
-        return
+        return True
 
     if errores:
-        window._show_confirmation_closure(creadas, errores, operation_name="confirmar_y_generar_pdf", correlation_id=correlation_id)
+        window._show_confirmation_closure(
+            creadas,
+            errores,
+            operation_name="confirmar_y_generar_pdf",
+            correlation_id=correlation_id,
+        )
+    return False
 
 
 def _registrar_pdf_log_secundario(
@@ -112,7 +145,12 @@ def _registrar_pdf_log_secundario(
     try:
         window._sync_service.register_pdf_log(persona_id, fechas, pdf_hash)
         if correlation_id:
-            log_event(logger, "register_pdf_log", {"persona_id": persona_id, "fechas": len(fechas)}, correlation_id)
+            log_event(
+                logger,
+                "register_pdf_log",
+                {"persona_id": persona_id, "fechas": len(fechas)},
+                correlation_id,
+            )
     except Exception as exc:  # pragma: no cover - fallback defensivo de infraestructura
         log_operational_error(
             logger,
@@ -135,7 +173,9 @@ def show_confirmation_closure(
     operation_name: str,
     correlation_id: str | None = None,
 ) -> None:
-    payload = build_confirmation_payload(window, creadas, errores, correlation_id=correlation_id)
+    payload = build_confirmation_payload(
+        window, creadas, errores, correlation_id=correlation_id
+    )
     log_event(
         logger,
         "confirmation_closure_recorded",
@@ -152,7 +192,11 @@ def build_confirmation_payload(
     *,
     correlation_id: str | None = None,
 ) -> ConfirmationSummaryPayload:
-    persona_nombres = {persona.id: persona.nombre for persona in window._personas if persona.id is not None}
+    persona_nombres = {
+        persona.id: persona.nombre
+        for persona in window._personas
+        if persona.id is not None
+    }
     undo_ids = [solicitud.id for solicitud in creadas if solicitud.id is not None]
     return build_confirmation_payload_puro(
         creadas=creadas,
@@ -178,7 +222,9 @@ def undo_confirmation(window: Any, solicitud_ids: list[int]) -> None:
     for solicitud_id in solicitud_ids:
         try:
             with OperationContext("deshacer_confirmacion") as operation:
-                window._solicitud_use_cases.eliminar_solicitud(solicitud_id, correlation_id=operation.correlation_id)
+                window._solicitud_use_cases.eliminar_solicitud(
+                    solicitud_id, correlation_id=operation.correlation_id
+                )
             removed += 1
         except BusinessRuleError:
             continue
@@ -186,7 +232,9 @@ def undo_confirmation(window: Any, solicitud_ids: list[int]) -> None:
     window._refresh_historico()
     window._refresh_saldos()
     if removed:
-        toast_success(window.toast, copy_text("ui.confirmacion.se_deshicieron", cantidad=removed))
+        toast_success(
+            window.toast, copy_text("ui.confirmacion.se_deshicieron", cantidad=removed)
+        )
 
 
 def on_confirmar(window: Any) -> None:
@@ -202,13 +250,31 @@ def on_confirmar(window: Any) -> None:
         selected_ids = [solicitud.id for solicitud in selected]
         editing = window._selected_pending_for_editing()
         persona = window._current_persona()
-        log_extra = _build_confirmar_log_extra(window, pendientes_en_tabla, selected_ids, editing, persona)
+        log_extra = _build_confirmar_log_extra(
+            window, pendientes_en_tabla, selected_ids, editing, persona
+        )
         logger.info("UI_CLICK_CONFIRMAR_PDF", extra=log_extra)
         logger.info("UI_CONFIRMAR_PDF_START", extra=log_extra)
-        logger.info("UI_CONFIRMAR_PDF_FILAS_MARCADAS", extra={**log_extra, "selected_row_indexes": window._selected_pending_row_indexes()})
+        logger.info(
+            "UI_CONFIRMAR_PDF_FILAS_MARCADAS",
+            extra={
+                **log_extra,
+                "selected_row_indexes": window._selected_pending_row_indexes(),
+            },
+        )
         evento_filas_seleccionadas = "UI_CONFIRMAR_PDF_" + "SELEC" + "TED_ROWS"
-        logger.info(evento_filas_seleccionadas, extra={**log_extra, "selected_row_indexes": window._selected_pending_row_indexes()})
-        logger.debug("_on_confirmar paso=seleccion_pendientes rows=%s ids=%s", window._selected_pending_row_indexes(), selected_ids)
+        logger.info(
+            evento_filas_seleccionadas,
+            extra={
+                **log_extra,
+                "selected_row_indexes": window._selected_pending_row_indexes(),
+            },
+        )
+        logger.debug(
+            "_on_confirmar paso=seleccion_pendientes rows=%s ids=%s",
+            window._selected_pending_row_indexes(),
+            selected_ids,
+        )
         run_confirmacion_plan(
             window,
             selected=selected,
@@ -233,7 +299,11 @@ def _build_confirmar_log_extra(
     persona: PersonaDTO | None,
 ) -> dict[str, Any]:
     pdf_path_actual = getattr(window, "_last_selected_pdf_path", None)
-    filtro_delegada = None if window._pending_view_all else (persona.id if persona is not None else None)
+    filtro_delegada = (
+        None
+        if window._pending_view_all
+        else (persona.id if persona is not None else None)
+    )
     return {
         "selected_count": len(selected_ids),
         "selected_ids": selected_ids,
@@ -244,14 +314,22 @@ def _build_confirmar_log_extra(
         "filtro_delegada": filtro_delegada,
         "editing_id": editing.id if editing is not None else None,
         "persona_id": persona.id if persona is not None else None,
-        "fecha": window.fecha_input.date().toString(copy_text("ui.formatos.qt_fecha_ymd")),
-        "desde": window.desde_input.time().toString(copy_text("ui.formatos.qt_hora_hm")),
-        "hasta": window.hasta_input.time().toString(copy_text("ui.formatos.qt_hora_hm")),
+        "fecha": window.fecha_input.date().toString(
+            copy_text("ui.formatos.qt_fecha_ymd")
+        ),
+        "desde": window.desde_input.time().toString(
+            copy_text("ui.formatos.qt_hora_hm")
+        ),
+        "hasta": window.hasta_input.time().toString(
+            copy_text("ui.formatos.qt_hora_hm")
+        ),
     }
 
 
 def iterar_pendientes_en_tabla(window: Any) -> list[dict[str, object]]:
-    model = window.pendientes_table.model() if window.pendientes_table is not None else None
+    model = (
+        window.pendientes_table.model() if window.pendientes_table is not None else None
+    )
     if model is None:
         return []
     return iterar_pendientes_en_tabla_puro(
