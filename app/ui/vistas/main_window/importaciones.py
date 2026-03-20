@@ -1,10 +1,18 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import logging
 from types import SimpleNamespace
 from typing import Any
 
+from app.bootstrap.logging import log_operational_error
 from app.ui.copy_catalog import copy_text
+
+logger = logging.getLogger(__name__)
+
+
+class ImportacionCriticaMainWindowError(RuntimeError):
+    """Señala que una dependencia crítica de MainWindow no pudo cargarse."""
 
 
 def _qt_unavailable(*_args: object, **_kwargs: object) -> None:
@@ -34,23 +42,112 @@ def _es_import_error_qt_esperado(error: ImportError) -> bool:
     )
 
 
+SIMBOLOS_CRITICOS_POR_GRUPO: dict[str, tuple[str, ...]] = {
+    "dialogos": (
+        "ConflictsDialog",
+        "GrupoConfigDialog",
+        "PdfConfigDialog",
+        "UiErrorMessage",
+        "map_error_to_ui_message",
+        "GestorToasts",
+        "PersonasController",
+        "SolicitudesController",
+        "SyncController",
+        "PdfController",
+        "ConfirmationSummaryPayload",
+        "NotificationService",
+        "OperationFeedback",
+    ),
+    "helpers": (
+        "SaldosCard",
+        "PushWorker",
+        "MainWindowHealthMixin",
+        "apply_modal_behavior",
+        "build_modal_actions",
+        "status_badge",
+        "build_config_incomplete_report",
+        "build_failed_report",
+        "build_simulation_report",
+        "build_sync_report",
+        "list_sync_history",
+        "load_sync_report",
+        "persist_report",
+        "to_markdown",
+        "run_init_refresh",
+        "build_main_window_widgets",
+        "build_shell_layout",
+        "build_status_bar",
+        "abrir_archivo_local",
+        "build_estado_pendientes_debug_payload",
+        "build_historico_filters_payload",
+        "handle_historico_render_mismatch",
+        "log_estado_pendientes",
+        "show_sync_error_dialog_from_exception",
+    ),
+}
+
+
+def _elevar_importacion_critica(
+    *,
+    nombre_grupo: str,
+    error: ImportError,
+    simbolos_criticos: tuple[str, ...],
+) -> None:
+    payload_extra = {
+        "grupo": nombre_grupo,
+        "simbolos_criticos": list(simbolos_criticos),
+        "error": str(error),
+        "modulo": getattr(error, "name", "") or None,
+    }
+    log_operational_error(
+        logger,
+        "MAINWINDOW_UI_CRITICAL_IMPORT_FAILED",
+        exc=error,
+        extra=payload_extra,
+    )
+    simbolos = ", ".join(simbolos_criticos)
+    raise ImportacionCriticaMainWindowError(
+        "No se pudieron importar dependencias críticas de MainWindow "
+        f"para el grupo '{nombre_grupo}': {simbolos}. "
+        "Verifica la instalación de Qt/PySide6 o usa stubs explícitos en tests headless. "
+        f"ImportError original: {error}"
+    ) from error
+
+
 def _cargar_importacion_grupo(
     cargar: Callable[[], dict[str, Any]],
     fallback: dict[str, Any],
+    *,
+    nombre_grupo: str = "desconocido",
+    simbolos_criticos: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     try:
         return cargar()
     except ImportError as error:
-        if _es_import_error_qt_esperado(error):
-            return fallback
-        raise
+        if not _es_import_error_qt_esperado(error):
+            raise
+        if simbolos_criticos:
+            _elevar_importacion_critica(
+                nombre_grupo=nombre_grupo,
+                error=error,
+                simbolos_criticos=simbolos_criticos,
+            )
+        return fallback
 
 
 def _resolver_namespace_importaciones(
     cargar: Callable[[], dict[str, Any]],
     fallback: dict[str, Any],
+    *,
+    nombre_grupo: str,
+    simbolos_criticos: tuple[str, ...] = (),
 ) -> _NamespaceImportaciones:
-    simbolos = _cargar_importacion_grupo(cargar, fallback)
+    simbolos = _cargar_importacion_grupo(
+        cargar,
+        fallback,
+        nombre_grupo=nombre_grupo,
+        simbolos_criticos=simbolos_criticos,
+    )
     return _NamespaceImportaciones(**simbolos)
 
 
@@ -139,10 +236,10 @@ def _cargar_grupo_acciones_y_estado() -> dict[str, Any]:
 def _cargar_grupo_helpers_builders_y_sync() -> dict[str, Any]:
     from app.ui.components.saldos_card import SaldosCard
     from app.ui.patterns import (
+        STATUS_PATTERNS,
         apply_modal_behavior,
         build_modal_actions,
         status_badge,
-        STATUS_PATTERNS,
     )
     from app.ui.sync_reporting import (
         build_config_incomplete_report,
@@ -200,21 +297,7 @@ def _cargar_grupo_helpers_builders_y_sync() -> dict[str, Any]:
     }
 
 
-_FALLBACK_GRUPO_DIALOGOS: dict[str, Any] = {
-    "ConflictsDialog": object,
-    "GrupoConfigDialog": object,
-    "PdfConfigDialog": object,
-    "UiErrorMessage": object,
-    "map_error_to_ui_message": _qt_unavailable,
-    "GestorToasts": object,
-    "PersonasController": object,
-    "SolicitudesController": object,
-    "SyncController": object,
-    "PdfController": object,
-    "ConfirmationSummaryPayload": object,
-    "NotificationService": object,
-    "OperationFeedback": object,
-}
+_FALLBACK_GRUPO_DIALOGOS: dict[str, Any] = {}
 
 _FALLBACK_GRUPO_ACCIONES: dict[str, Any] = {
     "acciones_pendientes": object,
@@ -242,42 +325,26 @@ _FALLBACK_GRUPO_ACCIONES: dict[str, Any] = {
 }
 
 _FALLBACK_GRUPO_HELPERS: dict[str, Any] = {
-    "SaldosCard": object,
-    "PushWorker": object,
-    "MainWindowHealthMixin": type("MainWindowHealthMixin", (), {}),
-    "apply_modal_behavior": _qt_unavailable,
-    "build_modal_actions": _qt_unavailable,
-    "status_badge": _qt_unavailable,
     "STATUS_PATTERNS": {},
-    "build_config_incomplete_report": _qt_unavailable,
-    "build_failed_report": _qt_unavailable,
-    "build_simulation_report": _qt_unavailable,
-    "build_sync_report": _qt_unavailable,
-    "list_sync_history": _qt_unavailable,
-    "load_sync_report": _qt_unavailable,
-    "persist_report": _qt_unavailable,
-    "to_markdown": _qt_unavailable,
-    "run_init_refresh": _qt_unavailable,
-    "build_main_window_widgets": _qt_unavailable,
-    "build_shell_layout": _qt_unavailable,
-    "build_status_bar": _qt_unavailable,
-    "abrir_archivo_local": _qt_unavailable,
-    "build_estado_pendientes_debug_payload": _qt_unavailable,
-    "build_historico_filters_payload": _qt_unavailable,
-    "handle_historico_render_mismatch": _qt_unavailable,
-    "log_estado_pendientes": _qt_unavailable,
-    "show_sync_error_dialog_from_exception": _qt_unavailable,
 }
 
 
 namespace_dialogos = _resolver_namespace_importaciones(
-    _cargar_grupo_dialogos_y_controllers, _FALLBACK_GRUPO_DIALOGOS
+    _cargar_grupo_dialogos_y_controllers,
+    _FALLBACK_GRUPO_DIALOGOS,
+    nombre_grupo="dialogos",
+    simbolos_criticos=SIMBOLOS_CRITICOS_POR_GRUPO["dialogos"],
 )
 namespace_acciones = _resolver_namespace_importaciones(
-    _cargar_grupo_acciones_y_estado, _FALLBACK_GRUPO_ACCIONES
+    _cargar_grupo_acciones_y_estado,
+    _FALLBACK_GRUPO_ACCIONES,
+    nombre_grupo="acciones",
 )
 namespace_helpers = _resolver_namespace_importaciones(
-    _cargar_grupo_helpers_builders_y_sync, _FALLBACK_GRUPO_HELPERS
+    _cargar_grupo_helpers_builders_y_sync,
+    _FALLBACK_GRUPO_HELPERS,
+    nombre_grupo="helpers",
+    simbolos_criticos=SIMBOLOS_CRITICOS_POR_GRUPO["helpers"],
 )
 
 # Compatibilidad legacy mínima: mantener aliases usados por consumidores
@@ -302,6 +369,8 @@ __all__ = [
     "namespace_dialogos",
     "namespace_acciones",
     "namespace_helpers",
+    "ImportacionCriticaMainWindowError",
+    "SIMBOLOS_CRITICOS_POR_GRUPO",
     "GestorToasts",
     "PersonasController",
     "SolicitudesController",
