@@ -92,6 +92,7 @@ class MainWindow(_MainWindowBase):
             refresh_historico=lambda: self._refresh_historico(force=True),
             scheduler=scheduler,
         )
+        QTimer.singleShot(0, self._warmup_sync_client)
 
     def _on_main_tab_changed(self, index: int) -> None:
         if index != TAB_HISTORICO:
