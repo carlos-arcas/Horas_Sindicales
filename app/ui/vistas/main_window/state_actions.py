@@ -5,7 +5,9 @@ from datetime import date
 from app.application.dto import PeriodoFiltro
 from app.ui.copy_catalog import copy_text
 
-from . import data_refresh, state_historico
+from app.ui.vistas import historico_actions
+
+from . import data_refresh
 
 
 class MainWindowStateActionsMixin:
@@ -17,7 +19,7 @@ class MainWindowStateActionsMixin:
         set_processing_state(self, in_progress)
 
     def _apply_historico_filters(self) -> None:
-        state_historico.aplicar_filtros_historico(self)
+        historico_actions.apply_historico_filters(self)
 
     def _cargar_datos_iniciales(self) -> None:
         self._load_personas()
@@ -40,7 +42,11 @@ class MainWindowStateActionsMixin:
 
         settings_key = copy_text("ui.preferencias.settings_show_help_key")
         raw_value = self._settings.value(settings_key, True)
-        show_help = raw_value.strip().lower() in {"1", "true", "yes", "on"} if isinstance(raw_value, str) else bool(raw_value)
+        show_help = (
+            raw_value.strip().lower() in {"1", "true", "yes", "on"}
+            if isinstance(raw_value, str)
+            else bool(raw_value)
+        )
         show_help_toggle.blockSignals(True)
         show_help_toggle.setChecked(show_help)
         show_help_toggle.blockSignals(False)
@@ -66,7 +72,9 @@ class MainWindowStateActionsMixin:
 
         filtro = self._current_saldo_filtro()
         if filtro.modo == "MENSUAL" and filtro.month is not None:
-            saldos_card.update_periodo_label(f"Mensual ({filtro.month:02d}/{filtro.year})")
+            saldos_card.update_periodo_label(
+                f"Mensual ({filtro.month:02d}/{filtro.year})"
+            )
             return
         saldos_card.update_periodo_label(f"Anual ({filtro.year})")
 

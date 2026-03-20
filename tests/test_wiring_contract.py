@@ -4,7 +4,10 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
-from tests.helpers_main_window_ast import metodos_main_window_directos, metodos_main_window_mixins
+from tests.helpers_main_window_ast import (
+    metodos_main_window_directos,
+    metodos_main_window_mixins,
+)
 
 _RUTAS_WIRING = (
     Path("app/ui/vistas/builders"),
@@ -67,13 +70,23 @@ class _ExtractorReferencias(ast.NodeVisitor):
         return ReferenciaHandler(handler, signal_name, self._archivo, node.lineno)
 
     def _handler_name_conectar_signal(self, node: ast.Call) -> str | None:
-        if len(node.args) > 2 and isinstance(node.args[2], ast.Constant) and isinstance(node.args[2].value, str):
+        if (
+            len(node.args) > 2
+            and isinstance(node.args[2], ast.Constant)
+            and isinstance(node.args[2].value, str)
+        ):
             return node.args[2].value
         for keyword in node.keywords:
-            if keyword.arg == "handler_name" and isinstance(keyword.value, ast.Constant):
+            if keyword.arg == "handler_name" and isinstance(
+                keyword.value, ast.Constant
+            ):
                 if isinstance(keyword.value.value, str):
                     return keyword.value.value
-        if len(node.args) > 1 and isinstance(node.args[1], ast.Constant) and isinstance(node.args[1].value, str):
+        if (
+            len(node.args) > 1
+            and isinstance(node.args[1], ast.Constant)
+            and isinstance(node.args[1].value, str)
+        ):
             return node.args[1].value
         return None
 
@@ -157,7 +170,9 @@ def test_contrato_wiring_handlers_existentes_en_main_window() -> None:
     for referencia in _extraer_referencias_handlers():
         if referencia.handler in handlers_main_window or referencia.handler in bindings:
             continue
-        faltantes.append(f"{referencia.archivo}:{referencia.linea} -> {referencia.handler}")
+        faltantes.append(
+            f"{referencia.archivo}:{referencia.linea} -> {referencia.handler}"
+        )
 
     assert not faltantes, "Handlers inexistentes en wiring:\n" + "\n".join(faltantes)
 
@@ -182,6 +197,42 @@ def test_handlers_de_senales_qt_conocidas_aceptan_argumento() -> None:
             firma = historico_signatures.get(bindings[referencia.handler])
         if firma is not None and firma.acepta_argumento_senal():
             continue
-        invalidos.append(f"{referencia.archivo}:{referencia.linea} -> {referencia.handler}")
+        invalidos.append(
+            f"{referencia.archivo}:{referencia.linea} -> {referencia.handler}"
+        )
 
     assert not invalidos, "Handlers con firma incompatible:\n" + "\n".join(invalidos)
+
+
+def test_state_actions_apply_historico_filters_delega_a_historico_actions() -> None:
+    tree = _parse_file(Path("app/ui/vistas/main_window/state_actions.py"))
+
+    for node in tree.body:
+        if (
+            not isinstance(node, ast.ClassDef)
+            or node.name != "MainWindowStateActionsMixin"
+        ):
+            continue
+        for method in node.body:
+            if (
+                not isinstance(method, ast.FunctionDef)
+                or method.name != "_apply_historico_filters"
+            ):
+                continue
+            assert len(method.body) == 1
+            sentencia = method.body[0]
+            assert isinstance(sentencia, ast.Expr)
+            llamada = sentencia.value
+            assert isinstance(llamada, ast.Call)
+            assert isinstance(llamada.func, ast.Attribute)
+            assert isinstance(llamada.func.value, ast.Name)
+            assert llamada.func.value.id == "historico_actions"
+            assert llamada.func.attr == "apply_historico_filters"
+            assert len(llamada.args) == 1
+            assert isinstance(llamada.args[0], ast.Name)
+            assert llamada.args[0].id == "self"
+            return
+
+    raise AssertionError(
+        "No se encontró MainWindowStateActionsMixin._apply_historico_filters"
+    )
