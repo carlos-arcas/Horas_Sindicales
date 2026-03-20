@@ -242,8 +242,7 @@ class MainWindow(_MainWindowBase):
         return super()._on_completo_changed(checked)
 
     def _refresh_historico(self, *, force: bool = False) -> None:
-        # Mantiene la fuente de verdad del histórico en el controller.
-        self._solicitudes_controller.refresh_historico()
+        # La consulta real del histórico vive en data_refresh.refresh_historico.
         return super()._refresh_historico(force=force)
 
     # Compatibilidad explícita para smoke tests AST y wiring legado.
