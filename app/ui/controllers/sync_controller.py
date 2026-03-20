@@ -87,12 +87,38 @@ class SyncController:
         self.window = window
 
     def on_context_changed(self) -> None:
+        self._reset_contextual_sync_state()
+        self.update_sync_button_state()
+
+    def _reset_contextual_sync_state(self) -> None:
         w = self.window
-        if getattr(w, '_pending_sync_plan', None) is not None:
-            w._pending_sync_plan = None
+        w._pending_sync_plan = None
+        w._last_sync_report = None
+        w._active_sync_id = None
+        w._attempt_history = ()
+        w._sync_attempts = []
+        if not getattr(w, '_sync_in_progress', False):
+            w._sync_operation_context = None
+            self._reset_sync_report_ui()
         if hasattr(w, 'confirm_sync_button') and hasattr(w.confirm_sync_button, 'setEnabled'):
             w.confirm_sync_button.setEnabled(False)
-        self.update_sync_button_state()
+
+    def _reset_sync_report_ui(self) -> None:
+        w = self.window
+        if hasattr(w, '_set_sync_status_badge'):
+            w._set_sync_status_badge('IDLE')
+        if hasattr(w, 'sync_panel_status') and hasattr(w.sync_panel_status, 'setText'):
+            w.sync_panel_status.setText(
+                _tr(
+                    w,
+                    'sync.estado_pendiente',
+                    _fallback_texto('sync.estado_pendiente'),
+                )
+            )
+        if hasattr(w, '_refresh_last_sync_label'):
+            w._refresh_last_sync_label()
+        if hasattr(w, '_refresh_health_and_alerts'):
+            w._refresh_health_and_alerts()
 
     def on_sync(self) -> None:
         self._run_background_operation(
