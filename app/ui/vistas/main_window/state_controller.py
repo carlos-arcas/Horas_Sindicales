@@ -2,6 +2,7 @@ from __future__ import annotations
 
 # ruff: noqa: F401
 
+import importlib
 import logging
 from pathlib import Path
 
@@ -91,52 +92,40 @@ from .init_placeholders import inicializar_placeholders
 
 logger = logging.getLogger(__name__)
 
-try:
-    from .state_helpers import (
-        resolve_active_delegada_id,
-        set_processing_state,
-        update_action_state,
+
+def _importar_componente_critico(
+    modulo: str, simbolos: tuple[str, ...]
+) -> tuple[object, ...]:
+    try:
+        modulo_cargado = importlib.import_module(modulo, package=__package__)
+        return tuple(getattr(modulo_cargado, simbolo) for simbolo in simbolos)
+    except Exception as exc:  # pragma: no cover
+        log_operational_error(
+            logger,
+            "MAINWINDOW_CRITICAL_UI_IMPORT_FAILED",
+            exc=exc,
+            extra={"modulo": modulo, "simbolos": list(simbolos)},
+        )
+        raise RuntimeError(
+            f"No se pudo importar el módulo crítico de MainWindow {modulo}: {exc}"
+        ) from exc
+
+
+(resolve_active_delegada_id, set_processing_state, update_action_state) = (
+    _importar_componente_critico(
+        ".state_helpers",
+        ("resolve_active_delegada_id", "set_processing_state", "update_action_state"),
     )
-except Exception as exc:  # pragma: no cover
-    log_operational_error(logger, "MAINWINDOW_STATE_HELPERS_IMPORT_FAILED", exc=exc)
-
-    def set_processing_state(_window, _in_progress: bool) -> None:
-        return
-
-    def update_action_state(_window) -> None:
-        return
-
-    def resolve_active_delegada_id(
-        _delegada_ids: list[int], _preferred_id: object
-    ) -> int | None:
-        return None
-
-
-try:
-    from .state_actions import MainWindowStateActionsMixin
-except Exception as exc:  # pragma: no cover
-    log_operational_error(logger, "MAINWINDOW_STATE_ACTIONS_IMPORT_FAILED", exc=exc)
-
-    class MainWindowStateActionsMixin:
-        pass
-
-
-try:
-    from .state_validations import MainWindowStateValidationMixin
-except Exception as exc:  # pragma: no cover
-    log_operational_error(logger, "MAINWINDOW_STATE_VALIDATIONS_IMPORT_FAILED", exc=exc)
-
-    class MainWindowStateValidationMixin:
-        pass
-
-
-try:
-    from .state_bindings import registrar_state_bindings
-except Exception as exc:  # pragma: no cover
-    log_operational_error(logger, "MAINWINDOW_STATE_BINDINGS_IMPORT_FAILED", exc=exc)
-
-    def registrar_state_bindings(_cls) -> None:
-        return
+)
+(MainWindowStateActionsMixin,) = _importar_componente_critico(
+    ".state_actions", ("MainWindowStateActionsMixin",)
+)
+(MainWindowStateValidationMixin,) = _importar_componente_critico(
+    ".state_validations", ("MainWindowStateValidationMixin",)
+)
+(registrar_state_bindings,) = _importar_componente_critico(
+    ".state_bindings", ("registrar_state_bindings",)
+)
 
 
 class MainWindow(
