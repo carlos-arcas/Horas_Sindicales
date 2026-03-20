@@ -6,7 +6,7 @@ from app.ui.vistas.confirmacion_presentador_pendientes import (
     calcular_filtro_delegada_para_confirmacion,
     contar_pendientes_restantes,
     filtrar_pendientes_restantes,
-    obtener_pendientes_visibles_confirmables,
+    obtener_pendientes_seleccionados_confirmables,
     seleccionar_creadas_por_ids,
 )
 
@@ -43,13 +43,13 @@ def test_filtrar_y_contar_pendientes_restantes() -> None:
     assert contar_pendientes_restantes(None) == 0
 
 
-def test_obtener_pendientes_visibles_confirmables_ignora_ausentes_y_conserva_visibles() -> None:
-    visibles = [
+def test_obtener_pendientes_seleccionados_confirmables_ignora_ausentes_y_conserva_orden() -> None:
+    seleccionadas = [
         SimpleNamespace(id=1, persona_id=10),
         None,
         SimpleNamespace(id=2, persona_id=11),
     ]
 
-    resultado = obtener_pendientes_visibles_confirmables(visibles)
+    resultado = obtener_pendientes_seleccionados_confirmables(seleccionadas)
 
     assert [sol.id for sol in resultado] == [1, 2]

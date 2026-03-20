@@ -14,7 +14,10 @@ from app.application.use_cases.confirmacion_pdf.modelos import (
     SolicitudConfirmarPdfResultado,
 )
 from app.ui.vistas import confirmacion_actions
-from app.ui.vistas.confirmacion_orquestacion import ResultadoConfirmacionFlujo
+from app.ui.vistas.confirmacion_orquestacion import (
+    ResultadoConfirmacionFlujo,
+    on_insertar_sin_pdf,
+)
 
 
 class _FechaHora:
@@ -26,6 +29,32 @@ class _FechaHora:
 
 
 def _build_window() -> SimpleNamespace:
+    solicitud_seleccionada = SolicitudDTO(
+        id=7,
+        persona_id=1,
+        fecha_solicitud="2026-01-01",
+        fecha_pedida="2026-01-01",
+        desde="09:00",
+        hasta="10:00",
+        completo=False,
+        horas=1.0,
+        observaciones="",
+        pdf_path=None,
+        pdf_hash=None,
+    )
+    solicitud_no_seleccionada = SolicitudDTO(
+        id=8,
+        persona_id=1,
+        fecha_solicitud="2026-01-02",
+        fecha_pedida="2026-01-02",
+        desde="10:00",
+        hasta="11:00",
+        completo=False,
+        horas=1.0,
+        observaciones="",
+        pdf_path=None,
+        pdf_hash=None,
+    )
     return SimpleNamespace(
         _ui_ready=True,
         _pending_view_all=False,
@@ -41,6 +70,7 @@ def _build_window() -> SimpleNamespace:
         _toast_success=Mock(),
         _prompt_confirm_pdf_path=lambda _selected: "/tmp/salida.pdf",
         _last_selected_pdf_path=None,
+        _pending_solicitudes=[solicitud_seleccionada, solicitud_no_seleccionada],
         _execute_confirmar_with_pdf=Mock(
             return_value=ResultadoConfirmacionFlujo(
                 correlation_id="corr-1",
@@ -57,21 +87,7 @@ def _build_window() -> SimpleNamespace:
                 pendientes_restantes=[],
             )
         ),
-        _selected_pending_solicitudes=lambda: [
-            SolicitudDTO(
-                id=7,
-                persona_id=1,
-                fecha_solicitud="2026-01-01",
-                fecha_pedida="2026-01-01",
-                desde="09:00",
-                hasta="10:00",
-                completo=False,
-                horas=1.0,
-                observaciones="",
-                pdf_path=None,
-                pdf_hash=None,
-            )
-        ],
+        _selected_pending_solicitudes=lambda: [solicitud_seleccionada],
         _obtener_ids_seleccionados_pendientes=lambda: [7],
         fecha_input=SimpleNamespace(date=lambda: _FechaHora("2026-01-01")),
         desde_input=SimpleNamespace(time=lambda: _FechaHora("09:00")),
@@ -102,6 +118,24 @@ def test_click_con_seleccion_llama_use_case_con_argumentos() -> None:
     assert [sol.id for sol in selected] == [7]
     assert pdf_path == "/tmp/salida.pdf"
     window._toast_success.assert_not_called()
+
+
+def test_click_con_seleccion_parcial_no_confirma_todos_los_visibles(caplog) -> None:
+    window = _build_window()
+
+    with caplog.at_level(logging.INFO):
+        confirmacion_actions.on_confirmar(window)
+
+    _persona, selected, _pdf_path = window._execute_confirmar_with_pdf.call_args.args
+    assert [sol.id for sol in selected] == [7]
+    registro_start = next(
+        registro
+        for registro in caplog.records
+        if registro.getMessage() == "UI_CONFIRMAR_PDF_START"
+    )
+    assert registro_start.extra["selected_ids"] == [7]
+    assert registro_start.extra["selected_count"] == 1
+    assert registro_start.extra["pendientes_count"] == 0
 
 
 def test_click_con_pdf_existente_muestra_toast_success(monkeypatch) -> None:
@@ -424,3 +458,51 @@ def test_on_confirmar_error_pdf_no_pide_sync_y_no_muestra_cierre_tecnico() -> No
     window._show_confirmation_closure.assert_not_called()
     window._finalize_confirmar_with_pdf.assert_not_called()
     window._toast_error.assert_called_once()
+
+
+def test_insertar_sin_pdf_con_seleccion_parcial_confirma_solo_la_seleccion() -> None:
+    window = _build_window()
+    controller = SimpleNamespace(
+        confirmar_lote=Mock(return_value=([7], [], None, window._selected_pending_solicitudes(), []))
+    )
+    window._solicitudes_controller = controller
+    window._procesar_resultado_confirmacion = Mock()
+    window._show_confirmation_closure = Mock()
+    window._notify_historico_filter_if_hidden = Mock()
+
+    on_insertar_sin_pdf(window)
+
+    controller.confirmar_lote.assert_called_once()
+    selected = controller.confirmar_lote.call_args.args[0]
+    assert [sol.id for sol in selected] == [7]
+
+
+def test_insertar_sin_pdf_sin_seleccion_no_ejecuta_caso_de_uso() -> None:
+    window = _build_window()
+    window._selected_pending_solicitudes = lambda: []
+    window._selected_pending_row_indexes = lambda: []
+    window._solicitudes_controller = SimpleNamespace(confirmar_lote=Mock())
+
+    on_insertar_sin_pdf(window)
+
+    window._solicitudes_controller.confirmar_lote.assert_not_called()
+    window.toast.warning.assert_called_once()
+
+
+def test_insertar_sin_pdf_con_todas_las_visibles_seleccionadas_mantiene_no_regresion() -> None:
+    window = _build_window()
+    todas = list(window._pending_solicitudes)
+    window._selected_pending_solicitudes = lambda: todas
+    window._selected_pending_row_indexes = lambda: [0, 1]
+    controller = SimpleNamespace(
+        confirmar_lote=Mock(return_value=([7, 8], [], None, todas, []))
+    )
+    window._solicitudes_controller = controller
+    window._procesar_resultado_confirmacion = Mock()
+    window._show_confirmation_closure = Mock()
+    window._notify_historico_filter_if_hidden = Mock()
+
+    on_insertar_sin_pdf(window)
+
+    selected = controller.confirmar_lote.call_args.args[0]
+    assert [sol.id for sol in selected] == [7, 8]
