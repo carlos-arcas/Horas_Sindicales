@@ -425,7 +425,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         *,
         excluir_solicitud_id: int | None = None,
     ) -> ConflictoSolicitud | None:
-        """Detecta conflicto comparando contra solicitudes existentes (pendientes + histórico)."""
+        """Detecta conflicto comparando solo contra solicitudes pendientes activas."""
         fecha_normalizada = _normalizar_fecha_iso(fecha_pedida)
         desde_normalizado = _normalizar_minutos(desde_min)
         hasta_normalizado = _normalizar_minutos(hasta_min)
@@ -433,6 +433,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         clauses = [
             "s.persona_id = ?",
             "s.fecha_pedida = ?",
+            "s.generated = 0",
             "(s.deleted = 0 OR s.deleted IS NULL)",
         ]
         params: list[object] = [persona_id, fecha_normalizada]
@@ -458,21 +459,15 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             )
             if conflicto is None:
                 continue
-            fuente = "historico" if bool(row["generated"]) else "pendiente"
+            estado_existente = "pendiente" if not bool(row["generated"]) else "historico"
             logger.debug(
-                "Conflicto de solicitud detectado persona_id=%s fecha=%s desde=%s hasta=%s completo=%s tipo=%s "
-                "id_existente=%s fuente=%s fecha_normalizada=%s desde_normalizado=%s hasta_normalizado=%s",
+                "Conflicto de solicitud pendiente detectado persona_id=%s fecha=%s tipo_conflicto=%s "
+                "id_existente=%s estado_existente=%s",
                 persona_id,
-                fecha_pedida,
-                desde_min,
-                hasta_min,
-                completo,
+                fecha_normalizada,
                 conflicto.tipo,
                 conflicto.id_existente,
-                fuente,
-                fecha_normalizada,
-                desde_normalizado,
-                hasta_normalizado,
+                estado_existente,
             )
             return conflicto
         return None

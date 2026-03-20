@@ -92,6 +92,7 @@ class SolicitudRepository(Protocol):
         *,
         excluir_solicitud_id: int | None = None,
     ) -> ConflictoSolicitud | None:
+        """Valida conflictos solo contra solicitudes pendientes activas (generated = 0)."""
         ...
 
     def create(self, solicitud: Solicitud) -> Solicitud:
