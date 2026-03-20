@@ -199,7 +199,7 @@ class MainWindow(_MainWindowBase):
         return super()._confirmar_cambio_delegada(nueva_persona)
 
     def _save_current_draft(self) -> None:
-        return super()._save_current_draft()
+        return super()._save_current_draft(getattr(self, "_last_persona_id", None))
 
     def _restore_draft_for_persona(self, persona_id: int) -> None:
         return super()._restore_draft_for_persona(persona_id)

@@ -16,8 +16,8 @@ class EstadoMainWindowMixin:
     def _is_form_dirty(self) -> bool:
         return acciones_personas.is_form_dirty(self)
 
-    def _confirmar_cambio_delegada(self, persona_id: int | None) -> bool:
-        return acciones_personas.confirmar_cambio_delegada(self, persona_id)
+    def _confirmar_cambio_delegada(self, *_args: object) -> bool:
+        return acciones_personas.confirmar_cambio_delegada(self)
 
     def _restore_draft_for_persona(self, persona_id: int | None) -> None:
         return acciones_personas.restore_draft_for_persona(self, persona_id)
