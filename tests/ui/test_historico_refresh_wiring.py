@@ -5,6 +5,8 @@ import importlib
 from pathlib import Path
 import sys
 import types
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -160,10 +162,11 @@ def test_tab_changed_wires_historico_refresh() -> None:
     assert _contains_refresh_call(methods["_on_main_tab_changed"], force_value=False)
 
 
-def test_refresh_historico_uses_controller_source_of_truth() -> None:
+def test_refresh_historico_fachada_delega_en_super_sin_consulta_directa() -> None:
     _, methods = _class_and_methods()
     assert "_refresh_historico" in methods
-    assert _contains_call(methods["_refresh_historico"], "refresh_historico")
+    assert not _contains_call(methods["_refresh_historico"], "refresh_historico")
+    assert _contains_call(methods["_refresh_historico"], "_refresh_historico")
 
 
 def test_build_historico_rows_collects_all_persona_rows() -> None:
@@ -268,3 +271,87 @@ def test_post_init_load_scheduler_sigue_siendo_diferido(
 
     assert len(scheduler_callbacks) == 2
     assert all(delay == 0 for delay, _ in scheduler_callbacks)
+
+
+def test_data_refresh_historico_ejecuta_una_sola_consulta_y_aplica_estado(monkeypatch: pytest.MonkeyPatch) -> None:
+    helpers_mod = types.ModuleType("app.ui.vistas.main_window_helpers")
+    helpers_mod.build_historico_filters_payload = Mock(return_value={"force": True})
+    helpers_mod.handle_historico_render_mismatch = Mock(return_value=1)
+    monkeypatch.setitem(sys.modules, "app.ui.vistas.main_window_helpers", helpers_mod)
+
+    data_refresh = importlib.import_module("app.ui.vistas.main_window.data_refresh")
+    data_refresh = importlib.reload(data_refresh)
+
+    solicitudes = [SimpleNamespace(id=7)]
+    table = SimpleNamespace(
+        isSortingEnabled=Mock(return_value=True),
+        setUpdatesEnabled=Mock(),
+        setSortingEnabled=Mock(),
+        sortByColumn=Mock(),
+    )
+    model = SimpleNamespace(set_solicitudes=Mock())
+    proxy_model = SimpleNamespace(
+        sourceModel=Mock(return_value=None),
+        setSourceModel=Mock(),
+        invalidateFilter=Mock(),
+        invalidate=Mock(),
+        rowCount=Mock(return_value=1),
+    )
+    controller = SimpleNamespace(refresh_historico=Mock(return_value=solicitudes))
+    window = SimpleNamespace(
+        historico_table=table,
+        historico_model=model,
+        historico_proxy_model=proxy_model,
+        _current_persona=Mock(return_value=SimpleNamespace(id=3)),
+        historico_delegada_combo=SimpleNamespace(currentData=Mock(return_value=3)),
+        historico_estado_combo=SimpleNamespace(currentData=Mock(return_value="PENDIENTE")),
+        historico_desde_date=SimpleNamespace(date=Mock(return_value=SimpleNamespace(toString=Mock(return_value="2026-01-01")))),
+        historico_hasta_date=SimpleNamespace(date=Mock(return_value=SimpleNamespace(toString=Mock(return_value="2026-12-31")))),
+        historico_search_input=SimpleNamespace(text=Mock(return_value="delegada")),
+        main_tabs=SimpleNamespace(currentIndex=Mock(return_value=1)),
+        _solicitudes_controller=controller,
+        _apply_historico_filters=Mock(),
+        _update_action_state=Mock(),
+        _historico_ids_seleccionados={99},
+        eliminar_button=SimpleNamespace(setText=Mock()),
+        toast=Mock(),
+    )
+
+    scheduled: list[tuple[int, object]] = []
+    monkeypatch.setattr(
+        data_refresh.QTimer,
+        "singleShot",
+        lambda delay, callback: scheduled.append((delay, callback)),
+    )
+
+    data_refresh.refresh_historico(window, force=True)
+
+    controller.refresh_historico.assert_called_once_with()
+    model.set_solicitudes.assert_called_once_with(solicitudes)
+    window._apply_historico_filters.assert_called_once_with()
+    window._update_action_state.assert_called_once_with()
+    assert window._historico_ids_seleccionados == set()
+    proxy_model.setSourceModel.assert_called_once_with(model)
+    assert scheduled and scheduled[0][0] == 0
+
+
+def test_main_window_refresh_historico_propaga_force_al_flujo_base(
+    monkeypatch: pytest.MonkeyPatch,
+    main_window_vista_mod,
+) -> None:
+    modulo = main_window_vista_mod
+    base_calls: list[bool] = []
+    base_class = modulo.MainWindow.__mro__[1]
+
+    def _fake_base_refresh(self, *, force: bool = False) -> None:
+        base_calls.append(force)
+
+    monkeypatch.setattr(base_class, "_refresh_historico", _fake_base_refresh, raising=False)
+    window = modulo.MainWindow.__new__(modulo.MainWindow)
+    window._solicitudes_controller = SimpleNamespace(refresh_historico=Mock())
+
+    modulo.MainWindow._refresh_historico(window, force=False)
+    modulo.MainWindow._refresh_historico(window, force=True)
+
+    window._solicitudes_controller.refresh_historico.assert_not_called()
+    assert base_calls == [False, True]
