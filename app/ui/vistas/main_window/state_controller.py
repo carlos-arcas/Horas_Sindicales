@@ -307,23 +307,6 @@ class MainWindow(
     def tiene_capacidad_opcional(self, nombre_capacidad: str) -> bool:
         return capacidad_disponible(self, nombre_capacidad)
 
-    def _load_personas(self, select_id: int | None = None) -> None:
-        # Importante: el método en el mixin base no acepta argumentos.
-        super()._load_personas()
-
-        if select_id is None:
-            return
-
-        for nombre_metodo in (
-            "_seleccionar_persona_por_id",
-            "_set_persona_activa_por_id",
-            "_aplicar_persona_seleccionada",
-        ):
-            metodo = getattr(self, nombre_metodo, None)
-            if callable(metodo):
-                metodo(select_id)
-                return
-
     def _on_config_delegada_changed(self, *_args: object) -> None:
         return super()._on_config_delegada_changed(*_args)
 

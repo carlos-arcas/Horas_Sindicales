@@ -22,8 +22,8 @@ class EstadoMainWindowMixin:
     def _restore_draft_for_persona(self, persona_id: int | None) -> None:
         return acciones_personas.restore_draft_for_persona(self, persona_id)
 
-    def _load_personas(self) -> None:
-        return acciones_personas.load_personas(self)
+    def _load_personas(self, select_id: int | None = None) -> None:
+        return acciones_personas.load_personas(self, select_id=select_id)
 
     def _current_persona(self):
         return acciones_personas.current_persona(self)
