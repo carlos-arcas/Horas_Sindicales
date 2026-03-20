@@ -8,7 +8,11 @@ from datetime import datetime, timezone
 from typing import Callable, Iterable, TypeVar
 
 from app.domain.models import ConflictoSolicitud, GrupoConfig, Solicitud
-from app.domain.ports import CuadranteRepository, GrupoConfigRepository, SolicitudRepository
+from app.domain.ports import (
+    CuadranteRepository,
+    GrupoConfigRepository,
+    SolicitudRepository,
+)
 from app.domain.time_utils import minutes_to_hhmm
 from app.infrastructure.repos_sqlite_builders import (
     SOLICITUD_SELECT_FIELDS,
@@ -78,7 +82,9 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: Iterable[object], context: str) -> None:
+def _execute_with_validation(
+    cursor: sqlite3.Cursor, sql: str, params: Iterable[object], context: str
+) -> None:
     expected = sql.count("?")
     params_list = list(params)
     actual = len(params_list)
@@ -87,8 +93,6 @@ def _execute_with_validation(cursor: sqlite3.Cursor, sql: str, params: Iterable[
             f"SQL param mismatch for {context}: expected {expected} placeholders, got {actual} parameters."
         )
     cursor.execute(sql, tuple(params_list))
-
-
 
 
 def _detectar_conflicto_desde_fila(
@@ -132,7 +136,9 @@ def _normalizar_minutos(valor: int | str | None) -> int | None:
     valor_str = str(valor).strip().replace(".", ":")
     if valor_str.isdigit():
         return int(valor_str)
-    return int(valor_str.split(":", maxsplit=1)[0]) * 60 + int(valor_str.split(":", maxsplit=1)[1])
+    return int(valor_str.split(":", maxsplit=1)[0]) * 60 + int(
+        valor_str.split(":", maxsplit=1)[1]
+    )
 
 
 def _solapan_intervalos(
@@ -178,7 +184,9 @@ class CuadranteRepositorySQLite(CuadranteRepository):
         )
         return cursor.fetchone() is not None
 
-    def create(self, delegada_uuid: str, dia_semana: str, man_min: int, tar_min: int) -> None:
+    def create(
+        self, delegada_uuid: str, dia_semana: str, man_min: int, tar_min: int
+    ) -> None:
         cursor = self._connection.cursor()
 
         def _operation() -> None:
@@ -188,11 +196,20 @@ class CuadranteRepositorySQLite(CuadranteRepository):
                 INSERT INTO cuadrantes (uuid, delegada_uuid, dia_semana, man_min, tar_min, updated_at, deleted)
                 VALUES (?, ?, ?, ?, ?, ?, 0)
                 """,
-                (str(uuid.uuid4()), delegada_uuid, dia_semana, man_min, tar_min, _now_iso()),
+                (
+                    str(uuid.uuid4()),
+                    delegada_uuid,
+                    dia_semana,
+                    man_min,
+                    tar_min,
+                    _now_iso(),
+                ),
                 "cuadrantes.insert",
             )
 
-        _run_in_transaction_with_retry(self._connection, _operation, context="cuadrantes.create")
+        _run_in_transaction_with_retry(
+            self._connection, _operation, context="cuadrantes.create"
+        )
 
 
 class SolicitudRepositorySQLite(SolicitudRepository):
@@ -332,7 +349,9 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             )
             return [self._row_to_solicitud(row) for row in cursor.fetchall()]
 
-        return _run_with_locked_retry(_query, context="solicitudes.list_by_persona_and_period")
+        return _run_with_locked_retry(
+            _query, context="solicitudes.list_by_persona_and_period"
+        )
 
     def list_by_persona_and_fecha(
         self, persona_id: int, fecha_pedida: str
@@ -408,7 +427,15 @@ class SolicitudRepositorySQLite(SolicitudRepository):
               AND (deleted = 0 OR deleted IS NULL)
             LIMIT 1
             """,
-            (persona_id, fecha_pedida, int(completo), desde_min, desde_min, hasta_min, hasta_min),
+            (
+                persona_id,
+                fecha_pedida,
+                int(completo),
+                desde_min,
+                desde_min,
+                hasta_min,
+                hasta_min,
+            ),
         )
         row = cursor.fetchone()
         if not row:
@@ -445,7 +472,7 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             f"""
             SELECT s.id, s.persona_id, s.fecha_pedida, s.desde_min, s.hasta_min, s.completo, s.generated
             FROM solicitudes s
-            WHERE {' AND '.join(clauses)}
+            WHERE {" AND ".join(clauses)}
             ORDER BY s.id DESC
             """,
             tuple(params),
@@ -459,15 +486,13 @@ class SolicitudRepositorySQLite(SolicitudRepository):
             )
             if conflicto is None:
                 continue
-            estado_existente = "pendiente" if not bool(row["generated"]) else "historico"
             logger.debug(
                 "Conflicto de solicitud pendiente detectado persona_id=%s fecha=%s tipo_conflicto=%s "
-                "id_existente=%s estado_existente=%s",
+                "id_existente=%s",
                 persona_id,
                 fecha_normalizada,
                 conflicto.tipo,
                 conflicto.id_existente,
-                estado_existente,
             )
             return conflicto
         return None
@@ -480,7 +505,9 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         hasta_min: int | None,
         completo: bool,
     ) -> Solicitud | None:
-        conflicto = self.detectar_conflicto_pendiente(persona_id, fecha_pedida, desde_min, hasta_min, completo)
+        conflicto = self.detectar_conflicto_pendiente(
+            persona_id, fecha_pedida, desde_min, hasta_min, completo
+        )
         if conflicto is None or conflicto.tipo != "DUPLICADO":
             return None
         return self.get_by_id(conflicto.id_existente)
@@ -493,7 +520,9 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         hasta_min: int | None,
         completo: bool,
     ) -> bool:
-        conflicto = self.detectar_conflicto_pendiente(persona_id, fecha_pedida, desde_min, hasta_min, completo)
+        conflicto = self.detectar_conflicto_pendiente(
+            persona_id, fecha_pedida, desde_min, hasta_min, completo
+        )
         return conflicto is not None and conflicto.tipo == "DUPLICADO"
 
     def create(self, solicitud: Solicitud) -> Solicitud:
@@ -523,7 +552,9 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 "solicitudes.insert",
             )
 
-        _run_in_transaction_with_retry(self._connection, _operation, context="solicitudes.create")
+        _run_in_transaction_with_retry(
+            self._connection, _operation, context="solicitudes.create"
+        )
         return Solicitud(
             id=cursor.lastrowid,
             persona_id=solicitud.persona_id,
@@ -556,7 +587,9 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 "solicitudes.delete",
             )
 
-        _run_in_transaction_with_retry(self._connection, _operation, context="solicitudes.delete")
+        _run_in_transaction_with_retry(
+            self._connection, _operation, context="solicitudes.delete"
+        )
 
     def delete_by_ids(self, solicitud_ids: Iterable[int]) -> None:
         ids = list(solicitud_ids)
@@ -566,11 +599,17 @@ class SolicitudRepositorySQLite(SolicitudRepository):
         sql, delete_params = build_soft_delete_many_sql(ids)
 
         def _operation() -> None:
-            _execute_with_validation(cursor, sql, [_now_iso(), *delete_params], "solicitudes.delete_by_ids")
+            _execute_with_validation(
+                cursor, sql, [_now_iso(), *delete_params], "solicitudes.delete_by_ids"
+            )
 
-        _run_in_transaction_with_retry(self._connection, _operation, context="solicitudes.delete_by_ids")
+        _run_in_transaction_with_retry(
+            self._connection, _operation, context="solicitudes.delete_by_ids"
+        )
 
-    def update_pdf_info(self, solicitud_id: int, pdf_path: str, pdf_hash: str | None) -> None:
+    def update_pdf_info(
+        self, solicitud_id: int, pdf_path: str, pdf_hash: str | None
+    ) -> None:
         cursor = self._connection.cursor()
         updated_at = _now_iso()
 
@@ -586,7 +625,9 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 "solicitudes.update_pdf_info",
             )
 
-        _run_in_transaction_with_retry(self._connection, _operation, context="solicitudes.update_pdf_info")
+        _run_in_transaction_with_retry(
+            self._connection, _operation, context="solicitudes.update_pdf_info"
+        )
 
     def mark_generated(self, solicitud_id: int, generated: bool = True) -> None:
         cursor = self._connection.cursor()
@@ -604,7 +645,9 @@ class SolicitudRepositorySQLite(SolicitudRepository):
                 "solicitudes.mark_generated",
             )
 
-        _run_in_transaction_with_retry(self._connection, _operation, context="solicitudes.mark_generated")
+        _run_in_transaction_with_retry(
+            self._connection, _operation, context="solicitudes.mark_generated"
+        )
 
 
 class GrupoConfigRepositorySQLite(GrupoConfigRepository):
@@ -631,7 +674,9 @@ class GrupoConfigRepositorySQLite(GrupoConfigRepository):
             bolsa_anual_grupo_min=int_or_zero(row["bolsa_anual_grupo_min"]),
             pdf_logo_path=row["pdf_logo_path"],
             pdf_intro_text=row["pdf_intro_text"],
-            pdf_include_hours_in_horario=bool_from_db(row["pdf_include_hours_in_horario"]),
+            pdf_include_hours_in_horario=bool_from_db(
+                row["pdf_include_hours_in_horario"]
+            ),
         )
 
     def upsert(self, config: GrupoConfig) -> GrupoConfig:
@@ -662,7 +707,9 @@ class GrupoConfigRepositorySQLite(GrupoConfigRepository):
                 ),
             )
 
-        _run_in_transaction_with_retry(self._connection, _operation, context="grupo_config.upsert")
+        _run_in_transaction_with_retry(
+            self._connection, _operation, context="grupo_config.upsert"
+        )
         return GrupoConfig(
             id=1,
             nombre_grupo=config.nombre_grupo,
