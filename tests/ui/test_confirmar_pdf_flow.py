@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -184,6 +185,48 @@ def test_finalize_confirmar_with_pdf_respeta_orden_historico_pdf_y_sync(monkeypa
         'dialogo_pdf',
         'preguntar_sync',
     ]
+
+
+def test_finalize_confirmar_with_pdf_si_register_pdf_log_falla_mantiene_exito_y_loguea(caplog, monkeypatch) -> None:
+    eventos: list[str] = []
+
+    def _fallar_register_pdf_log(*_args) -> None:
+        raise RuntimeError("db rota")
+
+    window = _build_window_finalize(eventos)
+    window._sync_service = SimpleNamespace(register_pdf_log=_fallar_register_pdf_log)
+    persona = SimpleNamespace(id=1)
+    ruta_pdf = Path('/tmp/salida.pdf')
+    monkeypatch.setattr(Path, 'exists', lambda self: self == ruta_pdf)
+
+    with caplog.at_level(logging.ERROR):
+        confirmacion_actions.finalize_confirmar_with_pdf(
+            window,
+            persona,
+            'corr-1',
+            ruta_pdf,
+            [_build_solicitud_confirmada()],
+            [7],
+            [],
+            [],
+        )
+
+    assert eventos == [
+        'insertar_historico',
+        'notificar_historico',
+        'toast_ok',
+        'dialogo_pdf',
+        'preguntar_sync',
+    ]
+    assert any(registro.getMessage() == 'ui.confirmacion.register_pdf_log_failed' for registro in caplog.records)
+    registro_error = next(registro for registro in caplog.records if registro.getMessage() == 'ui.confirmacion.register_pdf_log_failed')
+    assert registro_error.levelno == logging.ERROR
+    assert registro_error.extra == {
+        'operation': 'confirmar_y_generar_pdf',
+        'persona_id': 1,
+        'fechas_count': 1,
+        'correlation_id': 'corr-1',
+    }
 
 
 def test_finalize_confirmar_with_pdf_con_error_no_pide_sync_y_muestra_cierre() -> None:

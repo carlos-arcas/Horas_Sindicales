@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import Qt
 
+from app.bootstrap.logging import log_operational_error
 from app.core.observability import OperationContext, log_event
 from app.domain.services import BusinessRuleError, ValidacionError
 from app.ui.copy_catalog import copy_text
@@ -81,9 +82,13 @@ def finalize_confirmar_with_pdf(
     if flujo_confirmacion_exitoso:
         pdf_hash = creadas[0].pdf_hash
         fechas = [solicitud.fecha_pedida for solicitud in creadas]
-        window._sync_service.register_pdf_log(persona.id or 0, fechas, pdf_hash)
-        if correlation_id:
-            log_event(logger, "register_pdf_log", {"persona_id": persona.id or 0, "fechas": len(fechas)}, correlation_id)
+        _registrar_pdf_log_secundario(
+            window,
+            persona_id=persona.id or 0,
+            fechas=fechas,
+            pdf_hash=pdf_hash,
+            correlation_id=correlation_id,
+        )
         window._toast_success(copy_text("ui.confirmacion.ok_pdf_generado"), title=copy_text("ui.preferencias.confirmacion"))
         if generado.exists():
             window._show_pdf_actions_dialog(generado)
@@ -92,6 +97,34 @@ def finalize_confirmar_with_pdf(
 
     if errores:
         window._show_confirmation_closure(creadas, errores, operation_name="confirmar_y_generar_pdf", correlation_id=correlation_id)
+
+
+def _registrar_pdf_log_secundario(
+    window: Any,
+    *,
+    persona_id: int,
+    fechas: list[str],
+    pdf_hash: str | None,
+    correlation_id: str | None,
+) -> None:
+    if not pdf_hash:
+        return
+    try:
+        window._sync_service.register_pdf_log(persona_id, fechas, pdf_hash)
+        if correlation_id:
+            log_event(logger, "register_pdf_log", {"persona_id": persona_id, "fechas": len(fechas)}, correlation_id)
+    except Exception as exc:  # pragma: no cover - fallback defensivo de infraestructura
+        log_operational_error(
+            logger,
+            "ui.confirmacion.register_pdf_log_failed",
+            exc=exc,
+            extra={
+                "operation": "confirmar_y_generar_pdf",
+                "persona_id": persona_id,
+                "fechas_count": len(fechas),
+                "correlation_id": correlation_id,
+            },
+        )
 
 
 def show_confirmation_closure(
