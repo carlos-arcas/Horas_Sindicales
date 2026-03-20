@@ -107,3 +107,75 @@ def test_controller_handles_permission_error_without_propagating() -> None:
     window.toast.warning.assert_called_once()
     toast_message = window.toast.warning.call_args.args[0]
     assert "sync-bot@example.iam.gserviceaccount.com" in toast_message
+
+
+@pytest.mark.headless_safe
+def test_on_context_changed_invalida_plan_pendiente_y_refresca_botones() -> None:
+    window = _build_window()
+    window._pending_sync_plan = object()
+    window.confirm_sync_button = Mock()
+    window._conflicts_service = SimpleNamespace(count_conflicts=Mock(return_value=0))
+    window.sync_button = Mock()
+    window.review_conflicts_button = Mock()
+
+    controller = SyncController(window)
+    controller.on_context_changed()
+
+    assert window._pending_sync_plan is None
+    assert window.confirm_sync_button.setEnabled.call_args_list[-1] == ((False,), {})
+
+
+@pytest.mark.headless_safe
+def test_finished_callback_tardio_no_reescribe_contexto_activo(monkeypatch) -> None:
+    window = _build_window()
+    window._pending_sync_plan = object()
+    window._reload_pending_views = Mock()
+    window._refresh_historico = Mock()
+    window._refresh_saldos = Mock()
+    window._update_global_context = Mock()
+    window._conflicts_service = SimpleNamespace(count_conflicts=Mock(return_value=0))
+    window.sync_button = Mock()
+    window.review_conflicts_button = Mock()
+    monkeypatch.setattr(module, 'resolve_active_delegada_id', lambda _window: 2)
+
+    on_finished = Mock()
+    controller = SyncController(window)
+    controller._handle_operation_finished(
+        {'ok': True},
+        expected_persona_id=1,
+        on_finished=on_finished,
+        operation_name='sync_bidirectional',
+    )
+
+    on_finished.assert_not_called()
+    window._set_sync_in_progress.assert_called_once_with(False)
+    assert window._pending_sync_plan is None
+    window._reload_pending_views.assert_called_once_with()
+    window._refresh_historico.assert_called_once_with()
+    window._refresh_saldos.assert_called_once_with()
+    window._update_global_context.assert_called_once_with()
+
+
+@pytest.mark.headless_safe
+def test_failed_callback_tardio_no_reescribe_contexto_activo(monkeypatch) -> None:
+    window = _build_window()
+    window._pending_sync_plan = object()
+    window._reload_pending_views = Mock()
+    window._refresh_historico = Mock()
+    window._refresh_saldos = Mock()
+    window._update_global_context = Mock()
+    window._conflicts_service = SimpleNamespace(count_conflicts=Mock(return_value=0))
+    window.sync_button = Mock()
+    window.review_conflicts_button = Mock()
+    monkeypatch.setattr(module, 'resolve_active_delegada_id', lambda _window: 2)
+
+    controller = SyncController(window)
+    controller._handle_operation_failed(
+        {'error': RuntimeError('boom')},
+        expected_persona_id=1,
+        operation_name='sync_bidirectional',
+    )
+
+    window._on_sync_failed.assert_not_called()
+    window._set_sync_in_progress.assert_called_once_with(False)
+    assert window._pending_sync_plan is None

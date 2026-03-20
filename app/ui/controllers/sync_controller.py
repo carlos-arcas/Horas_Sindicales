@@ -16,6 +16,7 @@ from app.ui.controllers.sync_button_state_rules import (
     decidir_estado_botones_sync,
 )
 from app.ui.vistas.compat_i18n import resolver_texto_i18n
+from app.ui.vistas.main_window.state_helpers import resolve_active_delegada_id
 
 
 try:
@@ -84,6 +85,14 @@ class _SyncWorker(QObject):
 class SyncController:
     def __init__(self, window) -> None:
         self.window = window
+
+    def on_context_changed(self) -> None:
+        w = self.window
+        if getattr(w, '_pending_sync_plan', None) is not None:
+            w._pending_sync_plan = None
+        if hasattr(w, 'confirm_sync_button') and hasattr(w.confirm_sync_button, 'setEnabled'):
+            w.confirm_sync_button.setEnabled(False)
+        self.update_sync_button_state()
 
     def on_sync(self) -> None:
         self._run_background_operation(
@@ -156,13 +165,27 @@ class SyncController:
         w._sync_thread = QThread()
         operation_context = OperationContext("sync_ui")
         w._sync_operation_context = operation_context
+        contexto_persona_id = self._contexto_persona_activo()
         w._sync_worker = _SyncWorker(
             operation, operation_context.correlation_id, operation_name
         )
         w._sync_worker.moveToThread(w._sync_thread)
         w._sync_thread.started.connect(w._sync_worker.run)
-        w._sync_worker.finished.connect(on_finished)
-        w._sync_worker.failed.connect(self._on_sync_failed)
+        w._sync_worker.finished.connect(
+            lambda result, expected_persona_id=contexto_persona_id, callback=on_finished: self._handle_operation_finished(
+                result,
+                expected_persona_id=expected_persona_id,
+                on_finished=callback,
+                operation_name=operation_name,
+            )
+        )
+        w._sync_worker.failed.connect(
+            lambda payload, expected_persona_id=contexto_persona_id: self._handle_operation_failed(
+                payload,
+                expected_persona_id=expected_persona_id,
+                operation_name=operation_name,
+            )
+        )
         w._sync_worker.finished.connect(w._sync_thread.quit)
         w._sync_worker.finished.connect(w._sync_worker.deleteLater)
         w._sync_thread.finished.connect(w._sync_thread.deleteLater)
@@ -235,6 +258,72 @@ class SyncController:
                 )
             )
         self.update_sync_button_state()
+
+    def _handle_operation_finished(
+        self,
+        result: object,
+        *,
+        expected_persona_id: int | None,
+        on_finished,
+        operation_name: str,
+    ) -> None:
+        if self._es_contexto_vigente(expected_persona_id):
+            on_finished(result)
+            return
+        logger.info(
+            "SYNC_CONTEXT_STALE_FINISHED_IGNORED",
+            extra={
+                "operation": operation_name,
+                "expected_persona_id": expected_persona_id,
+                "active_persona_id": self._contexto_persona_activo(),
+            },
+        )
+        self._discard_stale_operation_result()
+
+    def _handle_operation_failed(
+        self,
+        payload: object,
+        *,
+        expected_persona_id: int | None,
+        operation_name: str,
+    ) -> None:
+        if self._es_contexto_vigente(expected_persona_id):
+            self._on_sync_failed(payload)
+            return
+        logger.info(
+            "SYNC_CONTEXT_STALE_FAILURE_IGNORED",
+            extra={
+                "operation": operation_name,
+                "expected_persona_id": expected_persona_id,
+                "active_persona_id": self._contexto_persona_activo(),
+            },
+        )
+        self._discard_stale_operation_result()
+
+    def _discard_stale_operation_result(self) -> None:
+        w = self.window
+        w._pending_sync_plan = None
+        if hasattr(w, '_set_sync_in_progress'):
+            w._set_sync_in_progress(False)
+        self.update_sync_button_state()
+        refrescar_pendientes = getattr(w, '_reload_pending_views', None)
+        if callable(refrescar_pendientes):
+            refrescar_pendientes()
+        refrescar_historico = getattr(w, '_refresh_historico', None)
+        if callable(refrescar_historico):
+            refrescar_historico()
+        refrescar_saldos = getattr(w, '_refresh_saldos', None)
+        if callable(refrescar_saldos):
+            refrescar_saldos()
+        refrescar_contexto = getattr(w, '_update_global_context', None)
+        if callable(refrescar_contexto):
+            refrescar_contexto()
+
+    def _es_contexto_vigente(self, expected_persona_id: int | None) -> bool:
+        return expected_persona_id == self._contexto_persona_activo()
+
+    def _contexto_persona_activo(self) -> int | None:
+        return resolve_active_delegada_id(self.window)
 
     def _on_sync_failed(self, payload: object) -> None:
         error = _extract_error(payload)
