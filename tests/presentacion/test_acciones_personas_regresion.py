@@ -57,6 +57,7 @@ def test_on_persona_changed_sincroniza_contexto_y_refresca_estado_derivado() -> 
         _refresh_saldos=Mock(),
         _refrescar_estado_operativa=Mock(),
         _update_global_context=Mock(),
+        _sync_controller=SimpleNamespace(on_context_changed=Mock()),
         notas_input=SimpleNamespace(toPlainText=lambda: ""),
         fecha_input=SimpleNamespace(date=lambda: "fecha"),
         desde_input=SimpleNamespace(time=lambda: "desde"),
@@ -81,6 +82,7 @@ def test_on_persona_changed_sincroniza_contexto_y_refresca_estado_derivado() -> 
     window._refresh_historico.assert_called_once()
     window._refresh_saldos.assert_called_once()
     window._refrescar_estado_operativa.assert_called_once_with("persona_changed")
+    window._sync_controller.on_context_changed.assert_called_once_with()
     window._update_global_context.assert_called_once()
     assert settings.setValue.call_args_list[:2] == [
         (("contexto/delegada_activa", 2),),
@@ -107,6 +109,7 @@ def test_on_persona_changed_cancelado_restaura_combo_y_no_refresca() -> None:
         _refresh_saldos=Mock(),
         _refrescar_estado_operativa=Mock(),
         _update_global_context=Mock(),
+        _sync_controller=SimpleNamespace(on_context_changed=Mock()),
     )
 
     confirmar_original = acciones_personas.confirmar_cambio_delegada

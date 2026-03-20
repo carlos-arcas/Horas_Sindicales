@@ -65,3 +65,141 @@ def test_safe_wrapper_swallows_callback_exception_and_logs(caplog) -> None:
 
     assert result is False
     assert "TOAST_ACTION_FAILED" in caplog.text
+
+
+class _TimerStub:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, int | None]] = []
+
+    def stop(self) -> None:
+        self.calls.append(("stop", None))
+
+    def start(self, value: int) -> None:
+        self.calls.append(("start", value))
+
+
+class _TarjetaStub:
+    def __init__(self) -> None:
+        self.recibidas = []
+
+    def actualizar_notificacion(self, notificacion) -> None:
+        self.recibidas.append(notificacion)
+
+
+def test_dedupe_update_reinicia_timer_y_callback_visible() -> None:
+    module = _cargar_gestor_toasts_sin_qt()
+    GestorToasts = module.GestorToasts
+    NotificacionToast = module.NotificacionToast
+
+    timer = _TimerStub()
+    tarjeta = _TarjetaStub()
+    def callback() -> None:
+        return None
+    gestor = type('GestorStub', (), {
+        '_cache': {},
+        '_visibles': {'toast-1': tarjeta},
+        '_timers': {'toast-1': timer},
+    })()
+    notificacion = NotificacionToast(
+        id='temp',
+        titulo='Nuevo',
+        mensaje='Actualizado',
+        nivel='warning',
+        action_label='Reintentar',
+        action_callback=callback,
+        dedupe_key='sync:error:sin_excepcion',
+        duracion_ms=3210,
+    )
+
+    GestorToasts._actualizar_toast_dedupe(gestor, notificacion=notificacion, toast_id='toast-1')
+
+    assert gestor._cache['toast-1'].action_callback is callback
+    assert tarjeta.recibidas[0].action_callback is callback
+    assert timer.calls == [('stop', None), ('start', 3210)]
+
+
+def test_abrir_detalles_retiene_referencia_hasta_cerrar(monkeypatch) -> None:
+    module = _cargar_gestor_toasts_sin_qt()
+    NotificacionToast = module.NotificacionToast
+
+    class _SignalStub:
+        def __init__(self) -> None:
+            self.callback = None
+
+        def connect(self, callback) -> None:
+            self.callback = callback
+
+    class _DialogoStub:
+        def __init__(self, notificacion, parent=None) -> None:
+            self.notificacion = notificacion
+            self.parent = parent
+            self.finished = _SignalStub()
+            self.exec_called = False
+
+        def exec(self) -> None:
+            self.exec_called = True
+            assert gestor._dialogos_detalle['toast-1'] is self
+            self.finished.callback(0)
+
+    monkeypatch.setattr(module, 'DialogoDetallesNotificacion', _DialogoStub)
+    gestor = type('GestorStub', (), {
+        '_cache': {'toast-1': NotificacionToast(id='toast-1', titulo='t', mensaje='m', detalles='detalle')},
+        '_host': object(),
+        '_dialogos_detalle': {},
+    })()
+
+    module.GestorToasts._abrir_detalles(gestor, 'toast-1')
+
+    assert gestor._dialogos_detalle == {}
+
+
+def _cargar_gestor_toasts_sin_qt():
+    import importlib
+    import sys
+    import types
+
+    qtcore = types.ModuleType('PySide6.QtCore')
+    qtcore.QEvent = type('QEvent', (), {'Resize': 1, 'Move': 2})
+    qtcore.QObject = type('QObject', (), {'__init__': lambda self, parent=None: None})
+    qtcore.QTimer = type('QTimer', (), {})
+    qtcore.Qt = type('Qt', (), {'AlignmentFlag': type('AlignmentFlag', (), {'AlignHCenter': 0})})
+    qtwidgets = types.ModuleType('PySide6.QtWidgets')
+    qtwidgets.QWidget = type('QWidget', (), {})
+
+    dialogo = types.ModuleType('app.ui.widgets.dialogo_detalles_toast')
+    dialogo.DialogoDetallesNotificacion = type('DialogoDetallesNotificacion', (), {})
+    overlay = types.ModuleType('app.ui.widgets.overlay_toast')
+    overlay.CapaToasts = type('CapaToasts', (), {})
+
+    from dataclasses import dataclass
+
+    @dataclass
+    class _NotificacionToast:
+        id: str
+        titulo: str
+        mensaje: str
+        nivel: str = 'info'
+        detalles: str | None = None
+        codigo: str | None = None
+        correlacion_id: str | None = None
+        origen: str | None = None
+        action_label: str | None = None
+        action_callback: object | None = None
+        dedupe_key: str | None = None
+        duracion_ms: int = 8000
+
+    widget = types.ModuleType('app.ui.widgets.widget_toast')
+    widget.NotificacionToast = _NotificacionToast
+    widget.TarjetaToast = type('TarjetaToast', (), {})
+
+    for nombre, modulo in {
+        'PySide6.QtCore': qtcore,
+        'PySide6.QtWidgets': qtwidgets,
+        'app.ui.widgets.dialogo_detalles_toast': dialogo,
+        'app.ui.widgets.overlay_toast': overlay,
+        'app.ui.widgets.widget_toast': widget,
+    }.items():
+        sys.modules[nombre] = modulo
+
+    sys.modules.pop('app.ui.widgets.gestor_toasts', None)
+    return importlib.import_module('app.ui.widgets.gestor_toasts')

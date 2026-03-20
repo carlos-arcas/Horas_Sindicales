@@ -31,6 +31,7 @@ class GestorToasts(QObject):
         self._queue: deque[NotificacionToast] = deque()
         self._cache: dict[str, NotificacionToast] = {}
         self._modelo = GestorToastsModelo(max_toasts=self._max_visibles)
+        self._dialogos_detalle: dict[str, object] = {}
         self._is_active = False
 
     def attach_to(self, main_window: QWidget) -> None:
@@ -205,6 +206,7 @@ class GestorToasts(QObject):
         if tarjeta is not None:
             tarjeta.hide()
             tarjeta.deleteLater()
+        self._dialogos_detalle.pop(toast_id, None)
         if self._queue:
             self._mostrar(self._queue.popleft())
         elif self._overlay is not None and not self._visibles:
@@ -227,6 +229,10 @@ class GestorToasts(QObject):
         notificacion_actualizada = replace(notificacion, id=toast_id)
         self._cache[toast_id] = notificacion_actualizada
         self._visibles[toast_id].actualizar_notificacion(notificacion_actualizada)
+        timer = self._timers.get(toast_id)
+        if timer is not None:
+            timer.stop()
+            timer.start(max(0, int(notificacion_actualizada.duracion_ms or 8000)))
         logger.info(
             "TOAST_DEDUPE_UPDATE",
             extra={
@@ -252,7 +258,15 @@ class GestorToasts(QObject):
         notificacion = self._cache.get(toast_id)
         if notificacion is None or self._host is None:
             return
-        DialogoDetallesNotificacion(notificacion, parent=self._host).exec()
+        dialogo = DialogoDetallesNotificacion(notificacion, parent=self._host)
+        self._dialogos_detalle[toast_id] = dialogo
+        señal_finished = getattr(dialogo, 'finished', None)
+        if señal_finished is not None and hasattr(señal_finished, 'connect'):
+            señal_finished.connect(lambda *_args, toast_id=toast_id: self._dialogos_detalle.pop(toast_id, None))
+        try:
+            dialogo.exec()
+        finally:
+            self._dialogos_detalle.pop(toast_id, None)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
         if self._host is not None and watched is self._host and event.type() in (QEvent.Resize, QEvent.Move):

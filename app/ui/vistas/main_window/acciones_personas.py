@@ -170,6 +170,9 @@ def on_persona_changed(window: MainWindow, *_args) -> None:
     window._reload_pending_views()
     window._refresh_historico()
     window._refresh_saldos()
+    sync_controller = getattr(window, '_sync_controller', None)
+    if sync_controller is not None and hasattr(sync_controller, 'on_context_changed'):
+        sync_controller.on_context_changed()
     window._refrescar_estado_operativa("persona_changed")
     window._update_global_context()
 
