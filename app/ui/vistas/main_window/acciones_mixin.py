@@ -68,6 +68,12 @@ class AccionesMainWindowMixin:
     def _show_pdf_actions_dialog(self, generated_path) -> None:
         return show_pdf_actions_dialog(self, generated_path)
 
+    def _show_error_detail(self, title: str, message: str, details: str) -> None:
+        from app.ui.qt_compat import QMessageBox
+
+        detalle = f"{message}\n\n{details}" if details else message
+        QMessageBox.critical(self, title, detalle)
+
     def _ask_push_after_pdf(self) -> None:
         return ask_push_after_pdf(self)
 
@@ -142,6 +148,16 @@ class AccionesMainWindowMixin:
         from . import form_handlers
 
         return form_handlers.build_preview_solicitud(self)
+
+    def _limpiar_formulario(self) -> None:
+        from . import form_handlers
+
+        return form_handlers.limpiar_formulario(self)
+
+    def _clear_form(self) -> None:
+        from . import form_handlers
+
+        return form_handlers.clear_form(self)
 
     def _collect_preventive_business_rules(
         self, errors: dict[str, str], warnings: dict[str, str]
@@ -258,6 +274,15 @@ class AccionesMainWindowMixin:
 
     def _render_preventive_validation(self) -> None:
         return validacion_preventiva._render_preventive_validation(self)
+
+    def _sincronizar_con_confirmacion(self) -> None:
+        return acciones_sincronizacion.sincronizar_con_confirmacion(self)
+
+    def _on_sync_with_confirmation(self) -> None:
+        return acciones_sincronizacion.on_sync_with_confirmation(self)
+
+    def _verificar_handlers_ui(self) -> None:
+        return None
 
     def _run_preconfirm_checks(self) -> bool:
         return validacion_preventiva._run_preconfirm_checks(self)

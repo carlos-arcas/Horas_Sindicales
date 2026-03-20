@@ -36,10 +36,7 @@ def limpiar_formulario(window) -> None:
 def clear_form(window) -> None:
     limpiar_formulario_method = getattr(window, "_limpiar_formulario", None)
     if callable(limpiar_formulario_method):
-        try:
-            limpiar_formulario_method()
-        except AttributeError:
-            pass
+        limpiar_formulario_method()
 
     persona_combo = getattr(window, "persona_combo", None)
     if isinstance(persona_combo, QComboBox):

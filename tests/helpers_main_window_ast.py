@@ -103,6 +103,19 @@ def resolver_metodo_wrapper(method_name: str) -> MetodoEncontrado | None:
     return None
 
 
+def metodos_super_main_window() -> dict[str, MetodoEncontrado]:
+    methods: dict[str, MetodoEncontrado] = {}
+    state_controller = ROOT / "app/ui/vistas/main_window/state_controller.py"
+    if state_controller.exists():
+        methods.update(_colectar_metodos(state_controller, "MainWindow"))
+    methods.update(metodos_main_window_mixins())
+    return methods
+
+
+def metodo_existe_en_super_mainwindow(method_name: str) -> bool:
+    return method_name in metodos_super_main_window()
+
+
 
 def metodo_existe_en_mainwindow_o_mixins(method_name: str) -> bool:
     return resolver_metodo_main_window(method_name) is not None
