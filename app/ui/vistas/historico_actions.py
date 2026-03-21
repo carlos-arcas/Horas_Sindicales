@@ -13,6 +13,7 @@ from app.bootstrap.logging import log_operational_error
 from app.ui.patterns import status_badge
 from app.ui.notification_service import OperationFeedback
 from app.ui.copy_catalog import copy_text
+from app.ui.vistas.main_window import state_historico
 
 
 logger = logging.getLogger(__name__)
@@ -178,21 +179,11 @@ def on_historico_escape(window: Any) -> None:
 
 
 def selected_historico_solicitudes(window: Any) -> list[Any]:
-    selection = window.historico_table.selectionModel().selectedRows()
-    if not selection:
-        return []
-    solicitudes: list[Any] = []
-    for proxy_index in selection:
-        source_index = window.historico_proxy_model.mapToSource(proxy_index)
-        solicitud = window.historico_model.solicitud_at(source_index.row())
-        if solicitud is not None:
-            solicitudes.append(solicitud)
-    return solicitudes
+    return state_historico.obtener_solicitudes_historico_seleccionadas(window)
 
 
 def selected_historico(window: Any) -> Any | None:
-    selected = window._selected_historico_solicitudes()
-    return selected[0] if selected else None
+    return state_historico.obtener_solicitud_historico_seleccionada(window)
 
 
 def on_historico_select_all_visible_toggled(window: Any, checked: bool) -> None:

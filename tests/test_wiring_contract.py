@@ -15,6 +15,7 @@ _RUTAS_WIRING = (
 )
 _ARCHIVO_BINDINGS = Path("app/ui/vistas/main_window/state_bindings.py")
 _ARCHIVO_HISTORICO_ACTIONS = Path("app/ui/vistas/historico_actions.py")
+_ARCHIVO_STATE_HISTORICO = Path("app/ui/vistas/main_window/state_historico.py")
 _SENALES_QT_CON_ARG = {"dateChanged", "timeChanged", "toggled"}
 
 
@@ -138,9 +139,9 @@ def _collect_handlers_main_window() -> dict[str, FirmaFuncion]:
     return handlers
 
 
-def _collect_binding_handlers() -> dict[str, str]:
+def _collect_binding_handlers() -> dict[str, tuple[Path, str]]:
     tree = _parse_file(_ARCHIVO_BINDINGS)
-    bindings: dict[str, str] = {}
+    bindings: dict[str, tuple[Path, str]] = {}
     for node in ast.walk(tree):
         if not isinstance(node, ast.Dict):
             continue
@@ -149,12 +150,14 @@ def _collect_binding_handlers() -> dict[str, str]:
                 continue
             if isinstance(value, ast.Attribute) and isinstance(value.value, ast.Name):
                 if value.value.id == "historico_actions":
-                    bindings[key.value] = value.attr
+                    bindings[key.value] = (_ARCHIVO_HISTORICO_ACTIONS, value.attr)
+                if value.value.id == "state_historico":
+                    bindings[key.value] = (_ARCHIVO_STATE_HISTORICO, value.attr)
     return bindings
 
 
-def _collect_historico_signatures() -> dict[str, FirmaFuncion]:
-    tree = _parse_file(_ARCHIVO_HISTORICO_ACTIONS)
+def _collect_signatures(path: Path) -> dict[str, FirmaFuncion]:
+    tree = _parse_file(path)
     signatures: dict[str, FirmaFuncion] = {}
     for node in tree.body:
         if isinstance(node, ast.FunctionDef):
@@ -178,7 +181,7 @@ def test_contrato_wiring_handlers_existentes_en_main_window() -> None:
 
 
 def test_firma_on_historico_periodo_mode_changed_acepta_argumento_extra() -> None:
-    historico_signatures = _collect_historico_signatures()
+    historico_signatures = _collect_signatures(_ARCHIVO_HISTORICO_ACTIONS)
     firma = historico_signatures["on_historico_periodo_mode_changed"]
     assert firma.acepta_argumento_senal()
 
@@ -186,7 +189,10 @@ def test_firma_on_historico_periodo_mode_changed_acepta_argumento_extra() -> Non
 def test_handlers_de_senales_qt_conocidas_aceptan_argumento() -> None:
     handlers_main_window = _collect_handlers_main_window()
     bindings = _collect_binding_handlers()
-    historico_signatures = _collect_historico_signatures()
+    signatures_por_archivo = {
+        _ARCHIVO_HISTORICO_ACTIONS: _collect_signatures(_ARCHIVO_HISTORICO_ACTIONS),
+        _ARCHIVO_STATE_HISTORICO: _collect_signatures(_ARCHIVO_STATE_HISTORICO),
+    }
     invalidos: list[str] = []
 
     for referencia in _extraer_referencias_handlers():
@@ -194,7 +200,8 @@ def test_handlers_de_senales_qt_conocidas_aceptan_argumento() -> None:
             continue
         firma = handlers_main_window.get(referencia.handler)
         if firma is None and referencia.handler in bindings:
-            firma = historico_signatures.get(bindings[referencia.handler])
+            archivo_binding, nombre_funcion = bindings[referencia.handler]
+            firma = signatures_por_archivo[archivo_binding].get(nombre_funcion)
         if firma is not None and firma.acepta_argumento_senal():
             continue
         invalidos.append(
