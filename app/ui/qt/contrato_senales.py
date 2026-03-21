@@ -105,40 +105,55 @@ def validar_contrato_senales(
     return incidencias
 
 
-def _es_error_firma(error: TypeError) -> bool:
-    mensaje = str(error).lower()
-    return (
-        ("positional" in mensaje and "argument" in mensaje)
-        or ("required" in mensaje and "argument" in mensaje)
-        or ("multiple" in mensaje and "argument" in mensaje)
-        or ("unexpected" in mensaje and "keyword" in mensaje)
-    )
-
-
-def _invocar_tolerante(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
-    try:
-        return fn(*args, **kwargs)
-    except TypeError as error:
-        if not _es_error_firma(error):
-            raise
-
+def _resolver_argumentos_invocacion(
+    fn: Callable[..., Any],
+    *args: Any,
+    **kwargs: Any,
+) -> tuple[tuple[Any, ...], dict[str, Any]] | None:
     try:
         firma = inspect.signature(fn)
     except (TypeError, ValueError):
-        return fn()
+        return None
 
     parametros = tuple(firma.parameters.values())
     acepta_varargs = any(param.kind == inspect.Parameter.VAR_POSITIONAL for param in parametros)
+    acepta_kwargs = any(param.kind == inspect.Parameter.VAR_KEYWORD for param in parametros)
+    nombres_kwargs_validos = {
+        param.name
+        for param in parametros
+        if param.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+    }
+    kwargs_ajustados = kwargs if acepta_kwargs else {nombre: valor for nombre, valor in kwargs.items() if nombre in nombres_kwargs_validos}
+
+    candidatos_args: tuple[tuple[Any, ...], ...]
     if acepta_varargs:
+        candidatos_args = (args,)
+    else:
+        max_args = sum(
+            1
+            for param in parametros
+            if param.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        )
+        limite_superior = min(len(args), max_args)
+        candidatos_args = tuple(args[:cantidad] for cantidad in range(limite_superior, -1, -1))
+
+    for args_candidatos in candidatos_args:
+        try:
+            firma.bind(*args_candidatos, **kwargs_ajustados)
+        except TypeError:
+            continue
+        return args_candidatos, kwargs_ajustados
+
+    return None
+
+
+def _invocar_tolerante(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    invocacion = _resolver_argumentos_invocacion(fn, *args, **kwargs)
+    if invocacion is None:
         return fn(*args, **kwargs)
 
-    posicionales = [
-        param
-        for param in parametros
-        if param.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
-    ]
-    max_args = len(posicionales)
-    return fn(*args[:max_args])
+    args_ajustados, kwargs_ajustados = invocacion
+    return fn(*args_ajustados, **kwargs_ajustados)
 
 
 def _normalizar_bool(valor: Any) -> bool:
@@ -158,12 +173,14 @@ def adaptar_sin_args(fn: Callable[..., Any]) -> Callable[..., Any]:
     return _slot
 
 
+
 def adaptar_bool(fn: Callable[..., Any]) -> Callable[..., Any]:
     def _slot(*args: Any, **_kwargs: Any) -> Any:
         valor = _normalizar_bool(args[0]) if args else False
         return _invocar_tolerante(fn, valor)
 
     return _slot
+
 
 
 def adaptar_index(fn: Callable[..., Any]) -> Callable[..., Any]:
@@ -178,12 +195,14 @@ def adaptar_index(fn: Callable[..., Any]) -> Callable[..., Any]:
     return _slot
 
 
+
 def adaptar_texto(fn: Callable[..., Any]) -> Callable[..., Any]:
     def _slot(*args: Any, **_kwargs: Any) -> Any:
         texto = "" if not args else str(args[0])
         return _invocar_tolerante(fn, texto)
 
     return _slot
+
 
 
 def adaptar_selection_changed(fn: Callable[..., Any]) -> Callable[..., Any]:
@@ -195,6 +214,7 @@ def adaptar_selection_changed(fn: Callable[..., Any]) -> Callable[..., Any]:
     return _slot
 
 
+
 def adaptar_qdate(fn: Callable[..., Any]) -> Callable[..., Any]:
     def _slot(*args: Any, **_kwargs: Any) -> Any:
         fecha = args[0] if args else None
@@ -203,12 +223,14 @@ def adaptar_qdate(fn: Callable[..., Any]) -> Callable[..., Any]:
     return _slot
 
 
+
 def adaptar_qtime(fn: Callable[..., Any]) -> Callable[..., Any]:
     def _slot(*args: Any, **_kwargs: Any) -> Any:
         tiempo = args[0] if args else None
         return _invocar_tolerante(fn, tiempo)
 
     return _slot
+
 
 
 def adaptar_variable(fn: Callable[..., Any]) -> Callable[..., Any]:
