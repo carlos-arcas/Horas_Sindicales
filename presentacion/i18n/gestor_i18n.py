@@ -1,17 +1,43 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import logging
 import re
 from pathlib import Path
-
-from PySide6.QtCore import QObject, Signal
+from typing import Any, Callable
 
 from aplicacion.puertos.proveedor_i18n import IProveedorI18N
 
 logger = logging.getLogger(__name__)
 _LEGACY_KEY_PATTERN = re.compile(r"(?P<ruta>.+\.py):\d+:(?P<texto>.+)")
+
+
+class _SignalLigera:
+    def __init__(self) -> None:
+        self._suscriptores: list[Callable[..., Any]] = []
+
+    def connect(self, callback: Callable[..., Any]) -> None:
+        self._suscriptores.append(callback)
+
+    def emit(self, *args: object, **kwargs: object) -> None:
+        for callback in tuple(self._suscriptores):
+            callback(*args, **kwargs)
+
+
+class _SignalDescriptorLigero:
+    def __set_name__(self, owner: type[object], name: str) -> None:
+        self._storage_name = f"_{name}_signal"
+
+    def __get__(self, instance: object | None, owner: type[object]) -> _SignalLigera | _SignalDescriptorLigero:
+        if instance is None:
+            return self
+        signal = getattr(instance, self._storage_name, None)
+        if signal is None:
+            signal = _SignalLigera()
+            setattr(instance, self._storage_name, signal)
+        return signal
 
 
 def build_legacy_alias(path: str, text: str) -> str:
@@ -30,8 +56,15 @@ def _cargar_aliases_legacy() -> dict[str, dict[str, str]]:
     return aliases if isinstance(aliases, dict) else {}
 
 
-class GestorI18N(QObject):
-    idioma_cambiado = Signal(str)
+class GestorI18N:
+    """Gestor i18n importable en headless sin depender de Qt.
+
+    Expone una señal ligera compatible con el contrato usado por la UI
+    (`connect`/`emit`) sin importar PySide6 durante el import del módulo.
+    """
+
+    idioma_cambiado = _SignalDescriptorLigero()
+    qt_disponible = importlib.util.find_spec("PySide6.QtCore") is not None
 
     def __init__(
         self,
@@ -39,7 +72,6 @@ class GestorI18N(QObject):
         *,
         aliases_legacy: dict[str, dict[str, str]] | None = None,
     ) -> None:
-        super().__init__()
         self._proveedor = proveedor
         self._aliases_legacy = aliases_legacy if aliases_legacy is not None else _cargar_aliases_legacy()
 
