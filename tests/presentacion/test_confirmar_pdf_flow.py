@@ -1,13 +1,49 @@
 from __future__ import annotations
 
+import ast
 import logging
+import sys
+import types
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from tests.ui.conftest import require_qt
 
-require_qt()
+class _QtConst:
+    def __getattr__(self, _name: str) -> int:
+        return 0
+
+
+class _QtDummyModule(types.ModuleType):
+    def __getattr__(self, name: str):
+        if name == "Qt":
+            return _QtConst()
+        return type(name, (), {})
+
+
+def _registrar_stub_pyside() -> None:
+    pyside = types.ModuleType("PySide6")
+    qt_widgets = _QtDummyModule("PySide6.QtWidgets")
+    qt_core = _QtDummyModule("PySide6.QtCore")
+    qt_gui = _QtDummyModule("PySide6.QtGui")
+    qt_print = _QtDummyModule("PySide6.QtPrintSupport")
+    qt_charts = _QtDummyModule("PySide6.QtCharts")
+    qt_core.Signal = lambda *args, **kwargs: object()
+    qt_core.Slot = lambda *args, **kwargs: (lambda fn: fn)
+    pyside.QtWidgets = qt_widgets
+    pyside.QtCore = qt_core
+    pyside.QtGui = qt_gui
+    pyside.QtPrintSupport = qt_print
+    pyside.QtCharts = qt_charts
+    sys.modules.setdefault("PySide6", pyside)
+    sys.modules.setdefault("PySide6.QtWidgets", qt_widgets)
+    sys.modules.setdefault("PySide6.QtCore", qt_core)
+    sys.modules.setdefault("PySide6.QtGui", qt_gui)
+    sys.modules.setdefault("PySide6.QtPrintSupport", qt_print)
+    sys.modules.setdefault("PySide6.QtCharts", qt_charts)
+
+
+_registrar_stub_pyside()
 
 from app.application.dto import SolicitudDTO
 from app.application.use_cases.confirmacion_pdf.modelos import (
@@ -18,6 +54,9 @@ from app.ui.vistas.confirmacion_orquestacion import (
     ResultadoConfirmacionFlujo,
     on_insertar_sin_pdf,
 )
+
+RUTA_ANTERIOR_UI = Path("tests/ui/test_confirmar_pdf_flow.py")
+RUTA_ACTUAL_PRESENTACION = Path("tests/presentacion/test_confirmar_pdf_flow.py")
 
 
 class _FechaHora:
@@ -97,73 +136,6 @@ def _build_window() -> SimpleNamespace:
     )
 
 
-def test_click_sin_seleccion_no_llama_use_case() -> None:
-    window = _build_window()
-    window._selected_pending_solicitudes = lambda: []
-    window._obtener_ids_seleccionados_pendientes = lambda: []
-
-    confirmacion_actions.on_confirmar(window)
-
-    window._execute_confirmar_with_pdf.assert_not_called()
-    window.toast.warning.assert_called_once()
-
-
-def test_click_con_seleccion_llama_use_case_con_argumentos() -> None:
-    window = _build_window()
-
-    confirmacion_actions.on_confirmar(window)
-
-    window._execute_confirmar_with_pdf.assert_called_once()
-    _persona, selected, pdf_path = window._execute_confirmar_with_pdf.call_args.args
-    assert [sol.id for sol in selected] == [7]
-    assert pdf_path == "/tmp/salida.pdf"
-    window._toast_success.assert_not_called()
-
-
-def test_click_con_seleccion_parcial_no_confirma_todos_los_visibles(caplog) -> None:
-    window = _build_window()
-
-    with caplog.at_level(logging.INFO):
-        confirmacion_actions.on_confirmar(window)
-
-    _persona, selected, _pdf_path = window._execute_confirmar_with_pdf.call_args.args
-    assert [sol.id for sol in selected] == [7]
-    registro_start = next(
-        registro
-        for registro in caplog.records
-        if registro.getMessage() == "UI_CONFIRMAR_PDF_START"
-    )
-    assert registro_start.extra["selected_ids"] == [7]
-    assert registro_start.extra["selected_count"] == 1
-    assert registro_start.extra["pendientes_count"] == 0
-
-
-def test_click_con_pdf_existente_muestra_toast_success(monkeypatch) -> None:
-    window = _build_window()
-    ruta = Path("/tmp/salida.pdf")
-
-    monkeypatch.setattr(Path, "exists", lambda self: self == ruta)
-
-    confirmacion_actions.on_confirmar(window)
-
-    window._finalize_confirmar_with_pdf.assert_called_once()
-    window._toast_success.assert_not_called()
-
-
-def test_error_del_use_case_muestra_toast_error_y_rehabilita_ui() -> None:
-    window = _build_window()
-
-    def _raise(_persona, _selected, _pdf_path):
-        raise RuntimeError("boom")
-
-    window._execute_confirmar_with_pdf = Mock(side_effect=_raise)
-
-    confirmacion_actions.on_confirmar(window)
-
-    window._toast_error.assert_called_once()
-    window._set_processing_state.assert_called_with(False)
-
-
 def _build_window_finalize(eventos: list[str]) -> SimpleNamespace:
     return SimpleNamespace(
         abrir_pdf_check=SimpleNamespace(isChecked=lambda: False),
@@ -201,6 +173,99 @@ def _build_solicitud_confirmada() -> SolicitudDTO:
     )
 
 
+def _llamadas_require_qt(ruta: Path) -> list[str]:
+    arbol = ast.parse(ruta.read_text(encoding="utf-8"), filename=str(ruta))
+    llamadas: list[str] = []
+    for nodo in ast.walk(arbol):
+        if not isinstance(nodo, ast.Call):
+            continue
+        if isinstance(nodo.func, ast.Name) and nodo.func.id == "require_qt":
+            llamadas.append("require_qt")
+    return llamadas
+
+
+def test_guardrail_confirmar_pdf_flow_ya_no_vive_en_tests_ui() -> None:
+    assert not RUTA_ANTERIOR_UI.exists()
+
+
+
+def test_guardrail_confirmar_pdf_flow_puro_no_reintroduce_require_qt() -> None:
+    assert _llamadas_require_qt(RUTA_ACTUAL_PRESENTACION) == []
+
+
+
+def test_click_sin_seleccion_no_llama_use_case() -> None:
+    window = _build_window()
+    window._selected_pending_solicitudes = lambda: []
+    window._obtener_ids_seleccionados_pendientes = lambda: []
+
+    confirmacion_actions.on_confirmar(window)
+
+    window._execute_confirmar_with_pdf.assert_not_called()
+    window.toast.warning.assert_called_once()
+
+
+
+def test_click_con_seleccion_llama_use_case_con_argumentos() -> None:
+    window = _build_window()
+
+    confirmacion_actions.on_confirmar(window)
+
+    window._execute_confirmar_with_pdf.assert_called_once()
+    _persona, selected, pdf_path = window._execute_confirmar_with_pdf.call_args.args
+    assert [sol.id for sol in selected] == [7]
+    assert pdf_path == "/tmp/salida.pdf"
+    window._toast_success.assert_not_called()
+
+
+
+def test_click_con_seleccion_parcial_no_confirma_todos_los_visibles(caplog) -> None:
+    window = _build_window()
+
+    with caplog.at_level(logging.INFO):
+        confirmacion_actions.on_confirmar(window)
+
+    _persona, selected, _pdf_path = window._execute_confirmar_with_pdf.call_args.args
+    assert [sol.id for sol in selected] == [7]
+    registro_start = next(
+        registro
+        for registro in caplog.records
+        if registro.getMessage() == "UI_CONFIRMAR_PDF_START"
+    )
+    assert registro_start.selected_ids == [7]
+    assert registro_start.selected_count == 1
+    assert registro_start.pendientes_count == 0
+
+
+
+def test_click_con_pdf_existente_muestra_toast_success(monkeypatch) -> None:
+    window = _build_window()
+    ruta = Path("/tmp/salida.pdf")
+
+    monkeypatch.setattr(Path, "exists", lambda self: self == ruta)
+
+    confirmacion_actions.on_confirmar(window)
+
+    window._finalize_confirmar_with_pdf.assert_called_once()
+    window._toast_success.assert_not_called()
+
+
+
+def test_error_del_use_case_muestra_toast_error_y_rehabilita_ui() -> None:
+    window = _build_window()
+
+    def _raise(_persona, _selected, _pdf_path):
+        raise RuntimeError("boom")
+
+    window._execute_confirmar_with_pdf = Mock(side_effect=_raise)
+
+    confirmacion_actions.on_confirmar(window)
+
+    window._toast_error.assert_called_once()
+    window._set_processing_state.assert_called_with(False)
+
+
+
 def test_finalize_confirmar_with_pdf_respeta_orden_historico_pdf_y_sync(
     monkeypatch,
 ) -> None:
@@ -235,6 +300,7 @@ def test_finalize_confirmar_with_pdf_respeta_orden_historico_pdf_y_sync(
         "dialogo_pdf",
         "preguntar_sync",
     ]
+
 
 
 def test_finalize_confirmar_with_pdf_si_register_pdf_log_falla_mantiene_exito_y_loguea(
@@ -289,6 +355,7 @@ def test_finalize_confirmar_with_pdf_si_register_pdf_log_falla_mantiene_exito_y_
     }
 
 
+
 def test_finalize_confirmar_with_pdf_con_error_no_pide_sync_y_muestra_cierre() -> None:
     eventos: list[str] = []
     window = _build_window_finalize(eventos)
@@ -308,6 +375,7 @@ def test_finalize_confirmar_with_pdf_con_error_no_pide_sync_y_muestra_cierre() -
     assert exito_visible is False
     assert "preguntar_sync" not in eventos
     assert "cierre_detalle" in eventos
+
 
 
 def test_finalize_confirmar_with_pdf_descarta_exito_si_pdf_no_existe(
@@ -341,20 +409,17 @@ def test_finalize_confirmar_with_pdf_descarta_exito_si_pdf_no_existe(
         for registro in caplog.records
         if registro.getMessage() == "UI_CONFIRMAR_TOAST_SUCCESS_DESCARTADO"
     )
-    assert registro_warning.extra == {
-        "motivo": "pdf_inexistente_en_disco",
-        "pdf_path": str(ruta_pdf),
-        "creadas_count": 1,
-        "errores_count": 0,
-        "confirmadas_ids_count": 1,
-        "correlation_id": "corr-1",
-        "persona_id": 1,
-    }
+    assert registro_warning.motivo == "pdf_inexistente_en_disco"
+    assert registro_warning.pdf_path == str(ruta_pdf)
+    assert registro_warning.creadas_count == 1
+    assert registro_warning.errores_count == 0
+    assert registro_warning.confirmadas_ids_count == 1
+    assert registro_warning.correlation_id == "corr-1"
+    assert registro_warning.persona_id == 1
 
 
-def test_apply_finalize_no_loguea_ok_visible_si_pdf_no_existe(
-    monkeypatch, caplog
-) -> None:
+
+def test_apply_finalize_no_loguea_ok_visible_si_pdf_no_existe(caplog) -> None:
     finalize_calls: list[tuple[object, ...]] = []
     window = _build_window()
     persona = SimpleNamespace(id=1)
@@ -390,7 +455,8 @@ def test_apply_finalize_no_loguea_ok_visible_si_pdf_no_existe(
         for registro in caplog.records
         if registro.getMessage() == "UI_CONFIRMAR_PDF_OK"
     )
-    assert registro_ok.extra["exito_visible"] is False
+    assert registro_ok.exito_visible is False
+
 
 
 def test_build_confirmation_payload_no_expone_accion_sync() -> None:
@@ -411,6 +477,7 @@ def test_build_confirmation_payload_no_expone_accion_sync() -> None:
     )
 
     assert payload.on_sync_now is None
+
 
 
 def test_on_confirmar_respeta_flujo_historico_pdf_sync() -> None:
@@ -446,6 +513,7 @@ def test_on_confirmar_respeta_flujo_historico_pdf_sync() -> None:
     assert eventos == ["insertar_historico", "generar_pdf", "pedir_sync"]
 
 
+
 def test_on_confirmar_error_pdf_no_pide_sync_y_no_muestra_cierre_tecnico() -> None:
     window = _build_window()
     window._execute_confirmar_with_pdf = Mock(side_effect=RuntimeError("error_pdf"))
@@ -460,10 +528,13 @@ def test_on_confirmar_error_pdf_no_pide_sync_y_no_muestra_cierre_tecnico() -> No
     window._toast_error.assert_called_once()
 
 
+
 def test_insertar_sin_pdf_con_seleccion_parcial_confirma_solo_la_seleccion() -> None:
     window = _build_window()
     controller = SimpleNamespace(
-        confirmar_lote=Mock(return_value=([7], [], None, window._selected_pending_solicitudes(), []))
+        confirmar_lote=Mock(
+            return_value=([7], [], None, window._selected_pending_solicitudes(), [])
+        )
     )
     window._solicitudes_controller = controller
     window._procesar_resultado_confirmacion = Mock()
@@ -477,6 +548,7 @@ def test_insertar_sin_pdf_con_seleccion_parcial_confirma_solo_la_seleccion() -> 
     assert [sol.id for sol in selected] == [7]
 
 
+
 def test_insertar_sin_pdf_sin_seleccion_no_ejecuta_caso_de_uso() -> None:
     window = _build_window()
     window._selected_pending_solicitudes = lambda: []
@@ -487,6 +559,7 @@ def test_insertar_sin_pdf_sin_seleccion_no_ejecuta_caso_de_uso() -> None:
 
     window._solicitudes_controller.confirmar_lote.assert_not_called()
     window.toast.warning.assert_called_once()
+
 
 
 def test_insertar_sin_pdf_con_todas_las_visibles_seleccionadas_mantiene_no_regresion() -> None:
