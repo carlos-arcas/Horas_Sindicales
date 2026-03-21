@@ -39,7 +39,7 @@ class RefrescoMainWindowMixin:
         self._refresh_saldos()
         self._update_action_state()
 
-    def _refresh_historico(self, *, force: bool = False) -> None:
+    def _refresh_historico(self, *_args: object, force: bool = False, **_kwargs: object) -> None:
         data_refresh.refresh_historico(self, force=force)
 
     def _refresh_saldos(self) -> None:
