@@ -70,3 +70,15 @@ def test_t_devuelve_marcador_y_log_error_si_no_hay_resolucion(caplog) -> None:
 
     assert texto == "[i18n:app/ui/controllers/sync_controller.py:1:Texto]"
     assert caplog.records[-1].msg == "i18n_missing_key_unresolved"
+
+
+def test_gestor_headless_expone_signal_ligera_y_emite() -> None:
+    gestor = GestorI18N(_ProveedorFake({}), aliases_legacy={})
+    eventos: list[str] = []
+
+    gestor.idioma_cambiado.connect(eventos.append)
+
+    gestor.set_idioma("en")
+
+    assert eventos == ["en"]
+    assert isinstance(gestor.qt_disponible, bool)
