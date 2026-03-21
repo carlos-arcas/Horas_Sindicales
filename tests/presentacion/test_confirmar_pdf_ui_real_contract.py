@@ -1,22 +1,23 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import pytest
-
-qt_widgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
-qt_core = pytest.importorskip("PySide6.QtCore", exc_type=ImportError)
-QApplication = qt_widgets.QApplication
-QFileDialog = qt_widgets.QFileDialog
-QItemSelectionModel = qt_core.QItemSelectionModel
 
 from app.application.dto import SolicitudDTO
 from app.bootstrap.container import build_container
 from app.infrastructure.db import configure_sqlite_connection
-from app.ui.main_window import MainWindow
-from app.ui.vistas import confirmacion_actions
+from app.testing.qt_harness import (
+    importar_qt_para_ui_real_o_skip,
+    preparar_entorno_qt_headless,
+)
+
+if TYPE_CHECKING:
+    from app.ui.main_window import MainWindow
 
 
 class _SinRedSheetsService:
@@ -58,7 +59,9 @@ def _agregar_pendiente(container, persona_id: int, fecha: str) -> int:
     return int(creada.id)
 
 
-def _seleccionar_filas(window, rows: list[int]) -> list[int]:
+def _seleccionar_filas(
+    window: MainWindow, rows: list[int], qitem_selection_model: Any
+) -> list[int]:
     selection_model = window.pendientes_table.selectionModel()
     assert selection_model is not None
     selection_model.clearSelection()
@@ -69,16 +72,26 @@ def _seleccionar_filas(window, rows: list[int]) -> list[int]:
         index = model.index(row, 0)
         selection_model.select(
             index,
-            QItemSelectionModel.SelectionFlag.Select
-            | QItemSelectionModel.SelectionFlag.Rows,
+            qitem_selection_model.SelectionFlag.Select
+            | qitem_selection_model.SelectionFlag.Rows,
         )
     return window._obtener_ids_seleccionados_pendientes()
 
 
+@pytest.mark.ui
 def test_confirmar_pdf_ui_real_contract(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    app = QApplication.instance() or QApplication([])
+    entorno_qt = preparar_entorno_qt_headless()
+    qt_widgets, qt_core = importar_qt_para_ui_real_o_skip()
+    qapplication = qt_widgets.QApplication
+    qfile_dialog = qt_widgets.QFileDialog
+    qitem_selection_model = qt_core.QItemSelectionModel
+
+    from app.ui.main_window import MainWindow
+    from app.ui.vistas import confirmacion_actions
+
+    app = qapplication.instance() or qapplication([])
     db_path = tmp_path / "runtime_ui_real.sqlite3"
     pdf_dir = tmp_path / "salida_pdf"
     pdf_dir.mkdir(parents=True, exist_ok=True)
@@ -104,6 +117,7 @@ def test_confirmar_pdf_ui_real_contract(
 
     save_calls: list[str] = []
     open_calls: list[str] = []
+    evidencia_path = tmp_path / "evidencia_confirmar_pdf_ui_real.json"
 
     def _fake_save(*_args, **_kwargs):
         path = pdf_dir / f"confirmacion_{len(save_calls) + 1}.pdf"
@@ -113,7 +127,7 @@ def test_confirmar_pdf_ui_real_contract(
     def _fake_open(path: Path) -> None:
         open_calls.append(str(path))
 
-    monkeypatch.setattr(QFileDialog, "getSaveFileName", _fake_save)
+    monkeypatch.setattr(qfile_dialog, "getSaveFileName", _fake_save)
     monkeypatch.setattr(confirmacion_actions, "abrir_archivo_local", _fake_open)
     monkeypatch.setattr(window, "_ask_push_after_pdf", lambda: None)
     monkeypatch.setattr(window, "_show_pdf_actions_dialog", lambda _path: None)
@@ -124,7 +138,6 @@ def test_confirmar_pdf_ui_real_contract(
         persona = window._current_persona()
         assert persona is not None and persona.id is not None
 
-        # Datos reales para escenarios 1 y 2.
         _agregar_pendiente(container, int(persona.id), "2026-02-10")
         _agregar_pendiente(container, int(persona.id), "2026-02-11")
         window._reload_pending_views()
@@ -134,7 +147,6 @@ def test_confirmar_pdf_ui_real_contract(
         pendientes_inicial = len(window._pending_solicitudes)
         assert pendientes_inicial >= 2
 
-        # ESCENARIO 1: sin selección.
         window.pendientes_table.clearSelection()
         window._on_confirmar()
         app.processEvents()
@@ -147,8 +159,7 @@ def test_confirmar_pdf_ui_real_contract(
             == historico_inicial
         )
 
-        # ESCENARIO 2: selección válida con toggle desactivado.
-        selected_ids_s2 = _seleccionar_filas(window, [0, 1])
+        selected_ids_s2 = _seleccionar_filas(window, [0, 1], qitem_selection_model)
         window.abrir_pdf_check.setChecked(False)
         window._on_confirmar()
         app.processEvents()
@@ -162,12 +173,11 @@ def test_confirmar_pdf_ui_real_contract(
         assert historico_s2 >= historico_inicial + len(selected_ids_s2)
         assert len(open_calls) == 0
 
-        # ESCENARIO 3: selección válida con toggle activado.
         _agregar_pendiente(container, int(persona.id), "2026-02-12")
         window._reload_pending_views()
         app.processEvents()
 
-        selected_ids_s3 = _seleccionar_filas(window, [0])
+        selected_ids_s3 = _seleccionar_filas(window, [0], qitem_selection_model)
         window.abrir_pdf_check.setChecked(True)
         window._on_confirmar()
         app.processEvents()
@@ -181,6 +191,12 @@ def test_confirmar_pdf_ui_real_contract(
         assert open_calls == [str(pdf_path_s3)]
 
         evidencia = {
+            "entorno_qt": entorno_qt,
+            "escenarios_ejecutados": [
+                "sin_seleccion",
+                "confirmacion_pdf_toggle_off",
+                "confirmacion_pdf_toggle_on",
+            ],
             "ids_seleccionados_escenario_2": selected_ids_s2,
             "ids_seleccionados_escenario_3": selected_ids_s3,
             "ruta_pdf_escenario_2": str(pdf_path_s2),
@@ -193,11 +209,16 @@ def test_confirmar_pdf_ui_real_contract(
             "filas_historico": len(
                 list(container.solicitud_use_cases.listar_historico())
             ),
+            "save_calls": save_calls,
+            "open_calls": open_calls,
+            "qt_qpa_platform": os.environ.get("QT_QPA_PLATFORM"),
+            "qt_opengl": os.environ.get("QT_OPENGL"),
         }
-        (tmp_path / "evidencia_confirmar_pdf_ui_real.json").write_text(
+        evidencia_path.write_text(
             json.dumps(evidencia, ensure_ascii=False, indent=2, sort_keys=True),
             encoding="utf-8",
         )
+        assert evidencia_path.exists()
     finally:
         window.close()
         app.processEvents()

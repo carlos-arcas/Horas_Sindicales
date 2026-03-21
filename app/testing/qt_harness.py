@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import importlib
 import os
+import platform
 from contextlib import contextmanager
-from typing import Iterator
+from typing import Any, Iterator
 
 ARCHIVOS_SMOKE_UI_ESTRICTOS: tuple[str, ...] = (
     "tests/ui/test_confirmar_pdf_mainwindow_smoke.py",
@@ -11,15 +12,23 @@ ARCHIVOS_SMOKE_UI_ESTRICTOS: tuple[str, ...] = (
 )
 
 PLUGIN_PYTEST_QT: tuple[str, ...] = ("-p", "no:pytestqt", "-p", "no:pytestqt.plugin")
-PLUGIN_PYTEST_COV: tuple[str, ...] = ("-p", "pytest_cov",)
+PLUGIN_PYTEST_COV: tuple[str, ...] = (
+    "-p",
+    "pytest_cov",
+)
 ENV_PYTEST_CORE_NO_UI: tuple[tuple[str, str], ...] = (
     ("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1"),
     ("PYTEST_CORE_SIN_QT", "1"),
 )
+ENTORNO_QT_HEADLESS: tuple[tuple[str, str], ...] = (
+    ("QT_QPA_PLATFORM", "offscreen"),
+    ("QT_OPENGL", "software"),
+    ("QT_QUICK_BACKEND", "software"),
+)
 
 
-def _importar_modulo(nombre_modulo: str) -> None:
-    importlib.import_module(nombre_modulo)
+def _importar_modulo(nombre_modulo: str) -> Any:
+    return importlib.import_module(nombre_modulo)
 
 
 def _construir_args_pytest_core_no_ui(
@@ -57,7 +66,6 @@ def _aplicar_entorno_pytest_core_no_ui() -> Iterator[None]:
                 os.environ[clave] = valor_previo
 
 
-
 def _humo_ui_estricto_activo() -> bool:
     return os.getenv("HORAS_UI_SMOKE_CI") == "1"
 
@@ -68,14 +76,72 @@ def _es_humo_ui_estricto(nodeid: str) -> bool:
     return any(path in nodeid for path in ARCHIVOS_SMOKE_UI_ESTRICTOS)
 
 
+def preparar_entorno_qt_headless() -> dict[str, str]:
+    """Prepara un entorno Qt razonable para CI/headless sin pisar overrides explícitos."""
+
+    if platform.system() == "Linux":
+        for clave, valor in ENTORNO_QT_HEADLESS:
+            os.environ.setdefault(clave, valor)
+    return {clave: os.environ.get(clave, "") for clave, _ in ENTORNO_QT_HEADLESS}
+
+
+def _validar_modulos_qt_reales(qt_core: Any, qt_widgets: Any) -> str | None:
+    qapplication = getattr(qt_widgets, "QApplication", None)
+    if not hasattr(qapplication, "instance") or not callable(
+        getattr(qapplication, "instance", None)
+    ):
+        return (
+            "PySide6 importó pero QtWidgets.QApplication.instance no está disponible; "
+            "posible stub/shadowing de Qt."
+        )
+
+    if getattr(qt_widgets, "QFileDialog", None) is None:
+        return "PySide6 importó pero QtWidgets.QFileDialog no está disponible en este entorno."
+
+    if getattr(qt_core, "QItemSelectionModel", None) is None:
+        return "PySide6 importó pero QtCore.QItemSelectionModel no está disponible en este entorno."
+
+    return None
+
+
+def importar_qt_para_ui_real_o_skip() -> tuple[Any, Any]:
+    """Intenta preparar headless e importar Qt real; hace skip solo si sigue inutilizable."""
+
+    preparar_entorno_qt_headless()
+
+    try:
+        qt_widgets = _importar_modulo("PySide6.QtWidgets")
+        qt_core = _importar_modulo("PySide6.QtCore")
+    except Exception as exc:  # pragma: no cover - depende del runner
+        mensaje = (
+            "PySide6/Qt no utilizable para test UI real incluso tras preparar modo headless "
+            f"({exc})."
+        )
+        if "libGL.so.1" in str(exc):
+            mensaje += " Falta dependencia nativa libGL.so.1/libgl1."
+        import pytest
+
+        pytest.skip(mensaje)
+
+    error_validacion = _validar_modulos_qt_reales(qt_core, qt_widgets)
+    if error_validacion is not None:
+        import pytest
+
+        pytest.skip(
+            "PySide6 importó tras preparar modo headless, pero el backend Qt no es usable "
+            f"para el flujo UI real: {error_validacion}"
+        )
+
+    return qt_widgets, qt_core
+
+
 def detectar_error_qt() -> str | None:
     """Retorna mensaje de error si Qt no puede importarse de forma utilizable."""
 
+    preparar_entorno_qt_headless()
     try:
-        _importar_modulo("PySide6")
-        _importar_modulo("PySide6.QtCore")
-        _importar_modulo("PySide6.QtWidgets")
-        return None
+        qt_core = _importar_modulo("PySide6.QtCore")
+        qt_widgets = _importar_modulo("PySide6.QtWidgets")
     except Exception as exc:  # pragma: no cover - depende del runner
         mensaje = f"PySide6/Qt no disponible para tests UI: {exc}"
         if "libGL.so.1" in str(exc):
@@ -84,6 +150,8 @@ def detectar_error_qt() -> str | None:
                 "instalar paquete de sistema equivalente a libgl1)"
             )
         return mensaje
+
+    return _validar_modulos_qt_reales(qt_core, qt_widgets)
 
 
 def detectar_error_pytest_qt() -> str | None:
