@@ -57,6 +57,7 @@ def _bind_handler(clase: type, nombre_metodo: str, fn: Callable[..., Any]) -> No
 
 def registrar_state_bindings(clase: type) -> None:
     from app.ui.vistas import historico_actions
+    from app.ui.vistas.main_window import state_historico
 
     bindings: dict[str, Callable[..., Any]] = {
         "_apply_historico_filters": historico_actions.apply_historico_filters,
@@ -69,8 +70,8 @@ def registrar_state_bindings(clase: type) -> None:
         "_construir_filtro_historico": historico_actions.build_historico_filters,
         "_configure_historico_focus_order": historico_actions.configure_historico_focus_order,
         "_focus_historico_search": historico_actions.focus_historico_search,
-        "_selected_historico_solicitudes": historico_actions.selected_historico_solicitudes,
-        "_selected_historico": historico_actions.selected_historico,
+        "_selected_historico_solicitudes": state_historico.obtener_solicitudes_historico_seleccionadas,
+        "_selected_historico": state_historico.obtener_solicitud_historico_seleccionada,
         "_sync_historico_select_all_visible_state": historico_actions.sync_historico_select_all_visible_state,
         "_on_export_historico_pdf": historico_actions.on_export_historico_pdf,
     }
