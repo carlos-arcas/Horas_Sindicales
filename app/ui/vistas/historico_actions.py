@@ -198,19 +198,7 @@ def on_historico_select_all_visible_toggled(window: Any, checked: bool) -> None:
 
 
 def sync_historico_select_all_visible_state(window: Any) -> None:
-    if window.historico_select_all_visible_check is None:
-        return
-    visible_rows = window.historico_proxy_model.rowCount()
-    window.historico_select_all_visible_check.blockSignals(True)
-    if visible_rows == 0:
-        window.historico_select_all_visible_check.setChecked(False)
-        window.historico_select_all_visible_check.setEnabled(False)
-        window.historico_select_all_visible_check.blockSignals(False)
-        return
-    selected_count = len(window.historico_table.selectionModel().selectedRows())
-    window.historico_select_all_visible_check.setEnabled(True)
-    window.historico_select_all_visible_check.setChecked(selected_count == visible_rows)
-    window.historico_select_all_visible_check.blockSignals(False)
+    state_historico.sincronizar_estado_seleccion_visible_historico(window)
 
 
 def focus_historico_duplicate(window: Any, solicitud: Any) -> None:

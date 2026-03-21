@@ -72,7 +72,7 @@ def registrar_state_bindings(clase: type) -> None:
         "_focus_historico_search": historico_actions.focus_historico_search,
         "_selected_historico_solicitudes": state_historico.obtener_solicitudes_historico_seleccionadas,
         "_selected_historico": state_historico.obtener_solicitud_historico_seleccionada,
-        "_sync_historico_select_all_visible_state": historico_actions.sync_historico_select_all_visible_state,
+        "_sync_historico_select_all_visible_state": state_historico.sincronizar_estado_seleccion_visible_historico,
         "_on_export_historico_pdf": historico_actions.on_export_historico_pdf,
     }
     for nombre_metodo, fn in bindings.items():
