@@ -1,5 +1,14 @@
 # Features pendientes
 
+## FTR-006 - Corregir fallo reproducible del gate rapido en entorno local
+- Estado: **BLOCKED**
+- Tipo: `INFRA`
+- Tests:
+  - `tests/test_quality_gate_script_contract.py`
+  - `tests/test_architecture_imports.py`
+  - `tests/test_clean_architecture_imports_guard.py`
+- Notas: Prioridad 1 revalidada el 2026-03-26. El fallo observado en python -m scripts.gate_rapido es un bloqueo de entorno local sin requirements-dev (.venv ausente y modulos ruff/pytest no instalados), no un bug confirmado del repo. Siguiente paso: provisionar dependencias dev y reintentar gate rapido; solo entonces reabrir FTR-006 si aparece un fallo real del repositorio.
+
 ## FTR-007 - Blindar sincronizacion de inventario de features nativo
 - Estado: **TODO**
 - Tipo: `INFRA`
