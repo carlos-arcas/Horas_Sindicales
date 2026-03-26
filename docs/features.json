@@ -1,6 +1,21 @@
 [
   {
+    "id": "FTR-011",
+    "nombre": "Ejecutar validacion final en Windows real y consolidar evidencia de cierre",
+    "estado": "TODO",
+    "tipo": "INFRA",
+    "tests": [
+      "tests/test_docs_minimas.py",
+      "tests/test_windows_scripts_contract.py",
+      "tests/test_launcher_bat_contract.py",
+      "tests/test_definicion_producto_final_contract.py"
+    ],
+    "notas": "Prioridad 1 (bloqueo real de producto). Ejecutar el paquete de docs/validacion_windows_real.md en una maquina Windows real y registrar evidencia bajo logs/windows_real/<run_id>. Cierre: pasos 0-8 con evidencia auditable y dictamen honesto PASS/FAIL/WARNING."
+  },
+  {
     "id": "FTR-006",
+    "nombre": "Revalidar gate rapido en entorno provisionado y corregir solo si hay fallo real",
+    "estado": "TODO",
     "nombre": "Corregir fallo reproducible del gate rapido en entorno local",
     "estado": "DONE",
     "tipo": "INFRA",
@@ -9,6 +24,7 @@
       "tests/test_architecture_imports.py",
       "tests/test_clean_architecture_imports_guard.py"
     ],
+    "notas": "Prioridad 3 (guardrail local). Primero provisionar el entorno soportado por el repo (setup.bat o .venv con requirements-dev.txt), luego reproducir python -m scripts.gate_rapido; solo si falla por bug real aplicar fix minimo sin tocar CI. Cierre: reproduccion honesta + gate rapido en verde en entorno provisionado."
     "notas": "Cerrada por evidencia vigente: el 2026-03-26 se ejecuto `python -m scripts.gate_rapido` en este repositorio y finalizo en verde (exit 0) sin cambios de CI. Si reaparece una rotura, abrir una nueva feature con comando, primer fallo y traza exacta del entorno."
   },
   {
