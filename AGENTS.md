@@ -1,296 +1,220 @@
-# agents.md — Contrato de trabajo para agentes (genérico)
+# AGENTS.md — Contrato operativo para agentes autónomos (Horas Sindicales)
 
-Este documento define reglas y guardarraíles para diseñar, implementar y mantener “agentes”
-(casos de uso, controladores, handlers, jobs, pantallas) con:
-- Clean Architecture estricta
-- cobertura alta y verificable
-- i18n sin hardcodeos
-- tests deterministas (incluyendo golden gate para UI)
-- flujo de trabajo óptimo para Codex (prompts atómicos)
+## 1) Objetivo del documento
+
+Este contrato regula la ejecución autónoma de agentes sobre este repositorio.
+Aplica a cambios de lógica, UI, seguridad, documentación, scripts y pruebas.
+Su objetivo es garantizar entregas pequeñas, verificables y alineadas con arquitectura, calidad y alcance.
+
+Reglas de aplicación:
+- Este archivo es vinculante para toda la raíz del repositorio.
+- Si existe otra instrucción de mayor prioridad (sistema, developer, usuario), prevalece esa instrucción.
+- Si una tarea entra en conflicto con este contrato, el agente debe detenerse y reportar bloqueo con evidencia.
 
 ---
 
-## 0) La decisión clave (la mejor para Codex y para acotar trabajo)
+## 2) Arquitectura (obligatoria)
 
-**Se adopta un único comando canónico y versionado como “fuente de verdad” del gate:**
+### 2.1 Capas y límites
+- `app/domain`: entidades, value objects, reglas de negocio puras.
+- `app/application`: casos de uso, puertos, orquestación de dominio.
+- `app/infrastructure`: adaptadores concretos, persistencia e integraciones.
+- `app/ui`: presentación y wiring con casos de uso.
 
+### 2.2 Dependencias permitidas
+- `domain` no depende de `application`, `infrastructure` ni `ui`.
+- `application` depende de `domain` y puertos propios.
+- `infrastructure` puede depender de `application` y `domain` para implementar puertos.
+- `ui` depende de `application`; acceso a infraestructura solo mediante puertos/casos de uso.
+
+### 2.3 Prohibiciones duras
+- Prohibida lógica de negocio en UI/controladores.
+- Prohibido acceso directo desde UI a infraestructura concreta.
+- Prohibidos imports circulares.
+- Prohibido introducir dependencias de frameworks externos dentro de `app/domain`.
+- Prohibido simplificar la arquitectura vigente.
+
+### 2.4 Guardarraíles arquitectónicos
+- Mantener en verde:
+  - `tests/test_architecture_imports.py`
+  - `tests/test_clean_architecture_imports_guard.py`
+- Estos checks forman parte de `python -m scripts.gate_rapido` y `python -m scripts.gate_pr`.
+
+---
+
+## 3) Reglas de código
+
+- Máximo 300 LOC por archivo (salvo justificación explícita en la entrega).
+- Máximo 40 LOC por función (sin contar docstring).
+- Complejidad ciclomática máxima recomendada: 10.
+- Sin duplicación evitable.
+- Nombres en español técnico coherente (se admiten términos técnicos estándar).
+- Prohibidos hardcodes de texto visible: usar i18n.
+- Preferir cambios pequeños, de bajo riesgo y alta trazabilidad.
+- Prohibido `print`; usar logging estructurado.
+- No crear ni modificar binarios/artefactos compilados (`*.mo`, `*.pyc`, `*.sqlite3`, `*.db`, `*.png`, `*.zip`, `*.pdf`, equivalentes).
+
+---
+
+## 4) Testing y validación
+
+### 4.1 Regla de cierre
+Ninguna tarea se considera cerrada sin validación ejecutada y reportada.
+
+### 4.2 Cobertura y estándar
+- Cobertura mínima del core (`app/domain` + `app/application`): 85%.
+- Tests deben ser deterministas, legibles y rápidos.
+- Si la tarea no toca código, no se agregan tests nuevos sin motivo real.
+
+### 4.3 Validaciones mínimas por tipo de cambio
+- Cambio de código: ejecutar gate rápido durante desarrollo y gate PR antes de cerrar.
+- Cambio documental: ejecutar guardarraíles documentales relevantes y, si coste razonable, gate rápido.
+
+### 4.4 Golden UI
+- Mantener golden tests de contratos de interacción en `tests/golden/botones`.
+- Actualizar snapshots solo con intención explícita: `UPDATE_GOLDEN=1 pytest -q tests/golden/botones`.
+
+---
+
+## 5) Logging y observabilidad
+
+- Logging estructurado obligatorio en runtime y scripts de control.
+- Prohibido `print` en código de aplicación y scripts de gate.
+- Cada log operativo debe incluir, como mínimo: acción, módulo, resultado y error cuando aplique.
+- Respetar la estrategia vigente de archivos/canales en `logs/` y documentación técnica del repositorio.
+
+---
+
+## 6) Seguridad
+
+- Validar y sanear entradas antes de invocar dominio.
+- No confiar en inputs externos ni en estado mutable implícito.
+- Manejar errores de forma explícita y controlada.
+- Prohibido exponer secretos o PII en logs, mensajes o artefactos.
+- Mantener activos los checks de secretos del gate PR.
+
+---
+
+## 7) Flujo de trabajo autónomo del agente
+
+### 7.1 Ejecución de tareas
+- Trabajar en tareas atómicas y acotadas.
+- Seleccionar la primera tarea disponible del roadmap/backlog aplicable cuando exista orden explícito.
+- No tocar código ni archivos fuera del alcance.
+- Priorizar cambios mínimos, seguros y reversibles.
+
+### 7.2 Gestión de dudas y bloqueos
+- Ante ambigüedad o bloqueo, no ejecutar cambios especulativos.
+- Documentar bloqueo, evidencia y siguiente paso recomendado.
+
+### 7.3 Política de validación previa a PR
+- No abrir PR sin pasar gate local aplicable.
+- Ciclo máximo: 3 iteraciones de corrección y revalidación.
+- Si no pasa tras 3 iteraciones: detener, reportar fallo y no abrir PR.
+
+---
+
+## 8) Prohibiciones explícitas
+
+- No tocar binarios o artefactos compilados.
+- No modificar infraestructura fuera de alcance.
+- No hacer refactors globales sin orden explícita.
+- No rebajar umbrales de calidad o cobertura.
+- No desactivar checks ni gates contractuales.
+- No falsificar resultados ni evidencias de validación.
+- No introducir texto de relleno, placeholders o documentación hueca.
+
+---
+
+## 9) Criterios de cierre de una tarea
+
+Una tarea queda cerrada solo si se cumple simultáneamente:
+- Cambio funcional/documental coherente y operativo.
+- Validaciones relevantes ejecutadas con evidencia.
+- Sin contradicciones con scripts, tests y documentación vigente.
+- Sin warnings críticos derivados del cambio.
+- Sin huecos operativos para que otro agente continúe.
+
+---
+
+## 10) Bitácora obligatoria de ejecución
+
+Cada entrega del agente debe incluir:
+- tarea ejecutada;
+- alcance aplicado;
+- archivos modificados;
+- decisiones técnicas tomadas;
+- validaciones ejecutadas y resultado;
+- errores detectados y corrección aplicada;
+- bloqueos actuales;
+- siguiente paso recomendado.
+
+Si no hubo cambios, registrar explícitamente: "sin cambios" y motivo.
+
+---
+
+## 11) Gates y comandos canónicos del repositorio
+
+Fuente de verdad operativa:
 - Gate rápido: `python -m scripts.gate_rapido`
-- Gate PR (completo): `python -m scripts.gate_pr`
+- Gate PR: `python -m scripts.gate_pr`
 
-¿Por qué es lo mejor?
-- Un solo comando evita divergencias entre “lo que creías que era CI” y lo que realmente ejecuta CI.
-- Codex funciona mejor con contratos simples: **ejecuta gate → arregla → re-ejecuta**.
-- Puedes cambiar internamente herramientas/comandos sin reescribir docs ni prompts.
+### 11.1 Contrato real de `scripts.gate_rapido`
+Ejecuta, en orden:
+1. `ruff check .`
+2. `ruff format --check` sobre scripts contractuales
+3. `pytest -q tests/domain tests/application`
+4. tests de arquitectura (`test_architecture_imports` + `test_clean_architecture_imports_guard`)
+5. `python -m scripts.i18n.check_hardcode_i18n`
 
-**Regla:** CI debe ejecutar exactamente `python -m scripts.gate_pr`.
+### 11.2 Contrato real de `scripts.gate_pr`
+Ejecuta, en orden:
+1. `ruff check .`
+2. `ruff format --check` sobre scripts contractuales
+3. `mypy app` solo si `HS_RUN_MYPY=1`
+4. tests core no UI
+5. cobertura core con `--cov-fail-under=85`
+6. golden UI (`pytest -q tests/golden/botones` en harness no UI)
+7. hardcode i18n
+8. `python -m scripts.features_sync`
+9. tests de secretos (`tests/test_no_secrets_committed.py` y `tests/test_no_secrets_content_scan.py`)
+10. verificación de sincronización de `docs/features.md` y `docs/features_pendientes.md` contra `docs/features.json`
 
----
-
-## 1) Principios NO negociables
-
-- **Clean Architecture 100%** (límites duros entre capas; dependencias correctas).
-- **Cobertura mínima > 85%** (y el CORE debe ser el más cubierto).
-- **Golden Gate UI** (si hay UI): toda interacción relevante y toda apertura de ventana/modal debe estar cubierta por tests deterministas.
-- **Cero hardcodeo de textos visibles**: todo texto va a i18n y es fácil de traducir.
-- **Sin deuda técnica**: si aparece, se paga en el mismo ciclo/PR.
-- **Pytest** como estándar (`pytest -q`) y suite reproducible.
-- **Naming en español** (permitidos términos técnicos internacionales: UI, UX, helper, debug, token, payload, cache, hash…).
-- **Inventario de features + pendientes auto-actualizado** desde una fuente única.
-- **Flujo Codex**: prompts atómicos, uno a uno; normalmente 1 de lógica, 1 de UI y 1 de seguridad (si aplica).
-
----
-
-## 2) Arquitectura: estructura y reglas de dependencia
-
-### 2.1 Estructura recomendada (genérica)
-
-- `dominio/`
-  - Entidades, Value Objects, invariantes, políticas de negocio puras.
-- `aplicacion/`
-  - Casos de uso, orquestación, DTOs, puertos (interfaces), validaciones de aplicación.
-- `infraestructura/`
-  - Implementaciones concretas: BD/ORM, FS, HTTP, colas, integraciones externas.
-- `presentacion/`
-  - UI / API / CLI: controladores, vistas, serialización entrada/salida; sin negocio.
-
-Extras recomendados:
-- `tests/`, `docs/`, `scripts/`, `configuracion/`, `logs/`
-
-### 2.2 Reglas duras de dependencia
-
-- `dominio` **no** depende de `aplicacion`, `infraestructura` ni `presentacion`.
-- `aplicacion` depende de `dominio` y define **puertos**; no conoce detalles concretos.
-- `infraestructura` implementa puertos; puede depender de `dominio/aplicacion`, pero **no** impone reglas de negocio.
-- `presentacion` depende de `aplicacion` (y DTOs); evita depender directamente de infraestructura.
-
-### 2.3 Guardarraíl de arquitectura (obligatorio)
-
-Debe existir un “architecture gate” que falle si alguien rompe estas reglas.
-Debe formar parte de `scripts.gate_pr` y `scripts.gate_rapido`.
+Regla contractual:
+- CI y cierre de PR deben alinearse con `python -m scripts.gate_pr`.
 
 ---
 
-## 3) Definition of Done (DoD) verificable
+## 12) Reglas de i18n, features y determinismo
 
-No se considera “hecho” hasta cumplir TODO (y el gate lo valida):
+### 12.1 i18n
+- Todo texto visible debe salir de catálogo i18n.
+- Mantener en verde `scripts.i18n.check_hardcode_i18n`.
 
-### 3.1 Calidad y estilo
-- Lint en verde (ej. ruff/flake8).
-- Formato aplicado (ej. ruff format/black).
-- Tipado (si aplica): mypy/pyright en los módulos objetivo.
+### 12.2 Inventario de features
+- Fuente única: `docs/features.json`.
+- Documentos derivados obligatorios: `docs/features.md` y `docs/features_pendientes.md` mediante `python -m scripts.features_sync`.
 
-### 3.2 Tests y cobertura
-- Suite rápida: `pytest -q`
-- Suite con cobertura: `pytest -q --cov=... --cov-report=term-missing --cov-fail-under=85`
-
-Reglas:
-- El **CORE** (dominio + aplicación) debe ser lo más cubierto.
-- Tests deterministas (sin sleeps arbitrarios; sin reloj real sin inyección; sin random sin semilla).
-- Si hay UI, debe haber golden/smoke aunque no se mida por cobertura de líneas.
-
-### 3.3 Complejidad y tamaño (anti-deuda)
-Umbrales recomendados:
-- Funciones: ≤ 40 líneas (sin contar docstring).
-- Complejidad ciclomática: CC ≤ 10.
-- Archivos: ≤ 300 líneas salvo excepción justificada.
+### 12.3 Determinismo
+- Tests sin dependencia de reloj real o aleatoriedad no controlada en core.
+- Evitar sleeps arbitrarios y efectos no deterministas.
 
 ---
 
-## 4) Golden Gate UI (botones y apertura de ventanas)
+## 13) Presupuesto de cambio por tarea
 
-### 4.1 Objetivo
-Probar comportamiento y contratos, no píxeles.
-
-### 4.2 Requisitos de instrumentación
-- Cada elemento interactivo importante tiene identificador estable:
-  `automation_id`, `objectName`, `data-testid`, etc.
-- La UI delega acciones a handlers/controladores testables sin render real.
-
-### 4.3 Qué verifica un golden test
-- Secuencia de eventos:
-  - `CLICK(boton_x)`
-  - `DISPATCH(accion_y, payload_minimo)`
-  - `OPEN_WINDOW(ventana_z, args_minimos)`
-  - `SHOW_TOAST(tipo, clave_i18n, params)`
-- Invocación del caso de uso correcto.
-- Manejo de errores estable (mensaje i18n + logging).
-
-### 4.4 Política de actualización de golden
-- Por defecto, golden compara contra snapshots existentes.
-- Actualizar snapshots requiere flag explícito:
-  - `UPDATE_GOLDEN=1 pytest -q tests/golden`
+- Máximo recomendado por tarea atómica: 10 archivos.
+- Máximo recomendado de delta: 300 LOC netas.
+- Si se supera el presupuesto, dividir en etapas antes de continuar.
 
 ---
 
-## 5) i18n y “cero hardcodeo de texto visible”
+## 14) DoD contractual resumido
 
-### 5.1 Regla principal
-Todo texto visible proviene de i18n:
-- `t("CLAVE", **params)` o equivalente.
-
-### 5.2 Catálogo recomendado
-- `i18n/es.json`, `i18n/en.json` (o `.po`, `.yml`…)
-- Claves semánticas y estables.
-
-### 5.3 Gate anti-hardcode
-Debe existir script/test que:
-- escanee `presentacion/` (y UI),
-- compare contra baseline si existe,
-- falle ante **nuevos** hardcodes.
-
----
-
-## 6) Inventario de features (auto-actualizado)
-
-### 6.1 Fuente única (obligatoria)
-`docs/features.yml` (o JSON) como verdad única.
-
-Campos mínimos:
-- `id` (ej. `FTR-001`)
-- `nombre`
-- `estado` (`DONE | TODO | WIP | BLOCKED`)
-- `tipo` (`LOGICA | UI | SEGURIDAD | INFRA`)
-- `tests` (rutas relevantes)
-- `notas` (opcional)
-
-### 6.2 Generación automática
-Un script genera:
-- `docs/features.md`
-- `docs/features_pendientes.md`
-
-### 6.3 Gate documental
-El gate falla si:
-- los docs generados no coinciden con la fuente única, o
-- hay cambios sin regenerar.
-
----
-
-## 7) Seguridad (mínimo profesional)
-
-- Validación/sanitización antes de llegar a dominio.
-- Secret scanning (pre-commit + CI).
-- Escaneo de dependencias (ej. pip-audit) con política clara.
-- No PII en logs. Mensajes al usuario sin stacktrace.
-
----
-
-## 8) Logging y observabilidad
-
-- Logging estructurado (JSONL recomendado).
-- `correlation_id` por operación.
-- Canales separados recomendados:
-  - seguimiento (INFO/DEBUG)
-  - error_operativo (ERROR manejado)
-  - crash (CRITICAL/no controlado)
-- Los logs operativos/crash deben reiniciarse en cada arranque (evita ruido).
-
----
-
-## 9) PR Gate (Opción A) — Política obligatoria “no PR si no pasa”
-
-### 9.1 Regla de oro
-**NO crear PR** hasta que pase el gate local completo.
-
-### 9.2 Protocolo obligatorio antes de abrir PR
-1) Ejecutar: `python -m scripts.gate_pr`
-2) Si falla:
-   - corregir lo mínimo necesario,
-   - re-ejecutar `python -m scripts.gate_pr`,
-   - repetir hasta PASS.
-3) Límite:
-   - máximo 3 ciclos “arreglo → gate”.
-   - si tras 3 intentos no pasa: **parar**, reportar el fallo y **NO** abrir PR.
-4) Prohibiciones:
-   - no bajar umbrales,
-   - no desactivar checks,
-   - no tocar baselines (i18n/golden) salvo cambio intencional y justificado.
-
-### 9.3 Si el agente no puede ejecutar comandos
-Si el entorno no permite correr el gate:
-- se considera **FAIL**,
-- **NO** se abre PR,
-- se entrega:
-  - lista exacta de comandos,
-  - hipótesis del fallo,
-  - plan mínimo de corrección.
-
----
-
-## 10) Flujo Codex óptimo (prompts atómicos)
-
-### 10.1 Reglas del prompt (obligatorias)
-Todo prompt incluye:
-- Objetivo exacto
-- Alcance (qué toca y qué NO)
-- Contratos (inputs/outputs/DTOs/puertos)
-- Criterios de aceptación (tests + gates)
-- Restricciones (arquitectura, i18n, naming, cobertura, no deuda)
-- Plan corto por pasos
-- Entregables (archivos/rutas)
-
-### 10.2 Patrón de prompts (uno a uno)
-1) Prompt de Lógica: caso de uso + tests unitarios.
-2) Prompt de UI: wiring + i18n + golden tests.
-3) Prompt de Seguridad: validación + tests de abuso.
-
-Si una capa no aporta en un ciclo:
-- escribir: “No necesario en este ciclo”.
-
----
-
-## 11) Mejoras potentes para acotar trabajo (recomendadas)
-
-### 11.1 Change Budget por prompt
-Cada prompt debe declarar:
-- máximo 10 archivos tocados (o el número que definas),
-- máximo 300 LOC netos,
-- prohibido refactor masivo fuera del alcance.
-
-Si se supera:
-- dividir en prompts más pequeños.
-
-### 11.2 “No nueva API pública sin test”
-Si se expone símbolo/endpoint/acción nueva:
-- test obligatorio,
-- doc mínima,
-- i18n si es UI.
-
-### 11.3 Determinismo por contrato (core)
-Inyectar en CORE:
-- reloj (`Clock`) y
-- random (`RandomProvider`).
-Prohibido depender de hora real o random sin semilla.
-
-### 11.4 Pirámide de tests + gates separados
-- `python -m scripts.gate_rapido`: feedback rápido (lint + unit core).
-- `python -m scripts.gate_pr`: completo (coverage + golden + i18n + docs).
-
----
-
-## 12) Especificación mínima de los gates (lo que deben ejecutar)
-
-### 12.1 `python -m scripts.gate_rapido` (rápido)
-Debe ejecutar, en orden:
-1) lint
-2) formato (o “check format”)
-3) tests unitarios del CORE (rápidos)
-4) architecture gate (imports/capas)
-5) i18n hardcode check (si es rápido y existe)
-
-### 12.2 `python -m scripts.gate_pr` (completo)
-Debe ejecutar, en orden:
-1) lint
-2) formato
-3) typecheck (si aplica)
-4) tests rápidos (`pytest -q`)
-5) tests con cobertura (`--cov-fail-under=85`)
-6) golden UI (`pytest -q tests/golden`) si aplica
-7) i18n hardcode check (con baseline si existe)
-8) regeneración features docs (y verificación de limpieza de working tree)
-9) security checks (secret scan y dependencias) según política definida
-
----
-
-## Changelog
-- v1: Contrato genérico para agentes: arquitectura, DoD, golden UI, i18n, seguridad, logging y flujo Codex.
-- v1.1: Se adopta enfoque “un comando canónico” (gate_rapido/gate_pr) y PR Gate (Opción A).
+Checklist obligatorio antes de declarar fin:
+- arquitectura respetada;
+- alcance respetado;
+- validaciones ejecutadas;
+- evidencia reportada;
+- sin deuda técnica abierta por el cambio;
+- sin alteración de gates ni umbrales de calidad.
