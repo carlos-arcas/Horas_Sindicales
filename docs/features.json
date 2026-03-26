@@ -1,5 +1,18 @@
 [
   {
+    "id": "FTR-011",
+    "nombre": "Ejecutar validacion final en Windows real para cierre de producto",
+    "estado": "BLOCKED",
+    "tipo": "INFRA",
+    "tests": [
+      "tests/test_windows_scripts_contract.py",
+      "tests/test_launcher_bat_contract.py",
+      "tests/test_definicion_producto_final_contract.py",
+      "tests/test_docs_minimas.py"
+    ],
+    "notas": "Prioridad 1 (bloqueo real de producto). Requiere ejecutar docs/validacion_windows_real.md en una maquina Windows real y recopilar evidencia bajo logs/windows_real/<run_id>. Cierre: pasos 0-8 en PASS o apertura de incidencia concreta si aparece un fallo real."
+  },
+  {
     "id": "FTR-006",
     "nombre": "Corregir fallo reproducible del gate rapido en entorno local",
     "estado": "TODO",
