@@ -20,7 +20,7 @@
       "tests/tools/test_gate_pr.py",
       "tests/test_repo_legacy_cleanup_guardrails.py"
     ],
-    "notas": "Prioridad 2 (guardrail bajo riesgo). Verificar que docs/features.md y docs/features_pendientes.md se regeneran de forma determinista desde docs/features.json con python -m scripts.features_sync."
+    "notas": "Prioridad 1 (guardrail bajo riesgo). Verificar que docs/features.md y docs/features_pendientes.md se regeneran de forma determinista desde docs/features.json con `python -m scripts.features_sync`. Cierre: ejecutar sync y `pytest -q tests/test_repo_legacy_cleanup_guardrails.py` en verde."
   },
   {
     "id": "FTR-008",
@@ -32,18 +32,18 @@
       "tests/application/test_sync_reporting_rules.py",
       "tests/application/test_retry_and_conflict_resolution.py"
     ],
-    "notas": "Prioridad 3 (bug pequeno). Dividir en subtareas si supera 300 LOC netas o 10 archivos. Cierre: caso reproducible cubierto por test existente o nuevo test unitario focalizado."
+    "notas": "Prioridad 2 (bug pequeno). Dividir en subtareas si supera 300 LOC netas o 10 archivos. Cierre: caso reproducible cubierto por test existente o nuevo test unitario focalizado."
   },
   {
     "id": "FTR-009",
     "nombre": "Alinear documentacion contractual de features con estado real",
     "estado": "TODO",
-    "tipo": "UI",
+    "tipo": "INFRA",
     "tests": [
       "tests/tools/test_gate_pr.py",
       "tests/test_docs_minimas.py"
     ],
-    "notas": "Prioridad 4 (doc contractual). Mantener docs/features.json como fuente unica; regenerar derivados y evitar sistemas paralelos de roadmap o bitacora."
+    "notas": "Prioridad 3 (doc contractual). Mantener docs/features.json como fuente unica; regenerar derivados y evitar sistemas paralelos de roadmap o bitacora."
   },
   {
     "id": "FTR-010",
@@ -55,7 +55,7 @@
       "tests/application/test_sync_sheets_core_expanded.py",
       "tests/application/test_sync_sheets_refactor_smoke.py"
     ],
-    "notas": "Prioridad 5 (deuda tecnica pequena). Cambios pequenos y reversibles: extraer helper puro o simplificar duplicacion puntual sin refactor global."
+    "notas": "Prioridad 4 (deuda tecnica pequena). Cambios pequenos y reversibles: extraer helper puro o simplificar duplicacion puntual sin refactor global."
   },
   {
     "id": "FTR-001",

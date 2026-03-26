@@ -4,13 +4,23 @@ import ast
 import re
 from pathlib import Path
 
-from app.application.auditoria_e2e.dto import CheckAuditoria, EstadoCheck, SeveridadCheck
+from app.application.auditoria_e2e.dto import (
+    CheckAuditoria,
+    EstadoCheck,
+    SeveridadCheck,
+)
 from app.application.auditoria_e2e.puertos import SistemaArchivosPuerto
 
 
-def evaluar_reglas_arquitectura(fs: SistemaArchivosPuerto, root: Path) -> CheckAuditoria:
+def evaluar_reglas_arquitectura(
+    fs: SistemaArchivosPuerto, root: Path
+) -> CheckAuditoria:
     violations: list[str] = []
-    reglas = (_regla_ui_no_depende_infra, _regla_domain_no_depende_infra, _regla_domain_no_depende_ui)
+    reglas = (
+        _regla_ui_no_depende_infra,
+        _regla_domain_no_depende_infra,
+        _regla_domain_no_depende_ui,
+    )
     for archivo in fs.listar_python(root / "app"):
         capa = _obtener_capa_modulo(archivo, root)
         if capa is None:
@@ -20,10 +30,15 @@ def evaluar_reglas_arquitectura(fs: SistemaArchivosPuerto, root: Path) -> CheckA
         for imported in _extraer_imports(tree):
             for regla in reglas:
                 if regla(capa, imported):
-                    violations.append(f"{archivo.relative_to(root)} -> {imported}")
+                    relative_path = archivo.relative_to(root).as_posix()
+                    violations.append(f"{relative_path} -> {imported}")
 
     estado = EstadoCheck.PASS if not violations else EstadoCheck.FAIL
-    evidencia = ["Sin violaciones de imports UI->infra y domain->externo."] if not violations else violations
+    evidencia = (
+        ["Sin violaciones de imports UI->infra y domain->externo."]
+        if not violations
+        else violations
+    )
     return CheckAuditoria(
         id_check="CHECK-ARQ-001",
         estado=estado,
@@ -98,9 +113,13 @@ def _regla_domain_no_depende_ui(capa: str, imported: str) -> bool:
 
 
 def evaluar_check_tests(fs: SistemaArchivosPuerto, root: Path) -> CheckAuditoria:
-    pytest_ok = fs.existe(root / "requirements-dev.txt") and "pytest" in fs.leer_texto(root / "requirements-dev.txt")
+    pytest_ok = fs.existe(root / "requirements-dev.txt") and "pytest" in fs.leer_texto(
+        root / "requirements-dev.txt"
+    )
     script_tests = root / "ejecutar_tests.bat"
-    comando_ok = fs.existe(script_tests) and "pytest --cov=" in fs.leer_texto(script_tests)
+    comando_ok = fs.existe(script_tests) and "pytest --cov=" in fs.leer_texto(
+        script_tests
+    )
     evidencia = [
         f"requirements-dev.txt con pytest={'sí' if pytest_ok else 'no'}",
         f"ejecutar_tests.bat con comando estándar={'sí' if comando_ok else 'no'}",
@@ -123,7 +142,11 @@ def evaluar_check_tests(fs: SistemaArchivosPuerto, root: Path) -> CheckAuditoria
 
 def evaluar_check_logging(fs: SistemaArchivosPuerto, root: Path) -> CheckAuditoria:
     sin_prints = _sin_prints_en_codigo(fs, root)
-    logging_cfg = fs.leer_texto(root / "app" / "bootstrap" / "logging.py") if fs.existe(root / "app" / "bootstrap" / "logging.py") else ""
+    logging_cfg = (
+        fs.leer_texto(root / "app" / "bootstrap" / "logging.py")
+        if fs.existe(root / "app" / "bootstrap" / "logging.py")
+        else ""
+    )
     rotacion = "RotatingFileHandler" in logging_cfg
     crashes = "crashes.log" in logging_cfg
 
@@ -132,7 +155,9 @@ def evaluar_check_logging(fs: SistemaArchivosPuerto, root: Path) -> CheckAuditor
         f"Rotación configurada={'sí' if rotacion else 'no'}",
         f"crashes.log configurado={'sí' if crashes else 'no'}",
     ]
-    estado = EstadoCheck.PASS if sin_prints and rotacion and crashes else EstadoCheck.FAIL
+    estado = (
+        EstadoCheck.PASS if sin_prints and rotacion and crashes else EstadoCheck.FAIL
+    )
     return CheckAuditoria(
         id_check="CHECK-LOG-001",
         estado=estado,
@@ -142,15 +167,22 @@ def evaluar_check_logging(fs: SistemaArchivosPuerto, root: Path) -> CheckAuditor
     )
 
 
-def evaluar_check_windows_repro(fs: SistemaArchivosPuerto, root: Path) -> CheckAuditoria:
+def evaluar_check_windows_repro(
+    fs: SistemaArchivosPuerto, root: Path
+) -> CheckAuditoria:
     lanzar = root / "lanzar_app.bat"
     tests = root / "ejecutar_tests.bat"
     req = root / "requirements.txt"
     req_dev = root / "requirements-dev.txt"
     ok = all(fs.existe(path) for path in [lanzar, tests, req, req_dev])
-    pinneados = _requirements_pinneados(fs, req) and _requirements_pinneados(fs, req_dev)
+    pinneados = _requirements_pinneados(fs, req) and _requirements_pinneados(
+        fs, req_dev
+    )
     estado = EstadoCheck.PASS if ok and pinneados else EstadoCheck.FAIL
-    evidencia = [f"Scripts windows presentes={'sí' if ok else 'no'}", f"Requirements pinneados={'sí' if pinneados else 'no'}"]
+    evidencia = [
+        f"Scripts windows presentes={'sí' if ok else 'no'}",
+        f"Requirements pinneados={'sí' if pinneados else 'no'}",
+    ]
     return CheckAuditoria(
         id_check="CHECK-WIN-001",
         estado=estado,
@@ -170,7 +202,11 @@ def evaluar_check_docs(fs: SistemaArchivosPuerto, root: Path) -> CheckAuditoria:
     ]
     faltantes = [ruta for ruta in requeridos if not fs.existe(root / ruta)]
     estado = EstadoCheck.PASS if not faltantes else EstadoCheck.FAIL
-    evidencia = ["Docs mínimas presentes"] if not faltantes else [f"Falta {ruta}" for ruta in faltantes]
+    evidencia = (
+        ["Docs mínimas presentes"]
+        if not faltantes
+        else [f"Falta {ruta}" for ruta in faltantes]
+    )
     return CheckAuditoria(
         id_check="CHECK-DOC-001",
         estado=estado,
@@ -194,9 +230,19 @@ def evaluar_check_versionado(fs: SistemaArchivosPuerto, root: Path) -> CheckAudi
 
     version = fs.leer_texto(version_path).strip()
     changelog = fs.leer_texto(changelog_path)
-    found = re.search(rf"^## \[{re.escape(version)}\] - \d{{4}}-\d{{2}}-\d{{2}}$", changelog, flags=re.MULTILINE) is not None
+    found = (
+        re.search(
+            rf"^## \[{re.escape(version)}\] - \d{{4}}-\d{{2}}-\d{{2}}$",
+            changelog,
+            flags=re.MULTILINE,
+        )
+        is not None
+    )
     estado = EstadoCheck.PASS if found else EstadoCheck.FAIL
-    evidencia = [f"VERSION={version}", f"Entrada en CHANGELOG={'sí' if found else 'no'}"]
+    evidencia = [
+        f"VERSION={version}",
+        f"Entrada en CHANGELOG={'sí' if found else 'no'}",
+    ]
     return CheckAuditoria(
         id_check="CHECK-VCS-001",
         estado=estado,
@@ -214,7 +260,11 @@ def _sin_prints_en_codigo(fs: SistemaArchivosPuerto, root: Path) -> bool:
             continue
         tree = ast.parse(fs.leer_texto(archivo), filename=str(archivo))
         for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print":
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "print"
+            ):
                 return False
     return True
 
