@@ -1,7 +1,20 @@
 [
   {
+    "id": "FTR-011",
+    "nombre": "Ejecutar validacion final en Windows real y consolidar evidencia de cierre",
+    "estado": "TODO",
+    "tipo": "INFRA",
+    "tests": [
+      "tests/test_docs_minimas.py",
+      "tests/test_windows_scripts_contract.py",
+      "tests/test_launcher_bat_contract.py",
+      "tests/test_definicion_producto_final_contract.py"
+    ],
+    "notas": "Prioridad 1 (bloqueo real de producto). Ejecutar el paquete de docs/validacion_windows_real.md en una maquina Windows real y registrar evidencia bajo logs/windows_real/<run_id>. Cierre: pasos 0-8 con evidencia auditable y dictamen honesto PASS/FAIL/WARNING."
+  },
+  {
     "id": "FTR-006",
-    "nombre": "Corregir fallo reproducible del gate rapido en entorno local",
+    "nombre": "Revalidar gate rapido en entorno provisionado y corregir solo si hay fallo real",
     "estado": "TODO",
     "tipo": "INFRA",
     "tests": [
@@ -9,7 +22,7 @@
       "tests/test_architecture_imports.py",
       "tests/test_clean_architecture_imports_guard.py"
     ],
-    "notas": "Prioridad 1 (rotura verificable). Tarea atomica: identificar el primer comando que rompe en python -m scripts.gate_rapido y aplicar fix minimo sin tocar CI. Cierre: gate rapido en verde y evidencia en commit."
+    "notas": "Prioridad 3 (guardrail local). Primero provisionar el entorno soportado por el repo (setup.bat o .venv con requirements-dev.txt), luego reproducir python -m scripts.gate_rapido; solo si falla por bug real aplicar fix minimo sin tocar CI. Cierre: reproduccion honesta + gate rapido en verde en entorno provisionado."
   },
   {
     "id": "FTR-007",
@@ -38,7 +51,7 @@
     "id": "FTR-009",
     "nombre": "Alinear documentacion contractual de features con estado real",
     "estado": "TODO",
-    "tipo": "UI",
+    "tipo": "INFRA",
     "tests": [
       "tests/tools/test_gate_pr.py",
       "tests/test_docs_minimas.py"
