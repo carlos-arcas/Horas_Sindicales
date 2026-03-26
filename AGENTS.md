@@ -44,14 +44,14 @@ Reglas de aplicación:
 
 ## 3) Reglas de código
 
-- Máximo 300 LOC por archivo (salvo justificación explícita en la entrega).
-- Máximo 40 LOC por función (sin contar docstring).
-- Complejidad ciclomática máxima recomendada: 10.
+- Máximo 300 LOC por archivo; superar este límite está prohibido.
+- Máximo 40 LOC por función (sin contar docstring); superar este límite está prohibido.
+- Complejidad ciclomática máxima por función: 10; superar este límite está prohibido.
 - Sin duplicación evitable.
 - Nombres en español técnico coherente (se admiten términos técnicos estándar).
 - Prohibidos hardcodes de texto visible: usar i18n.
-- Preferir cambios pequeños, de bajo riesgo y alta trazabilidad.
-- Prohibido `print`; usar logging estructurado.
+- Cambios obligatoriamente pequeños, de bajo riesgo y alta trazabilidad.
+- Prohibido `print` en código de aplicación; usar logging estructurado.
 - No crear ni modificar binarios/artefactos compilados (`*.mo`, `*.pyc`, `*.sqlite3`, `*.db`, `*.png`, `*.zip`, `*.pdf`, equivalentes).
 
 ---
@@ -78,8 +78,9 @@ Ninguna tarea se considera cerrada sin validación ejecutada y reportada.
 
 ## 5) Logging y observabilidad
 
-- Logging estructurado obligatorio en runtime y scripts de control.
-- Prohibido `print` en código de aplicación y scripts de gate.
+- Logging estructurado obligatorio en runtime y en scripts nuevos o modificados.
+- En código de aplicación está prohibido `print` sin excepción.
+- En scripts existentes, `print` legado permitido solo donde ya exista; en líneas nuevas o editadas de scripts se exige logging estructurado y no se permite introducir nuevos `print`.
 - Cada log operativo debe incluir, como mínimo: acción, módulo, resultado y error cuando aplique.
 - Respetar la estrategia vigente de archivos/canales en `logs/` y documentación técnica del repositorio.
 
@@ -99,18 +100,30 @@ Ninguna tarea se considera cerrada sin validación ejecutada y reportada.
 
 ### 7.1 Ejecución de tareas
 - Trabajar en tareas atómicas y acotadas.
-- Seleccionar la primera tarea disponible del roadmap/backlog aplicable cuando exista orden explícito.
+- Con orden humana explícita, ejecutar exactamente esa tarea y en ese orden.
+- Sin orden humana explícita, seleccionar una única tarea según esta prioridad obligatoria:
+  1. roturas verificables de imports, wiring o tests;
+  2. validaciones/guardrails de bajo riesgo;
+  3. bugs pequeños reproducibles;
+  4. documentación contractual desalineada;
+  5. deuda técnica pequeña, localizada y verificable.
+- Prohibido iniciar tareas grandes si existe una tarea pequeña, segura y verificable en una prioridad igual o superior.
+- Prohibido mezclar múltiples incidencias en una misma ejecución.
 - No tocar código ni archivos fuera del alcance.
-- Priorizar cambios mínimos, seguros y reversibles.
+- Cambios mínimos, seguros y reversibles son obligatorios.
 
 ### 7.2 Gestión de dudas y bloqueos
 - Ante ambigüedad o bloqueo, no ejecutar cambios especulativos.
-- Documentar bloqueo, evidencia y siguiente paso recomendado.
+- Si una validación exigida no puede ejecutarse por entorno, marcar estado `bloqueado/no verificable`.
+- En estado `bloqueado/no verificable` está prohibido declarar tarea cerrada y está prohibido abrir PR.
+- Reportar siempre: comando intentado, error exacto observado, limitación de entorno y siguiente paso mínimo recomendado.
+- Prohibido declarar PASS, simular evidencia o inferir resultados no ejecutados.
 
 ### 7.3 Política de validación previa a PR
 - No abrir PR sin pasar gate local aplicable.
 - Ciclo máximo: 3 iteraciones de corrección y revalidación.
 - Si no pasa tras 3 iteraciones: detener, reportar fallo y no abrir PR.
+- Si una validación aplicable no se puede ejecutar por limitación de entorno, detener, reportar bloqueo y no abrir PR.
 
 ---
 
@@ -134,6 +147,8 @@ Una tarea queda cerrada solo si se cumple simultáneamente:
 - Sin contradicciones con scripts, tests y documentación vigente.
 - Sin warnings críticos derivados del cambio.
 - Sin huecos operativos para que otro agente continúe.
+- No se acepta cierre por criterio subjetivo ("parece correcto").
+- Si la validación aplicable no se ejecutó, el estado obligatorio es `bloqueado/no verificable`, nunca `hecho`.
 
 ---
 
@@ -203,9 +218,9 @@ Regla contractual:
 
 ## 13) Presupuesto de cambio por tarea
 
-- Máximo recomendado por tarea atómica: 10 archivos.
-- Máximo recomendado de delta: 300 LOC netas.
-- Si se supera el presupuesto, dividir en etapas antes de continuar.
+- Máximo por tarea atómica: 10 archivos modificados; superar este límite está prohibido.
+- Máximo de delta por tarea: 300 LOC netas; superar este límite está prohibido.
+- Si el trabajo requerido excede cualquier límite, dividir obligatoriamente en etapas antes de continuar.
 
 ---
 
