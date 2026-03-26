@@ -4,16 +4,17 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 from app.testing.qt_harness import (
     _construir_args_pytest_core_no_ui,
     _construir_env_pytest_core_no_ui,
 )
+from scripts.runtime_python import resolve_repo_python
 
 ROOT = Path(__file__).resolve().parents[1]
 LOGGER = logging.getLogger(__name__)
+PYTHON_BIN = resolve_repo_python()
 
 
 class GateStepError(RuntimeError):
@@ -31,7 +32,7 @@ def _run(cmd: list[str], env: dict[str, str] | None = None) -> int:
 
 def _pytest_cov_disponible() -> bool:
     resultado = subprocess.run(
-        [sys.executable, "-m", "pytest", "--help"],
+        [PYTHON_BIN, "-m", "pytest", "--help"],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -61,7 +62,7 @@ def _comando_pytest_core_no_ui(
         args_pytest,
         habilitar_pytest_cov=habilitar_pytest_cov,
     )
-    comando = [sys.executable, "-m", "pytest", *comando_pytest]
+    comando = [PYTHON_BIN, "-m", "pytest", *comando_pytest]
     return comando, _construir_env_pytest_core_no_ui()
 
 
@@ -84,7 +85,7 @@ def _ejecutar_pytest_no_ui_con_diagnostico(marker: str = "not ui") -> int:
         },
     )
     comando_diagnostico = [
-        sys.executable,
+        PYTHON_BIN,
         "-m",
         "scripts.diagnosticar_pytest",
         "--marker",
@@ -119,10 +120,10 @@ def main() -> int:
         return 1
 
     commands: list[tuple[list[str], dict[str, str] | None]] = [
-        ([sys.executable, "-m", "ruff", "check", "."], None),
+        ([PYTHON_BIN, "-m", "ruff", "check", "."], None),
         (
             [
-                sys.executable,
+                PYTHON_BIN,
                 "-m",
                 "ruff",
                 "format",
@@ -131,12 +132,13 @@ def main() -> int:
                 "scripts/gate_pr.py",
                 "scripts/features_sync.py",
                 "scripts/diagnosticar_pytest.py",
+                "scripts/runtime_python.py",
             ],
             None,
         ),
     ]
     if run_mypy:
-        commands.append(([sys.executable, "-m", "mypy", "app"], None))
+        commands.append(([PYTHON_BIN, "-m", "mypy", "app"], None))
 
     commands.append(
         _comando_pytest_core_no_ui(["-q", "tests/domain", "tests/application"])
@@ -160,8 +162,8 @@ def main() -> int:
     commands.extend(
         [
             _comando_pytest_core_no_ui(["-q", "tests/golden/botones"]),
-            ([sys.executable, "-m", "scripts.i18n.check_hardcode_i18n"], None),
-            ([sys.executable, "-m", "scripts.features_sync"], None),
+            ([PYTHON_BIN, "-m", "scripts.i18n.check_hardcode_i18n"], None),
+            ([PYTHON_BIN, "-m", "scripts.features_sync"], None),
             _comando_pytest_core_no_ui(["-q", "tests/test_no_secrets_committed.py"]),
             _comando_pytest_core_no_ui(["-q", "tests/test_no_secrets_content_scan.py"]),
         ]

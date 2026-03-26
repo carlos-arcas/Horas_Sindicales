@@ -10,7 +10,7 @@ def test_comando_pytest_core_no_ui_reutiliza_harness_con_pytest_cov() -> None:
     )
 
     assert comando[:8] == [
-        gate_pr.sys.executable,
+        gate_pr.PYTHON_BIN,
         "-m",
         "pytest",
         "-p",
@@ -34,7 +34,7 @@ def test_main_blinda_subruns_core_no_ui_post_ruff(monkeypatch) -> None:
     monkeypatch.setattr(gate_pr, "_run", _run_falso)
 
     def _subprocess_run_falso(cmd: list[str], **_kwargs):
-        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"] and "--help" in cmd:
+        if cmd[:3] == [gate_pr.PYTHON_BIN, "-m", "pytest"] and "--help" in cmd:
             return type("R", (), {"returncode": 0, "stdout": "... --cov ..."})()
         return type("R", (), {"returncode": 0})()
 
@@ -47,7 +47,7 @@ def test_main_blinda_subruns_core_no_ui_post_ruff(monkeypatch) -> None:
     comandos_pytest = [
         (cmd, env)
         for cmd, env in llamadas
-        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"]
+        if cmd[:3] == [gate_pr.PYTHON_BIN, "-m", "pytest"]
     ]
 
     assert comandos_pytest
@@ -70,7 +70,7 @@ def test_main_ejecuta_golden_bajo_contrato_core_no_ui(monkeypatch) -> None:
     monkeypatch.setattr(gate_pr, "_run", _run_falso)
 
     def _subprocess_run_falso(cmd: list[str], **_kwargs):
-        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"] and "--help" in cmd:
+        if cmd[:3] == [gate_pr.PYTHON_BIN, "-m", "pytest"] and "--help" in cmd:
             return type("R", (), {"returncode": 0, "stdout": "... --cov ..."})()
         return type("R", (), {"returncode": 0})()
 
@@ -81,7 +81,7 @@ def test_main_ejecuta_golden_bajo_contrato_core_no_ui(monkeypatch) -> None:
     golden = [
         (cmd, env)
         for cmd, env in llamadas
-        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"]
+        if cmd[:3] == [gate_pr.PYTHON_BIN, "-m", "pytest"]
         and "tests/golden/botones" in cmd
     ]
     assert len(golden) == 1
@@ -97,14 +97,14 @@ def test_main_reinyecta_pytest_cov_solo_en_coverage(monkeypatch) -> None:
     llamadas: list[list[str]] = []
 
     def _run_falso(cmd: list[str], env: dict[str, str] | None = None) -> int:
-        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"]:
+        if cmd[:3] == [gate_pr.PYTHON_BIN, "-m", "pytest"]:
             llamadas.append(cmd)
         return 0
 
     monkeypatch.setattr(gate_pr, "_run", _run_falso)
 
     def _subprocess_run_falso(cmd: list[str], **_kwargs):
-        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"] and "--help" in cmd:
+        if cmd[:3] == [gate_pr.PYTHON_BIN, "-m", "pytest"] and "--help" in cmd:
             return type("R", (), {"returncode": 0, "stdout": "... --cov ..."})()
         return type("R", (), {"returncode": 0})()
 
@@ -132,7 +132,7 @@ def test_main_falla_si_pytest_no_expone_cobertura(monkeypatch) -> None:
     monkeypatch.setattr(gate_pr, "_run", _run_falso)
 
     def _subprocess_run_falso(cmd: list[str], **_kwargs):
-        if cmd[:3] == [gate_pr.sys.executable, "-m", "pytest"] and "--help" in cmd:
+        if cmd[:3] == [gate_pr.PYTHON_BIN, "-m", "pytest"] and "--help" in cmd:
             return type(
                 "R", (), {"returncode": 0, "stdout": "pytest help sin coverage"}
             )()
