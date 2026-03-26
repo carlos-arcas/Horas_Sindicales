@@ -2,14 +2,14 @@
   {
     "id": "FTR-006",
     "nombre": "Corregir fallo reproducible del gate rapido en entorno local",
-    "estado": "TODO",
+    "estado": "BLOCKED",
     "tipo": "INFRA",
     "tests": [
       "tests/test_quality_gate_script_contract.py",
       "tests/test_architecture_imports.py",
       "tests/test_clean_architecture_imports_guard.py"
     ],
-    "notas": "Prioridad 1 (rotura verificable). Tarea atomica: identificar el primer comando que rompe en python -m scripts.gate_rapido y aplicar fix minimo sin tocar CI. Cierre: gate rapido en verde y evidencia en commit."
+    "notas": "Prioridad 1 revalidada el 2026-03-26. El fallo observado en python -m scripts.gate_rapido es un bloqueo de entorno local sin requirements-dev (.venv ausente y modulos ruff/pytest no instalados), no un bug confirmado del repo. Siguiente paso: provisionar dependencias dev y reintentar gate rapido; solo entonces reabrir FTR-006 si aparece un fallo real del repositorio."
   },
   {
     "id": "FTR-007",
