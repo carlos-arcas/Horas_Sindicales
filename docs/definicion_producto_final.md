@@ -8,9 +8,9 @@ Este documento consolida la **auditoría final de cierre de producto** y el crit
 
 ## Conclusión vigente
 
-**Estado actual: PRODUCTO CANDIDATO A CIERRE.**
+**Estado actual: PRODUCTO NO CERRADO.**
 
-Motivo: los bloques técnicos auditables A–F están cubiertos con evidencia automatizada o documental alineada, pero el criterio de realidad Windows todavía requiere validación manual final en una máquina Windows real. Sin esa evidencia no es honesto declarar **PRODUCTO CERRADO**. El paquete operativo para ejecutar esa validación quedó fijado en `docs/validacion_windows_real.md` y `scripts/validar_windows_real.bat`.
+Motivo: además de la validación manual final en Windows real, la reproducción honesta de `python -m scripts.gate_pr` en el entorno provisionado del repo falla con 6 tests rojos (`tests/golden/botones/test_boton_sync_golden.py`, `tests/test_presentacion_i18n_headless_import.py`, `tests/test_ui_import_smoke.py`, `tests/test_naming_debt_guard.py`, `tests/test_ui_strings_guard.py` y `tests/test_quality_gate_metrics.py`). Mientras ese gate canónico siga rojo no es honesto declarar **PRODUCTO CANDIDATO A CIERRE** ni **PRODUCTO CERRADO**. El paquete operativo de Windows real sigue siendo obligatorio, pero deja de ser la única brecha de cierre.
 
 ## Entrypoints oficiales
 
@@ -98,7 +98,7 @@ La auditoría E2E existe y cubre:
 ### G) Criterio de realidad Windows — WARNING
 
 - Los scripts fueron auditados estructuralmente y están preparados para doble clic.
-- En esta auditoría no se ha ejecutado Windows real porque el entorno actual no es Windows.
+- En esta auditoría no se ha ejecutado la validación manual integral en una sesión Windows real con interacción de usuario y doble clic; este contexto de revisión no sustituye esa evidencia final aunque el host pueda ser Windows.
 - Por tanto, la validación pendiente es **manual y obligatoria**.
 
 **Conclusión del bloque G:** WARNING, no FAIL técnico del repositorio, pero sí bloqueo para declarar **PRODUCTO CERRADO**.
@@ -180,8 +180,8 @@ Y confirmar:
 ## Criterio de cierre
 
 - **PRODUCTO CERRADO**: solo cuando A–G estén en PASS y además exista evidencia manual de Windows real.
-- **PRODUCTO CANDIDATO A CIERRE**: cuando A–F estén en PASS y G quede pendiente únicamente por validación manual de Windows real.
-- **PRODUCTO NO CERRADO**: si aparece cualquier FAIL real en arquitectura, scripts, auditoría E2E, observabilidad, versionado o documentación mínima.
+- **PRODUCTO CANDIDATO A CIERRE**: cuando A–F estén en PASS, `python -m scripts.gate_pr` esté en verde y G quede pendiente únicamente por validación manual de Windows real.
+- **PRODUCTO NO CERRADO**: si aparece cualquier FAIL real en arquitectura, scripts, auditoría E2E, observabilidad, versionado, documentación mínima o en el gate canónico de PR.
 
 ## Estado auditado en esta revisión
 
@@ -192,6 +192,7 @@ Y confirmar:
 - E: PASS
 - F: PASS
 - G: WARNING
+- Gate PR canónico (2026-03-27): FAIL por imports Qt/headless, naming debt, UI strings hardcoded y complejidad contractual.
 
 ## Cierres específicos congelados
 

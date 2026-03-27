@@ -136,6 +136,7 @@ Ninguna tarea se considera cerrada sin validación ejecutada y reportada.
 - No desactivar checks ni gates contractuales.
 - No falsificar resultados ni evidencias de validación.
 - No introducir texto de relleno, placeholders o documentación hueca.
+- No crear ni mantener sistemas paralelos de backlog o bitácora en `docs/` (incluidos `docs/roadmap_codex.md` y `docs/bitacora_codex.md`).
 
 ---
 
@@ -165,6 +166,7 @@ Cada entrega del agente debe incluir:
 - siguiente paso recomendado.
 
 Si no hubo cambios, registrar explícitamente: "sin cambios" y motivo.
+La bitácora obligatoria se entrega en la salida de ejecución del agente y/o en el PR; no se materializa en archivos paralelos dentro de `docs/`.
 
 ---
 
@@ -209,6 +211,7 @@ Regla contractual:
 ### 12.2 Inventario de features
 - Fuente única: `docs/features.json`.
 - Documentos derivados obligatorios: `docs/features.md` y `docs/features_pendientes.md` mediante `python -m scripts.features_sync`.
+- Quedan prohibidos `docs/roadmap_codex.md`, `docs/bitacora_codex.md` y cualquier backlog/bitácora paralelo fuera de la salida operativa del agente y del PR.
 
 ### 12.3 Determinismo
 - Tests sin dependencia de reloj real o aleatoriedad no controlada en core.
