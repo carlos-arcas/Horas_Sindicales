@@ -104,7 +104,7 @@ def _validar_modulos_qt_reales(qt_core: Any, qt_widgets: Any) -> str | None:
     return None
 
 
-def importar_qt_para_ui_real_o_skip() -> tuple[Any, Any]:
+def importar_qt_para_interfaz_real_o_omitir() -> tuple[Any, Any]:
     """Intenta preparar headless e importar Qt real; hace skip solo si sigue inutilizable."""
 
     preparar_entorno_qt_headless()

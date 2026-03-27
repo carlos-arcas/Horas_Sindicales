@@ -73,10 +73,15 @@ class MainWindowStateActionsMixin:
         filtro = self._current_saldo_filtro()
         if filtro.modo == "MENSUAL" and filtro.month is not None:
             saldos_card.update_periodo_label(
-                f"Mensual ({filtro.month:02d}/{filtro.year})"
+                copy_text("ui.saldos.periodo_mensual").format(
+                    month=filtro.month,
+                    year=filtro.year,
+                )
             )
             return
-        saldos_card.update_periodo_label(f"Anual ({filtro.year})")
+        saldos_card.update_periodo_label(
+            copy_text("ui.saldos.periodo_anual").format(year=filtro.year)
+        )
 
     def _set_saldos_labels(self, resumen) -> None:
         saldos_card = getattr(self, "saldos_card", None)

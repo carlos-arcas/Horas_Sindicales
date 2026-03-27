@@ -150,6 +150,29 @@ def test_caso_error_pdf_no_habilita_sync() -> None:
     assert result.errores == ["error_pdf"]
 
 
+def test_caso_correcto_sin_pdf_no_invoca_generador() -> None:
+    repo = FakeRepositorio([_solicitud(1), _solicitud(2)])
+    generador_pdf = FakeGeneradorPdf()
+    caso_uso = ConfirmarPendientesPdfCasoUso(repo, generador_pdf, FakeFs(), politica_modo_solo_lectura=crear_politica_modo_solo_lectura(crear_estado_modo_solo_lectura(lambda: False)))
+
+    result = caso_uso.execute(
+        SolicitudConfirmarPdfPeticion(
+            pendientes_ids=[1],
+            generar_pdf=False,
+        )
+    )
+
+    assert repo.confirmar_sin_pdf_calls == 1
+    assert generador_pdf.calls == 0
+    assert result.estado == "OK_SIN_PDF"
+    assert result.confirmadas == 1
+    assert result.confirmadas_ids == [1]
+    assert result.pdf_generado is None
+    assert result.sync_permitido is False
+    assert result.pendientes_restantes == [2]
+    assert result.errores == []
+
+
 def test_caso_sin_confirmadas_no_genera_pdf_ni_sync() -> None:
     repo = FakeRepositorio([_solicitud(1)])
     generador_pdf = FakeGeneradorPdf()

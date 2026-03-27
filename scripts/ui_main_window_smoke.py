@@ -30,7 +30,6 @@ REQUIRED_HANDLERS = (
     "_configure_time_placeholders",
     "_configure_operativa_focus_order",
     "_configure_historico_focus_order",
-
 )
 
 FAIL_GATE_EXCEPTIONS = (NameError, AttributeError, ImportError)
@@ -45,7 +44,9 @@ WIRING_TYPE_ERROR_HINTS = (
     "positional argument",
     "unexpected keyword",
 )
-QT_THREAD_PARENT_WARNING = "Cannot create children for a parent that is in a different thread"
+QT_THREAD_PARENT_WARNING = (
+    "Cannot create children for a parent that is in a different thread"
+)
 
 
 def _extraer_metodos_clase_ast(path: Path, class_name: str) -> set[str]:
@@ -53,7 +54,9 @@ def _extraer_metodos_clase_ast(path: Path, class_name: str) -> set[str]:
     tree = ast.parse(source)
     for node in tree.body:
         if isinstance(node, ast.ClassDef) and node.name == class_name:
-            return {item.name for item in node.body if isinstance(item, ast.FunctionDef)}
+            return {
+                item.name for item in node.body if isinstance(item, ast.FunctionDef)
+            }
     return set()
 
 
@@ -62,7 +65,8 @@ def _validar_handlers_por_ast() -> int:
         ROOT / "app" / "ui" / "vistas" / "main_window_vista.py", "MainWindow"
     )
     base_methods = _extraer_metodos_clase_ast(
-        ROOT / "app" / "ui" / "vistas" / "main_window" / "state_controller.py", "MainWindow"
+        ROOT / "app" / "ui" / "vistas" / "main_window" / "state_controller.py",
+        "MainWindow",
     )
     method_names = vista_methods | base_methods
     if not method_names:
@@ -89,7 +93,10 @@ def _format_exception_summary(exc: BaseException) -> str:
     if last_frame is None:
         return f"SMOKE_UI_FAIL: {type(exc).__name__} {exc} archivo:linea N/D"
     file_name = Path(last_frame.filename).name
-    return f"SMOKE_UI_FAIL: {type(exc).__name__} {exc} archivo:linea {file_name}:{last_frame.lineno}"
+    return (
+        f"SMOKE_UI_FAIL: {type(exc).__name__} {exc} "
+        f"archivo:linea {file_name}:{last_frame.lineno}"
+    )
 
 
 def _is_wiring_type_error(exc: BaseException) -> bool:
@@ -139,7 +146,11 @@ def main() -> int:
         module = importlib.import_module("app.ui.main_window")
         main_window_cls = getattr(module, "MainWindow", None)
         if main_window_cls is None:
-            raise AttributeError("MainWindow no está definido en app.ui.main_window")
+            raise AttributeError("MainWindow no esta definido en app.ui.main_window")
+        header_state_module = importlib.import_module(
+            "app.ui.vistas.main_window.header_state"
+        )
+        resolve_section_title = header_state_module.resolve_section_title
 
         container = build_container(connection_factory=_in_memory_connection)
         window = main_window_cls(
@@ -151,31 +162,33 @@ def main() -> int:
             container.conflicts_service,
             health_check_use_case=None,
             alert_engine=container.alert_engine,
+            estado_modo_solo_lectura=container.estado_modo_solo_lectura,
         )
         app.processEvents()
 
-        # Smoke de navegación entre secciones para validar que el shell externo
-        # actualiza el header dinámico sin errores de señales/layout.
+        # Valida que el shell mantiene sincronizados tab activo y header externo.
+        titles_seen: set[str] = set()
         for sidebar_index in (0, 1, 2, 3, 1):
             window._switch_sidebar_page(sidebar_index)
             app.processEvents()
+            header_title = getattr(window, "header_title_label", None)
+            active_sidebar_index = getattr(window, "_active_sidebar_index", None)
+            expected_title = resolve_section_title(active_sidebar_index)
+            if header_title is None or header_title.text() != expected_title:
+                raise AssertionError(
+                    "El header externo no quedo sincronizado con la seccion activa tras navegar"
+                )
+            titles_seen.add(header_title.text())
+        if len(titles_seen) < 3:
+            raise AssertionError(
+                "El header externo no recorrio suficientes titulos durante el smoke"
+            )
 
-        expected_title = "Solicitudes"
-        header_title = getattr(window, "header_title_label", None)
-        if header_title is None or header_title.text() != expected_title:
-            raise AssertionError("El header externo no actualizó el título esperado tras navegar secciones")
-
-        # Guard-rail: el contenido no debe volver a montar un HeaderWidget interno.
-        header_module = importlib.import_module("app.ui.widgets.header")
-        header_widget_cls = header_module.HeaderWidget
-        content_page = getattr(window, "page_solicitudes", None)
-        search_root = content_page if content_page is not None else window
-        internal_headers = search_root.findChildren(header_widget_cls)
-        if internal_headers:
-            raise AssertionError("Se detectó HeaderWidget interno en la zona de contenido")
+        if window.findChild(qt_widgets.QWidget, "header_shell") is not None:
+            raise AssertionError("Se detecto header_shell global no permitido")
         if qt_messages:
             raise AssertionError(
-                "Se detectó warning Qt de parent en hilo distinto: "
+                "Se detecto warning Qt de parent en hilo distinto: "
                 + " | ".join(qt_messages)
             )
     except Exception as exc:  # pragma: no cover - fallo defensivo
@@ -186,7 +199,10 @@ def main() -> int:
             logger,
             "ui_main_window_smoke_failed",
             exc=sys.exc_info(),
-            extra={"script": "ui_main_window_smoke.py", "error_type": type(exc).__name__},
+            extra={
+                "script": "ui_main_window_smoke.py",
+                "error_type": type(exc).__name__,
+            },
         )
         if _should_fail_gate(exc):
             logger.error(_format_exception_summary(exc))
@@ -197,11 +213,20 @@ def main() -> int:
         if "qt_core" in locals() and "previous_handler" in locals():
             qt_core.qInstallMessageHandler(previous_handler)
 
-    missing = [name for name in REQUIRED_HANDLERS if not callable(getattr(type(window), name, None))]
+    missing = [
+        name for name in REQUIRED_HANDLERS if not callable(getattr(type(window), name, None))
+    ]
     if missing:
         message = f"Missing handlers: {', '.join(missing)}"
-        log_operational_error(logger, "ui_main_window_smoke_missing_handlers", exc=AttributeError(message))
-        logger.error("SMOKE_UI_FAIL: AttributeError %s archivo:linea ui_main_window_smoke.py:0", message)
+        log_operational_error(
+            logger,
+            "ui_main_window_smoke_missing_handlers",
+            exc=AttributeError(message),
+        )
+        logger.error(
+            "SMOKE_UI_FAIL: AttributeError %s archivo:linea ui_main_window_smoke.py:0",
+            message,
+        )
         window.close()
         app.processEvents()
         return 1

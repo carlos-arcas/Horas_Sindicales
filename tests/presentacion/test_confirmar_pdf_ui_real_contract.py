@@ -12,7 +12,7 @@ from app.application.dto import SolicitudDTO
 from app.bootstrap.container import build_container
 from app.infrastructure.db import configure_sqlite_connection
 from app.testing.qt_harness import (
-    importar_qt_para_ui_real_o_skip,
+    importar_qt_para_interfaz_real_o_omitir,
     preparar_entorno_qt_headless,
 )
 
@@ -83,7 +83,7 @@ def test_confirmar_pdf_ui_real_contract(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     entorno_qt = preparar_entorno_qt_headless()
-    qt_widgets, qt_core = importar_qt_para_ui_real_o_skip()
+    qt_widgets, qt_core = importar_qt_para_interfaz_real_o_omitir()
     qapplication = qt_widgets.QApplication
     qfile_dialog = qt_widgets.QFileDialog
     qitem_selection_model = qt_core.QItemSelectionModel

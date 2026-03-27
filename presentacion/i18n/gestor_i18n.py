@@ -5,6 +5,7 @@ import importlib.util
 import json
 import logging
 import re
+import sys
 from pathlib import Path
 from typing import Any, Callable
 
@@ -56,6 +57,23 @@ def _cargar_aliases_legacy() -> dict[str, dict[str, str]]:
     return aliases if isinstance(aliases, dict) else {}
 
 
+def _qt_core_stub_cargado() -> bool:
+    qt_core = sys.modules.get("PySide6.QtCore")
+    if qt_core is not None:
+        return True
+    pyside6 = sys.modules.get("PySide6")
+    return getattr(pyside6, "QtCore", None) is not None
+
+
+def _qt_core_disponible() -> bool:
+    if _qt_core_stub_cargado():
+        return True
+    try:
+        return importlib.util.find_spec("PySide6.QtCore") is not None
+    except (ImportError, ValueError):
+        return _qt_core_stub_cargado()
+
+
 class GestorI18N:
     """Gestor i18n importable en headless sin depender de Qt.
 
@@ -64,7 +82,7 @@ class GestorI18N:
     """
 
     idioma_cambiado = _SignalDescriptorLigero()
-    qt_disponible = importlib.util.find_spec("PySide6.QtCore") is not None
+    qt_disponible = _qt_core_disponible()
 
     def __init__(
         self,

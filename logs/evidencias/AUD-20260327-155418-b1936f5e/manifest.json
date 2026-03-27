@@ -1,0 +1,16 @@
+{
+  "archivos": [
+    {
+      "archivo": "AUDITORIA.md",
+      "sha256": "fc866bfbe7b76307d4d27c54888bd33daee07225a8e196d88e1127e54e3b2467"
+    },
+    {
+      "archivo": "auditoria.json",
+      "sha256": "b7ec9894ee3a2d70f2338fb6db78f9da12996d9c44473f2eec60104188ad4666"
+    },
+    {
+      "archivo": "status.txt",
+      "sha256": "2f9acb02faa121bb2a3621951f57b4c690655337edee2e5ac350be2b3be88ea8"
+    }
+  ]
+}

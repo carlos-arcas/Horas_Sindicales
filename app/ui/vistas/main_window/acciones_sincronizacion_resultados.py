@@ -180,7 +180,7 @@ def on_push_finished(ventana, summary: SyncSummary) -> None:
     ventana._solicitudes_runtime_error = True
     update_sync_button_state(ventana)
     ventana._update_solicitudes_status_panel()
-    if summary.conflicts > 0:
+    if summary.conflicts_detected > 0:
         ConflictsDialog(ventana._conflicts_service, ventana).exec()
     ventana._refresh_last_sync_label()
     dialogos_sincronizacion.show_sync_summary_dialog(ventana, texto_interfaz("ui.sync.panel.sincronizacion_completada"), summary)

@@ -35,6 +35,9 @@ class RefrescoMainWindowMixin:
     def _refrescar_estado_operativa(self, motivo: str) -> None:
         logger.debug("UI_RESERVED_BALANCE_REFRESH", extra={"motivo": motivo})
         self._update_solicitud_preview()
+        if motivo in {"formulario_limpiado", "draft_restored", "persona_changed"}:
+            self._update_action_state()
+            return
         self._update_pending_totals()
         self._refresh_saldos()
         self._update_action_state()

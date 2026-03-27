@@ -192,14 +192,27 @@ def _cargar_gestor_toasts_sin_qt():
     widget.NotificacionToast = _NotificacionToast
     widget.TarjetaToast = type('TarjetaToast', (), {})
 
-    for nombre, modulo in {
+    modulos_temporales = {
         'PySide6.QtCore': qtcore,
         'PySide6.QtWidgets': qtwidgets,
         'app.ui.widgets.dialogo_detalles_toast': dialogo,
         'app.ui.widgets.overlay_toast': overlay,
         'app.ui.widgets.widget_toast': widget,
-    }.items():
-        sys.modules[nombre] = modulo
+    }
+    nombres_restaurables = (
+        *modulos_temporales.keys(),
+        'app.ui.widgets.gestor_toasts',
+    )
+    modulos_previos = {nombre: sys.modules.get(nombre) for nombre in nombres_restaurables}
 
-    sys.modules.pop('app.ui.widgets.gestor_toasts', None)
-    return importlib.import_module('app.ui.widgets.gestor_toasts')
+    try:
+        for nombre, modulo in modulos_temporales.items():
+            sys.modules[nombre] = modulo
+        sys.modules.pop('app.ui.widgets.gestor_toasts', None)
+        return importlib.import_module('app.ui.widgets.gestor_toasts')
+    finally:
+        for nombre, modulo_previo in modulos_previos.items():
+            if modulo_previo is None:
+                sys.modules.pop(nombre, None)
+            else:
+                sys.modules[nombre] = modulo_previo

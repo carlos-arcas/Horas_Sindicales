@@ -1,0 +1,87 @@
+{
+  "metadatos": {
+    "fecha_utc": "2026-03-27T15:54:18.296047+00:00",
+    "id_auditoria": "AUD-20260327-155418-b1936f5e",
+    "repo": {
+      "root": "C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales",
+      "branch": "codex/identifica-trabajo-prioritarioa",
+      "commit": "7bfe22d"
+    },
+    "dry_run": false
+  },
+  "resultado_global": "PASS",
+  "scorecard": {
+    "nota_sobre_10": 9.17
+  },
+  "checks": [
+    {
+      "id_check": "CHECK-ARQ-001",
+      "estado": "PASS",
+      "severidad": "ALTO",
+      "evidencia": [
+        "Sin violaciones de imports UI->infra y domain->externo."
+      ],
+      "recomendacion": "Mantener dependencias dirigidas a puertos y casos de uso en application."
+    },
+    {
+      "id_check": "CHECK-TEST-001",
+      "estado": "NO_EVALUABLE",
+      "severidad": "MEDIO",
+      "evidencia": [
+        "requirements-dev.txt con pytest=sí",
+        "ejecutar_tests.bat con comando estándar=sí",
+        "Cobertura dinámica no evaluada en auditoría estática."
+      ],
+      "recomendacion": "Ejecutar pytest con cobertura en CI para convertir NO_EVALUABLE en PASS verificable."
+    },
+    {
+      "id_check": "CHECK-LOG-001",
+      "estado": "PASS",
+      "severidad": "ALTO",
+      "evidencia": [
+        "Sin print en app/main=sí",
+        "Rotación configurada=sí",
+        "crashes.log configurado=sí"
+      ],
+      "recomendacion": "Canalizar salida por logging JSONL y evitar print()."
+    },
+    {
+      "id_check": "CHECK-WIN-001",
+      "estado": "PASS",
+      "severidad": "MEDIO",
+      "evidencia": [
+        "Scripts windows presentes=sí",
+        "Requirements pinneados=sí"
+      ],
+      "recomendacion": "Mantener scripts .bat y versiones pinneadas para reproducibilidad."
+    },
+    {
+      "id_check": "CHECK-DOC-001",
+      "estado": "PASS",
+      "severidad": "BAJO",
+      "evidencia": [
+        "Docs mínimas presentes"
+      ],
+      "recomendacion": "Mantener documentos mínimos actualizados en docs/."
+    },
+    {
+      "id_check": "CHECK-VCS-001",
+      "estado": "PASS",
+      "severidad": "MEDIO",
+      "evidencia": [
+        "VERSION=0.1.0",
+        "Entrada en CHANGELOG=sí"
+      ],
+      "recomendacion": "Sincronizar versión publicada con changelog versionado."
+    }
+  ],
+  "backlog_recomendado": [],
+  "rutas_previstas": {
+    "base_dir": "C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\logs\\evidencias\\AUD-20260327-155418-b1936f5e",
+    "auditoria_md": "C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\logs\\evidencias\\AUD-20260327-155418-b1936f5e\\AUDITORIA.md",
+    "auditoria_json": "C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\logs\\evidencias\\AUD-20260327-155418-b1936f5e\\auditoria.json",
+    "manifest_json": "C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\logs\\evidencias\\AUD-20260327-155418-b1936f5e\\manifest.json",
+    "status_txt": "C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\logs\\evidencias\\AUD-20260327-155418-b1936f5e\\status.txt"
+  },
+  "conflictos": []
+}

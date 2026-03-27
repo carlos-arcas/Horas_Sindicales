@@ -119,7 +119,7 @@ def test_preparar_entorno_qt_headless_fija_defaults_relevantes(monkeypatch) -> N
     assert entorno["QT_QUICK_BACKEND"] == "software"
 
 
-def test_importar_qt_para_ui_real_o_skip_hace_skip_con_contexto_headless(
+def test_importar_qt_para_interfaz_real_o_omitir_hace_skip_con_contexto_headless(
     monkeypatch,
 ) -> None:
     def _importar(nombre_modulo: str):
@@ -128,7 +128,7 @@ def test_importar_qt_para_ui_real_o_skip_hace_skip_con_contexto_headless(
     monkeypatch.setattr(qt_harness, "_importar_modulo", _importar)
 
     with pytest.raises(pytest.skip.Exception) as excinfo:
-        qt_harness.importar_qt_para_ui_real_o_skip()
+        qt_harness.importar_qt_para_interfaz_real_o_omitir()
 
     mensaje = str(excinfo.value)
     assert "modo headless" in mensaje

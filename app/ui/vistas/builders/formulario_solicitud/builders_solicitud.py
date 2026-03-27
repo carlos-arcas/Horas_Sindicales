@@ -113,6 +113,7 @@ def _construir_controles_tramo(
     )
     solicitud_row.addWidget(window.desde_container)
     window.desde_placeholder = crear_placeholder_hora()
+    window.desde_placeholder.setVisible(False)
     solicitud_row.addWidget(window.desde_placeholder)
 
     window.hasta_input = QTimeEdit(QTime(17, 0))
@@ -122,6 +123,7 @@ def _construir_controles_tramo(
     )
     solicitud_row.addWidget(window.hasta_container)
     window.hasta_placeholder = crear_placeholder_hora()
+    window.hasta_placeholder.setVisible(False)
     solicitud_row.addWidget(window.hasta_placeholder)
 
 
@@ -178,21 +180,30 @@ def _instalar_event_filters(window: "MainWindow") -> None:
 def _construir_fila_tips(window: "MainWindow", solicitud_layout: QVBoxLayout) -> None:
     window.solicitudes_tip_1 = QLabel(copy_text("solicitudes.tip_enter"))
     window.solicitudes_tip_1.setProperty("role", "secondary")
+    window.solicitudes_tip_1.setWordWrap(True)
     window.solicitudes_tip_2 = QLabel(copy_text("solicitudes.tip_minutes"))
     window.solicitudes_tip_2.setProperty("role", "secondary")
+    window.solicitudes_tip_2.setWordWrap(True)
     window.solicitudes_tip_3 = QLabel(copy_text("solicitudes.tip_full_day"))
     window.solicitudes_tip_3.setProperty("role", "secondary")
+    window.solicitudes_tip_3.setWordWrap(True)
     for tip in (
         window.solicitudes_tip_1,
         window.solicitudes_tip_2,
         window.solicitudes_tip_3,
     ):
         tip.setVisible(False)
+        solicitud_layout.addWidget(tip)
 
 
 def _construir_estado_formulario(
     window: "MainWindow", solicitud_layout: QVBoxLayout
 ) -> None:
+    window.solicitudes_status_panel = QFrame()
+    window.solicitudes_status_panel.setVisible(False)
+    panel_layout = QVBoxLayout(window.solicitudes_status_panel)
+    panel_layout.setContentsMargins(0, 0, 0, 0)
+    panel_layout.setSpacing(0)
     status_row = QHBoxLayout()
     status_row.setSpacing(8)
     window.solicitudes_status_title = QLabel(copy_text("ui.solicitudes.estado"))
@@ -206,11 +217,13 @@ def _construir_estado_formulario(
     window.solicitudes_status_hint.setProperty("role", "secondary")
     window.solicitudes_status_hint.setWordWrap(True)
     status_row.addWidget(window.solicitudes_status_hint, 1)
-    solicitud_layout.addLayout(status_row)
+    panel_layout.addLayout(status_row)
 
     window.show_help_toggle = QCheckBox(copy_text("solicitudes.help_toggle"))
     window.show_help_toggle.setChecked(False)
     window.show_help_toggle.setVisible(False)
+    status_row.addWidget(window.show_help_toggle)
+    solicitud_layout.addWidget(window.solicitudes_status_panel)
 
     _agregar_etiquetas_error(window, solicitud_layout)
 

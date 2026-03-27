@@ -14,11 +14,22 @@ from app.ui.vistas.main_window.estado_dataset_pendientes import calcular_estado_
 from app.ui.vistas.presentacion_pendientes import construir_estado_vista_pendientes
 
 logger = logging.getLogger(__name__)
+_TAB_HISTORICO = 1
+
+
+def _historico_visible(window) -> bool:
+    main_tabs = getattr(window, "main_tabs", None)
+    if main_tabs is None or not hasattr(main_tabs, "currentIndex"):
+        return True
+    return main_tabs.currentIndex() == _TAB_HISTORICO
 
 
 def refresh_historico(window, *, force: bool = False) -> None:
     if window.historico_table is None or window.historico_model is None:
         logger.info("UI_HISTORICO_REFRESH_SKIPPED_NO_WIDGETS")
+        return
+    if not force and not _historico_visible(window):
+        logger.info("UI_HISTORICO_REFRESH_SKIPPED_HIDDEN")
         return
     persona = window._current_persona()
     historico_filters = build_historico_filters_payload(
@@ -171,7 +182,7 @@ def reload_pending_views(window) -> None:
             "Cambio delegada id=%s pendientes_delegada=%s pendientes_totales=%s",
             persona.id,
             len(window._pending_solicitudes),
-            len(list(window._solicitud_use_cases.listar_pendientes_all())),
+            len(pendientes_totales),
         )
 
     window._pending_selection_anchor_row = None

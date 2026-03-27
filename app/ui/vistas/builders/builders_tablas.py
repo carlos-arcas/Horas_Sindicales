@@ -140,7 +140,8 @@ def create_tablas(window: "MainWindow") -> None:
     window.historico_desde_date.setDisplayFormat(
         copy_text("ui.historico.formato_fecha")
     )
-    filtros_row_2.addWidget(QLabel(copy_text("solicitudes.label_desde")))
+    window.historico_desde_label = QLabel(copy_text("solicitudes.label_desde"))
+    filtros_row_2.addWidget(window.historico_desde_label)
     filtros_row_2.addWidget(window.historico_desde_date)
 
     window.historico_hasta_date = QDateEdit()
@@ -148,7 +149,8 @@ def create_tablas(window: "MainWindow") -> None:
     window.historico_hasta_date.setDisplayFormat(
         copy_text("ui.historico.formato_fecha")
     )
-    filtros_row_2.addWidget(QLabel(copy_text("solicitudes.label_hasta")))
+    window.historico_hasta_label = QLabel(copy_text("solicitudes.label_hasta"))
+    filtros_row_2.addWidget(window.historico_hasta_label)
     filtros_row_2.addWidget(window.historico_hasta_date)
     window._apply_historico_default_range()
 

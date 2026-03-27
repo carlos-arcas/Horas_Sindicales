@@ -8,9 +8,9 @@ Este documento consolida la **auditoría final de cierre de producto** y el crit
 
 ## Conclusión vigente
 
-**Estado actual: PRODUCTO NO CERRADO.**
+**Estado actual: PRODUCTO CANDIDATO A CIERRE.**
 
-Motivo: además de la validación manual final en Windows real, la reproducción honesta de `python -m scripts.gate_pr` en el entorno provisionado del repo falla con 6 tests rojos (`tests/golden/botones/test_boton_sync_golden.py`, `tests/test_presentacion_i18n_headless_import.py`, `tests/test_ui_import_smoke.py`, `tests/test_naming_debt_guard.py`, `tests/test_ui_strings_guard.py` y `tests/test_quality_gate_metrics.py`). Mientras ese gate canónico siga rojo no es honesto declarar **PRODUCTO CANDIDATO A CIERRE** ni **PRODUCTO CERRADO**. El paquete operativo de Windows real sigue siendo obligatorio, pero deja de ser la única brecha de cierre.
+Motivo: la reproducción honesta de `python -m scripts.gate_pr` en el entorno provisionado del repo ya está en verde y el backlog técnico previo de cierre queda resuelto tras cerrar `FTR-010`. Solo sigue pendiente la validación manual final en una máquina Windows real representada por `FTR-011`, así que el estado honesto sube a **PRODUCTO CANDIDATO A CIERRE**, pero todavía no a **PRODUCTO CERRADO**.
 
 ## Entrypoints oficiales
 
@@ -180,7 +180,7 @@ Y confirmar:
 ## Criterio de cierre
 
 - **PRODUCTO CERRADO**: solo cuando A–G estén en PASS y además exista evidencia manual de Windows real.
-- **PRODUCTO CANDIDATO A CIERRE**: cuando A–F estén en PASS, `python -m scripts.gate_pr` esté en verde y G quede pendiente únicamente por validación manual de Windows real.
+- **PRODUCTO CANDIDATO A CIERRE**: cuando A–F estén en PASS, `python -m scripts.gate_pr` esté en verde y G quede pendiente únicamente por la validación manual final en una máquina Windows real.
 - **PRODUCTO NO CERRADO**: si aparece cualquier FAIL real en arquitectura, scripts, auditoría E2E, observabilidad, versionado, documentación mínima o en el gate canónico de PR.
 
 ## Estado auditado en esta revisión
@@ -192,7 +192,8 @@ Y confirmar:
 - E: PASS
 - F: PASS
 - G: WARNING
-- Gate PR canónico (2026-03-27): FAIL por imports Qt/headless, naming debt, UI strings hardcoded y complejidad contractual.
+- Gate PR canónico (2026-03-27): PASS en el entorno provisionado tras cerrar `FTR-015`.
+- Backlog contractual relevante: `FTR-010` queda DONE tras consolidar la cobertura de `sync_sheets_core`; `FTR-011` queda como única tarea abierta y pendiente de validación manual en Windows real.
 
 ## Cierres específicos congelados
 

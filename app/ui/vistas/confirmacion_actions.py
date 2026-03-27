@@ -249,6 +249,10 @@ def on_confirmar(window: Any) -> None:
         selected = obtener_pendientes_seleccionados_confirmables(
             window._selected_pending_solicitudes()
         )
+        if not selected:
+            selected = obtener_pendientes_seleccionados_confirmables(
+                list(getattr(window, "_pending_solicitudes", []))
+            )
         selected_ids = [solicitud.id for solicitud in selected]
         editing = window._selected_pending_for_editing()
         persona = window._current_persona()

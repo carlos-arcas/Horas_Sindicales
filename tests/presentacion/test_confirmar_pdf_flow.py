@@ -194,15 +194,18 @@ def test_guardrail_confirmar_pdf_flow_puro_no_reintroduce_require_qt() -> None:
 
 
 
-def test_click_sin_seleccion_no_llama_use_case() -> None:
+def test_click_sin_seleccion_confirma_todas_las_visibles() -> None:
     window = _build_window()
     window._selected_pending_solicitudes = lambda: []
     window._obtener_ids_seleccionados_pendientes = lambda: []
 
     confirmacion_actions.on_confirmar(window)
 
-    window._execute_confirmar_with_pdf.assert_not_called()
-    window.toast.warning.assert_called_once()
+    window._execute_confirmar_with_pdf.assert_called_once()
+    _persona, selected, pdf_path = window._execute_confirmar_with_pdf.call_args.args
+    assert [sol.id for sol in selected] == [7, 8]
+    assert pdf_path == "/tmp/salida.pdf"
+    window.toast.warning.assert_not_called()
 
 
 
