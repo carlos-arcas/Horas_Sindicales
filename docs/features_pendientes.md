@@ -1,13 +1,13 @@
 # Features pendientes
 
-## FTR-006 - Corregir fallo reproducible del gate rapido en entorno local
+## FTR-011 - Corregir import headless de presentacion.i18n y compatibilidad Qt en tests UI
 - Estado: **TODO**
-- Tipo: `INFRA`
+- Tipo: `UI`
 - Tests:
-  - `tests/test_quality_gate_script_contract.py`
-  - `tests/test_architecture_imports.py`
-  - `tests/test_clean_architecture_imports_guard.py`
-- Notas: Prioridad 1 (rotura verificable). Tarea atomica: identificar el primer comando que rompe en python -m scripts.gate_rapido y aplicar fix minimo sin tocar CI. Cierre: gate rapido en verde y evidencia en commit.
+  - `tests/golden/botones/test_boton_sync_golden.py`
+  - `tests/test_presentacion_i18n_headless_import.py`
+  - `tests/test_ui_import_smoke.py`
+- Notas: Prioridad 1 (rotura verificable detectada tras cerrar FTR-006). Tarea atomica: desacoplar el import headless de presentacion.i18n respecto a PySide6 real y revisar el soporte minimo necesario para recuperar los imports UI contractuales sin rebajar checks.
 
 ## FTR-007 - Blindar sincronizacion de inventario de features nativo
 - Estado: **TODO**

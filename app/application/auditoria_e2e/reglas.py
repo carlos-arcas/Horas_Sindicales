@@ -20,7 +20,8 @@ def evaluar_reglas_arquitectura(fs: SistemaArchivosPuerto, root: Path) -> CheckA
         for imported in _extraer_imports(tree):
             for regla in reglas:
                 if regla(capa, imported):
-                    violations.append(f"{archivo.relative_to(root)} -> {imported}")
+                    ruta_relativa = archivo.relative_to(root).as_posix()
+                    violations.append(f"{ruta_relativa} -> {imported}")
 
     estado = EstadoCheck.PASS if not violations else EstadoCheck.FAIL
     evidencia = ["Sin violaciones de imports UI->infra y domain->externo."] if not violations else violations
