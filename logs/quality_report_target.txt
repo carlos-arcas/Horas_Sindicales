@@ -1,0 +1,31 @@
+# Reporte de calidad
+
+## Top 20 archivos por LOC
+01. app/entrypoints/ui_main.py -> 832 LOC
+
+## Top 20 por complejidad
+- Nota: radon disponible
+01. app/application/use_cases/confirmacion_pdf/caso_uso.py:ConfirmarPendientesPdfCasoUso.execute -> 26
+
+## Sync hotspot LOC
+- app/application/use_cases/sync_sheets/use_case.py -> 133 LOC
+- app/application/use_cases/sync_sheets/pull_planner.py -> 46 LOC
+- app/application/use_cases/sync_sheets/pull_runner.py -> 36 LOC
+- app/application/use_cases/sync_sheets/push_builder.py -> 55 LOC
+- app/application/use_cases/sync_sheets/push_runner.py -> 16 LOC
+## Coverage por paquete
+- Nota: coverage.py no disponible o sin datos (.coverage).
+- domain: 0.00%
+- application: 0.00%
+- infrastructure: 0.00%
+- ui: 0.00%
+
+## Complejidad target
+- Nota: radon disponible
+- app/ui/vistas/confirmacion_actions.py:iterar_pendientes_en_tabla -> 3
+
+## Presupuesto CC target
+- Fuente: .config/quality_gate.json > cc_targets['app/ui/vistas/confirmacion_actions.py:iterar_pendientes_en_tabla']
+- Límite: 12
+- Medido: 3
+- Resultado: PASS
