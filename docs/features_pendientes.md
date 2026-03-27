@@ -30,7 +30,7 @@
   - `tests/application/test_sync_sheets_use_case_scenarios.py`
   - `tests/application/test_sync_reporting_rules.py`
   - `tests/application/test_retry_and_conflict_resolution.py`
-- Notas: Prioridad 3 (bug pequeno). Dividir en subtareas si supera 300 LOC netas o 10 archivos. Cierre: caso reproducible cubierto por test existente o nuevo test unitario focalizado.
+- Notas: Prioridad 2 (bug pequeno). Dividir en subtareas si supera 300 LOC netas o 10 archivos. Cierre: caso reproducible cubierto por test existente o nuevo test unitario focalizado.
 
 ## FTR-015 - Reducir complejidad contractual de ConfirmarPendientesPdfCasoUso.execute
 - Estado: **TODO**
