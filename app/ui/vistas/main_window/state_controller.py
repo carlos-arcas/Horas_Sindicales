@@ -107,7 +107,10 @@ def _importar_componente_critico(
             extra={"modulo": modulo, "simbolos": list(simbolos)},
         )
         raise RuntimeError(
-            f"No se pudo importar el módulo crítico de MainWindow {modulo}: {exc}"
+            copy_text("ui.main_window.modulo_critico_import_error").format(
+                modulo=modulo,
+                error=exc,
+            )
         ) from exc
 
 

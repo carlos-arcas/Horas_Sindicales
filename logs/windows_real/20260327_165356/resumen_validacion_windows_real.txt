@@ -1,0 +1,16 @@
+==== VALIDACION WINDOWS REAL ====
+RunId=20260327_165356
+EstadoInicial=PRODUCTO CANDIDATO A CIERRE
+DictamenFinal=PENDIENTE
+
+Completar manualmente PASS/FAIL/WARNING por paso.
+
+PASO 0 | git rev-parse HEAD | PENDIENTE |
+PASO 1 | scripts\validar_windows_real.bat | PASS | carpeta creada
+PASO 2 | setup.bat | PENDIENTE |
+PASO 3 | lanzar_app.bat | PENDIENTE | validar apertura UI real y cierre
+PASO 4 | ejecutar_tests.bat | PENDIENTE | cobertura contractual
+PASO 5 | quality_gate.bat | PENDIENTE |
+PASO 6 | auditar_e2e.bat --dry-run | PENDIENTE |
+PASO 7 | auditar_e2e.bat --write | PENDIENTE |
+PASO 8 | launcher.bat | PENDIENTE | validar menu y rutas de logs

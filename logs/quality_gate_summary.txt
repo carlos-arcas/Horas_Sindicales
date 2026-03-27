@@ -1,0 +1,8 @@
+==== quality_gate summary ====
+Fecha: 27/03/2026 16:54:30,43
+min_coverage=85
+fail_step=PRECHECK_UI
+fail_reason=
+tests_exit_code=
+coverage_percent=N/D
+gate_exit_code=2

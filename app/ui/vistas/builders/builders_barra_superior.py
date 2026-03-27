@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt
 from app.ui.copy_catalog import copy_text
 from PySide6.QtWidgets import (
-    QHBoxLayout,
     QPushButton,
     QSizePolicy,
     QSplitter,
@@ -21,15 +20,13 @@ def create_barra_superior(window: "MainWindow") -> None:
     operativa_tab = QWidget()
     operativa_layout = QVBoxLayout(operativa_tab)
     operativa_layout.setContentsMargins(0, 0, 0, 0)
-    operativa_layout.setSpacing(12)
-    operativa_header_row = QHBoxLayout()
-    operativa_header_row.setSpacing(10)
-    operativa_header_row.addStretch(1)
+    operativa_layout.setSpacing(8)
     window.open_saldos_modal_button = QPushButton(copy_text("ui.solicitudes.saldos"))
     window.open_saldos_modal_button.setProperty("variant", "secondary")
     window.open_saldos_modal_button.setMaximumWidth(110)
-    operativa_header_row.addWidget(window.open_saldos_modal_button, alignment=Qt.AlignRight)
-    operativa_layout.addLayout(operativa_header_row)
+    window.main_tabs.setCornerWidget(
+        window.open_saldos_modal_button, Qt.Corner.TopRightCorner
+    )
 
     window.solicitudes_splitter = QSplitter(Qt.Orientation.Vertical)
     window.solicitudes_splitter.setObjectName("solicitudesSplitter")

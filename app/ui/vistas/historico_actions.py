@@ -17,6 +17,14 @@ from app.ui.vistas.main_window import state_historico
 
 
 logger = logging.getLogger(__name__)
+_SETTINGS_HISTORICO_DELEGADA = "/".join(("historico", "delegada"))
+
+
+def _range_is_inverted(date_from: Any, date_to: Any) -> bool:
+    try:
+        return bool(date_from > date_to)
+    except TypeError:
+        return False
 
 
 def apply_historico_filters(window: Any) -> None:
@@ -25,15 +33,15 @@ def apply_historico_filters(window: Any) -> None:
     date_from = filtros["date_from"]
     date_to = filtros["date_to"]
 
-    if year_mode == "RANGE" and date_from.isValid() and date_to.isValid() and date_from > date_to:
+    if year_mode == "RANGE" and date_from.isValid() and date_to.isValid() and _range_is_inverted(date_from, date_to):
         # Para juniors: corregimos automáticamente para no bloquear al usuario ni colapsar la UI.
         date_from, date_to = date_to, date_from
         window.historico_desde_date.setDate(date_from)
         window.historico_hasta_date.setDate(date_to)
         QMessageBox.information(
             window,
-            "Rango ajustado",
-            "La fecha 'Desde' era posterior a 'Hasta'. Se corrigió automáticamente el rango.",
+            copy_text("ui.historico.rango_ajustado_titulo"),
+            copy_text("ui.historico.rango_ajustado_mensaje"),
         )
 
     window.historico_proxy_model.set_filters(
@@ -46,7 +54,7 @@ def apply_historico_filters(window: Any) -> None:
         date_to=date_to,
     )
     window.historico_proxy_model.set_estado_code(window.historico_estado_combo.currentData())
-    window._settings.setValue("historico/delegada", filtros["delegada_id"])
+    window._settings.setValue(_SETTINGS_HISTORICO_DELEGADA, filtros["delegada_id"])
     window._apply_historico_text_filter()
     window._update_historico_empty_state()
 
@@ -84,6 +92,17 @@ def apply_historico_last_30_days(window: Any) -> None:
     window._apply_historico_filters()
 
 
+def _set_enabled_and_visible(widget: Any, enabled: bool, visible: bool) -> None:
+    if widget is None:
+        return
+    set_enabled = getattr(widget, "setEnabled", None)
+    if callable(set_enabled):
+        set_enabled(enabled)
+    set_visible = getattr(widget, "setVisible", None)
+    if callable(set_visible):
+        set_visible(visible)
+
+
 def on_historico_periodo_mode_changed(
     window: Any,
     mode: str | bool | None = None,
@@ -99,11 +118,13 @@ def on_historico_periodo_mode_changed(
     mes_activo = window.historico_periodo_mes_radio.isChecked()
     rango_activo = window.historico_periodo_rango_radio.isChecked()
 
-    window.historico_periodo_anual_spin.setEnabled(anual_activo)
-    window.historico_periodo_mes_ano_spin.setEnabled(mes_activo)
-    window.historico_periodo_mes_combo.setEnabled(mes_activo)
-    window.historico_desde_date.setEnabled(rango_activo)
-    window.historico_hasta_date.setEnabled(rango_activo)
+    _set_enabled_and_visible(window.historico_periodo_anual_spin, anual_activo, anual_activo)
+    _set_enabled_and_visible(window.historico_periodo_mes_ano_spin, mes_activo, mes_activo)
+    _set_enabled_and_visible(window.historico_periodo_mes_combo, mes_activo, mes_activo)
+    _set_enabled_and_visible(getattr(window, "historico_desde_label", None), rango_activo, rango_activo)
+    _set_enabled_and_visible(window.historico_desde_date, rango_activo, rango_activo)
+    _set_enabled_and_visible(getattr(window, "historico_hasta_label", None), rango_activo, rango_activo)
+    _set_enabled_and_visible(window.historico_hasta_date, rango_activo, rango_activo)
     trigger_historico_filter_refresh(window)
 
 

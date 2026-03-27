@@ -1,0 +1,9 @@
+ROOT_DIR=C:\Users\arcas\.codex\worktrees\48a7\Horas_Sindicales\scripts\..\
+RUN_DIR=C:\Users\arcas\.codex\worktrees\48a7\Horas_Sindicales\scripts\..\logs\windows_real\20260327_165356
+DATE=27/03/2026
+TIME=16:53:56,74
+COMPUTERNAME=DESKTOP-UCAOJGK
+USERNAME=arcas
+7bfe22db62a41b7174ddcf717bc48eeefde659bb
+Unable to create process using 'C:\Users\arcas\AppData\Local\Programs\Python\Python313\python.exe --version ': El sistema no puede encontrar el archivo especificado.
+

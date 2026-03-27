@@ -95,6 +95,25 @@ def _coerce_qt_bool(value: object) -> bool:
     return bool(value)
 
 
+def _apply_time_control_visibility(window: object, *, completo: bool) -> None:
+    for control_name in ("desde", "hasta"):
+        input_widget = getattr(window, f"{control_name}_input", None)
+        if hasattr(input_widget, "setEnabled"):
+            input_widget.setEnabled(not completo)
+        container = getattr(window, f"{control_name}_container", None)
+        placeholder = getattr(window, f"{control_name}_placeholder", None)
+        if container is None or placeholder is None:
+            continue
+        size_hint = getattr(container, "sizeHint", None)
+        hint = size_hint() if callable(size_hint) else None
+        if hint is not None and hasattr(placeholder, "setFixedSize"):
+            placeholder.setFixedSize(hint)
+        if hasattr(container, "setVisible"):
+            container.setVisible(not completo)
+        if hasattr(placeholder, "setVisible"):
+            placeholder.setVisible(completo)
+
+
 def on_completo_changed(window: object, checked: object = False) -> None:
     """Handler del checkbox completo con tolerancia de payload de Qt."""
 
@@ -106,6 +125,8 @@ def on_completo_changed(window: object, checked: object = False) -> None:
                 completo_check.setChecked(valor_completo)
         except Exception:
             logger.debug("No se pudo normalizar completo_check", exc_info=True)
+
+    _apply_time_control_visibility(window, completo=valor_completo)
 
     mark_touched = getattr(window, "_mark_field_touched", None)
     if callable(mark_touched):

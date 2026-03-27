@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 
 set "ROOT_DIR=%~dp0"
 cd /d "%ROOT_DIR%"
@@ -13,6 +13,7 @@ set "LOG_DEBUG=%LOG_DIR%\lanzar_app_debug.log"
 
 call :log_debug "==== lanzar_app.bat ===="
 call :log_debug "Repositorio: %ROOT_DIR%"
+call :log_debug "Args: %*"
 
 set "PYTHON_CMD="
 set "PYTHON_EXE=.venv\Scripts\python.exe"
@@ -76,21 +77,27 @@ if errorlevel 1 (
 
 if exist "main.py" (
     call :log_debug "Entrypoint seleccionado: python main.py"
-    python main.py >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
-    set "APP_EXIT=%ERRORLEVEL%"
-) else if exist "app\__main__.py" (
-    call :log_debug "Entrypoint seleccionado: python -m app"
-    python -m app >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
-    set "APP_EXIT=%ERRORLEVEL%"
-) else (
-    echo [ERROR] No se encontro entrypoint (main.py o app\__main__.py).
-    call :log_debug "ERROR: No se encontro entrypoint"
-    exit /b 1
+    call :run_entrypoint python main.py %*
+    exit /b %ERRORLEVEL%
 )
 
-call :log_debug "Exit code aplicacion: %APP_EXIT%"
-exit /b %APP_EXIT%
+if exist "app\__main__.py" (
+    call :log_debug "Entrypoint seleccionado: python -m app"
+    call :run_entrypoint python -m app %*
+    exit /b %ERRORLEVEL%
+)
+
+echo [ERROR] No se encontro entrypoint (main.py o app\__main__.py).
+call :log_debug "ERROR: No se encontro entrypoint"
+exit /b 1
+
+:run_entrypoint
+call :log_debug "Ejecutando entrypoint Python"
+call %1 %2 %3 %4 %5 %6 %7 %8 %9 >> "%LOG_STDOUT%" 2>> "%LOG_STDERR%"
+set "APP_EXIT=!ERRORLEVEL!"
+call :log_debug "Exit code aplicacion: !APP_EXIT!"
+exit /b !APP_EXIT!
 
 :log_debug
-echo [%date% %time%] %~1>> "%LOG_DEBUG%"
+>> "%LOG_DEBUG%" echo [%date% %time%] %~1
 exit /b 0

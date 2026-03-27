@@ -105,12 +105,12 @@ def _elevar_importacion_critica(
         exc=error,
         extra=payload_extra,
     )
-    simbolos = ", ".join(simbolos_criticos)
     raise ImportacionCriticaMainWindowError(
-        "No se pudieron importar dependencias críticas de MainWindow "
-        f"para el grupo '{nombre_grupo}': {simbolos}. "
-        "Verifica la instalación de Qt/PySide6 o usa stubs explícitos en tests headless. "
-        f"ImportError original: {error}"
+        copy_text("ui.main_window.importacion_critica_error").format(
+            grupo=nombre_grupo,
+            simbolos=", ".join(simbolos_criticos),
+            error=error,
+        )
     ) from error
 
 

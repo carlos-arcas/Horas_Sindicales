@@ -1,18 +1,13 @@
 # Features pendientes
 
-## FTR-012 - Corregir imports Qt/headless que rompen gate_pr
-- Estado: **TODO**
-- Tipo: `INFRA`
-- Tests:
-  - `tests/golden/botones/test_boton_sync_golden.py`
-  - `tests/test_presentacion_i18n_headless_import.py`
-  - `tests/test_ui_import_smoke.py`
-- Notas: Prioridad 1 (wiring/tests rotos). Reproducido con python -m scripts.gate_pr en entorno provisionado: PySide6.QtCore.__spec__ is None al importar presentacion.i18n.gestor_i18n en headless y ImportError de QFileDialog en app.ui.vistas.confirmacion_adaptador_qt. Mantener el fix atomico sobre imports/compatibilidad Qt sin mezclar hardcodes, naming o complejidad.
-
-## FTR-013 - Eliminar nuevos strings hardcoded detectados en app/ui
+## FTR-019 - Ocultar estado operativo redundante y omitir refresh del historico oculto
 - Estado: **TODO**
 - Tipo: `UI`
 - Tests:
+  - `tests/presentacion/test_ui_operativa_pendientes_contract.py`
+  - `tests/presentacion/test_ui_operativa_status_panel_hidden.py`
+  - `tests/ui/test_historico_refresh_hidden_skip.py`
+- Notas: Prioridad 3 (bug pequeno reproducible). El backlog quedo desalineado: en este worktree hay cambios parciales de UI no reflejados en docs/features.json. Ejecutar solo la subfeature minima: ocultar panel/tips de operativa cuando no aportan senal visible y evitar refresh_historico si la pestana Historico no esta activa, sin mezclar launcher, read-only ni otros ajustes locales.
   - `tests/test_ui_strings_guard.py`
 - Notas: Prioridad 2 (guardrail bajo riesgo). Reproducido con python -m scripts.gate_pr; offenders actuales en historico_actions.py y modulos de main_window. Cierre: mover texto visible a i18n y dejar solo claves no visibles cuando aplique.
 
@@ -49,11 +44,12 @@
 - Notas: Prioridad 5 (deuda tecnica pequena). Cambios pequenos y reversibles: extraer helper puro o simplificar duplicacion puntual sin refactor global.
 
 ## FTR-011 - Ejecutar validacion final en Windows real y consolidar evidencia de cierre
-- Estado: **TODO**
+- Estado: **BLOCKED**
 - Tipo: `INFRA`
 - Tests:
   - `tests/test_docs_minimas.py`
   - `tests/test_windows_scripts_contract.py`
   - `tests/test_launcher_bat_contract.py`
   - `tests/test_definicion_producto_final_contract.py`
-- Notas: Prioridad 6 (cierre real de producto). Sigue siendo obligatoria la validacion manual descrita en docs/validacion_windows_real.md, pero deja de ser la siguiente tarea mientras python -m scripts.gate_pr siga rojo. Retomar solo cuando el gate canónico vuelva a verde.
+  - `tests/test_validacion_windows_real_contract.py`
+- Notas: Prioridad 6 (cierre real de producto). BLOCKED hasta disponer de arbol limpio o snapshot identificable del commit validado y una sesion Windows real con revision visual/manual de lanzar_app.bat y launcher.bat segun docs/validacion_windows_real.md. En este worktree persisten cambios locales ajenos y el contexto de automatizacion no sustituye esa evidencia manual final.

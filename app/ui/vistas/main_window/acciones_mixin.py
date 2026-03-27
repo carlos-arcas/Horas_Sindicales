@@ -322,8 +322,7 @@ class AccionesMainWindowMixin:
             extra={"handlers_faltantes": faltantes},
         )
         raise RuntimeError(
-            "Contrato UI MainWindow inválido. Handlers críticos ausentes o no callables: "
-            f"{detalle}"
+            copy_text("ui.main_window.handlers_invalidos").format(detalle=detalle)
         )
 
     def _run_preconfirm_checks(self) -> bool:
@@ -383,10 +382,29 @@ class AccionesMainWindowMixin:
         return acciones_sincronizacion.on_open_opciones(self)
 
     def _on_edit_grupo(self) -> None:
-        return self._on_open_opciones()
+        return self._open_config_dialog("grupo")
 
     def _on_edit_pdf(self) -> None:
-        return self._on_open_opciones()
+        return self._open_config_dialog("pdf")
+
+    def _open_config_dialog(self, dialog_kind: str) -> None:
+        from app.ui.group_dialog import GrupoConfigDialog, PdfConfigDialog
+
+        dialog_class = GrupoConfigDialog if dialog_kind == "grupo" else PdfConfigDialog
+        dialog = dialog_class(
+            self._grupo_use_cases,
+            getattr(self, "_sync_service", None),
+            self,
+        )
+        accepted = 1
+        dialog_code = getattr(dialog, "DialogCode", None)
+        if dialog_code is not None:
+            try:
+                accepted = dialog_code.Accepted
+            except AttributeError:
+                accepted = 1
+        if dialog.exec() == accepted and dialog_kind == "grupo":
+            self._refresh_saldos()
 
     def _on_snooze_alerts_today(self) -> None:
         return MainWindowHealthMixin._on_snooze_alerts_today(self)

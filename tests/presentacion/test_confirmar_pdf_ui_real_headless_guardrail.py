@@ -29,5 +29,5 @@ def test_confirmar_pdf_ui_real_prepara_headless_antes_de_importar_qt() -> None:
     contenido = RUTA_TEST_UI_REAL.read_text(encoding="utf-8")
 
     assert "preparar_entorno_qt_headless" in contenido
-    assert "importar_qt_para_ui_real_o_skip" in contenido
+    assert "importar_qt_para_interfaz_real_o_omitir" in contenido
     assert _llamadas_importorskip_pyqt(RUTA_TEST_UI_REAL) == []

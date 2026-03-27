@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+
+import pytest
 
 from app.application.use_cases import sync_sheets_core
 
@@ -15,6 +17,44 @@ def test_normalize_date_handles_empty_and_invalid() -> None:
     assert sync_sheets_core.normalize_date(None) is None
     assert sync_sheets_core.normalize_date(" ") is None
     assert sync_sheets_core.normalize_date("2024/05/09") is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (None, ""),
+        ("", ""),
+        (date(2025, 1, 10), "2025-01-10"),
+        (datetime(2025, 1, 10, 12, 0), "2025-01-10"),
+        ("10/01/2025", "2025-01-10"),
+        ("2025-01-10", "2025-01-10"),
+        ("weird-format", "weird-format"),
+    ],
+)
+def test_to_iso_date_supports_dates_and_fallbacks(raw, expected) -> None:
+    assert sync_sheets_core.to_iso_date(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("09:30", 570),
+        (" 0:05 ", 5),
+        ("abc:10", None),
+        ("11", None),
+        (None, None),
+    ],
+)
+def test_parse_hhmm_to_minutes_handles_valid_and_invalid_values(value, expected) -> None:
+    assert sync_sheets_core.parse_hhmm_to_minutes(value) == expected
+
+
+def test_parse_iso_supports_zulu_and_naive_datetime() -> None:
+    parsed_zulu = sync_sheets_core.parse_iso("2025-01-01T10:00:00Z")
+    parsed_naive = sync_sheets_core.parse_iso("2025-01-01T10:00:00")
+
+    assert parsed_zulu is not None and parsed_zulu.tzinfo is not None
+    assert parsed_naive == datetime(2025, 1, 1, 10, 0, tzinfo=timezone.utc)
 
 
 def test_normalize_remote_solicitud_row_maps_aliases_and_historico_estado() -> None:
@@ -46,6 +86,27 @@ def test_normalize_remote_solicitud_row_maps_aliases_and_historico_estado() -> N
 def test_normalize_remote_solicitud_row_prefers_explicit_estado_lowercased() -> None:
     normalized = sync_sheets_core.normalize_remote_solicitud_row({"estado": " APROBADA "}, "Histórico")
     assert normalized["estado"] == "aprobada"
+
+
+def test_normalize_remote_row_uses_name_alias_and_lowercases_estado() -> None:
+    row = {
+        "delegada": "  Ana Delegada  ",
+        "fecha": "2025-02-15",
+        "desde_h": "7",
+        "desde_m": "45",
+        "hasta_h": "9",
+        "hasta_m": "00",
+        "estado": " PENDIENTE ",
+    }
+
+    normalized = sync_sheets_core.normalize_remote_solicitud_row(row, "Solicitudes")
+
+    assert normalized["delegada_nombre"].strip() == "Ana Delegada"
+    assert normalized["desde_h"] == 7
+    assert normalized["desde_m"] == 45
+    assert normalized["hasta_h"] == 9
+    assert normalized["hasta_m"] == 0
+    assert normalized["estado"] == "pendiente"
 
 
 def test_remote_hhmm_uses_full_value_and_fallback() -> None:
@@ -132,6 +193,18 @@ def test_is_remote_newer_and_after_last_sync_rules() -> None:
     assert not sync_sheets_core.is_remote_newer("2024-01-10T11:00:00+00:00", remote)
     assert sync_sheets_core.is_after_last_sync("2024-01-10T11:00:00+00:00", "2024-01-10T10:00:00+00:00")
     assert not sync_sheets_core.is_after_last_sync("invalid", "2024-01-10T10:00:00+00:00")
+
+
+@pytest.mark.parametrize(
+    ("updated", "last_sync", "expected"),
+    [
+        ("2025-01-01T12:00:00+00:00", None, True),
+        (None, "2025-01-01T11:00:00+00:00", False),
+        ("invalid", "2025-01-01T11:00:00+00:00", False),
+    ],
+)
+def test_is_after_last_sync_edge_cases(updated, last_sync, expected) -> None:
+    assert sync_sheets_core.is_after_last_sync(updated, last_sync) is expected
 
 
 def test_idempotence_for_merge_core_normalization_and_key_derivation() -> None:

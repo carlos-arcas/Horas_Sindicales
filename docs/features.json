@@ -1,82 +1,131 @@
 [
   {
+    "id": "FTR-019",
+    "nombre": "Ocultar estado operativo redundante y omitir refresh del historico oculto",
+    "estado": "TODO",
+    "tipo": "UI",
+    "tests": [
+      "tests/presentacion/test_ui_operativa_pendientes_contract.py",
+      "tests/presentacion/test_ui_operativa_status_panel_hidden.py",
+      "tests/ui/test_historico_refresh_hidden_skip.py"
+    ],
+    "notas": "Prioridad 3 (bug pequeno reproducible). El backlog quedo desalineado: en este worktree hay cambios parciales de UI no reflejados en docs/features.json. Ejecutar solo la subfeature minima: ocultar panel/tips de operativa cuando no aportan senal visible y evitar refresh_historico si la pestana Historico no esta activa, sin mezclar launcher, read-only ni otros ajustes locales."
+  },
+  {
+    "id": "FTR-018",
+    "nombre": "Corregir contrato read-only que rompe quality_gate.bat por import QAction",
+    "estado": "DONE",
+    "tipo": "INFRA",
+    "tests": [
+      "tests/ui/test_read_only_ui_object_names_contract.py",
+      "tests/test_quality_gate_script_contract.py"
+    ],
+    "notas": "Verificado el 2026-03-27 con .venv\\Scripts\\python.exe -m pytest -q tests/ui/test_read_only_ui_object_names_contract.py tests/test_quality_gate_script_contract.py tests/test_repo_legacy_cleanup_guardrails.py, .venv\\Scripts\\python.exe -m scripts.features_sync, .venv\\Scripts\\python.exe -m scripts.gate_rapido y .venv\\Scripts\\python.exe -m scripts.gate_pr. El contrato read-only usa QAction desde PySide6.QtGui y quality_gate.bat deja de romper la coleccion de pytest por este motivo."
+  },
+  {
+    "id": "FTR-017",
+    "nombre": "Corregir precheck UI de quality_gate.bat tras exigir estado_modo_solo_lectura",
+    "estado": "DONE",
+    "tipo": "INFRA",
+    "tests": [
+      "tests/ui/test_header_title_updates.py",
+      "tests/ui/test_no_header_in_shell.py",
+      "tests/ui/test_main_window_shell_header_only.py",
+      "tests/ui/test_ui_navegacion_minima.py",
+      "tests/test_quality_gate_script_contract.py"
+    ],
+    "notas": "Verificado el 2026-03-27 con .venv\\Scripts\\python.exe scripts\\ui_main_window_smoke.py, .venv\\Scripts\\python.exe -m pytest -q tests/ui/test_header_title_updates.py tests/ui/test_no_header_in_shell.py tests/ui/test_main_window_shell_header_only.py tests/ui/test_ui_navegacion_minima.py tests/test_quality_gate_script_contract.py tests/test_repo_legacy_cleanup_guardrails.py, .venv\\Scripts\\python.exe -m scripts.gate_rapido y .venv\\Scripts\\python.exe -m scripts.gate_pr tras dejar staged docs/features.json docs/features.md docs/features_pendientes.md. cmd /c quality_gate.bat deja de fallar en PRECHECK_UI y pasa a exponer como siguiente bloqueo FTR-018."
+  },
+  {
     "id": "FTR-012",
     "nombre": "Corregir imports Qt/headless que rompen gate_pr",
-    "estado": "TODO",
+    "estado": "DONE",
     "tipo": "INFRA",
     "tests": [
       "tests/golden/botones/test_boton_sync_golden.py",
       "tests/test_presentacion_i18n_headless_import.py",
       "tests/test_ui_import_smoke.py"
     ],
-    "notas": "Prioridad 1 (wiring/tests rotos). Reproducido con python -m scripts.gate_pr en entorno provisionado: PySide6.QtCore.__spec__ is None al importar presentacion.i18n.gestor_i18n en headless y ImportError de QFileDialog en app.ui.vistas.confirmacion_adaptador_qt. Mantener el fix atomico sobre imports/compatibilidad Qt sin mezclar hardcodes, naming o complejidad."
+    "notas": "Verificado el 2026-03-27 con .venv\\Scripts\\python.exe -m pytest -q tests/test_toast_manager_actions.py tests/golden/botones tests/test_presentacion_i18n_headless_import.py tests/test_ui_import_smoke.py, .venv\\Scripts\\python.exe -m pytest -q tests/test_repo_legacy_cleanup_guardrails.py y .venv\\Scripts\\python.exe -m scripts.gate_rapido. .venv\\Scripts\\python.exe -m scripts.gate_pr deja de fallar por FTR-012 y, tras cerrar FTR-013, queda rojo solo por FTR-014, FTR-015 y tests/test_validacion_windows_real_contract.py."
   },
   {
     "id": "FTR-013",
     "nombre": "Eliminar nuevos strings hardcoded detectados en app/ui",
-    "estado": "TODO",
+    "estado": "DONE",
     "tipo": "UI",
     "tests": [
       "tests/test_ui_strings_guard.py"
     ],
-    "notas": "Prioridad 2 (guardrail bajo riesgo). Reproducido con python -m scripts.gate_pr; offenders actuales en historico_actions.py y modulos de main_window. Cierre: mover texto visible a i18n y dejar solo claves no visibles cuando aplique."
+    "notas": "Verificado el 2026-03-27 con python -m pytest -q tests/test_ui_strings_guard.py, python -m pytest -q tests/test_repo_legacy_cleanup_guardrails.py y python -m scripts.gate_rapido. python -m scripts.gate_pr deja de fallar por FTR-013 y queda rojo solo por FTR-014, FTR-015 y tests/test_validacion_windows_real_contract.py."
   },
   {
     "id": "FTR-014",
     "nombre": "Eliminar regresion de naming debt en qt_harness",
-    "estado": "TODO",
+    "estado": "DONE",
     "tipo": "INFRA",
     "tests": [
       "tests/test_naming_debt_guard.py"
     ],
-    "notas": "Prioridad 2 (guardrail bajo riesgo). Reproducido con python -m scripts.gate_pr; nuevo offender: app/testing/qt_harness.py::importar_qt_para_ui_real_o_skip. Cierre: renombrar a espanol tecnico o justificar baseline en el mismo PR."
+    "notas": "Verificado el 2026-03-27 con .venv\\Scripts\\python.exe -m pytest -q tests/test_naming_debt_guard.py tests/utilidades/test_qt_harness.py tests/presentacion/test_confirmar_pdf_ui_real_headless_guardrail.py, .venv\\Scripts\\python.exe -m pytest -q tests/test_repo_legacy_cleanup_guardrails.py, .venv\\Scripts\\python.exe -m scripts.features_sync, .venv\\Scripts\\python.exe -m scripts.gate_rapido y .venv\\Scripts\\python.exe -m scripts.gate_pr. El gate canonico deja de fallar por FTR-014 y queda rojo solo por FTR-015 y tests/test_validacion_windows_real_contract.py."
   },
   {
-    "id": "FTR-008",
-    "nombre": "Corregir bug pequeno reproducible en sincronizacion Sheets (conflictos/reporting)",
-    "estado": "TODO",
-    "tipo": "LOGICA",
+    "id": "FTR-016",
+    "nombre": "Alinear definicion de producto con contrato de Windows real",
+    "estado": "DONE",
+    "tipo": "INFRA",
     "tests": [
-      "tests/application/test_sync_sheets_use_case_scenarios.py",
-      "tests/application/test_sync_reporting_rules.py",
-      "tests/application/test_retry_and_conflict_resolution.py"
+      "tests/test_validacion_windows_real_contract.py",
+      "tests/test_definicion_producto_final_contract.py"
     ],
-    "notas": "Prioridad 2 (bug pequeno). Dividir en subtareas si supera 300 LOC netas o 10 archivos. Cierre: caso reproducible cubierto por test existente o nuevo test unitario focalizado."
+    "notas": "Verificado el 2026-03-27 con .venv\\Scripts\\python.exe -m scripts.features_sync, .venv\\Scripts\\python.exe -m pytest -q tests/test_validacion_windows_real_contract.py tests/test_definicion_producto_final_contract.py tests/test_repo_legacy_cleanup_guardrails.py, .venv\\Scripts\\python.exe -m scripts.gate_rapido y .venv\\Scripts\\python.exe -m scripts.gate_pr. El gate canonico deja de fallar por la desalineacion documental de Windows real y queda rojo solo por FTR-015."
   },
   {
     "id": "FTR-015",
     "nombre": "Reducir complejidad contractual de ConfirmarPendientesPdfCasoUso.execute",
-    "estado": "TODO",
+    "estado": "DONE",
     "tipo": "LOGICA",
     "tests": [
       "tests/test_quality_gate_metrics.py"
     ],
-    "notas": "Prioridad 5 (deuda tecnica localizada). Reproducido con python -m scripts.gate_pr: app/application/use_cases/confirmacion_pdf/caso_uso.py:ConfirmarPendientesPdfCasoUso.execute tiene CC 26 con limite 20. Cierre: bajar la complejidad sin relajar el quality gate."
+    "notas": "Verificado el 2026-03-27 con .venv\\Scripts\\python.exe -m pytest -q tests/test_quality_gate_metrics.py tests/application/test_confirmar_pdf_caso_uso.py tests/test_repo_legacy_cleanup_guardrails.py, .venv\\Scripts\\python.exe -m scripts.gate_rapido y .venv\\Scripts\\python.exe -m scripts.gate_pr. ConfirmarPendientesPdfCasoUso.execute queda por debajo del limite contractual de CC 20 tras extraer helpers pequenos, mantener el archivo en 272 LOC y cubrir el flujo generar_pdf=False."
+  },
+  {
+    "id": "FTR-008",
+    "nombre": "Corregir bug pequeno reproducible en sincronizacion Sheets (conflictos/reporting)",
+    "estado": "DONE",
+    "tipo": "LOGICA",
+    "tests": [
+      "tests/ui/test_sync_push_finished_conflicts_dialog.py",
+      "tests/application/test_sync_sheets_use_case_scenarios.py",
+      "tests/application/test_sync_reporting_rules.py",
+      "tests/application/test_retry_and_conflict_resolution.py"
+    ],
+    "notas": "Verificado el 2026-03-27 con .venv\\Scripts\\python.exe -m pytest -q tests/ui/test_sync_push_finished_conflicts_dialog.py tests/application/test_sync_sheets_use_case_scenarios.py tests/application/test_sync_reporting_rules.py tests/application/test_retry_and_conflict_resolution.py, .venv\\Scripts\\python.exe -m pytest -q tests/test_repo_legacy_cleanup_guardrails.py, .venv\\Scripts\\python.exe -m scripts.gate_rapido y .venv\\Scripts\\python.exe -m scripts.gate_pr. on_push_finished ya no abre ConflictsDialog cuando solo hay errores de push y mantiene la apertura cuando conflicts_detected > 0."
   },
   {
     "id": "FTR-010",
     "nombre": "Reducir deuda tecnica localizada en pruebas de sincronizacion",
-    "estado": "TODO",
+    "estado": "DONE",
     "tipo": "LOGICA",
     "tests": [
       "tests/application/test_sync_sheets_core.py",
-      "tests/application/test_sync_sheets_core_expanded.py",
       "tests/application/test_sync_sheets_refactor_smoke.py"
     ],
-    "notas": "Prioridad 4 (deuda tecnica pequena). Cambios pequenos y reversibles: extraer helper puro o simplificar duplicacion puntual sin refactor global."
+    "notas": "Verificado el 2026-03-27 con python -m pytest -q tests/application/test_sync_sheets_core.py tests/application/test_sync_sheets_refactor_smoke.py tests/test_definicion_producto_final_contract.py tests/test_validacion_windows_real_contract.py tests/test_repo_legacy_cleanup_guardrails.py, python -m scripts.features_sync y python -m scripts.gate_rapido. Se consolida la cobertura parametrizada de sync_sheets_core en un unico archivo y se elimina tests/application/test_sync_sheets_core_expanded.py como duplicacion puntual; test_sync_sheets_refactor_smoke.py se mantiene como contrato especifico del summary de execute_sync_plan."
   },
   {
     "id": "FTR-011",
     "nombre": "Ejecutar validacion final en Windows real y consolidar evidencia de cierre",
-    "estado": "TODO",
+    "estado": "BLOCKED",
     "tipo": "INFRA",
     "tests": [
       "tests/test_docs_minimas.py",
       "tests/test_windows_scripts_contract.py",
       "tests/test_launcher_bat_contract.py",
-      "tests/test_definicion_producto_final_contract.py"
+      "tests/test_definicion_producto_final_contract.py",
+      "tests/test_validacion_windows_real_contract.py"
     ],
-    "notas": "Prioridad 6 (cierre real de producto). Sigue siendo obligatoria la validacion manual descrita en docs/validacion_windows_real.md, pero deja de ser la siguiente tarea mientras python -m scripts.gate_pr siga rojo. Retomar solo cuando el gate canónico vuelva a verde."
+    "notas": "Prioridad 6 (cierre real de producto). BLOCKED hasta disponer de arbol limpio o snapshot identificable del commit validado y una sesion Windows real con revision visual/manual de lanzar_app.bat y launcher.bat segun docs/validacion_windows_real.md. En este worktree persisten cambios locales ajenos y el contexto de automatizacion no sustituye esa evidencia manual final."
   },
   {
     "id": "FTR-007",

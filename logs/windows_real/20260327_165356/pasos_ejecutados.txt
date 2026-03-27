@@ -1,0 +1,9 @@
+1. git rev-parse HEAD
+2. py -3 --version || python --version
+3. setup.bat
+4. lanzar_app.bat
+5. ejecutar_tests.bat
+6. quality_gate.bat
+7. auditar_e2e.bat --dry-run
+8. auditar_e2e.bat --write
+9. launcher.bat

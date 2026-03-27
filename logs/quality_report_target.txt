@@ -5,7 +5,7 @@
 
 ## Top 20 por complejidad
 - Nota: radon disponible
-01. app/application/use_cases/confirmacion_pdf/caso_uso.py:ConfirmarPendientesPdfCasoUso.execute -> 26
+01. app/entrypoints/diagnostico_widgets.py:_calcular_score_ventana -> 19
 
 ## Sync hotspot LOC
 - app/application/use_cases/sync_sheets/use_case.py -> 133 LOC
@@ -14,9 +14,9 @@
 - app/application/use_cases/sync_sheets/push_builder.py -> 55 LOC
 - app/application/use_cases/sync_sheets/push_runner.py -> 16 LOC
 ## Coverage por paquete
-- Nota: coverage.py no disponible o sin datos (.coverage).
-- domain: 0.00%
-- application: 0.00%
+- Nota: coverage.py disponible
+- domain: 88.46%
+- application: 87.42%
 - infrastructure: 0.00%
 - ui: 0.00%
 
