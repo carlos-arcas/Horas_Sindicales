@@ -83,8 +83,10 @@ class _SyncWorker(QObject):
         self.finished.emit(result)
 
 
-class SyncController:
+class SyncController(QObject):
     def __init__(self, window) -> None:
+        parent = window if isinstance(window, QObject) else None
+        super().__init__(parent)
         self.window = window
 
     def on_context_changed(self) -> None:
@@ -198,25 +200,36 @@ class SyncController:
         )
         w._sync_worker.moveToThread(w._sync_thread)
         w._sync_thread.started.connect(w._sync_worker.run)
-        w._sync_worker.finished.connect(
-            lambda result, expected_persona_id=contexto_persona_id, callback=on_finished: self._handle_operation_finished(
-                result,
-                expected_persona_id=expected_persona_id,
-                on_finished=callback,
-                operation_name=operation_name,
-            )
-        )
-        w._sync_worker.failed.connect(
-            lambda payload, expected_persona_id=contexto_persona_id: self._handle_operation_failed(
-                payload,
-                expected_persona_id=expected_persona_id,
-                operation_name=operation_name,
-            )
-        )
+        w._sync_expected_persona_id = contexto_persona_id
+        w._sync_on_finished = on_finished
+        w._sync_operation_name = operation_name
+        w._sync_worker.finished.connect(self._on_worker_finished)
+        w._sync_worker.failed.connect(self._on_worker_failed)
+        w._sync_worker.failed.connect(w._sync_thread.quit)
+        w._sync_worker.failed.connect(w._sync_worker.deleteLater)
         w._sync_worker.finished.connect(w._sync_thread.quit)
         w._sync_worker.finished.connect(w._sync_worker.deleteLater)
         w._sync_thread.finished.connect(w._sync_thread.deleteLater)
         w._sync_thread.start()
+
+    @Slot(object)
+    def _on_worker_finished(self, result: object) -> None:
+        w = self.window
+        self._handle_operation_finished(
+            result,
+            expected_persona_id=getattr(w, '_sync_expected_persona_id', None),
+            on_finished=getattr(w, '_sync_on_finished', lambda *_: None),
+            operation_name=getattr(w, '_sync_operation_name', 'sync_bidirectional'),
+        )
+
+    @Slot(object)
+    def _on_worker_failed(self, payload: object) -> None:
+        w = self.window
+        self._handle_operation_failed(
+            payload,
+            expected_persona_id=getattr(w, '_sync_expected_persona_id', None),
+            operation_name=getattr(w, '_sync_operation_name', 'sync_bidirectional'),
+        )
 
     def update_sync_button_state(self) -> None:
         w = self.window

@@ -104,9 +104,38 @@ class ServicioEscrituraLotes:
         if fila_inicio is None:
             fila_inicio = len(lector_valores(titulo)) + 1
         total_columnas = len(filas[0]) if filas[0] else 1
+        self._ensure_append_capacity(
+            worksheet=worksheet,
+            fila_inicio=fila_inicio,
+            total_filas=len(filas),
+        )
         rango = self._a1_sheet_range(titulo, fila_inicio, total_columnas, len(filas))
         self._estado.siguiente_fila_append[titulo] = fila_inicio + len(filas)
         return [{"range": rango, "values": filas}]
+
+    @staticmethod
+    def _ensure_append_capacity(
+        *, worksheet: Any, fila_inicio: int, total_filas: int
+    ) -> None:
+        filas_requeridas = fila_inicio + max(total_filas, 1) - 1
+        filas_actuales = int(getattr(worksheet, "row_count", 0) or 0)
+        if filas_actuales >= filas_requeridas:
+            return
+        resize = getattr(worksheet, "resize", None)
+        if not callable(resize):
+            return
+        try:
+            resize(rows=filas_requeridas)
+        except TypeError:
+            resize(filas_requeridas)
+        try:
+            worksheet.row_count = filas_requeridas
+        except Exception:
+            logger.debug(
+                "No se pudo actualizar row_count tras resize en worksheet=%s",
+                getattr(worksheet, "title", "desconocida"),
+                exc_info=True,
+            )
 
     @staticmethod
     def _a1_sheet_range(titulo: str, fila_inicio: int, total_columnas: int, total_filas: int = 1) -> str:

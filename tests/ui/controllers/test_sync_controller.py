@@ -120,6 +120,59 @@ def test_start_sync_success(monkeypatch) -> None:
     window._set_sync_in_progress.assert_called_once_with(True)
     assert isinstance(window._sync_thread, _FakeThread)
     assert window._sync_thread.started_flag is True
+    assert window._sync_thread.quit in window._sync_worker.failed.callbacks
+    assert window._sync_worker.deleteLater in window._sync_worker.failed.callbacks
+    assert any(
+        getattr(callback, "__func__", None) is SyncController._on_worker_finished
+        for callback in window._sync_worker.finished.callbacks
+    )
+    assert any(
+        getattr(callback, "__func__", None) is SyncController._on_worker_failed
+        for callback in window._sync_worker.failed.callbacks
+    )
+    assert not any(
+        getattr(callback, "__name__", "") == "<lambda>"
+        for callback in window._sync_worker.finished.callbacks
+    )
+    assert not any(
+        getattr(callback, "__name__", "") == "<lambda>"
+        for callback in window._sync_worker.failed.callbacks
+    )
+
+
+@pytest.mark.headless_safe
+def test_worker_finished_reutiliza_contexto_guardado_en_ventana() -> None:
+    window = _build_window()
+    window._conflicts_service = SimpleNamespace(count_conflicts=Mock(return_value=0))
+    window.sync_button = Mock()
+    window.review_conflicts_button = Mock()
+    window.simulate_sync_button = Mock()
+    window.confirm_sync_button = Mock()
+    window.retry_failed_button = Mock()
+    window.sync_details_button = Mock()
+    window.copy_sync_report_button = Mock()
+    controller = SyncController(window)
+    on_finished = Mock()
+    window._sync_expected_persona_id = None
+    window._sync_on_finished = on_finished
+    window._sync_operation_name = 'sync_bidirectional'
+
+    controller._on_worker_finished({'ok': True})
+
+    on_finished.assert_called_once_with({'ok': True})
+
+
+@pytest.mark.headless_safe
+def test_worker_failed_reutiliza_contexto_guardado_en_ventana() -> None:
+    window = _build_window()
+    controller = SyncController(window)
+    payload = {'error': RuntimeError('boom')}
+    window._sync_expected_persona_id = None
+    window._sync_operation_name = 'sync_bidirectional'
+
+    controller._on_worker_failed(payload)
+
+    window._on_sync_failed.assert_called_once_with(payload)
 
 
 @pytest.mark.headless_safe

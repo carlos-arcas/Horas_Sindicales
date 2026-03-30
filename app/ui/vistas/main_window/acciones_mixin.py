@@ -94,6 +94,24 @@ class AccionesMainWindowMixin:
     def _show_pdf_actions_dialog(self, generated_path) -> None:
         return show_pdf_actions_dialog(self, generated_path)
 
+    def _show_optional_notice(
+        self, settings_key: str, title: str, message: str
+    ) -> None:
+        settings = getattr(self, "_settings", None)
+        value = getattr(settings, "value", None)
+        if callable(value) and bool(value(settings_key, False, type=bool)):
+            return
+        dialog_class = getattr(self, "_optional_confirm_dialog_class", None)
+        if not callable(dialog_class):
+            self.toast.info(message, title=title)
+            return
+        dialog = dialog_class(title, message, self)
+        dialog.exec()
+        skip_next = getattr(getattr(dialog, "skip_next_check", None), "isChecked", None)
+        set_value = getattr(settings, "setValue", None)
+        if callable(skip_next) and skip_next() and callable(set_value):
+            set_value(settings_key, True)
+
     def _show_error_detail(self, title: str, message: str, details: str) -> None:
         from app.ui.qt_compat import QMessageBox
 

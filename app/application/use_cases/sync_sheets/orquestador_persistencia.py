@@ -131,6 +131,8 @@ class OrquestadorPersistenciaSync:
 
         def _resolver_persona_para_solicitud(self, row: dict[str, Any], identificador: str) -> int | None:
             delegada_uuid, delegada_nombre = extraer_datos_delegada(row)
+            if not delegada_nombre:
+                delegada_nombre = self._resolver_nombre_delegada_por_uuid(delegada_uuid)
             if not delegada_uuid:
                 logger.warning(
                     "Solicitud %s sin delegada_uuid, resolviendo por nombre '%s'",
@@ -148,6 +150,31 @@ class OrquestadorPersistenciaSync:
                 return None
             logger.info("Delegada resuelta: %s %s", resolved_uuid, delegada_nombre)
             return persona_id
+
+        def _resolver_nombre_delegada_por_uuid(self, delegada_uuid: str) -> str:
+            uuid_value = str(delegada_uuid or "").strip()
+            if not uuid_value:
+                return ""
+            cache = getattr(self, "_delegadas_nombre_por_uuid_cache", None)
+            if cache is None:
+                cache = self._construir_cache_nombres_delegadas()
+                self._delegadas_nombre_por_uuid_cache = cache
+            return str(cache.get(uuid_value, "")).strip()
+
+        def _construir_cache_nombres_delegadas(self) -> dict[str, str]:
+            try:
+                values = self._client.read_all_values("delegadas")
+            except Exception:
+                logger.debug("No se pudo construir cache de delegadas para resolver solicitudes.", exc_info=True)
+                return {}
+            _, rows = rows_with_index(values, worksheet_name="delegadas")
+            cache: dict[str, str] = {}
+            for _, row in rows:
+                uuid_value = str(row.get("uuid") or "").strip()
+                nombre_value = " ".join(str(row.get("nombre") or "").split())
+                if uuid_value and nombre_value and uuid_value not in cache:
+                    cache[uuid_value] = nombre_value
+            return cache
 
         def _insert_cuadrante_from_remote(self, uuid_value: str, row: dict[str, Any]) -> None:
             cursor = self._connection.cursor()
@@ -269,6 +296,7 @@ class OrquestadorPersistenciaSync:
 
         def _reset_write_batch_state(self) -> None:
             self._servicio_escritura_lotes.reiniciar()
+            self._delegadas_nombre_por_uuid_cache = None
 
         def _queue_values_batch_update(self, worksheet: Any, row_number: int, col_idx: int, value: Any) -> None:
             self._servicio_escritura_lotes.encolar_backfill(worksheet, row_number, col_idx, value)
