@@ -214,9 +214,9 @@ class SheetsClient(SheetsClientPort):
             raise RuntimeError("Spreadsheet no inicializado. Llama a open_spreadsheet primero.")
         nombre_hoja = worksheet_name or "solicitudes"
         spreadsheet_id = getattr(self._spreadsheet, "id", None)
-        celda_canaria = "ZZ1"
-        valor_escritura = f"SYNC_PREFLIGHT::{int(time.time() * 1000)}"
         worksheet = self.get_worksheet(nombre_hoja)
+        celda_canaria = self._resolve_write_canary_cell(worksheet)
+        valor_escritura = f"SYNC_PREFLIGHT::{int(time.time() * 1000)}"
         logger.info(
             "SYNC_WRITE_PREFLIGHT_START",
             extra={
@@ -230,40 +230,22 @@ class SheetsClient(SheetsClientPort):
             lambda: worksheet.acell(celda_canaria).value,
             spreadsheet_id=spreadsheet_id,
         )
-        try:
-            self._with_write_retry(
-                f"worksheet.update({nombre_hoja}!{celda_canaria})",
-                lambda: worksheet.update(celda_canaria, [[valor_escritura]], value_input_option="RAW"),
-                spreadsheet_id=spreadsheet_id,
-            )
-        except Exception:
-            logger.exception(
-                "SYNC_WRITE_PREFLIGHT_ERROR",
-                extra={
-                    "spreadsheet_id": spreadsheet_id,
-                    "worksheet": nombre_hoja,
-                    "celda": celda_canaria,
-                    "fase": "write_canary",
-                },
-            )
-            raise
-        try:
-            self._with_write_retry(
-                f"worksheet.update_restore({nombre_hoja}!{celda_canaria})",
-                lambda: worksheet.update(celda_canaria, [[valor_original or ""]], value_input_option="RAW"),
-                spreadsheet_id=spreadsheet_id,
-            )
-        except Exception:
-            logger.exception(
-                "SYNC_WRITE_PREFLIGHT_ERROR",
-                extra={
-                    "spreadsheet_id": spreadsheet_id,
-                    "worksheet": nombre_hoja,
-                    "celda": celda_canaria,
-                    "fase": "restore",
-                },
-            )
-            raise
+        self._run_write_preflight_update(
+            worksheet=worksheet,
+            worksheet_name=nombre_hoja,
+            spreadsheet_id=spreadsheet_id,
+            celda_canaria=celda_canaria,
+            valor=valor_escritura,
+            fase="write_canary",
+        )
+        self._run_write_preflight_update(
+            worksheet=worksheet,
+            worksheet_name=nombre_hoja,
+            spreadsheet_id=spreadsheet_id,
+            celda_canaria=celda_canaria,
+            valor=valor_original or "",
+            fase="restore",
+        )
         logger.info(
             "SYNC_WRITE_PREFLIGHT_OK",
             extra={
@@ -272,6 +254,43 @@ class SheetsClient(SheetsClientPort):
                 "celda": celda_canaria,
             },
         )
+
+    @staticmethod
+    def _resolve_write_canary_cell(worksheet: object) -> str:
+        columnas = max(int(getattr(worksheet, "col_count", 26) or 26), 1)
+        filas = max(int(getattr(worksheet, "row_count", 1) or 1), 1)
+        return f"{_column_index_to_letters(columnas)}{filas}"
+
+    def _run_write_preflight_update(
+        self,
+        *,
+        worksheet: object,
+        worksheet_name: str,
+        spreadsheet_id: str | None,
+        celda_canaria: str,
+        valor: str,
+        fase: str,
+    ) -> None:
+        operation = f"worksheet.update_{fase}({worksheet_name}!{celda_canaria})"
+        try:
+            self._with_write_retry(
+                operation,
+                lambda: worksheet.update(
+                    celda_canaria, [[valor]], value_input_option="RAW"
+                ),
+                spreadsheet_id=spreadsheet_id,
+            )
+        except Exception:
+            logger.exception(
+                "SYNC_WRITE_PREFLIGHT_ERROR",
+                extra={
+                    "spreadsheet_id": spreadsheet_id,
+                    "worksheet": worksheet_name,
+                    "celda": celda_canaria,
+                    "fase": fase,
+                },
+            )
+            raise
 
     def get_service_account_email(self) -> str | None:
         return self._service_account_email
@@ -421,3 +440,12 @@ class SheetsClient(SheetsClientPort):
                 "service_account_email": error.service_account_email,
             },
         )
+
+
+def _column_index_to_letters(index: int) -> str:
+    letras: list[str] = []
+    actual = max(index, 1)
+    while actual > 0:
+        actual, resto = divmod(actual - 1, 26)
+        letras.append(chr(ord("A") + resto))
+    return "".join(reversed(letras))

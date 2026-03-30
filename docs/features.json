@@ -2,14 +2,14 @@
   {
     "id": "FTR-019",
     "nombre": "Ocultar estado operativo redundante y omitir refresh del historico oculto",
-    "estado": "TODO",
+    "estado": "DONE",
     "tipo": "UI",
     "tests": [
       "tests/presentacion/test_ui_operativa_pendientes_contract.py",
       "tests/presentacion/test_ui_operativa_status_panel_hidden.py",
       "tests/ui/test_historico_refresh_hidden_skip.py"
     ],
-    "notas": "Prioridad 3 (bug pequeno reproducible). El backlog quedo desalineado: en este worktree hay cambios parciales de UI no reflejados en docs/features.json. Ejecutar solo la subfeature minima: ocultar panel/tips de operativa cuando no aportan senal visible y evitar refresh_historico si la pestana Historico no esta activa, sin mezclar launcher, read-only ni otros ajustes locales."
+    "notas": "Verificado el 2026-03-28 con .venv\\Scripts\\python.exe -m pytest -q tests/presentacion/test_ui_operativa_pendientes_contract.py tests/presentacion/test_ui_operativa_status_panel_hidden.py tests/ui/test_historico_refresh_hidden_skip.py, .venv\\Scripts\\python.exe -m pytest -q tests/test_repo_legacy_cleanup_guardrails.py, .venv\\Scripts\\python.exe -m scripts.features_sync, .venv\\Scripts\\python.exe -m scripts.gate_rapido y .venv\\Scripts\\python.exe -m scripts.gate_pr. El backlog queda alineado con el estado real: la UI ya oculta el panel/tips operativos redundantes y refresh_historico omite la consulta cuando la pestana Historico no esta activa."
   },
   {
     "id": "FTR-018",

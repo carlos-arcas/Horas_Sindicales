@@ -69,6 +69,7 @@ class SheetsSyncService(
         self._enable_backfill = enable_backfill
         self._defer_local_commits = False
         self._pull_apply_context: PullApplyContext | None = None
+        self._delegadas_nombre_por_uuid_cache: dict[str, str] | None = None
 
     def pull(self) -> SyncSummary:
         spreadsheet = self._ensure_connection_ready()

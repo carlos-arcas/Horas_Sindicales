@@ -1,0 +1,72 @@
+{
+  "sync_id": "05491955-52b1-4506-a4b6-a1ab4147a8b3",
+  "started_at": "2026-03-30T20:52:02.929287",
+  "finished_at": "2026-03-30T20:52:12.905587",
+  "attempts": 1,
+  "final_status": "OK_WARN",
+  "status": "OK_WARN",
+  "source": "Spreadsheet …ksdINQ · credencial credentials.json",
+  "scope": "Sincronización completa de delegadas y solicitudes.",
+  "idempotency_criteria": "Una solicitud por delegada, fecha y tramo.",
+  "actor": "Dora Inés Solano Franco",
+  "counts": {
+    "created": 19,
+    "updated": 0,
+    "skipped": 47,
+    "conflicts": 0,
+    "errors": 0
+  },
+  "warnings": [
+    "47 solicitudes ya existían y no cambiaron."
+  ],
+  "errors": [],
+  "conflicts": [],
+  "items_changed": [
+    "Local: +19 / ~0",
+    "Sheets: +0 / ~0"
+  ],
+  "entries": [
+    {
+      "timestamp": "2026-03-30T20:52:12.905587",
+      "severity": "INFO",
+      "section": "Operación",
+      "entity": "Sync",
+      "message": "Sincronización finalizada.",
+      "suggested_action": ""
+    },
+    {
+      "timestamp": "2026-03-30T20:52:12.905587",
+      "severity": "INFO",
+      "section": "Cambios aplicados",
+      "entity": "Solicitud",
+      "message": "Local +19/~0; Sheets +0/~0.",
+      "suggested_action": ""
+    },
+    {
+      "timestamp": "2026-03-30T20:52:12.905587",
+      "severity": "WARN",
+      "section": "Cambios aplicados",
+      "entity": "Solicitud",
+      "message": "47 solicitudes ya existían y no cambiaron.",
+      "suggested_action": "Revisar filtros y confirmar si el comportamiento era esperado."
+    }
+  ],
+  "attempt_history": [
+    {
+      "attempt_number": 1,
+      "status": "OK_WARN",
+      "created": 19,
+      "updated": 0,
+      "conflicts": 0,
+      "errors": 0
+    }
+  ],
+  "duration_ms": 9976,
+  "rows_total_local": 0,
+  "rows_scanned_remote": 0,
+  "api_calls_count": 0,
+  "retry_count": 0,
+  "conflicts_count": 0,
+  "error_count": 0,
+  "success_rate": 1.0
+}

@@ -1,14 +1,5 @@
 # Features pendientes
 
-## FTR-019 - Ocultar estado operativo redundante y omitir refresh del historico oculto
-- Estado: **TODO**
-- Tipo: `UI`
-- Tests:
-  - `tests/presentacion/test_ui_operativa_pendientes_contract.py`
-  - `tests/presentacion/test_ui_operativa_status_panel_hidden.py`
-  - `tests/ui/test_historico_refresh_hidden_skip.py`
-- Notas: Prioridad 3 (bug pequeno reproducible). El backlog quedo desalineado: en este worktree hay cambios parciales de UI no reflejados en docs/features.json. Ejecutar solo la subfeature minima: ocultar panel/tips de operativa cuando no aportan senal visible y evitar refresh_historico si la pestana Historico no esta activa, sin mezclar launcher, read-only ni otros ajustes locales.
-
 ## FTR-011 - Ejecutar validacion final en Windows real y consolidar evidencia de cierre
 - Estado: **BLOCKED**
 - Tipo: `INFRA`

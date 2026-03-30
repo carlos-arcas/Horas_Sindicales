@@ -54,6 +54,7 @@ from app.ui.vistas.confirmacion_orquestacion import (
     ResultadoConfirmacionFlujo,
     on_insertar_sin_pdf,
 )
+from app.ui.vistas.main_window.acciones_mixin import AccionesMainWindowMixin
 
 RUTA_ANTERIOR_UI = Path("tests/ui/test_confirmar_pdf_flow.py")
 RUTA_ACTUAL_PRESENTACION = Path("tests/presentacion/test_confirmar_pdf_flow.py")
@@ -218,6 +219,36 @@ def test_click_con_seleccion_llama_use_case_con_argumentos() -> None:
     _persona, selected, pdf_path = window._execute_confirmar_with_pdf.call_args.args
     assert [sol.id for sol in selected] == [7]
     assert pdf_path == "/tmp/salida.pdf"
+
+
+def test_show_optional_notice_persiste_preferencia_y_no_falla() -> None:
+    eventos: list[tuple[str, str]] = []
+
+    class _Dialogo:
+        def __init__(self, title: str, message: str, _parent) -> None:
+            eventos.append((title, message))
+            self.skip_next_check = SimpleNamespace(isChecked=lambda: True)
+
+        def exec(self) -> int:
+            eventos.append(("exec", "ok"))
+            return 1
+
+    class _Window(AccionesMainWindowMixin):
+        pass
+
+    window = _Window()
+    window.toast = SimpleNamespace(info=Mock())
+    window._toast_success = Mock()
+    window._settings = SimpleNamespace(
+        value=lambda *_args, **_kwargs: False, setValue=Mock()
+    )
+    window._optional_confirm_dialog_class = _Dialogo
+
+    window._show_optional_notice("historico/no_visible", "Título", "Mensaje")
+
+    assert eventos == [("Título", "Mensaje"), ("exec", "ok")]
+    window._settings.setValue.assert_called_once_with("historico/no_visible", True)
+    window.toast.info.assert_not_called()
     window._toast_success.assert_not_called()
 
 

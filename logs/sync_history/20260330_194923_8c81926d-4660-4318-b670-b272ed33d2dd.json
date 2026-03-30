@@ -1,0 +1,91 @@
+{
+  "sync_id": "8c81926d-4660-4318-b670-b272ed33d2dd",
+  "started_at": "2026-03-30T19:49:13.504515",
+  "finished_at": "2026-03-30T19:49:23.466383",
+  "attempts": 1,
+  "final_status": "ERROR",
+  "status": "ERROR",
+  "source": "Spreadsheet …ksdINQ · credencial credentials.json",
+  "scope": "Sincronización completa de delegadas y solicitudes.",
+  "idempotency_criteria": "Una solicitud por delegada, fecha y tramo.",
+  "actor": "Dora Inés Solano Franco",
+  "counts": {
+    "created": 42,
+    "updated": 0,
+    "skipped": 38,
+    "conflicts": 0,
+    "errors": 19
+  },
+  "warnings": [
+    "19 solicitudes ya existían y no cambiaron.",
+    "19 filas omitidas por filtro de delegada."
+  ],
+  "errors": [
+    "Error en 19 solicitudes durante la sincronización."
+  ],
+  "conflicts": [],
+  "items_changed": [
+    "Local: +0 / ~0",
+    "Sheets: +42 / ~0"
+  ],
+  "entries": [
+    {
+      "timestamp": "2026-03-30T19:49:23.466383",
+      "severity": "INFO",
+      "section": "Operación",
+      "entity": "Sync",
+      "message": "Sincronización finalizada.",
+      "suggested_action": ""
+    },
+    {
+      "timestamp": "2026-03-30T19:49:23.466383",
+      "severity": "INFO",
+      "section": "Cambios aplicados",
+      "entity": "Solicitud",
+      "message": "Local +0/~0; Sheets +42/~0.",
+      "suggested_action": ""
+    },
+    {
+      "timestamp": "2026-03-30T19:49:23.466383",
+      "severity": "WARN",
+      "section": "Cambios aplicados",
+      "entity": "Solicitud",
+      "message": "19 solicitudes ya existían y no cambiaron.",
+      "suggested_action": "Revisar filtros y confirmar si el comportamiento era esperado."
+    },
+    {
+      "timestamp": "2026-03-30T19:49:23.466383",
+      "severity": "WARN",
+      "section": "Cambios aplicados",
+      "entity": "Solicitud",
+      "message": "19 filas omitidas por filtro de delegada.",
+      "suggested_action": "Revisar filtros y confirmar si el comportamiento era esperado."
+    },
+    {
+      "timestamp": "2026-03-30T19:49:23.466383",
+      "severity": "ERROR",
+      "section": "Errores",
+      "entity": "Sync",
+      "message": "Error en 19 solicitudes durante la sincronización.",
+      "suggested_action": "Reintentar solo fallidos."
+    }
+  ],
+  "attempt_history": [
+    {
+      "attempt_number": 1,
+      "status": "ERROR",
+      "created": 42,
+      "updated": 0,
+      "conflicts": 0,
+      "errors": 19
+    }
+  ],
+  "duration_ms": 9961,
+  "rows_total_local": 0,
+  "rows_scanned_remote": 0,
+  "api_calls_count": 0,
+  "retry_count": 0,
+  "conflicts_count": 0,
+  "error_count": 19,
+  "success_rate": 0.5476190476190477
+}

@@ -1,0 +1,61 @@
+{
+  "sync_id": "2b65bb8c-395f-4e7b-993a-1638c5a7eba0",
+  "started_at": "2026-03-30T19:08:24.831667",
+  "finished_at": "2026-03-30T19:08:32.364343",
+  "attempts": 1,
+  "final_status": "ERROR",
+  "status": "ERROR",
+  "source": "Spreadsheet …ksdINQ · credencial credentials.json",
+  "scope": "Sincronización completa de delegadas y solicitudes.",
+  "idempotency_criteria": "Una solicitud por delegada, fecha y tramo.",
+  "actor": "Dora Inés Solano Franco",
+  "counts": {
+    "created": 0,
+    "updated": 0,
+    "skipped": 0,
+    "conflicts": 0,
+    "errors": 1
+  },
+  "warnings": [],
+  "errors": [
+    "No se pudo completar la operación\nCausa probable: No fue posible acceder a los datos o al servicio externo.\nAcción recomendada: Reintenta. Si persiste, revisa la configuración o contacta soporte."
+  ],
+  "conflicts": [],
+  "items_changed": [],
+  "entries": [
+    {
+      "timestamp": "2026-03-30T19:08:32.364343",
+      "severity": "ERROR",
+      "section": "Errores",
+      "entity": "Red",
+      "message": "No se pudo completar la operación\nCausa probable: No fue posible acceder a los datos o al servicio externo.\nAcción recomendada: Reintenta. Si persiste, revisa la configuración o contacta soporte.",
+      "suggested_action": "Revisa configuración o red. Reintenta solo fallidos."
+    },
+    {
+      "timestamp": "2026-03-30T19:08:32.364343",
+      "severity": "INFO",
+      "section": "Operación",
+      "entity": "Sync",
+      "message": "Traceback (most recent call last):\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\infrastructure\\sheets_client.py\", line 343, in _with_write_retry\n    return operation()\n           ^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\infrastructure\\sheets_client.py\", line 207, in <lambda>\n    lambda: self._spreadsheet.values_batch_update(body),\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\.venv\\Lib\\site-packages\\gspread\\spreadsheet.py\", line 204, in values_batch_update\n    return self.client.values_batch_update(self.id, body=body)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\.venv\\Lib\\site-packages\\gspread\\http_client.py\", line 268, in values_batch_update\n    r = self.request(\"post\", url, json=body)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\.venv\\Lib\\site-packages\\gspread\\http_client.py\", line 128, in request\n    raise APIError(response)\ngspread.exceptions.APIError: APIError: [400]: Invalid data[0]: Range (cuadrantes!A208:J221) exceeds grid limits. Max rows: 207, max columns: 12\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\ui\\controllers\\sync_controller.py\", line 58, in run\n    result = self._operation()\n             ^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\ui\\controllers\\sync_controller.py\", line 126, in <lambda>\n    operation=lambda: self.window._sync_service.sync_bidirectional(),\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\core\\metrics.py\", line 55, in wrapper\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\application\\sync_sheets_use_case.py\", line 29, in sync_bidirectional\n    summary = self._sync_port.sync_bidirectional()\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\infrastructure\\sync_sheets_adapter.py\", line 45, in sync_bidirectional\n    return self._run_with_connection(build_service_operation(\"sync_bidirectional\"))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\infrastructure\\sync_sheets_adapter.py\", line 75, in _run_with_connection\n    return operation(service)\n           ^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\infrastructure\\sync_sheets_adapter_puros.py\", line 14, in _operation\n    return method(*args)\n           ^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\application\\use_cases\\sync_sheets\\use_case.py\", line 102, in sync_bidirectional\n    push_summary = self._push_with_spreadsheet(spreadsheet)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\application\\use_cases\\sync_sheets\\orquestador_push.py\", line 39, in _push_with_spreadsheet\n    uploaded_count, conflict_count = self._push_cuadrantes(spreadsheet, last_sync_at)\n                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\application\\use_cases\\sync_sheets\\orquestador_push.py\", line 162, in _push_cuadrantes\n    self._flush_write_batches(spreadsheet, worksheet)\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\application\\use_cases\\sync_sheets\\orquestador_persistencia.py\", line 277, in _flush_write_batches\n    self._servicio_escritura_lotes.flush(\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\application\\use_cases\\sync_sheets\\servicio_escritura_lotes.py\", line 84, in flush\n    self._write_batch(body=body, cliente=cliente, spreadsheet=spreadsheet)\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\application\\use_cases\\sync_sheets\\servicio_escritura_lotes.py\", line 128, in _write_batch\n    cliente.values_batch_update(body)\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\infrastructure\\sheets_client.py\", line 205, in values_batch_update\n    self._with_write_retry(\n  File \"C:\\Users\\arcas\\.codex\\worktrees\\48a7\\Horas_Sindicales\\app\\infrastructure\\sheets_client.py\", line 348, in _with_write_retry\n    raise mapped_error from exc\napp.domain.sheets_errors.SheetsConfigError: {\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Invalid data[0]: Range (cuadrantes!A208:J221) exceeds grid limits. Max rows: 207, max columns: 12\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n\n",
+      "suggested_action": ""
+    }
+  ],
+  "attempt_history": [
+    {
+      "attempt_number": 1,
+      "status": "ERROR",
+      "created": 0,
+      "updated": 0,
+      "conflicts": 0,
+      "errors": 1
+    }
+  ],
+  "duration_ms": 7532,
+  "rows_total_local": 0,
+  "rows_scanned_remote": 0,
+  "api_calls_count": 0,
+  "retry_count": 0,
+  "conflicts_count": 0,
+  "error_count": 1,
+  "success_rate": 0.0
+}

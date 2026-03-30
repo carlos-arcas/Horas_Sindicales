@@ -17,11 +17,13 @@ class _WorksheetFake:
         self.valor_actual = valor_inicial
         self.falla_en = falla_en
         self.error = error
+        self.row_count = 200
+        self.col_count = 17
         self.batch_update_calls: list[dict[str, object]] = []
         self.update_calls: list[tuple[str, list[list[str]], str]] = []
 
     def acell(self, celda: str) -> _Cell:
-        assert celda == "ZZ1"
+        assert celda in {"Q200", "C5"}
         return _Cell(self.valor_actual)
 
     def update(self, celda: str, valores: list[list[str]], *, value_input_option: str) -> None:
@@ -83,7 +85,19 @@ def test_check_write_access_hace_escritura_reversible() -> None:
     client.check_write_access("solicitudes")
 
     assert len(worksheet.update_calls) == 2
+    assert worksheet.update_calls[0][0] == "Q200"
     assert worksheet.update_calls[1][1] == [["valor-original"]]
+
+
+def test_check_write_access_usa_celda_dentro_del_grid() -> None:
+    worksheet = _WorksheetFake(valor_inicial="anterior")
+    worksheet.row_count = 5
+    worksheet.col_count = 3
+    client, _ = _build_client(worksheet)
+
+    client.check_write_access("solicitudes")
+
+    assert worksheet.update_calls[0][0] == "C5"
 
 
 @pytest.mark.parametrize(

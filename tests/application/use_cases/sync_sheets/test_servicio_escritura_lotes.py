@@ -10,6 +10,8 @@ from app.application.use_cases.sync_sheets.servicio_escritura_lotes import Servi
 class _FakeWorksheet:
     def __init__(self, title: str) -> None:
         self.title = title
+        self.row_count = 10
+        self.resize = Mock()
 
 
 class _FakeSpreadsheet:
@@ -84,3 +86,25 @@ def test_flush_sin_operaciones_no_escribe_ni_falla() -> None:
 
     cliente.values_batch_update.assert_not_called()
     spreadsheet.values_batch_update.assert_not_called()
+
+
+def test_flush_redimensiona_hoja_si_el_append_supera_el_grid() -> None:
+    servicio = ServicioEscrituraLotes()
+    cliente = _FakeCliente()
+    worksheet = _FakeWorksheet("cuadrantes")
+    worksheet.row_count = 2
+    spreadsheet = _FakeSpreadsheet()
+
+    servicio.encolar_alta(worksheet, ["uuid", "estado"], {"uuid": "u-1", "estado": "A"})
+    servicio.encolar_alta(worksheet, ["uuid", "estado"], {"uuid": "u-2", "estado": "B"})
+    servicio.encolar_alta(worksheet, ["uuid", "estado"], {"uuid": "u-3", "estado": "C"})
+
+    servicio.flush(
+        spreadsheet=spreadsheet,
+        worksheet=worksheet,
+        cliente=cliente,
+        lector_valores=Mock(return_value=[["uuid", "estado"], ["old-1", "X"]]),
+    )
+
+    worksheet.resize.assert_called_once_with(rows=5)
+    assert worksheet.row_count == 5

@@ -31,6 +31,8 @@ class _FakeWorksheet:
     def __init__(self, title: str, values: list[list[str]] | None = None) -> None:
         self.title = title
         self._values = values or []
+        self.row_count = len(self._values) or 1
+        self.resize = Mock()
 
     def get_all_values(self) -> list[list[str]]:
         return self._values
@@ -67,6 +69,7 @@ def test_multiple_rows_flush_to_single_values_batch_update(connection) -> None:
             "data": [{"range": "'delegadas'!A2:B3", "values": [["u1", "A"], ["u2", "B"]]}],
         }
     )
+    worksheet.resize.assert_called_once_with(rows=3)
 
 
 def test_cache_avoids_duplicate_worksheet_fetch() -> None:
