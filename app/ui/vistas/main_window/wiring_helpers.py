@@ -4,7 +4,7 @@ import logging
 import os
 
 from app.ui.copy_catalog import copy_text
-from app.ui.qt.slot_seguro import envolver_slot_seguro
+from app.ui.qt_slot_seguro import envolver_slot_seguro
 
 logger = logging.getLogger(__name__)
 
